@@ -1,0 +1,13 @@
+# the seed dump is NOT committed (proprietary, and ~15 MB)
+*.backup
+*.dump
+*.sql.gz
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+
+# editor / OS
+.DS_Store
+*.swp
