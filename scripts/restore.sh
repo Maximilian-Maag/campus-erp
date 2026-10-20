@@ -35,11 +35,21 @@ docker run -d --name "$CONTAINER" \
   -p "127.0.0.1:$PORT:5432" postgres:16-alpine >/dev/null
 
 echo "==> waiting for readiness"
-for _ in {1..30}; do
-  if docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+ready=0
+for _ in {1..60}; do
+  if docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then ready=1; break; fi
+  if [[ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" != true ]]; then
+    echo "sandbox exited during startup; container logs:" >&2
+    docker logs "$CONTAINER" >&2 || true
+    exit 1
+  fi
   sleep 1
 done
-docker exec "$CONTAINER" pg_isready -U postgres >/dev/null
+if (( ready == 0 )); then
+  echo "sandbox not ready after 60s; container logs:" >&2
+  docker logs "$CONTAINER" >&2 || true
+  exit 1
+fi
 
 echo "==> creating database $DB"
 docker exec "$CONTAINER" psql -U postgres -qc "DROP DATABASE IF EXISTS $DB;"
