@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict WcNisxb19qyPkfKOHo1ixpJ7pc1wizkJk93RGK7BrbqSWWVgfYbZMhi3apwb8Rd
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -195803,5 +195802,4 @@ ALTER TABLE sva4.__zpprot DISABLE TRIGGER zpprotdb;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict WcNisxb19qyPkfKOHo1ixpJ7pc1wizkJk93RGK7BrbqSWWVgfYbZMhi3apwb8Rd
 

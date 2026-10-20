@@ -28,6 +28,10 @@ docker exec "$CONTAINER" pg_isready -U postgres >/dev/null || {
 echo "==> schema_full.sql (DDL)"
 write "$OUT/schema_full.sql" \
   docker exec "$CONTAINER" pg_dump -U postgres -d "$DB" --schema-only --no-owner --no-acl
+# pg_dump 16.15+ injects a random \restrict/\unrestrict nonce (an injection
+# guard); strip it so the artefact is byte-reproducible run to run.
+grep -vE '^\\(un)?restrict ' "$OUT/schema_full.sql" > "$OUT/schema_full.sql.tmp" \
+  && mv "$OUT/schema_full.sql.tmp" "$OUT/schema_full.sql"
 
 echo "==> inventory.tsv"
 write "$OUT/inventory.tsv" psql -tAF$'\t' -c "
