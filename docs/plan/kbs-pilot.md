@@ -4,6 +4,19 @@ The first vertical slice: replace the HISKBS cash-book module end to end. Its
 purpose is to **prove the platform** (tenancy, audit, ETL, interfaces, CI) on the
 smallest, most self-contained legacy module before touching HR or the ledger.
 
+## Status
+
+| Slice | State |
+|---|---|
+| S0 platform foundations | **in progress** — tenant DSN (`DATABASE_URL`), embedded migration runner, append-only hash-chained audit store, CI with a Postgres service |
+| S1 cash-book core | **in progress** — day lifecycle (open / book / close), PostgreSQL repository, HTTP API, audit event on every write |
+| S2–S8 | not started |
+
+What exists is a **vertical slice, not parity**: only the cash-book day lifecycle.
+The legacy processes FR-K1..K7 (payment orders, SEPA export, MT940 import, dunning,
+foundations, tax-office data) are not implemented. Interfaces (S3/S4) are blocked on
+golden files, and the parallel run (S8) is blocked on a production extract.
+
 ## Why Kasse first
 
 - **94 tables, 18 with data** — the smallest module; fastest to reach parity.

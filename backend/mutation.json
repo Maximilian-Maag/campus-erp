@@ -3,12 +3,39 @@
   "tool": "gremlins",
   "note": "Mutation floor 0.85 (ADR-0008). Targets are domain packages; entrypoints and generated code are exempt with a reason.",
   "targets": [
-    { "path": "internal/core/audit", "lang": "go" },
-    { "path": "internal/core/sepa", "lang": "go" },
-    { "path": "internal/platform/config", "lang": "go" }
+    {
+      "path": "internal/core/audit",
+      "lang": "go"
+    },
+    {
+      "path": "internal/core/sepa",
+      "lang": "go"
+    },
+    {
+      "path": "internal/modules/kasse",
+      "lang": "go"
+    },
+    {
+      "path": "internal/platform/config",
+      "lang": "go"
+    },
+    {
+      "path": "internal/platform/db",
+      "lang": "go"
+    },
+    {
+      "path": "internal/httpapi",
+      "lang": "go"
+    }
   ],
   "exempt": [
-    { "path": "cmd/", "reason": "process entrypoints: wiring only, exercised by e2e" },
-    { "path": "internal/modules/", "reason": "module placeholders, no logic yet" }
+    {
+      "path": "cmd/",
+      "reason": "process entrypoints: wiring only, exercised by e2e"
+    },
+    {
+      "path": "internal/modules/",
+      "reason": "module placeholders, no logic yet"
+    }
   ]
 }

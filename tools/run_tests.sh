@@ -44,7 +44,11 @@ PY
 
 # ── Go: vet + build + unit tests ────────────────────────────────────────────
 if [[ -d $ROOT/backend ]]; then
-  say "== Go: vet + build + unit tests =="
+  say "== Go: vet + build + unit + integration tests =="
+  # The integration/e2e tests must not be skipped in CI: they need a database.
+  if [[ -n $CI ]] && [[ -z ${DATABASE_URL:-} ]]; then
+    say "FAIL  DATABASE_URL is required in CI (integration tests must not skip)"; fail=1
+  fi
   if have go; then
     ( cd "$ROOT/backend" && go vet ./... && go build ./... && go test ./... )
     rc=$?
@@ -77,9 +81,15 @@ if [[ -d $ROOT/backend ]]; then
   if have gremlins; then
     targets="$(mutation_targets)"
     [[ -z $targets ]] && { say "FAIL  mutation/go no targets in mutation.json"; fail=1; }
+    # gremlins caches its coverage profile in the user cache dir. Sharing it across
+    # packages yields WRONG, non-reproducible scores (observed: a package reporting
+    # 0 killed after another package had run), so give every package its own cache.
+    cache_root="$(mktemp -d)"
+    trap 'rm -rf "$cache_root"' EXIT
     while read -r pkg; do
       [[ -z $pkg ]] && continue
-      out="$( cd "$ROOT/backend" && gremlins unleash --threshold-efficacy "$MUTATION_THRESHOLD" "./$pkg" 2>&1 )"
+      out="$( cd "$ROOT/backend" && XDG_CACHE_HOME="$cache_root/${pkg//\//_}" \
+        gremlins unleash --threshold-efficacy "$MUTATION_THRESHOLD" "./$pkg" 2>&1 )"
       rc=$?
       if grep -q "No results to report" <<<"$out"; then
         say "FAIL  mutation/go $pkg produced no mutants (vacuous run)"; fail=1
