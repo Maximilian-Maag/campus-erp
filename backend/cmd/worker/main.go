@@ -5,7 +5,7 @@ package main
 import (
 	"log"
 
-	"github.com/Maximilian-Maag/hisinone-erp/backend/internal/platform/config"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 )
 
 func main() {

@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Maximilian-Maag/hisinone-erp/backend/internal/core/audit"
-	"github.com/Maximilian-Maag/hisinone-erp/backend/internal/platform/config"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 )
 
 func main() {

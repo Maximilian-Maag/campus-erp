@@ -29,7 +29,9 @@ system it replaces.
 
 - Unit, integration and e2e tests are **mandatory**.
 - **Mutation floor is 0.85**, enforced by the tools themselves:
-  - Go: `gremlins unleash --threshold-efficacy 85 ./internal/...`
+  - Go: `gremlins unleash --threshold-efficacy 85 ./<package>` **per package**
+    (`./internal/...` is a vacuous pass — gremlins reports "No results" and exits 0;
+    `tools/run_tests.sh` enumerates `backend/mutation.json` and fails on an empty run)
   - TS: `stryker run` with `thresholds.break = 85` (`frontend/stryker.conf.json`)
 - Run everything: `tools/run_tests.sh`. In CI every toolchain is required; a
   missing tool **fails** (no silent skips).

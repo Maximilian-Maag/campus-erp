@@ -26,6 +26,7 @@ skeleton.
 | `docs/glossary.md` | German domain terms |
 | `docs/requirements.md` | **target-system requirements** (parity, interfaces, compliance, NFRs) |
 | `docs/adr/` | **architecture decision records** 0001–0008 |
+| `docs/plan/` | **delivery roadmap** + Phase 1 (Kasse) pilot plan |
 | `docs/open-questions.md` | open points |
 | `c4/workspace.dsl` | **authoritative C4 model** (as-is + target), Structurizr |
 
