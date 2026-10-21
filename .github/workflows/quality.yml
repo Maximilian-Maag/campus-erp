@@ -6,11 +6,28 @@ on:
 
 jobs:
   go:
-    name: go (vet, build, unit)
+    name: go (vet, build, unit + integration)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: erp
+          POSTGRES_DB: campus_erp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # GitHub Actions sets CI=true, so integration tests must NOT skip here.
+      DATABASE_URL: postgres://postgres:erp@localhost:5432/campus_erp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -44,6 +61,23 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: erp
+          POSTGRES_DB: campus_erp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # gremlins runs each package's tests, integration tests included.
+      DATABASE_URL: postgres://postgres:erp@localhost:5432/campus_erp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -54,9 +88,12 @@ jobs:
         run: |
           set -euo pipefail
           targets=$(python3 -c "import json;print(' '.join(t['path'] for t in json.load(open('mutation.json'))['targets']))")
+          cache_root=$(mktemp -d)
           for pkg in $targets; do
             echo "::group::gremlins $pkg"
-            out=$(gremlins unleash --threshold-efficacy 85 "./$pkg" 2>&1) || { echo "$out"; exit 1; }
+            # Isolate gremlins' coverage cache per package: a shared cache yields
+            # wrong, non-reproducible scores.
+            out=$(XDG_CACHE_HOME="$cache_root/${pkg//\//_}" gremlins unleash --threshold-efficacy 85 "./$pkg" 2>&1) || { echo "$out"; exit 1; }
             echo "$out"
             if echo "$out" | grep -q "No results to report"; then
               echo "no mutants produced for $pkg (vacuous run)"; exit 1

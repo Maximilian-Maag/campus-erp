@@ -63,6 +63,17 @@ emits an **append-only, hash-chained audit event**. See `docs/adr/`.
 
 ## Status
 
-Design phase. ADRs, requirements, C4 and a verified code skeleton exist; no
-business logic is implemented yet. The legacy analysis under `schema/` and
-`docs/01..04` remains valid and is the input to the ETL (ADR-0001).
+**Phase 1 (Kasse) in progress.** The design phase is complete (ADRs, requirements,
+C4), and the first vertical slice is implemented and tested:
+
+- platform foundations: tenant DSN, embedded migration runner, append-only
+  hash-chained audit store, CI with a Postgres service
+- cash-book day lifecycle (open / book / close) with a PostgreSQL repository and
+  an HTTP API
+- quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
+  Go target package, policy-as-code green
+
+Not yet implemented: the remaining Kasse processes (payment orders, SEPA export,
+MT940 import, dunning, foundations, tax-office data) and every other module. The
+legacy analysis under `schema/` and `docs/01..04` remains valid and is the ETL
+input (ADR-0001).

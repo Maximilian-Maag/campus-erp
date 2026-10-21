@@ -1,0 +1,88 @@
+package httpapi_test
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
+)
+
+// stubBook satisfies the handler's cash-book interface and returns a fixed error,
+// so the transport layer's unexpected-error branches are reachable without a DB.
+type stubBook struct {
+	day     kasse.Day
+	booking kasse.Booking
+	err     error
+}
+
+func (s stubBook) OpenDay(context.Context, time.Time, int64, string) (kasse.Day, error) {
+	return s.day, s.err
+}
+
+func (s stubBook) Book(context.Context, int64, kasse.BookingKind, int64, string, string) (kasse.Booking, error) {
+	return s.booking, s.err
+}
+
+func (s stubBook) CloseDay(context.Context, int64, string) (kasse.Day, error) {
+	return s.day, s.err
+}
+
+func (s stubBook) Day(context.Context, int64) (kasse.Day, error) { return s.day, s.err }
+
+type stubAudit struct{ err error }
+
+func (s stubAudit) Verify(context.Context) error { return s.err }
+
+func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
+	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubAudit{}).Handler())
+	defer srv.Close()
+
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{"get day", http.MethodGet, "/api/cashbook/days/1", ""},
+		{"book", http.MethodPost, "/api/cashbook/days/1/bookings", `{"kind":"income","amount_cents":5,"purpose":"x"}`},
+		{"close", http.MethodPost, "/api/cashbook/days/1/close", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if resp := doJSON(t, c.method, srv.URL+c.path, "alice", c.body); resp.StatusCode != http.StatusInternalServerError {
+				t.Fatalf("%s %s = %d, want 500", c.method, c.path, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
+	srv := httptest.NewServer(httpapi.New(stubBook{}, stubAudit{err: errors.New("chain broken")}).Handler())
+	defer srv.Close()
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/audit/verify", "", ""); resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("audit verify = %d, want 500", resp.StatusCode)
+	}
+}
+
+func TestHTTPHealthAndNotFound(t *testing.T) {
+	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubAudit{}).Handler())
+	defer srv.Close()
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/healthz", "", ""); resp.StatusCode != http.StatusOK {
+		t.Fatalf("healthz = %d, want 200", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/cashbook/days/1", "", ""); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("get day = %d, want 404", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/cashbook/days/1/close", "a", ""); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("close = %d, want 404", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/cashbook/days/1/bookings", "a",
+		`{"kind":"income","amount_cents":5,"purpose":"x"}`); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("book = %d, want 404", resp.StatusCode)
+	}
+}

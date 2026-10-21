@@ -37,6 +37,13 @@ system it replaces.
   missing tool **fails** (no silent skips).
 - A scored target is run three times and must report identical numbers before a
   score is quoted.
+- **Run gremlins one package per cache dir.** gremlins caches its coverage profile
+  in the user cache dir; a shared cache across packages produces wrong,
+  non-reproducible scores (a package once reported 0 killed after another had run).
+  `tools/run_tests.sh` and CI set `XDG_CACHE_HOME` per package.
+- `db.MigrationsFrom`'s sort comparator (`Version < Version`) is an **equivalent**
+  mutant: duplicate versions are rejected before the sort, so `<` and `<=` order
+  identically. The surviving mutant is expected and documented, not a gap.
 
 ## Policy as code
 
