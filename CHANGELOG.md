@@ -2,6 +2,19 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.2.1] - 2026-10-20
+
+### Changed
+- Repository renamed `hisinone-db-reverse-engineering` → `campus-erp`; Go module path
+  updated to `github.com/Maximilian-Maag/campus-erp/backend`.
+- `AGENTS.md`: corrected the Go mutation command — `./internal/...` is a vacuous pass;
+  the runner enumerates packages from `backend/mutation.json`.
+
+### Added
+- `docs/plan/roadmap.md` — phase order (Kasse → KLR → Personal → Finanzen → Campus).
+- `docs/plan/kbs-pilot.md` — Phase 1 (Kasse) delivery plan: scope, interfaces, target
+  schema slice, ETL, slices S0–S8 with acceptance tests, risks, Definition of Done.
+
 ## [0.2.0] - 2026-10-20
 
 Target-system design phase: decisions, requirements, C4 and a verified skeleton.

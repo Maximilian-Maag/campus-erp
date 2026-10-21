@@ -52,7 +52,7 @@ and file formats?
 
 ## Q9 — Repository name & visibility?
 
-Currently `hisinone-db-reverse-engineering` (private). Rename if Q1 changes the
+Currently `campus-erp` (private). Rename if Q1 changes the
 target.
 
 ## Q10 — Compliance?
