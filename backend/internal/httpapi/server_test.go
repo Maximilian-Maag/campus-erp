@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -19,7 +20,9 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
 )
 
-func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
+// testPool opens the tenant database with migrations applied. Tests that only need
+// unique values use it directly; newTestServer builds on it.
+func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	dsn := os.Getenv(db.EnvDatabaseURL)
 	if dsn == "" {
@@ -37,6 +40,12 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	if _, err := db.Migrate(ctx, pool); err != nil {
 		t.Fatalf("db.Migrate: %v", err)
 	}
+	return pool
+}
+
+func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
+	t.Helper()
+	pool := testPool(t)
 	store := audit.NewStore(pool)
 	srv := httptest.NewServer(httpapi.New(
 		kasse.NewService(kasse.NewRepo(pool), store),
@@ -49,13 +58,41 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	return srv, pool
 }
 
-func uniqueDate() string {
-	base := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
-	return base.AddDate(0, 0, int(time.Now().UnixNano()%90000)).Format("2006-01-02")
+// testSeqNext returns the next value of a test-only sequence, created on demand.
+// The database persists between runs and is shared by test packages that Go runs in
+// parallel, so uniqueness must come from the database itself: a timestamp can
+// collide and a "find the first free value" scan races.
+//
+// CREATE SEQUENCE IF NOT EXISTS is not atomic, so parallel packages can race on it;
+// the sequence merely existing is all we need, so the error is ignored.
+func testSeqNext(t *testing.T) int64 {
+	t.Helper()
+	pool := testPool(t)
+	ctx := context.Background()
+	_, _ = pool.Exec(ctx, "CREATE SEQUENCE IF NOT EXISTS test_unique_seq")
+	var n int64
+	if err := pool.QueryRow(ctx, "SELECT nextval('test_unique_seq')").Scan(&n); err != nil {
+		t.Fatalf("test sequence: %v", err)
+	}
+	return n
 }
 
-// countSubject counts audit events for one subject: the chain is global and shared
-// with tests running concurrently in other packages.
+// uniqueSuffix is a short, database-unique token (fits the legacy 8-char code
+// column) for building codes and numbers in tests.
+func uniqueSuffix(t *testing.T) string {
+	t.Helper()
+	return strconv.FormatInt(testSeqNext(t), 36)
+}
+
+// uniqueDate returns a database-unique business date. The base year is far beyond
+// anything the suite uses, so a freshly created sequence cannot collide with rows
+// left behind by earlier runs.
+func uniqueDate(t *testing.T) string {
+	t.Helper()
+	base := time.Date(5000, 1, 1, 0, 0, 0, 0, time.UTC)
+	return base.AddDate(0, 0, int(testSeqNext(t))).Format(time.DateOnly)
+}
+
 func countSubject(t *testing.T, pool *pgxpool.Pool, subject string) int {
 	t.Helper()
 	var n int
@@ -116,7 +153,7 @@ func TestHTTPCashBookFlow(t *testing.T) {
 		t.Fatalf("healthz = %d", resp.StatusCode)
 	}
 
-	day := openDay(t, srv, uniqueDate())
+	day := openDay(t, srv, uniqueDate(t))
 	base := srv.URL + "/api/cashbook/days/" + itoa(day.ID)
 
 	resp := doJSON(t, http.MethodPost, base+"/bookings", "alice",
@@ -179,7 +216,7 @@ func TestHTTPMalformedBodies(t *testing.T) {
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/cashbook/days", "a", `{"business_date":"02.03.2026"}`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad date = %d, want 400", resp.StatusCode)
 	}
-	day := openDay(t, srv, uniqueDate())
+	day := openDay(t, srv, uniqueDate(t))
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/cashbook/days/"+itoa(day.ID)+"/bookings", "a", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad book body = %d, want 400", resp.StatusCode)
 	}
@@ -193,7 +230,7 @@ func TestHTTPMalformedBodies(t *testing.T) {
 // audit stream). This also kills the mutant that inverts the header check.
 func TestHTTPActorFallsBackToAnonymous(t *testing.T) {
 	srv, pool := newTestServer(t)
-	day := openDayAs(t, srv, uniqueDate(), "")
+	day := openDayAs(t, srv, uniqueDate(t), "")
 
 	var actor string
 	if err := pool.QueryRow(context.Background(),
@@ -208,7 +245,7 @@ func TestHTTPActorFallsBackToAnonymous(t *testing.T) {
 // Error branches of every handler.
 func TestHTTPErrorBranches(t *testing.T) {
 	srv, _ := newTestServer(t)
-	date := uniqueDate()
+	date := uniqueDate(t)
 	day := openDay(t, srv, date)
 	base := srv.URL + "/api/cashbook/days/" + itoa(day.ID)
 

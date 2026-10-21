@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -41,15 +42,40 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// uniqueDate returns a business date unlikely to collide with another test.
-func uniqueDate() time.Time {
-	base := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
-	return base.AddDate(0, 0, int(time.Now().UnixNano()%90000))
+// testSeqNext returns the next value of a test-only sequence, created on demand.
+// The database persists between runs and is shared by test packages that Go runs in
+// parallel, so uniqueness must come from the database itself: a timestamp can
+// collide and a "find the first free value" scan races.
+//
+// CREATE SEQUENCE IF NOT EXISTS is not atomic, so parallel packages can race on it;
+// the sequence merely existing is all we need, so the error is ignored.
+func testSeqNext(t *testing.T) int64 {
+	t.Helper()
+	pool := testPool(t)
+	ctx := context.Background()
+	_, _ = pool.Exec(ctx, "CREATE SEQUENCE IF NOT EXISTS test_unique_seq")
+	var n int64
+	if err := pool.QueryRow(ctx, "SELECT nextval('test_unique_seq')").Scan(&n); err != nil {
+		t.Fatalf("test sequence: %v", err)
+	}
+	return n
 }
 
-// countSubject counts audit events for one subject. The audit chain is global and
-// shared with tests running concurrently in other packages, so assertions must be
-// scoped to this test's own subject rather than the whole table.
+// uniqueSuffix is a short, database-unique token (fits the legacy 8-char code
+// column) for building codes and numbers in tests.
+func uniqueSuffix(t *testing.T) string {
+	t.Helper()
+	return strconv.FormatInt(testSeqNext(t), 36)
+}
+
+// uniqueDate returns a database-unique business date. The base year is far beyond
+// anything the suite uses, so a freshly created sequence cannot collide with rows
+// left behind by earlier runs.
+func uniqueDate(t *testing.T) time.Time {
+	t.Helper()
+	base := time.Date(5000, 1, 1, 0, 0, 0, 0, time.UTC)
+	return base.AddDate(0, 0, int(testSeqNext(t)))
+}
 func countSubject(t *testing.T, pool *pgxpool.Pool, subject string) int {
 	t.Helper()
 	var n int
@@ -66,7 +92,7 @@ func TestCashBookLifecycle(t *testing.T) {
 	store := audit.NewStore(pool)
 	svc := kasse.NewService(kasse.NewRepo(pool), store)
 
-	day, err := svc.OpenDay(ctx, uniqueDate(), 10000, "alice")
+	day, err := svc.OpenDay(ctx, uniqueDate(t), 10000, "alice")
 	if err != nil {
 		t.Fatalf("OpenDay: %v", err)
 	}
@@ -141,7 +167,7 @@ func TestOpenDayRejectsDuplicateBusinessDate(t *testing.T) {
 	pool := testPool(t)
 	svc := kasse.NewService(kasse.NewRepo(pool), audit.NewStore(pool))
 
-	date := uniqueDate()
+	date := uniqueDate(t)
 	if _, err := svc.OpenDay(ctx, date, 0, "alice"); err != nil {
 		t.Fatalf("first OpenDay: %v", err)
 	}
