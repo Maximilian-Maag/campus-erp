@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.6.1] - 2026-10-21
+
+### Fixed
+- **Flaky integration tests.** Test helpers built unique codes and business dates
+  from a modulo-reduced timestamp (`time.Now().UnixNano() % 1000000`). The database
+  persists between runs, so values repeated and collided on unique constraints —
+  `TestDunningDuplicateLevelIsRejected` failed with a duplicate-level error, and the
+  cash-book tests could collide on `business_date`. Uniqueness now comes from a
+  database sequence (`testSeqNext`), which is the only source that is unique across
+  parallel test packages *and* across runs. Business dates start at year 5000 so a
+  freshly created sequence cannot collide with rows from earlier runs.
+- Two consequences of that sequence, both hit and fixed while doing it:
+  `CREATE SEQUENCE IF NOT EXISTS` is not atomic (parallel packages race on it — the
+  same class of bug as the migration race), and a sequence starting at 1 re-issues
+  values earlier runs already consumed.
+
 ## [0.6.0] - 2026-10-21
 
 Slice S7: tax-office data and foundations.

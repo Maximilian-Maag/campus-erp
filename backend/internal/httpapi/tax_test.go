@@ -2,19 +2,15 @@ package httpapi_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
-	"time"
 )
 
-func uniq(prefix string) string {
-	return fmt.Sprintf("%s%d", prefix, time.Now().UnixNano()%1000000)
-}
+func uniq(t *testing.T, prefix string) string { return prefix + uniqueSuffix(t) }
 
 func TestHTTPVATTypeFlow(t *testing.T) {
 	srv, pool := newTestServer(t)
-	code := uniq("T")
+	code := uniq(t, "T")
 
 	resp := doJSON(t, http.MethodPost, srv.URL+"/api/vat-types", "alice",
 		`{"code":"`+code+`","description":"Regelsteuersatz","rate_basis_points":1900,"kind":"output"}`)
@@ -58,12 +54,12 @@ func TestHTTPVATTypeErrorBranches(t *testing.T) {
 	}
 	// unknown kind -> validation error
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/vat-types", "alice",
-		`{"code":"`+uniq("T")+`","rate_basis_points":1900,"kind":"sideways"}`); resp.StatusCode != http.StatusUnprocessableEntity {
+		`{"code":"`+uniq(t, "T")+`","rate_basis_points":1900,"kind":"sideways"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("unknown kind = %d, want 422", resp.StatusCode)
 	}
 	// rate out of range
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/vat-types", "alice",
-		`{"code":"`+uniq("T")+`","rate_basis_points":10001,"kind":"output"}`); resp.StatusCode != http.StatusUnprocessableEntity {
+		`{"code":"`+uniq(t, "T")+`","rate_basis_points":10001,"kind":"output"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("rate out of range = %d, want 422", resp.StatusCode)
 	}
 	// code too long
@@ -79,7 +75,7 @@ func TestHTTPVATTypeErrorBranches(t *testing.T) {
 
 func TestHTTPTaxOfficeAndFoundation(t *testing.T) {
 	srv, _ := newTestServer(t)
-	num := uniq("9")
+	num := uniq(t, "9")
 
 	// tax office with a valid IBAN
 	resp := doJSON(t, http.MethodPost, srv.URL+"/api/tax-offices", "alice",
@@ -102,7 +98,7 @@ func TestHTTPTaxOfficeAndFoundation(t *testing.T) {
 
 	// invalid IBAN -> validation error
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/tax-offices", "alice",
-		`{"year":2026,"number":"`+uniq("8")+`","name":"Amt","iban":"DE02120300000000202052"}`); resp.StatusCode != http.StatusUnprocessableEntity {
+		`{"year":2026,"number":"`+uniq(t, "8")+`","name":"Amt","iban":"DE02120300000000202052"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid IBAN = %d, want 422", resp.StatusCode)
 	}
 	// duplicate -> conflict
@@ -122,10 +118,10 @@ func TestHTTPTaxOfficeAndFoundation(t *testing.T) {
 
 	// foundation
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundations", "alice",
-		`{"year":2026,"number":"`+uniq("7")+`","description":"Deutschlandstipendium","carry_over":true}`); resp.StatusCode != http.StatusCreated {
+		`{"year":2026,"number":"`+uniq(t, "7")+`","description":"Deutschlandstipendium","carry_over":true}`); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create foundation = %d", resp.StatusCode)
 	}
-	fnum := uniq("6")
+	fnum := uniq(t, "6")
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundations", "alice",
 		`{"year":2026,"number":"`+fnum+`","description":"Stiftung"}`); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create foundation = %d", resp.StatusCode)
@@ -136,7 +132,7 @@ func TestHTTPTaxOfficeAndFoundation(t *testing.T) {
 	}
 	// blank description -> validation error
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundations", "alice",
-		`{"year":2026,"number":"`+uniq("5")+`","description":"   "}`); resp.StatusCode != http.StatusUnprocessableEntity {
+		`{"year":2026,"number":"`+uniq(t, "5")+`","description":"   "}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("blank description = %d, want 422", resp.StatusCode)
 	}
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundations", "alice", `{`); resp.StatusCode != http.StatusBadRequest {

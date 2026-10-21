@@ -41,6 +41,11 @@ system it replaces.
   in the user cache dir; a shared cache across packages produces wrong,
   non-reproducible scores (a package once reported 0 killed after another had run).
   `tools/run_tests.sh` and CI set `XDG_CACHE_HOME` per package.
+- **Never derive test-uniqueness from a timestamp.** The test database persists
+  between runs and is shared by packages Go runs in parallel, so a modulo-reduced
+  `time.Now()` repeats and collides on unique constraints. Use the database
+  (`testSeqNext`, a sequence) — it is the only source unique across packages *and*
+  runs. `CREATE SEQUENCE IF NOT EXISTS` is not atomic either.
 - `db.MigrationsFrom`'s sort comparator (`Version < Version`) is an **equivalent**
   mutant: duplicate versions are rejected before the sort, so `<` and `<=` order
   identically. The surviving mutant is expected and documented, not a gap.

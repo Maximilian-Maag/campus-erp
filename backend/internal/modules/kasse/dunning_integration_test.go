@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
@@ -18,7 +17,7 @@ func newDunningFixture(t *testing.T) (*kasse.DunningService, string) {
 	pool := testPool(t)
 	svc := kasse.NewDunningService(kasse.NewDunningRepo(pool), audit.NewStore(pool))
 
-	code := fmt.Sprintf("L%d", time.Now().UnixNano()%1000000)
+	code := "L" + uniqueSuffix(t)
 	level := kasse.DunningLevel{
 		Year: 2026, Code: code, Description: "Teststufe", DaysAllowed: 14, Active: true, NextCode: "2",
 		Bands: []kasse.DunningBand{
@@ -131,7 +130,7 @@ func TestDunningRepoRejectsInvalidBand(t *testing.T) {
 	pool := testPool(t)
 	repo := kasse.NewDunningRepo(pool)
 
-	code := fmt.Sprintf("L%d", time.Now().UnixNano()%1000000)
+	code := "L" + uniqueSuffix(t)
 	_, err := repo.CreateLevel(ctx, kasse.DunningLevel{
 		Year: 2026, Code: code, Description: "ungültig", Active: true,
 		Bands: []kasse.DunningBand{

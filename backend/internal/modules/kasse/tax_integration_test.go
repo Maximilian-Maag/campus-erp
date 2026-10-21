@@ -3,9 +3,7 @@ package kasse_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
@@ -21,7 +19,7 @@ func TestVATTypeRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	svc := newTaxService(t)
 
-	code := fmt.Sprintf("T%d", time.Now().UnixNano()%1000000)
+	code := "T" + uniqueSuffix(t)
 	vat, err := kasse.NewVATType(code, "Teststeuersatz", 700, kasse.VATInput)
 	if err != nil {
 		t.Fatalf("NewVATType: %v", err)
@@ -62,9 +60,9 @@ func TestVATTypeRoundTrip(t *testing.T) {
 func TestTaxOfficeAndFoundationPersist(t *testing.T) {
 	ctx := context.Background()
 	svc := newTaxService(t)
-	suffix := time.Now().UnixNano() % 1000000
+	suffix := uniqueSuffix(t)
 
-	office, err := kasse.NewTaxOffice(2026, fmt.Sprintf("%d", suffix), "Finanzamt Musterstadt",
+	office, err := kasse.NewTaxOffice(2026, suffix, "Finanzamt Musterstadt",
 		"Steuerweg 1", "12345", "Musterstadt", "Land Muster", "DE02120300000000202051", "BYLADEM1001")
 	if err != nil {
 		t.Fatalf("NewTaxOffice: %v", err)
@@ -80,7 +78,7 @@ func TestTaxOfficeAndFoundationPersist(t *testing.T) {
 		t.Fatalf("want ErrTaxOfficeExists, got %v", err)
 	}
 
-	foundation, err := kasse.NewFoundation(2026, fmt.Sprintf("%d", suffix), "Deutschlandstipendium", true)
+	foundation, err := kasse.NewFoundation(2026, suffix, "Deutschlandstipendium", true)
 	if err != nil {
 		t.Fatalf("NewFoundation: %v", err)
 	}

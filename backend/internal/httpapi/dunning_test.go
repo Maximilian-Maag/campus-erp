@@ -2,15 +2,11 @@ package httpapi_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"testing"
-	"time"
 )
 
-func uniqueLevelCode() string {
-	return fmt.Sprintf("L%d", time.Now().UnixNano()%1000000)
-}
+func uniqueLevelCode(t *testing.T) string { return "L" + uniqueSuffix(t) }
 
 func levelPayload(code string) string {
 	return `{"year":2026,"code":"` + code + `","description":"1. Mahnung","days_allowed":14,` +
@@ -44,7 +40,7 @@ func createLevel(t *testing.T, srv, code string) levelJSON {
 
 func TestHTTPDunningFlow(t *testing.T) {
 	srv, _ := newTestServer(t)
-	code := uniqueLevelCode()
+	code := uniqueLevelCode(t)
 	level := createLevel(t, srv.URL, code)
 
 	if len(level.Bands) != 2 {
@@ -81,7 +77,7 @@ func TestHTTPDunningFlow(t *testing.T) {
 
 func TestHTTPDunningErrorBranches(t *testing.T) {
 	srv, _ := newTestServer(t)
-	code := uniqueLevelCode()
+	code := uniqueLevelCode(t)
 
 	// malformed bodies
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/dunning/levels", "alice", `{`); resp.StatusCode != http.StatusBadRequest {
