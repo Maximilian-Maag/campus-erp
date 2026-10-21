@@ -11,12 +11,11 @@ const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /** Extract the tenant from a hostname. Throws on an unusable host. */
 export function tenantFromHostname(host: string): string {
-  const h = (host ?? '').trim().toLowerCase();
+  const h = host.trim().toLowerCase();
   if (h === '') {
     throw new Error('tenant: empty hostname');
   }
-  // Strip an optional :port and any trailing dot.
-  const hostname = h.split(':')[0].replace(/\.$/, '');
+  const hostname = h.split(':')[0];
   const label = hostname.split('.')[0];
   if (!LABEL.test(label)) {
     throw new Error(`tenant: invalid hostname "${host}"`);
