@@ -1,0 +1,94 @@
+openapi: 3.1.0
+info:
+  title: HIS-ERP Replacement API
+  version: 0.1.0
+  description: >
+    Contract-first API (ADR-0003). The Go backend is the source of truth; the
+    Angular client is generated from this document. Tenant is resolved from the
+    request host / token claim, not from a path segment (ADR-0002).
+servers:
+  - url: https://{tenant}.erp.example.org/api
+    variables:
+      tenant:
+        default: demo
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Liveness/readiness probe
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+  /audit:
+    post:
+      operationId: appendAuditEvent
+      summary: Append an event to the append-only audit stream (ADR-0006)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditEventInput"
+      responses:
+        "200":
+          description: The stored event, with sequence and hash assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEvent"
+        "400":
+          description: Malformed request body
+  /audit/verify:
+    get:
+      operationId: verifyAuditChain
+      summary: Recompute the audit hash chain
+      responses:
+        "200":
+          description: Chain intact
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+        "500":
+          description: Chain broken
+components:
+  schemas:
+    AuditEventInput:
+      type: object
+      required: [actor, action, subject]
+      properties:
+        actor:
+          type: string
+          example: alice
+        action:
+          type: string
+          example: create
+        subject:
+          type: string
+          example: stelle/1
+        before:
+          type: string
+        after:
+          type: string
+    AuditEvent:
+      allOf:
+        - $ref: "#/components/schemas/AuditEventInput"
+        - type: object
+          required: [seq, at, prev_hash, hash]
+          properties:
+            seq:
+              type: integer
+              format: int64
+            at:
+              type: string
+              format: date-time
+            prev_hash:
+              type: string
+            hash:
+              type: string

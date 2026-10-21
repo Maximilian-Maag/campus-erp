@@ -3,7 +3,11 @@
   "plugin": false,
   "shell_style": true,
   "shebang": "bash",
-  "ignore": [],
+  "ignore": [
+    "frontend/tsconfig.json",
+    "frontend/tsconfig.app.json",
+    "frontend/tsconfig.spec.json"
+  ],
   "allow": {
     "symlinks": {},
     "artifacts": {},
