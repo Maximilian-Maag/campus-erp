@@ -76,6 +76,8 @@ C4), and the first vertical slice is implemented and tested:
   audit event per transition
 - dunning levels with any number of ordered amount bands, integer basis-point rates
   and dunning notices that store the charge they were issued with
+- VAT types with exact net/gross/tax arithmetic, tax-office master records with
+  ISO 7064 mod-97 IBAN validation, and foundation references
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
   Go target package, policy-as-code green
 
