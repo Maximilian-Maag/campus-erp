@@ -30,12 +30,15 @@ type auditVerifier interface {
 
 // Server wires HTTP handlers to the domain services.
 type Server struct {
-	kasse cashBook
-	audit auditVerifier
+	kasse  cashBook
+	orders orderService
+	audit  auditVerifier
 }
 
 // New returns a Server.
-func New(k cashBook, a auditVerifier) *Server { return &Server{kasse: k, audit: a} }
+func New(k cashBook, o orderService, a auditVerifier) *Server {
+	return &Server{kasse: k, orders: o, audit: a}
+}
 
 // Handler returns the routed HTTP handler.
 func (s *Server) Handler() http.Handler {
@@ -46,6 +49,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/cashbook/days/{id}", s.getDay)
 	mux.HandleFunc("POST /api/cashbook/days/{id}/bookings", s.book)
 	mux.HandleFunc("POST /api/cashbook/days/{id}/close", s.closeDay)
+
+	mux.HandleFunc("POST /api/payment-orders", s.createOrder)
+	mux.HandleFunc("GET /api/payment-orders/{id}", s.getOrder)
+	mux.HandleFunc("POST /api/payment-orders/{id}/submit", s.submitOrder)
+	mux.HandleFunc("POST /api/payment-orders/{id}/approve", s.approveOrder)
+	mux.HandleFunc("POST /api/payment-orders/{id}/reject", s.rejectOrder)
+	mux.HandleFunc("POST /api/payment-orders/{id}/cancel", s.cancelOrder)
 	return mux
 }
 

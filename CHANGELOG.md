@@ -2,6 +2,37 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.4.0] - 2026-10-21
+
+Slice S2: payment orders ("Anordnungen") with an enforced four-eyes principle.
+
+### Added
+- **Canonical schema** (`0002_payment_order.sql`): `payment_recipient`,
+  `budget_position`, `payment_order`, `payment_order_decision`. Replaces the legacy
+  `kbs.ao` ~120-column god table, its 16 free-text slots, and the `kbs.zv_freigabe`
+  row-clone "approval" (which recorded neither who released an order nor whether the
+  releaser differed from the creator). Real foreign keys, integer cents, ISO-4217
+  currency — the legacy schema has zero declared FKs.
+- **Four-eyes rule**, enforced in the domain: `Approve` refuses when the approver is
+  the creator *or* the submitter (`ErrFourEyes` → HTTP 403).
+- **Workflow**: draft → submitted → approved / rejected / cancelled, with a mandatory
+  reason on rejection and no cancellation of an approved order.
+- **Decision trail**: one `payment_order_decision` row per transition, plus a
+  hash-chained audit event — every decision is recorded in the current state, the
+  history and the audit chain.
+- **HTTP API**: `POST /api/payment-orders`, `GET /{id}`, `POST /{id}/{submit,approve,reject,cancel}`.
+- **Optimistic locking** on transitions (`SaveOrderStatus` guarded by the status it
+  was read at → `ErrOrderConflict`).
+- Tests: domain (four-eyes, validation boundaries), service with fakes, Postgres
+  integration, HTTP e2e, and a concurrent-migration regression test.
+- `docs/legacy/kbs-payment-orders.md` — measured legacy findings behind the design.
+
+### Fixed
+- **Migrations are now advisory-locked.** `CREATE TABLE IF NOT EXISTS` is not
+  race-free: two migrators starting at once (parallel test packages, or api and
+  worker booting together) collided on `pg_type` with a duplicate-key error. Caught
+  by the integration tests, covered by a 4-way concurrent regression test.
+
 ## [0.3.0] - 2026-10-21
 
 Phase 1 (Kasse) vertical slice: platform foundations + cash-book day lifecycle.
