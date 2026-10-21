@@ -24,3 +24,9 @@ npm-debug.log*
 # editor / OS
 .DS_Store
 *.swp
+
+# frontend test artefacts
+/frontend/reports/
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/coverage/
