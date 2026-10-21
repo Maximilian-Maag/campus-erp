@@ -1,0 +1,98 @@
+name: quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go:
+    name: go (vet, build, unit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./...
+
+  web:
+    name: web (build, unit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx ng build --configuration development
+      # browsers come from karma.conf.js (headless, --no-sandbox)
+      - run: npx ng test --watch=false
+
+  mutation-go:
+    name: mutation go (floor 85)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - run: go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
+      - name: gremlins per package (fail on a vacuous run)
+        run: |
+          set -euo pipefail
+          targets=$(python3 -c "import json;print(' '.join(t['path'] for t in json.load(open('mutation.json'))['targets']))")
+          for pkg in $targets; do
+            echo "::group::gremlins $pkg"
+            out=$(gremlins unleash --threshold-efficacy 85 "./$pkg" 2>&1) || { echo "$out"; exit 1; }
+            echo "$out"
+            if echo "$out" | grep -q "No results to report"; then
+              echo "no mutants produced for $pkg (vacuous run)"; exit 1
+            fi
+            echo "::endgroup::"
+          done
+
+  mutation-web:
+    name: mutation web (floor 85)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx stryker run
+
+  e2e:
+    name: e2e (playwright + a11y)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test

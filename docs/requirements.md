@@ -1,79 +1,188 @@
-# Requirements (baseline — living document)
+# Requirements — Target system (HIS-ERP replacement)
 
-Status: **provisional**. This captures the requirements that can be derived from
-the initial request and the evidence in the dump. The project's ultimate goal has
-not been stated yet; §7 lists what must be decided before these become firm. See
-`open-questions.md`.
+Status: **Accepted baseline** (2026-10-20). Supersedes the earlier context-gathering
+baseline. Living document; changes require an ADR or a dated revision note.
 
-Document conventions: **MUST / SHOULD / MAY** as in RFC 2119. Each requirement is
-`FR-n` (functional) or `NFR-n` (non-functional).
+Conventions: **MUST / SHOULD / MAY** (RFC 2119). IDs: `FR` functional, `IR`
+interface, `CR` compliance, `NFR` non-functional, `TR` tenancy, `MR` migration.
 
-## 1. Context
+## 1. Purpose
 
-- A PostgreSQL dump (`hisrm_muster_30_09_26.backup`) of HIS eG's **Hochschul-ERP**
-  was provided.
-- The requester refers to the product as "HISinOne" but the dump contains the
-  **ERP** modules (Personal/Finanzen/Kasse/KLR), not the campus-management
-  modules. This discrepancy is the first thing to resolve (Q1).
-- The immediate goal is to build **context** (module list + reverse-engineered
-  schema + architecture docs) to support a subsequent project discussion.
+Build an **open-source, drop-in replacement** for the HIS eG Hochschul-ERP
+(Personal, Finanzen/Sachmittel, Kasse, Kosten-/Leistungsrechnung) and, in a later
+phase, the HISinOne campus modules. The product serves **1..N universities**, reuses
+the existing **data** (not the schema), and targets "easy to understand, very
+performant, simple to deploy".
 
-## 2. Stakeholders
+## 2. Scope
+
+In scope: all four ERP modules; the interfaces in §4; multi-tenant operation;
+migration of legacy data.
+Deferred: HISinOne campus modules (APP/STU/EXA/DOC) — same platform, later phase.
+Out of scope: modifying or extending the HIS software; cloud-managed services.
+
+## 3. Stakeholders
 
 | Stakeholder | Interest |
 |---|---|
-| Project sponsor (user) | understanding of HIS structure to steer the project |
-| Future developers | a data model they can build against |
-| (TBD) domain experts | HR/finance/cashier process knowledge to validate semantics |
+| University HR / finance / cashier staff | day-to-day correctness and speed |
+| Hochschulleitung / controlling | reporting and figures |
+| Revision / auditors | audit trail, GoBD/IDW evidence |
+| IT operations (Hochschul-RZ) | deployability, observability, backup |
+| Data protection officer | DSGVO compliance |
+| Open-source contributors | clarity, testability, contribution path |
 
-## 3. Scope (current phase)
+## 4. Functional requirements (parity per module)
 
-In scope:
-- HIS product/module catalogue.
-- Reverse-engineering of the provided dump's schema.
-- C4 architecture documentation of the as-is system.
-- A private repository holding the above, with reproducible tooling.
+The replacement MUST cover the processes of each legacy module. (Process inventory
+derived from the reverse-engineering; each item is verified against a real
+university during rollout.)
 
-Out of scope (so far): application code, data migration, integration
-implementation, any modification of HIS software.
-
-## 4. Functional requirements
+### 4.1 Personal (`sva4`, HISSVA)
 
 | ID | Requirement |
 |---|---|
-| FR-1 | The repo MUST catalogue the modules of the HIS product family, distinguishing HISinOne (campus) from Hochschul-ERP, with the evidence for each. |
-| FR-2 | The repo MUST document the database schema reverse-engineered from the dump: schemas, tables, keys, conventions, and the absence of foreign keys. |
-| FR-3 | The repo MUST map tables to modules and to business domains (at least to the level of coherent clusters). |
-| FR-4 | The repo MUST contain a C4 model (context, container, component, code) of the as-is system, with inferences clearly marked. |
-| FR-5 | The repo MUST contain a glossary decoding the German domain terminology. |
-| FR-6 | The reverse-engineering MUST be reproducible from the dump via scripts (MUST NOT depend on manual steps). |
-| FR-7 | The repo MUST record open questions and assumptions explicitly. |
-| FR-8 | The repository MUST be private. |
+| FR-P1 | Manage positions and staff assignments (Stellen/Personal), incl. validity periods. |
+| FR-P2 | Manage contracts, types of service and pay-scale assignment (Dienstart, Tarif, Besoldung). |
+| FR-P3 | Produce payroll/besoldung notifications to the state pay office (LBV), per Bundesland. |
+| FR-P4 | Travel-expense processing (Reisekosten, `rka_*`). |
+| FR-P5 | Relocation/separation allowance (Trennungsgeld, `ter_*`). |
+| FR-P6 | Benefits-in-kind (geldwerte Vorteile, `gvp_*`, `ggaa`). |
+| FR-P7 | Working-time and leave management (`az_*`, `trg_*`, `ura`). |
+| FR-P8 | Social-insurance reporting (Sozialversicherung, `sas*`, `shv`). |
+| FR-P9 | Statistics delivery (Personalstatistik), per state. |
 
-## 5. Non-functional requirements
+### 4.2 Finanzen / Sachmittel (`mbs`, HISMBS/HISFSV)
 
 | ID | Requirement |
 |---|---|
-| NFR-1 | Reproducibility: `scripts/restore.sh` + `scripts/analyze.sh` MUST regenerate every artefact under `schema/` from the dump. |
-| NFR-2 | Privacy: the dump is Muster (sample) data, but no personal data MUST be introduced into the repo; the dump itself MUST NOT be committed. |
-| NFR-3 | Provenance: every non-obvious claim MUST cite its evidence (source page, table name, or query). Inference MUST be marked. |
-| NFR-4 | Policy-as-code: the repo MUST carry the house `tools/policy_check.py` + `policy.json` + hook + CI, per the user's standard. |
-| NFR-5 | Documentation MUST be plain Markdown/Mermaid, renderable without proprietary tooling. |
+| FR-F1 | General ledger (FiBu): accounts, journals, debtors/creditors, period/year-end close. |
+| FR-F2 | Budget management (Haushalt) incl. budget-consensus workflow (Konsens). |
+| FR-F3 | Incoming-invoice register (Rechnungseingangsbuch) and document handling. |
+| FR-F4 | Procurement/tendering under UVgO/VgV/VOB (requests, offers, orders, awards). |
+| FR-F5 | Supplier and goods-receipt management. |
+| FR-F6 | Property/lease management (GLM) and buildings/parcels. |
+| FR-F7 | Inventory and asset management incl. depreciation (GWG/AfA). |
+| FR-F8 | SEPA payment generation and statement import (see IR-2). |
+| FR-F9 | Third-party funded projects and plans. |
 
-## 6. Constraints & assumptions
+### 4.3 Kasse (`kbs`, HISKBS)
 
-- The dump is a **Muster/seed** database: many tables are empty; it is not
-  production data.
-- Only the database was provided — the application tier is inferred.
-- The database was produced by PostgreSQL 17.9; a newer client (`pg_restore`)
-  is required to read archive format 1.16 (the older `postgres:16` client
-  refuses it — see `scripts/restore.sh`).
-- The schema has **no foreign keys**; integrity is application-enforced.
+| ID | Requirement |
+|---|---|
+| FR-K1 | Cash book (Schalterbuch), bookings, collective bookings. |
+| FR-K2 | Payment orders (Ausgabeanordnung). |
+| FR-K3 | Payment-traffic handling (Zahlweg), releases, four-eyes (Freigabe). |
+| FR-K4 | Bank-statement reconciliation (MT940/CAMT) and return postings to FiBu. |
+| FR-K5 | Dunning (Mahnwesen). |
+| FR-K6 | Foundation cash books (Stiftungen). |
+| FR-K7 | Tax-office data and VAT types. |
 
-## 7. To be decided in the project discussion
+### 4.4 KLR (`cob`, HISCOB)
 
-1. Target product: Hochschul-ERP (this dump) vs HISinOne campus (Q1).
-2. The actual objective: understand / integrate / migrate / replace / report?
-3. Required depth of the data model (cluster-level vs column-level dictionary).
-4. Whether domain experts will validate semantics.
-5. Deliverable format and audience.
+| ID | Requirement |
+|---|---|
+| FR-C1 | Budget structure (BUSA) incl. archived/imported versions and alternative hierarchies. |
+| FR-C2 | Reference quantities (Bezugsgrößen) and recipients. |
+| FR-C3 | Cost/activity lines and apportionment (Umlage: KPUM/UM*). |
+| FR-C4 | Project and study-programme linkage. |
+| FR-C5 | Third-party funding origins. |
+| FR-C6 | Evaluations and report types. |
+
+### 4.5 Cross-cutting functional
+
+| ID | Requirement |
+|---|---|
+| FR-X1 | Role/permission model equivalent to the legacy `sv_rechte_sachb`, with four-eyes on financial postings. |
+| FR-X2 | Reporting/print centre: Bescheide, certificates, Notenspiegel, Krankenkassenlisten, Modulhandbücher. |
+| FR-X3 | Document management (upload/generate/store/retrieve), replaceable storage backend. |
+| FR-X4 | Search across persons/documents (legacy had a dedicated search subsystem). |
+| FR-X5 | Workflow/approval engine (legacy `wof`/`sv_vorgang*`). |
+
+## 5. Interface requirements (external-system parity)
+
+Formats are legally binding; the replacement MUST reproduce them exactly, not
+invent new APIs. See `../c4` for the context diagram.
+
+| ID | Interface | Direction | Notes |
+|---|---|---|---|
+| IR-1 | LBV / state pay office | out (+ returns in) | per-Bundesland formats; SFTP/file |
+| IR-2 | Banks (SEPA pain.001/008, MT940/CAMT.053) | both | EBICS/file; via `connectors` |
+| IR-3 | Finanzamt / ELSTER (ERiC) | out | native dep; via `connectors` |
+| IR-4 | Statistics offices (Personal/Finanzstatistik) | out | per-state formats |
+| IR-5 | Identity provider (Shibboleth/OIDC) | in | OIDC/SAML RP |
+| IR-6 | DMS / document storage | both | own store + optional connector |
+| IR-7 | HISinOne campus / QIS / SAP HCM | both/out | optional connectors |
+| IR-8 | hochschulstart.de / DoSV | both | campus phase |
+
+Every interface MUST have: a versioned format contract, golden-file tests, and an
+idempotent, re-runnable processing path.
+
+## 6. Compliance requirements
+
+| ID | Requirement |
+|---|---|
+| CR-1 | GoBD-conformant, tamper-evident append-only audit trail. |
+| CR-2 | No hard deletes on business data; reconstructable history. |
+| CR-3 | IDW PS 880-relevant controls documented and evidenced for certification. |
+| CR-4 | DSGVO: data-subject export (Auskunft) and pseudonymisation as first-class features. |
+| CR-5 | Separation of duties / four-eyes on financial postings. |
+| CR-6 | Reproducible document generation (template + data version archived). |
+| CR-7 | BITV 2.0 / WCAG 2.1 AA for all UI (legally required). |
+| CR-8 | Haushaltsrecht (LHO) rules supported per state. |
+
+## 7. Non-functional requirements
+
+| ID | Requirement |
+|---|---|
+| NFR-1 | **Scale**: support ≥15,000 users per university; **peak = all users concurrently**; a few hundred concurrent by day; 10–20 by night. |
+| NFR-2 | **Peak read storm** (semester start, results release) MUST be absorbed by read replicas + caching, not degrade write paths. |
+| NFR-3 | **Performance**: interactive page/API responses SHOULD be < 300 ms p95 at expected load. |
+| NFR-4 | **Deployability**: one artifact per service; no manual steps; declarative k8s manifests/Helm. |
+| NFR-5 | **Observability**: structured logs, metrics, traces, correlation IDs; audit stream separate from ops logs. |
+| NFR-6 | **Availability**: target ≥ 99.5% during working hours; graceful degradation for batch. |
+| NFR-7 | **Backup/restore**: per-tenant PITR; restore tested. |
+| NFR-8 | **Security**: OIDC/SAML auth, least-privilege, secrets management, dependency scanning, no secrets in git. |
+| NFR-9 | **Maintainability**: "easy to understand" — documented domain model, no exotic stack, contributor onboarding. |
+| NFR-10 | **Portability**: on-prem, no mandatory cloud dependency. |
+| NFR-11 | **i18n**: German primary, English secondary; translation-key parity enforced in CI. |
+
+## 8. Tenancy & configuration
+
+| ID | Requirement |
+|---|---|
+| TR-1 | Database per tenant on a shared cluster (ADR-0002). |
+| TR-2 | Tenant resolved from hostname/token; no cross-tenant query path. |
+| TR-3 | Per-tenant configuration and theming served at runtime; **no per-tenant build**. |
+| TR-4 | Per-Bundesland regulatory behaviour as data + Go packages selected by tenant config. |
+| TR-5 | Tenant onboarding fully automated (create DB, migrate, seed catalogues, import). |
+
+## 9. Migration requirements
+
+| ID | Requirement |
+|---|---|
+| MR-1 | Schema-driven ETL from the legacy schemas (we hold the full DDL). |
+| MR-2 | Re-runnable and **reconcilable** (row counts, checksums, business invariants). |
+| MR-3 | Parallel run per module before cutover; reversible cutover. |
+| MR-4 | Synthetic fixtures generated from the legacy schema for integration tests (no production extract available). |
+| MR-5 | ETL is isolated from domain code (own packages + queue). |
+
+## 10. Constraints & assumptions
+
+- No production data extract is available; the Muster dump is largely empty.
+- The legacy DB has no foreign keys; integrity must be reconstructed.
+- Certification is required — compliance work is not optional scope.
+- Maintained by the project owner as an open-source project.
+
+## 11. Traceability
+
+| Requirement area | ADR |
+|---|---|
+| New schema + ETL | 0001 |
+| Multi-tenancy | 0002 |
+| Go + Angular + contract-first | 0003 |
+| Modular monolith | 0004 |
+| Connectors isolation | 0005 |
+| Audit / compliance | 0006 |
+| Kubernetes deployment | 0007 |
+| Testing + mutation floor | 0008 |

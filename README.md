@@ -1,87 +1,67 @@
-# HISinOne / HIS-ERP — Database Reverse-Engineering
+# HIS-ERP replacement
 
-Private working repository. Starting context for a project discussion around the
-HIS eG higher-education management software suite.
+An open-source, multi-tenant, drop-in replacement for the HIS eG **Hochschul-ERP**
+(Personal, Finanzen/Sachmittel, Kasse, Kosten-/Leistungsrechnung) and, in a later
+phase, the HISinOne campus modules.
 
-## What this repository is
+This repository holds the reverse-engineered understanding of the legacy system,
+the architecture decisions for the replacement, the C4 model, and the code
+skeleton.
 
-A reverse-engineered description of the database delivered in the seed dump
-`hisrm_muster_30_09_26.backup`, plus a catalogue of the HIS product's modules,
-a C4 model, and a requirements baseline.
+## Goals
 
-It is a **documentation + analysis** repository. It contains no application code.
-All artefacts under `schema/` are machine-generated from the dump and can be
-reproduced with `scripts/`.
+- **Drop-in replacement** for all four legacy ERP modules.
+- **Open source**, serving **1..N universities**.
+- **Easy to understand, very performant, simple to deploy.**
+- **Certifiable** (GoBD / IDW / DSGVO / BITV) — compliance is a design constraint.
 
-## The dump
+## Documentation map
 
-| Property | Value |
+| Path | Contents |
 |---|---|
-| File | `hisrm_muster_30_09_26.backup` |
-| Size | 15,648,251 bytes (~15 MB) |
-| Format | PostgreSQL custom archive, format version `1.16` |
-| Produced by | `pg_dump` 17.9 (Ubuntu 17.9-1.pgdg24.04+1) |
-| Database | `hisrm_muster` |
-| Encoding / locale | UTF8 / `de_DE.UTF-8` (restored here with `C` collation) |
-| Dump date hint | file dated 2025-09-30 (`30_09_26` in name) |
-
-> **Important distinction.** The user-facing name "HISinOne" is the HIS eG
-> *campus management* product line (modules APP / STU / EXA / DOC / …).
-> This dump does **not** contain the campus-management schemas. It contains the
-> **Hochschul-ERP** ("Ressourcenmanagement") modules — Personal, Finanzen,
-> Sachmittel, Kasse, Kosten-/Leistungsrechnung. See
-> [`docs/01-module-catalogue.md`](docs/01-module-catalogue.md) for the full
-> mapping. This is the single most important finding to resolve with the project
-> sponsor.
-
-## Contents at a glance
-
-| Schema | Module (from `db_version`) | Meaning | Tables |
-|---|---|---|---|
-| `sva4` | `HISSVA-GX` | Personal- und Stellenverwaltung | 636 |
-| `mbs` | `HISMBS-UNIX` / `HISFSV-GX` | Finanz- und Sachmittelverfahren | 556 |
-| `cob` | `HISCOB-GX` | Kosten- und Leistungsrechnung | 244 |
-| `kbs` | `HISKBS` | Kassenbuchungssystem | 94 |
-| `hisrm` | (core/framework) | shared core | 3 |
-| `public`, `histest`, `test` | — | bootstrap / test | 1 each |
-
-Totals: **1,536 base tables**, 374 views, 1,117 sequences, 3,601 functions,
-1,439 triggers, 4,352 indexes, 38,453 columns.
+| `docs/01-module-catalogue.md` | HIS product & module catalogue (HISinOne vs Hochschul-ERP) |
+| `docs/02-database-overview.md` | legacy schemas, sizes, conventions, no-FK finding |
+| `docs/03-schema-analysis.md` | reverse-engineered legacy data model |
+| `docs/04-data-dictionary.md` | generated dictionary guide |
+| `docs/glossary.md` | German domain terms |
+| `docs/requirements.md` | **target-system requirements** (parity, interfaces, compliance, NFRs) |
+| `docs/adr/` | **architecture decision records** 0001–0008 |
+| `docs/open-questions.md` | open points |
+| `c4/workspace.dsl` | **authoritative C4 model** (as-is + target), Structurizr |
 
 ## Repository layout
 
 ```
-README.md                     this file
-AGENTS.md                     repo rules (source of the policy checks)
-CHANGELOG.md                  change log
-policy.json                   policy-as-code configuration
-docs/
-  01-module-catalogue.md      HIS product & module catalogue
-  02-database-overview.md     schemas, sizes, conventions, framework layer
-  03-schema-analysis.md       reverse-engineered data model
-  04-data-dictionary.md       how to read the generated dictionary
-  glossary.md                 German→English domain terms
-  requirements.md             requirements baseline (living)
-  open-questions.md           questions to resolve in the discussion
-  c4/                          C4 model: context, container, component, code
-schema/                       GENERATED artefacts (DDL, inventories)
-scripts/                      restore + analysis scripts (reproducibility)
-tools/                        vendored policy checker
+backend/     Go modular monolith (api / worker / connectors)  — ADR-0003, 0004, 0005
+frontend/    Angular SPA                                        — ADR-0003
+contracts/   OpenAPI spec (source of truth for the API client)
+c4/          Structurizr workspace.dsl (as-is + target)
+deploy/      Helm chart + manifests (placeholder)               — ADR-0007
+docs/        requirements, ADRs, legacy analysis
+schema/      generated artefacts from the legacy dump
+scripts/     reproduce the legacy analysis
+tools/       policy checker + quality runner
 ```
 
-## Reproducing
+## Architecture in one paragraph
 
-```bash
-# 1. start a sandbox Postgres and restore the dump
-scripts/restore.sh /path/to/hisrm_muster_30_09_26.backup
+A **modular monolith in Go** (one binary, three roles: `api`, `worker`,
+`connectors`) serves an **Angular SPA** over a contract-first REST/JSON API. Data
+lives in **PostgreSQL, one database per tenant**, on Kubernetes. Long-running work
+(imports, exports, ETL, PDF) runs in `worker` on a Postgres-backed queue; native
+dependencies (ELSTER/ERiC, EBICS) are isolated in `connectors`. Every state change
+emits an **append-only, hash-chained audit event**. See `docs/adr/`.
 
-# 2. regenerate the schema artefacts
-scripts/analyze.sh
-```
+## Quality
+
+- Unit, integration and e2e tests are mandatory; **mutation floor 0.85** (ADR-0008).
+- Run everything: `tools/run_tests.sh`
+- Policy as code: `tools/policy_check.py` (hook: `.githooks/pre-commit`; CI:
+  `.github/workflows/policy.yml`).
+- C4 validation: `c4/README.md`.
 
 ## Status
 
-Context-gathering phase. The module catalogue and schema analysis are complete
-enough to start the project discussion; `docs/requirements.md` and
-`docs/open-questions.md` are deliberately provisional and will be filled in
-during that discussion.
+Design phase. ADRs, requirements, C4 and a verified code skeleton exist; no
+business logic is implemented yet. The legacy analysis under `schema/` and
+`docs/01..04` remains valid and is the input to the ETL (ADR-0001).
