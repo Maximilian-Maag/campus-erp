@@ -37,7 +37,10 @@ func TestStoreAppendSealsAndVerifies(t *testing.T) {
 	ctx := context.Background()
 	store := audit.NewStore(storeTestPool(t))
 
-	var first audit.Event
+	// The chain is global and other packages append to it concurrently, so this
+	// test must not assume it owns the sequence: assert monotonicity and sealing
+	// rather than contiguity.
+	var prevSeq uint64
 	for i := 0; i < 3; i++ {
 		e, err := store.Append(ctx, audit.Event{
 			At: time.Now(), Actor: "alice", Action: "test", Subject: "audit-store-test",
@@ -45,20 +48,19 @@ func TestStoreAppendSealsAndVerifies(t *testing.T) {
 		if err != nil {
 			t.Fatalf("append %d: %v", i, err)
 		}
-		if i == 0 {
-			first = e
-			if e.Seq == 0 {
-				t.Fatal("Append must assign a sequence number")
-			}
-			if e.Hash == "" {
-				t.Fatal("Append must assign a hash")
-			}
-		} else if e.Seq != first.Seq+uint64(i) {
-			t.Fatalf("sequence not contiguous: got %d", e.Seq)
+		if e.Seq == 0 {
+			t.Fatal("Append must assign a sequence number")
+		}
+		if e.Hash == "" {
+			t.Fatal("Append must assign a hash")
 		}
 		if e.PrevHash == "" {
 			t.Fatal("Append must chain to a predecessor")
 		}
+		if i > 0 && e.Seq <= prevSeq {
+			t.Fatalf("sequence must increase: %d then %d", prevSeq, e.Seq)
+		}
+		prevSeq = e.Seq
 	}
 
 	if err := store.Verify(ctx); err != nil {
