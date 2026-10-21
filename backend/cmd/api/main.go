@@ -40,6 +40,7 @@ func main() {
 	api := httpapi.New(
 		kasse.NewService(kasse.NewRepo(pool), store),
 		kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
+		kasse.NewDunningService(kasse.NewDunningRepo(pool), store),
 		store,
 	)
 

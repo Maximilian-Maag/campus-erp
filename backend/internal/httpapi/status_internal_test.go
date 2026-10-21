@@ -68,3 +68,32 @@ func TestStatusForOrder(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusForDunning(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", kasse.ErrNotFound, http.StatusNotFound},
+		{"inactive level", kasse.ErrLevelInactive, http.StatusConflict},
+		{"level exists", kasse.ErrLevelExists, http.StatusConflict},
+		{"code required", kasse.ErrLevelCodeRequired, http.StatusUnprocessableEntity},
+		{"bands required", kasse.ErrBandsRequired, http.StatusUnprocessableEntity},
+		{"bands not ascending", kasse.ErrBandsNotAscending, http.StatusUnprocessableEntity},
+		{"open band not last", kasse.ErrOpenBandNotLast, http.StatusUnprocessableEntity},
+		{"negative band", kasse.ErrNegativeBand, http.StatusUnprocessableEntity},
+		{"claim required", kasse.ErrClaimRequired, http.StatusUnprocessableEntity},
+		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"amount not positive", kasse.ErrAmountNotPositive, http.StatusUnprocessableEntity},
+		{"no band", kasse.ErrNoDunningBand, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForDunning(c.err); got != c.want {
+				t.Fatalf("statusForDunning(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}

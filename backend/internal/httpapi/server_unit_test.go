@@ -76,8 +76,27 @@ func (s stubOrders) Cancel(context.Context, int64, string) (kasse.PaymentOrder, 
 	return s.order, s.err
 }
 
+// stubDunning satisfies the dunning interface with a fixed result.
+type stubDunning struct {
+	level  kasse.DunningLevel
+	notice kasse.DunningNotice
+	err    error
+}
+
+func (s stubDunning) CreateLevel(context.Context, kasse.DunningLevel, string) (kasse.DunningLevel, error) {
+	return s.level, s.err
+}
+
+func (s stubDunning) Level(context.Context, int, string) (kasse.DunningLevel, error) {
+	return s.level, s.err
+}
+
+func (s stubDunning) Issue(context.Context, int, string, string, int64, string) (kasse.DunningNotice, error) {
+	return s.notice, s.err
+}
+
 func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubAudit{}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubDunning{}, stubAudit{}).Handler())
 	defer srv.Close()
 
 	cases := []struct {
@@ -100,7 +119,7 @@ func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
 }
 
 func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{}, stubOrders{}, stubAudit{err: errors.New("chain broken")}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{}, stubOrders{}, stubDunning{}, stubAudit{err: errors.New("chain broken")}).Handler())
 	defer srv.Close()
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/audit/verify", "", ""); resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("audit verify = %d, want 500", resp.StatusCode)
@@ -108,7 +127,7 @@ func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
 }
 
 func TestHTTPHealthAndNotFound(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubOrders{}, stubAudit{}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubOrders{}, stubDunning{}, stubAudit{}).Handler())
 	defer srv.Close()
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/healthz", "", ""); resp.StatusCode != http.StatusOK {
 		t.Fatalf("healthz = %d, want 200", resp.StatusCode)

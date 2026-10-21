@@ -11,14 +11,15 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 | S0 platform foundations | **done for the pilot** — tenant DSN (`DATABASE_URL`), embedded migration runner (advisory-locked, safe under concurrent startup), append-only hash-chained audit store, CI with a Postgres service |
 | S1 cash-book core | **done** — day lifecycle (open / book / close), PostgreSQL repository, HTTP API, audit event on every write |
 | S2 payment orders + four-eyes | **done** — canonical `payment_order`/`payment_recipient`/`budget_position`, enforced four-eyes rule, decision trail, HTTP workflow. SEPA export is S3 |
-| S3–S8 | not started |
+| S5 dunning | **done** — `dunning_level`/`dunning_band`/`dunning_notice`, any number of ordered bands, integer basis-point rates, stored charges, HTTP workflow |
+| S3, S4, S6–S8 | not started |
 
 What exists is a **vertical slice, not parity**: the cash-book day lifecycle and the
 payment-order workflow. Still missing: SEPA export (`pain.001`), MT940/CAMT import,
 dunning, foundations and tax-office data. Interfaces (S3/S4) are blocked on **golden
 files** (real bank formats); the parallel run (S8) is blocked on a production extract.
 
-Legacy findings behind S2: `docs/legacy/kbs-payment-orders.md`.
+Legacy findings: `docs/legacy/kbs-payment-orders.md` (S2), `docs/legacy/kbs-dunning.md` (S5).
 
 ## Why Kasse first
 

@@ -2,6 +2,36 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.5.0] - 2026-10-21
+
+Slice S5: dunning ("Mahnwesen").
+
+### Added
+- **Canonical schema** (`0003_dunning.sql`): `dunning_level`, `dunning_band`,
+  `dunning_notice`. Replaces the legacy `kbs.mahn`, which hard-codes five bands as
+  the column groups `bis_betr1..5` / `mahn_geb1..5` / `prct1..5` — a sixth band
+  would be a schema change.
+- **Bands are rows**, ordered and validated: they must ascend by upper bound, and an
+  open-ended band (bound 0) must be last (`ErrOpenBandNotLast`), so band selection
+  is always defined.
+- **Integer money arithmetic**: rates are basis points (1/100 %), the charge is
+  `fee + round_half_up(amount × rate)`. No decimal floating point anywhere — the
+  legacy stores `prct` as `numeric`.
+- **Stored charges**: a notice records the charge it was issued with, so a later
+  configuration change cannot rewrite history.
+- Inactive levels are refused (`ErrLevelInactive`); a duplicate `(year, code)` is a
+  conflict (`ErrLevelExists`).
+- **HTTP API**: `POST /api/dunning/levels`, `GET /api/dunning/levels/{year}/{code}`,
+  `POST /api/dunning/notices`.
+- Tests: domain (band selection, rounding boundaries, validation), service with
+  fakes, Postgres integration (including a direct-repository test proving the DB
+  constraints hold and roll back), HTTP e2e.
+- `docs/legacy/kbs-dunning.md` — measured legacy findings behind the design.
+
+### Changed
+- `roundDiv` lost an unreachable negative branch (amounts and basis points are
+  non-negative by construction); dead code was flagged by mutation testing.
+
 ## [0.4.0] - 2026-10-21
 
 Slice S2: payment orders ("Anordnungen") with an enforced four-eyes principle.
