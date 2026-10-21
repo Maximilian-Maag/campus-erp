@@ -38,7 +38,11 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		t.Fatalf("db.Migrate: %v", err)
 	}
 	store := audit.NewStore(pool)
-	srv := httptest.NewServer(httpapi.New(kasse.NewService(kasse.NewRepo(pool), store), store).Handler())
+	srv := httptest.NewServer(httpapi.New(
+		kasse.NewService(kasse.NewRepo(pool), store),
+		kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
+		store,
+	).Handler())
 	t.Cleanup(srv.Close)
 	return srv, pool
 }

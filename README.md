@@ -27,6 +27,7 @@ skeleton.
 | `docs/requirements.md` | **target-system requirements** (parity, interfaces, compliance, NFRs) |
 | `docs/adr/` | **architecture decision records** 0001–0008 |
 | `docs/plan/` | **delivery roadmap** + Phase 1 (Kasse) pilot plan |
+| `docs/legacy/` | **measured legacy findings** per process (input to the canonical design) |
 | `docs/open-questions.md` | open points |
 | `c4/workspace.dsl` | **authoritative C4 model** (as-is + target), Structurizr |
 
@@ -70,10 +71,13 @@ C4), and the first vertical slice is implemented and tested:
   hash-chained audit store, CI with a Postgres service
 - cash-book day lifecycle (open / book / close) with a PostgreSQL repository and
   an HTTP API
+- payment orders with an **enforced four-eyes rule** (the approver may not be the
+  creator or the submitter), an append-only decision trail, and a hash-chained
+  audit event per transition
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
   Go target package, policy-as-code green
 
-Not yet implemented: the remaining Kasse processes (payment orders, SEPA export,
-MT940 import, dunning, foundations, tax-office data) and every other module. The
+Not yet implemented: SEPA export, MT940 import, dunning, foundations, tax-office
+data, and every other module. The
 legacy analysis under `schema/` and `docs/01..04` remains valid and is the ETL
 input (ADR-0001).

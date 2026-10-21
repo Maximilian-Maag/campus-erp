@@ -71,10 +71,32 @@ func MigrationsFrom(fsys fs.FS) ([]Migration, error) {
 	return out, nil
 }
 
+// migrationLockKey is a fixed key for the migration advisory lock.
+const migrationLockKey int64 = 0x4d494752 // "MIGR"
+
 // Migrate applies every pending migration. It is idempotent: applied versions are
 // recorded in schema_migration and skipped on later runs.
+//
+// Migrations are serialised with a session-level advisory lock. Several processes
+// may start at once (api and worker, or parallel test packages), and
+// CREATE TABLE IF NOT EXISTS is not race-free under concurrency — without the lock
+// two migrators collide on pg_type with a duplicate-key error.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) (int, error) {
-	if _, err := pool.Exec(ctx, migrationTable); err != nil {
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("db: acquire connection: %w", err)
+	}
+	defer conn.Release()
+
+	if _, err := conn.Exec(ctx, "SELECT pg_advisory_lock($1)", migrationLockKey); err != nil {
+		return 0, fmt.Errorf("db: lock migrations: %w", err)
+	}
+	defer func() {
+		// Unlock on a background context so it still runs if ctx was cancelled.
+		_, _ = conn.Exec(context.Background(), "SELECT pg_advisory_unlock($1)", migrationLockKey)
+	}()
+
+	if _, err := conn.Exec(ctx, migrationTable); err != nil {
 		return 0, fmt.Errorf("db: create schema_migration: %w", err)
 	}
 	migrations, err := Migrations()
@@ -84,7 +106,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 	applied := 0
 	for _, m := range migrations {
 		var exists bool
-		if err := pool.QueryRow(ctx,
+		if err := conn.QueryRow(ctx,
 			"SELECT EXISTS (SELECT 1 FROM schema_migration WHERE version = $1)", m.Version).Scan(&exists); err != nil {
 			return applied, fmt.Errorf("db: check version %d: %w", m.Version, err)
 		}
@@ -92,10 +114,10 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 			continue
 		}
 		// No arguments -> simple protocol -> the file may hold several statements.
-		if _, err := pool.Exec(ctx, m.SQL); err != nil {
+		if _, err := conn.Exec(ctx, m.SQL); err != nil {
 			return applied, fmt.Errorf("db: apply %s: %w", m.Name, err)
 		}
-		if _, err := pool.Exec(ctx,
+		if _, err := conn.Exec(ctx,
 			"INSERT INTO schema_migration (version) VALUES ($1)", m.Version); err != nil {
 			return applied, fmt.Errorf("db: record %s: %w", m.Name, err)
 		}

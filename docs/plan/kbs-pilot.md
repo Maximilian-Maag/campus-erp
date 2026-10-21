@@ -8,14 +8,17 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 
 | Slice | State |
 |---|---|
-| S0 platform foundations | **in progress** — tenant DSN (`DATABASE_URL`), embedded migration runner, append-only hash-chained audit store, CI with a Postgres service |
-| S1 cash-book core | **in progress** — day lifecycle (open / book / close), PostgreSQL repository, HTTP API, audit event on every write |
-| S2–S8 | not started |
+| S0 platform foundations | **done for the pilot** — tenant DSN (`DATABASE_URL`), embedded migration runner (advisory-locked, safe under concurrent startup), append-only hash-chained audit store, CI with a Postgres service |
+| S1 cash-book core | **done** — day lifecycle (open / book / close), PostgreSQL repository, HTTP API, audit event on every write |
+| S2 payment orders + four-eyes | **done** — canonical `payment_order`/`payment_recipient`/`budget_position`, enforced four-eyes rule, decision trail, HTTP workflow. SEPA export is S3 |
+| S3–S8 | not started |
 
-What exists is a **vertical slice, not parity**: only the cash-book day lifecycle.
-The legacy processes FR-K1..K7 (payment orders, SEPA export, MT940 import, dunning,
-foundations, tax-office data) are not implemented. Interfaces (S3/S4) are blocked on
-golden files, and the parallel run (S8) is blocked on a production extract.
+What exists is a **vertical slice, not parity**: the cash-book day lifecycle and the
+payment-order workflow. Still missing: SEPA export (`pain.001`), MT940/CAMT import,
+dunning, foundations and tax-office data. Interfaces (S3/S4) are blocked on **golden
+files** (real bank formats); the parallel run (S8) is blocked on a production extract.
+
+Legacy findings behind S2: `docs/legacy/kbs-payment-orders.md`.
 
 ## Why Kasse first
 

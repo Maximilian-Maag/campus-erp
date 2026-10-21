@@ -33,3 +33,38 @@ func TestStatusFor(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusForOrder(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", kasse.ErrNotFound, http.StatusNotFound},
+		{"four eyes is forbidden", kasse.ErrFourEyes, http.StatusForbidden},
+		{"wrapped four eyes", fmt.Errorf("approve: %w", kasse.ErrFourEyes), http.StatusForbidden},
+		{"reference exists", kasse.ErrReferenceExists, http.StatusConflict},
+		{"order conflict", kasse.ErrOrderConflict, http.StatusConflict},
+		{"not draft", kasse.ErrNotDraft, http.StatusConflict},
+		{"not submitted", kasse.ErrNotSubmitted, http.StatusConflict},
+		{"not cancellable", kasse.ErrNotCancellable, http.StatusConflict},
+		{"amount not positive", kasse.ErrAmountNotPositive, http.StatusUnprocessableEntity},
+		{"purpose required", kasse.ErrPurposeRequired, http.StatusUnprocessableEntity},
+		{"bad currency", kasse.ErrBadCurrency, http.StatusUnprocessableEntity},
+		{"bad year", kasse.ErrBadYear, http.StatusUnprocessableEntity},
+		{"reference required", kasse.ErrReferenceRequired, http.StatusUnprocessableEntity},
+		{"recipient required", kasse.ErrRecipientRequired, http.StatusUnprocessableEntity},
+		{"budget position required", kasse.ErrBudgetPositionRequired, http.StatusUnprocessableEntity},
+		{"due date required", kasse.ErrDueDateRequired, http.StatusUnprocessableEntity},
+		{"reason required", kasse.ErrReasonRequired, http.StatusUnprocessableEntity},
+		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForOrder(c.err); got != c.want {
+				t.Fatalf("statusForOrder(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}

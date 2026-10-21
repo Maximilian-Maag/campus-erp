@@ -37,7 +37,11 @@ func main() {
 	log.Printf("migrations applied: %d", applied)
 
 	store := audit.NewStore(pool)
-	api := httpapi.New(kasse.NewService(kasse.NewRepo(pool), store), store)
+	api := httpapi.New(
+		kasse.NewService(kasse.NewRepo(pool), store),
+		kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
+		store,
+	)
 
 	log.Printf("api listening on %s (tenant=%q role=%q)", cfg.HTTPAddr, cfg.Tenant, cfg.Role)
 	if err := http.ListenAndServe(cfg.HTTPAddr, api.Handler()); err != nil {
