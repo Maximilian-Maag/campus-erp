@@ -2,6 +2,31 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.6.0] - 2026-10-21
+
+Slice S7: tax-office data and foundations.
+
+### Added
+- **Canonical schema** (`0004_tax_and_foundations.sql`): `vat_type`, `tax_office`,
+  `foundation`.
+- **VAT types** replacing `kbs.mwst_art`: integer basis-point rates (0..100 %),
+  an enumerated `kind` (output/input) instead of the legacy `mw_typ` character, and
+  no sign column — the legacy `mw_vorzeichen` stored `'+'`/`'-'` as text.
+- **Exact VAT arithmetic**: `TaxOn`, `GrossFromNet`, `NetFromGross`, `TaxFromGross`,
+  with `TaxFromGross` defined as the remainder so **net + tax equals the gross
+  exactly** at every rate including 0 % and 100 %.
+- **IBAN validation** (ISO 7064 mod-97) for tax-office bank details — the legacy
+  `iban varchar(35)` accepted anything (`ErrIBANInvalid`).
+- Tax-office and foundation records with real constraints and `(year, number)`
+  uniqueness surfaced as a conflict.
+- **HTTP API**: `POST /api/vat-types`, `GET /api/vat-types/{code}`,
+  `POST /api/tax-offices`, `POST /api/foundations`.
+- Tests: domain (VAT arithmetic incl. a rate/amount sweep proving the net+tax
+  invariant, IBAN mod-97 with verified fixtures and length boundaries, character
+  helper boundaries), service with fakes, Postgres integration, HTTP e2e.
+- `docs/legacy/kbs-tax-and-foundations.md` — measured legacy findings behind the
+  design.
+
 ## [0.5.0] - 2026-10-21
 
 Slice S5: dunning ("Mahnwesen").

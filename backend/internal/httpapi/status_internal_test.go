@@ -97,3 +97,34 @@ func TestStatusForDunning(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusForTax(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", kasse.ErrNotFound, http.StatusNotFound},
+		{"vat code exists", kasse.ErrVATCodeExists, http.StatusConflict},
+		{"tax office exists", kasse.ErrTaxOfficeExists, http.StatusConflict},
+		{"foundation exists", kasse.ErrFoundationExists, http.StatusConflict},
+		{"code required", kasse.ErrVATCodeRequired, http.StatusUnprocessableEntity},
+		{"code too long", kasse.ErrVATCodeTooLong, http.StatusUnprocessableEntity},
+		{"rate out of range", kasse.ErrVATRateOutOfRange, http.StatusUnprocessableEntity},
+		{"kind unknown", kasse.ErrVATKindUnknown, http.StatusUnprocessableEntity},
+		{"iban invalid", kasse.ErrIBANInvalid, http.StatusUnprocessableEntity},
+		{"number required", kasse.ErrNumberRequired, http.StatusUnprocessableEntity},
+		{"name required", kasse.ErrNameRequired, http.StatusUnprocessableEntity},
+		{"bad year", kasse.ErrBadYear, http.StatusUnprocessableEntity},
+		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"amount negative", kasse.ErrAmountNegative, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForTax(c.err); got != c.want {
+				t.Fatalf("statusForTax(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}

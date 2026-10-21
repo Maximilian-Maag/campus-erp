@@ -1,0 +1,99 @@
+package kasse
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// TaxRepository is the persistence port for VAT types, tax offices and foundations.
+type TaxRepository interface {
+	CreateVATType(ctx context.Context, v VATType) (VATType, error)
+	GetVATType(ctx context.Context, code string) (VATType, error)
+	CreateTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, error)
+	CreateFoundation(ctx context.Context, f Foundation) (Foundation, error)
+}
+
+// TaxRepo is the PostgreSQL implementation.
+type TaxRepo struct{ pool *pgxpool.Pool }
+
+// NewTaxRepo returns a TaxRepo.
+func NewTaxRepo(pool *pgxpool.Pool) *TaxRepo { return &TaxRepo{pool: pool} }
+
+// isUniqueViolation reports whether err is a PostgreSQL unique-constraint error.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation
+}
+
+// CreateVATType stores a VAT type.
+func (r *TaxRepo) CreateVATType(ctx context.Context, v VATType) (VATType, error) {
+	row := r.pool.QueryRow(ctx,
+		`INSERT INTO vat_type (code, description, rate_basis_points, kind)
+		 VALUES ($1,$2,$3,$4)
+		 RETURNING id, code, description, rate_basis_points, kind`,
+		v.Code, v.Description, v.RateBasisPoints, v.Kind)
+	var out VATType
+	if err := row.Scan(&out.ID, &out.Code, &out.Description, &out.RateBasisPoints, &out.Kind); err != nil {
+		if isUniqueViolation(err) {
+			return VATType{}, fmt.Errorf("kasse: VAT code %q: %w", v.Code, ErrVATCodeExists)
+		}
+		return VATType{}, fmt.Errorf("kasse: create VAT type: %w", err)
+	}
+	return out, nil
+}
+
+// GetVATType loads a VAT type by code.
+func (r *TaxRepo) GetVATType(ctx context.Context, code string) (VATType, error) {
+	var out VATType
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, code, description, rate_basis_points, kind FROM vat_type WHERE code = $1`, code).
+		Scan(&out.ID, &out.Code, &out.Description, &out.RateBasisPoints, &out.Kind)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return VATType{}, fmt.Errorf("kasse: VAT type %q: %w", code, ErrNotFound)
+	}
+	if err != nil {
+		return VATType{}, fmt.Errorf("kasse: get VAT type: %w", err)
+	}
+	return out, nil
+}
+
+// CreateTaxOffice stores a tax-office master record.
+func (r *TaxRepo) CreateTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, error) {
+	row := r.pool.QueryRow(ctx,
+		`INSERT INTO tax_office
+		   (year, number, name, street, postal_code, city, account_holder, iban, bic)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		 RETURNING id, year, number, name, street, postal_code, city, account_holder, iban, bic`,
+		t.Year, t.Number, t.Name, t.Street, t.PostalCode, t.City, t.AccountHolder, t.IBAN, t.BIC)
+	var out TaxOffice
+	if err := row.Scan(&out.ID, &out.Year, &out.Number, &out.Name, &out.Street, &out.PostalCode,
+		&out.City, &out.AccountHolder, &out.IBAN, &out.BIC); err != nil {
+		if isUniqueViolation(err) {
+			return TaxOffice{}, fmt.Errorf("kasse: tax office %d/%s: %w", t.Year, t.Number, ErrTaxOfficeExists)
+		}
+		return TaxOffice{}, fmt.Errorf("kasse: create tax office: %w", err)
+	}
+	return out, nil
+}
+
+// CreateFoundation stores a foundation reference.
+func (r *TaxRepo) CreateFoundation(ctx context.Context, f Foundation) (Foundation, error) {
+	row := r.pool.QueryRow(ctx,
+		`INSERT INTO foundation (year, number, description, carry_over)
+		 VALUES ($1,$2,$3,$4)
+		 RETURNING id, year, number, description, carry_over`,
+		f.Year, f.Number, f.Description, f.CarryOver)
+	var out Foundation
+	if err := row.Scan(&out.ID, &out.Year, &out.Number, &out.Description, &out.CarryOver); err != nil {
+		if isUniqueViolation(err) {
+			return Foundation{}, fmt.Errorf("kasse: foundation %d/%s: %w", f.Year, f.Number, ErrFoundationExists)
+		}
+		return Foundation{}, fmt.Errorf("kasse: create foundation: %w", err)
+	}
+	return out, nil
+}
