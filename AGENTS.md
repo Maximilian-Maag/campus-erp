@@ -50,6 +50,26 @@ system it replaces.
   mutant: duplicate versions are rejected before the sort, so `<` and `<=` order
   identically. The surviving mutant is expected and documented, not a gap.
 
+## Build, package & deploy
+
+`make` is the single entry point (see `docs/build-and-deploy.md`):
+
+- `make all` — C4 PDF + backend + frontend + container images.
+- `make test` — the quality suite (`tools/run_tests.sh`).
+- `make c4-pdf` — `c4/workspace.dsl` → `c4/export/campus-erp-c4-model.pdf`
+  (`tools/c4_pdf.sh`). The Structurizr image cannot render PNG locally, so the
+  script exports PlantUML and renders with `plantuml/plantuml`; both containers
+  run as `--user $(id -u):$(id -g)`.
+- `make docker-images` / `make up` / `make deploy-backend|deploy-frontend` —
+  images and the docker-compose stack. `deploy-backend` + `workon-frontend`
+  (and the reverse) let one half be deployed while the other is edited.
+- `make helm-lint` / `make helm-template` / `make deploy-k8s` — the chart in
+  `deploy/helm/campus-erp` (ADR-0007).
+
+The backend image builds all three roles (api/worker/connectors) from one
+tree; role is selected by the container command. The frontend image is
+Angular built once, served by nginx with `/api` proxied same-origin.
+
 ## Policy as code
 
 - `tools/policy_check.py` (vendored; checker version pinned in `policy.json`).

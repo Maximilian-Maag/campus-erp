@@ -1,0 +1,97 @@
+# Default values for the campus-erp chart.
+# Override with: helm upgrade --install campus-erp deploy/helm/campus-erp -f my-values.yaml
+
+nameOverride: ""
+fullnameOverride: ""
+
+images:
+  backend:
+    repository: campus-erp-backend
+    tag: dev
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: campus-erp-frontend
+    tag: dev
+    pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# Runtime configuration shared by every backend role.
+config:
+  tenant: demo
+  httpAddr: ":8080"
+
+# Per-tenant DSN. Either point at an existing Secret (recommended for prod) or let
+# the chart create one from `url` (handy for a first install / demos).
+database:
+  existingSecret: ""        # Secret name; must contain the key below
+  secretKey: DATABASE_URL
+  url: ""                   # used only when existingSecret is empty
+
+api:
+  replicaCount: 2
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { cpu: "1",  memory: 512Mi }
+
+worker:
+  replicaCount: 1
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { cpu: "1",  memory: 512Mi }
+
+connectors:
+  replicaCount: 1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: "1",  memory: 1Gi }
+
+web:
+  replicaCount: 2
+  resources:
+    requests: { cpu: 50m,  memory: 64Mi }
+    limits:   { cpu: 500m, memory: 256Mi }
+  service:
+    type: ClusterIP
+    port: 80
+
+service:
+  type: ClusterIP
+  port: 8080
+
+autoscaling:
+  api:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  web:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  # Per-tenant hostnames (ADR-0002 / ADR-0007): the first label is the tenant.
+  hosts:
+    - host: demo.erp.example.org
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: ["ALL"]
