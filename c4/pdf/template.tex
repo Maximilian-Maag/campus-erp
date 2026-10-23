@@ -1,48 +1,130 @@
-% campus-erp — C4 model report
+% campus-erp — architecture report (C4 model + database ER models)
 %
-% Rendered from c4/workspace.dsl by tools/c4_pdf.sh (Structurizr export -> PNG,
-% then this template -> PDF via tectonic). Do not edit the generated copy in
-% c4/export/; edit this template instead.
+% Rendered by tools/c4_pdf.sh:
+%   c4/workspace.dsl  --(Structurizr export -> PlantUML -> PNG)-->  C4 views
+%   c4/erm/*.puml     --(PlantUML -> PNG)------------------------->  ER models
+%   then this template --(tectonic)------------------------------>  the PDF
+%
+% Do not edit the generated copy in c4/export/; edit this template instead.
 %
 % The build runs under XeTeX (tectonic's default engine), so inputenc/fontenc are
 % intentionally omitted.
-\documentclass[11pt,a4paper]{article}
+\documentclass[10pt,a4paper,landscape]{article}
 
-\usepackage[a4paper,margin=2cm]{geometry}
+\usepackage[landscape,a4paper,margin=1.6cm,headsep=0.5cm,footskip=0.9cm]{geometry}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{titlesec}
-\usepackage{hyperref}
+\usepackage{titletoc}
+\usepackage[hidelinks]{hyperref}
 \usepackage{fancyhdr}
+\usepackage{parskip}
 
 \definecolor{erpblue}{HTML}{0B4A6F}
+\definecolor{erpgrey}{HTML}{5D6D7E}
 \hypersetup{colorlinks=true,linkcolor=erpblue,urlcolor=erpblue}
 
-\titleformat{\section}{\Large\bfseries\color{erpblue}}{\thesection}{0.8em}{}
-\titleformat{\subsection}[runin]{\bfseries}{}{0em}{}[\ —]
+% Generous breathing room around headings and figures (the previous build was
+% criticised for cramming diagrams against the text).
+\titlespacing*{\section}{0pt}{2.2ex plus 1ex minus .2ex}{1.6ex}
+\titlespacing*{\subsection}{0pt}{1.6ex plus 1ex minus .2ex}{1.0ex}
+\titleformat{\section}{\LARGE\bfseries\color{erpblue}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\large\bfseries\color{erpgrey}}{}{0em}{}
+\setlength{\parskip}{0.6em}
 
 \pagestyle{fancy}
 \fancyhf{}
-\rhead{campus-erp — C4 model}
-\lhead{\leftmark}
-\cfoot{\thepage}
+\lhead{\color{erpgrey}campus-erp — architecture report}
+\rhead{\color{erpgrey}\nouppercase{\rightmark}}
+\cfoot{\color{erpgrey}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
 
-\title{\vspace{-2cm}\textbf{campus-erp}\\[0.3em]\large C4 architecture model\vspace{-0.5em}}
+% markboth keeps \rightmark meaningful even though we use starred sections.
+\newcommand{\cmark}[1]{\markboth{#1}{#1}}
+
+\title{\vspace{-1.6cm}\textbf{campus-erp}\\[0.35em]
+       \large Architecture report — C4 model and database ER models\vspace{-0.4em}}
 \author{HIS-ERP replacement — as-is (legacy) and target architecture}
 \date{\today}
 
 \begin{document}
 \maketitle
 \thispagestyle{empty}
+\clearpage
 
-\section*{About}
-The authoritative model is \texttt{c4/workspace.dsl} (Structurizr DSL). This
-report is generated from it: the diagrams below are the rendered views. When this
-document and the DSL disagree, the DSL wins.
+\section*{About this report}
+The authoritative architecture model is \texttt{c4/workspace.dsl} (Structurizr DSL)
+and the authoritative data model are the SQL migrations under
+\path{backend/internal/platform/db/migrations/}. This report is generated from
+both: the diagrams below are rendered views, never hand-drawn. When a diagram and
+its source disagree, the source wins.
+
+\begin{itemize}\setlength{\itemsep}{0.2em}
+  \item \textbf{Part I — C4 architecture model.} As-is (legacy HIS-ERP) and the
+        target platform, at Context / Container / Component level.
+  \item \textbf{Part II — Database ER models.} The target canonical schema
+        (read directly from the migrations, with real foreign keys) plus the
+        reverse-engineered legacy module schemas (\texttt{sva4}, \texttt{mbs},
+        \texttt{cob}, \texttt{kbs}), which declare \emph{no} foreign keys.
+\end{itemize}
+
+\vspace{0.4em}
+\noindent Regenerate with \texttt{make c4-pdf} (see \texttt{c4/README.md}).
 
 \tableofcontents
 \clearpage
 
-@DIAGRAMS@
+% ── Part I ──────────────────────────────────────────────────────────────────
+\cmark{Part I — C4 architecture model}
+\section*{Part I — C4 architecture model}
+\phantomsection\addcontentsline{toc}{part}{Part I — C4 architecture model}
+The six views below are the rendered Structurizr views from
+\texttt{c4/workspace.dsl}. Each occupies its own page; nothing shares a page with
+a diagram.
+
+\vspace{0.6em}
+\begin{itemize}\setlength{\itemsep}{0.15em}
+  \item As-is — System Context (level 1)
+  \item As-is — Containers (level 2)
+  \item As-is — HISSVA Components (level 3)
+  \item Target — System Context (level 1)
+  \item Target — Containers (level 2)
+  \item Target — API Components (level 3)
+\end{itemize}
+
+@C4DIAGRAMS@
+
+% ── Part II ─────────────────────────────────────────────────────────────────
+\clearpage
+\cmark{Part II — Database ER models}
+\section*{Part II — Database ER models}
+\phantomsection\addcontentsline{toc}{part}{Part II — Database ER models}
+Two families of databases exist in this project and both are modelled here.
+
+\subsection*{Target canonical schema}
+Defined by the SQL migrations (\texttt{0001}\,$\dots$\,\texttt{0004}); it carries
+real \texttt{PRIMARY KEY} / \texttt{FOREIGN KEY} constraints, so the ER model is read
+directly from the DDL — every crow's-foot is a declared constraint. One database
+per tenant (ADR-0002), hence no \texttt{tenant\_id} columns.
+
+\subsection*{Legacy module schemas}
+The reverse-engineered HIS-ERP schemas (\texttt{sva4}, \texttt{mbs}, \texttt{cob},
+\texttt{kbs}) declare \textbf{zero} foreign keys — referential integrity is
+enforced in the application layer. Their diagrams are reconstructed from measured
+metadata (primary keys, column lists in \texttt{schema/*.tsv}) and the naming
+conventions in \texttt{docs/03-schema-analysis.md}. \textbf{Every edge in a legacy
+diagram is inferred}, not enforced; the module is noted under each title.
+
+\vspace{0.6em}
+\begin{itemize}\setlength{\itemsep}{0.15em}
+  \item Target — canonical schema (declared foreign keys)
+  \item Legacy — \texttt{sva4} Personal- und Stellenverwaltung
+  \item Legacy — \texttt{mbs} Finanz- und Sachmittelverfahren
+  \item Legacy — \texttt{cob} Kosten- und Leistungsrechnung
+  \item Legacy — \texttt{kbs} Kassenbuchungssystem
+\end{itemize}
+
+@ERDIAGRAMS@
 
 \end{document}

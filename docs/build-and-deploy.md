@@ -10,16 +10,17 @@ make check-tools
 
 The Makefile needs only **docker**; the Go toolchain is optional (backend builds
 fall back to the `golang:1.25-alpine` image), Node/npm is required for the
-frontend, and `tectonic` for the C4 PDF.
+frontend, and `tectonic` for the architecture report PDF.
 
 ## Targets at a glance
 
 | Group | Targets |
 |---|---|
 | Overview | `help`, `version`, `check-tools` |
-| Everything | `all` (C4 PDF + build backend & frontend + images) |
-| Quality | `test`, `quality`, `policy`, `policy-ci`, `hooks` |
-| C4 model | `c4-validate`, `c4-export`, `c4-pdf`, `c4-view` |
+| Everything | `all` (report PDF + build backend & frontend + images) |
+| Quality | `test`, `quality`, `test-tools`, `policy`, `policy-ci`, `hooks` |
+| C4 & report | `c4-validate`, `c4-export`, `c4-pdf`, `c4-pdf-no-erm`, `c4-view` |
+| ER models | `erm`, `erm-gen`, `erm-export` |
 | Backend | `backend`, `backend-build`, `backend-vet`, `backend-fmt`, `backend-tidy`, `backend-test`, `backend-test-integration`, `backend-mutation`, `backend-run-api` |
 | Frontend | `frontend`, `frontend-install`, `frontend-build`, `frontend-test`, `frontend-e2e-install`, `frontend-e2e`, `frontend-mutation`, `frontend-serve` |
 | Contract | `contracts-validate` |
@@ -30,23 +31,33 @@ frontend, and `tectonic` for the C4 PDF.
 | Kubernetes | `helm-lint`, `helm-template`, `deploy-k8s`, `k8s-backend`, `k8s-frontend`, `k8s-status`, `k8s-rollback` |
 | Clean | `clean`, `clean-images`, `distclean` |
 
-## C4 model → PDF
+## Architecture report (C4 + ER models) → PDF
 
 ```bash
 make c4-validate   # Structurizr DSL syntax check
 make c4-export     # c4/export/structurizr-<View>.png
-make c4-pdf        # c4/export/campus-erp-c4-model.pdf
+make c4-pdf        # c4/export/campus-erp-c4-model.pdf  (C4 + ER, landscape)
+make c4-pdf-no-erm # same, C4 views only
+make erm           # regenerate + render just the ER models
 make c4-view       # interactive Structurizr Lite on http://localhost:8080
 ```
 
-Pipeline (`tools/c4_pdf.sh`):
+Pipeline (`tools/c4_pdf.sh`, which calls `tools/erm.sh`):
 
 ```
 c4/workspace.dsl
   └─ Structurizr CLI (docker)  export -f plantuml   →  c4/export/structurizr-*.puml
-       └─ PlantUML (docker)    -tpng                 →  c4/export/structurizr-*.png
-            └─ tectonic        c4/pdf/template.tex   →  c4/export/campus-erp-c4-model.pdf
+       └─ PlantUML (docker)    -tpng                 →  c4/export/structurizr-*.png  ┐
+migrations + schema/*.tsv                                                            │
+  └─ tools/gen_erm.py          →  c4/erm/*.puml                                      ├─ tectonic → PDF
+       └─ PlantUML (docker)    -tpng                 →  c4/export/{target,legacy}_*.png ┘
 ```
+
+The report is **landscape A4, one diagram per page**, in two parts: *Part I*
+C4 architecture model, *Part II* database ER models. The target ER model is read
+directly from the SQL migrations (declared foreign keys); the legacy module ER
+models are reconstructed from `schema/*.tsv` and `docs/03-schema-analysis.md`
+(no foreign keys exist there — every edge is inferred).
 
 The report template is `c4/pdf/template.tex` (edit that; the generated copies in
 `c4/export/` are git-ignored). `tools/c4_pdf.sh` also takes `--export-only`

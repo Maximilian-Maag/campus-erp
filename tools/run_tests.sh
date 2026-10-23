@@ -75,6 +75,18 @@ if [[ -d $ROOT/frontend ]]; then
   fi
 fi
 
+# ── Tooling: ER-model generator self-test ───────────────────────────────────
+if [[ -f $ROOT/tools/test_erm.py ]]; then
+  say "== Tooling: ER-model generator self-test =="
+  if have python3; then
+    python3 "$ROOT/tools/test_erm.py"
+    rc=$?
+    if (( rc == 0 )); then ran=$((ran + 1)); else fail=1; say "FAIL  ER generator self-test"; fi
+  else
+    skip_or_fail python3 "install python3"
+  fi
+fi
+
 # ── Mutation: Go (gremlins, per package) ────────────────────────────────────
 say "== Mutation: Go (floor ${MUTATION_THRESHOLD}%) =="
 if [[ -d $ROOT/backend ]]; then

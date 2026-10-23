@@ -2,7 +2,8 @@
 #
 #   make            # short help
 #   make help       # full target list
-#   make all        # C4 PDF + backend + frontend + container images
+#   make all        # architecture report PDF + backend + frontend + container images
+#   make c4-pdf     # the landscape architecture report (C4 + database ER models)
 #
 # Everything is driven from the repo root and is meant to work with only docker
 # installed (Go runs in the golang:1.25-alpine image when the local toolchain is
@@ -83,7 +84,7 @@ check-tools: ## Report which optional tools are available
 # ════════════════════════════════════════════════════════════════════════════
 
 .PHONY: all
-all: c4-pdf backend frontend docker ## C4 PDF + build backend & frontend + images
+all: c4-pdf backend frontend docker ## Architecture report PDF + build backend & frontend + images
 
 .PHONY: test
 test: ## Run the full quality suite (tools/run_tests.sh)
@@ -91,6 +92,10 @@ test: ## Run the full quality suite (tools/run_tests.sh)
 
 .PHONY: quality
 quality: policy test ## Policy check + full quality suite
+
+.PHONY: test-tools
+test-tools: ## Self-test the tooling (ER-model generator)
+	@python3 $(ROOT)/tools/test_erm.py
 
 .PHONY: policy
 policy: ## Run the policy checker (changed files)
@@ -106,27 +111,41 @@ hooks: ## Enable the repo's git hooks (core.hooksPath)
 	@echo "hooks enabled"
 
 # ════════════════════════════════════════════════════════════════════════════
-# C4 model  (workspace.dsl -> PNG views -> PDF)
+# C4 model + ER models  (workspace.dsl / c4/erm -> PNG -> landscape PDF)
 # ════════════════════════════════════════════════════════════════════════════
 
-.PHONY: c4-validate c4-export c4-pdf c4-view
+.PHONY: c4-validate c4-export c4-pdf c4-pdf-no-erm c4-view erm erm-gen erm-export
 
 c4-validate: ## Validate the Structurizr DSL
 	$(call require,docker)
 	chmod 644 "$(C4)/workspace.dsl"
 	docker run --rm -v "$(C4)":/w -w /w $(STRUCTURIZR_IMAGE) validate -w workspace.dsl
 
-c4-export: ## Export C4 views as PNG (c4/export/)
+c4-export: ## Export C4 views as PNG (c4/export/structurizr-*.png)
 	$(call require,docker)
 	tools/c4_pdf.sh --export-only
 
-c4-pdf: ## Generate the C4 model PDF (c4/export/campus-erp-c4-model.pdf)
+c4-pdf: ## Build the full architecture report PDF (C4 + ER models, landscape)
 	$(call require,docker)
 	tools/c4_pdf.sh
 
-c4-view: ## Serve the model interactively (Structurizr Lite, http://localhost:8080)
+c4-pdf-no-erm: ## Build the report PDF with C4 views only
+	tools/c4_pdf.sh --no-erm
+
+c4-view: ## Serve the C4 model interactively (Structurizr Lite, :8080)
 	$(call require,docker)
 	docker run --rm -p 8080:8080 -v "$(C4)":/usr/local/structurizr $(STRUCTURIZR_LITE)
+
+erm: ## Regenerate + render the database ER models (target + legacy modules)
+	python3 tools/gen_erm.py --root "$(ROOT)"
+	tools/erm.sh
+
+erm-gen: ## Only (re)generate the ER PlantUML sources (c4/erm/*.puml)
+	python3 tools/gen_erm.py --root "$(ROOT)"
+
+erm-export: ## Render the ER models to PNG (c4/export/{target,legacy}_*.png)
+	$(call require,docker)
+	tools/erm.sh --no-gen
 
 # ════════════════════════════════════════════════════════════════════════════
 # Backend (Go)
