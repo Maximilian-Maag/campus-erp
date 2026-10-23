@@ -2,6 +2,31 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.7.1] - 2026-10-23
+
+Architecture report: landscape pages, database ER models, more breathing room.
+
+### Added
+- **Database ER models in the report** (`tools/gen_erm.py`, `tools/erm.sh`,
+  `make erm`). Two families, both generated, never hand-drawn:
+  - **target canonical schema** — read *directly* from the SQL migrations
+    (`backend/internal/platform/db/migrations/`), so every crow's foot is a
+    declared `FOREIGN KEY`.
+  - **legacy module schemas** (`sva4`, `mbs`, `cob`, `kbs`) — reconstructed from
+    measured metadata (`schema/*.tsv`) and the naming conventions in
+    `docs/03-schema-analysis.md`. The legacy schema has **zero** foreign keys, so
+    every edge is labelled *inferred*.
+- **`--no-erm`** flag and `make c4-pdf-no-erm` for a C4-only build.
+- **`tools/test_erm.py`** — self-test guarding the ER generator (entity/FK counts
+  stay in sync with the migrations; legacy edges stay labelled *inferred*). Wired
+  into `tools/run_tests.sh` and `make test-tools`.
+
+### Changed
+- The report (`c4/export/campus-erp-c4-model.pdf`) is now **landscape A4** with
+  one diagram per page, generous heading/figure spacing, and two parts —
+  *Part I: C4 architecture model* and *Part II: Database ER models*. Previously
+  the wide diagrams were shrunk into portrait pages and crowded against the text.
+
 ## [0.7.0] - 2026-10-23
 
 Build, packaging and deployment automation.

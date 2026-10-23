@@ -18,8 +18,9 @@ __pycache__/
 /frontend/.angular/
 npm-debug.log*
 
-# structurizr exports
+# structurizr exports + generated ER models
 /c4/export/
+/c4/erm/
 
 # editor / OS
 .DS_Store
