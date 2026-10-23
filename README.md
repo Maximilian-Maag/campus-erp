@@ -34,15 +34,17 @@ skeleton.
 ## Repository layout
 
 ```
+Makefile     single entry point: build / test / package / deploy (see below)
 backend/     Go modular monolith (api / worker / connectors)  — ADR-0003, 0004, 0005
 frontend/    Angular SPA                                        — ADR-0003
 contracts/   OpenAPI spec (source of truth for the API client)
-c4/          Structurizr workspace.dsl (as-is + target)
-deploy/      Helm chart + manifests (placeholder)               — ADR-0007
+c4/          Structurizr workspace.dsl (as-is + target) + PDF template
+deploy/      Helm chart (deploy/helm/campus-erp)                — ADR-0007
+docker-compose.yml   local single-host stack
 docs/        requirements, ADRs, legacy analysis
 schema/      generated artefacts from the legacy dump
 scripts/     reproduce the legacy analysis
-tools/       policy checker + quality runner
+tools/       policy checker, quality runner, C4→PDF
 ```
 
 ## Architecture in one paragraph
@@ -53,6 +55,28 @@ lives in **PostgreSQL, one database per tenant**, on Kubernetes. Long-running wo
 (imports, exports, ETL, PDF) runs in `worker` on a Postgres-backed queue; native
 dependencies (ELSTER/ERiC, EBICS) are isolated in `connectors`. Every state change
 emits an **append-only, hash-chained audit event**. See `docs/adr/`.
+
+## Build, test, deploy
+
+One `Makefile` drives everything (needs only docker; the Go toolchain is optional):
+
+```bash
+make help           # all targets
+make all            # C4 PDF + backend + frontend + container images
+make test           # full quality suite (tools/run_tests.sh)
+
+make c4-pdf         # C4 model → c4/export/campus-erp-c4-model.pdf
+make docker-images  # backend + frontend images
+make up             # local stack (docker compose): postgres, api, worker, connectors, web
+
+make deploy-backend && make workon-frontend   # deploy the API, iterate on the SPA
+make deploy-frontend && make workon-backend   # deploy the SPA, iterate on the API
+
+make helm-template  # render the k8s chart locally
+make deploy-k8s     # push images + helm upgrade --install (ADR-0007)
+```
+
+Full reference: `docs/build-and-deploy.md`.
 
 ## Quality
 

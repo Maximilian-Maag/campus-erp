@@ -1,0 +1,28 @@
+campus-erp {{ .Chart.AppVersion }} installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Components:
+  api        Deployment/Service  {{ include "campus-erp.fullname" . }}-api
+  worker     Deployment          {{ include "campus-erp.fullname" . }}-worker
+  connectors Deployment          {{ include "campus-erp.fullname" . }}-connectors
+  web        Deployment/Service  {{ include "campus-erp.fullname" . }}-web
+
+{{ if .Values.ingress.enabled -}}
+Ingress:
+{{- range .Values.ingress.hosts }}
+  http://{{ .host }}
+{{- end }}
+{{- else }}
+No ingress (set ingress.enabled=true and a host per tenant to expose the web tier).
+{{- end }}
+
+Database:
+{{- if .Values.database.existingSecret }}
+  DSN from existing secret "{{ .Values.database.existingSecret }}" (key {{ .Values.database.secretKey }}).
+{{- else if .Values.database.url }}
+  DSN from the chart-managed secret "{{ include "campus-erp.dbSecretName" . }}".
+{{- else }}
+  WARNING: no DSN configured — set database.existingSecret or database.url.
+{{- end }}
+
+Check rollout:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "campus-erp.fullname" . }}-api

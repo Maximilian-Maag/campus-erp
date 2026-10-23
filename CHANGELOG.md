@@ -2,6 +2,41 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.7.0] - 2026-10-23
+
+Build, packaging and deployment automation.
+
+### Added
+- **Top-level `Makefile`** — one entry point for the C4 PDF, backend/frontend
+  builds and tests, container images, the local stack, and deployment
+  (`docs/build-and-deploy.md` documents every target).
+- **C4 → PDF** (`tools/c4_pdf.sh`, `c4/pdf/template.tex`): `make c4-pdf` renders
+  `c4/workspace.dsl` to a single PDF (`c4/export/campus-erp-c4-model.pdf`). The
+  Structurizr CLI image cannot render images locally ("PNG/SVG export is not
+  supported in this build" — that path needs the hosted API), so the script
+  exports **PlantUML** and renders it with the `plantuml/plantuml` image, then
+  compiles the report with **tectonic**. Both containers run as
+  `--user $(id -u):$(id -g)` so the non-root Structurizr container can write.
+- **`backend/Dockerfile`** — multi-stage; builds `api`, `worker` and
+  `connectors` from one tree into one image (modular monolith, ADR-0004), role
+  selected by the container command.
+- **`frontend/Dockerfile` + `frontend/nginx.conf`** — Angular production build
+  served by nginx, `/api` proxied to the backend on the same origin.
+- **`docker-compose.yml` + `.env.example`** — local single-host stack
+  (postgres, api, worker, connectors, web). `make up` / `make down`.
+- **`deploy/helm/campus-erp`** — Helm chart for Kubernetes (ADR-0007): api,
+  worker, connectors, web Deployments, api/web Services, optional Ingress and
+  HPA, chart- or externally-managed DSN Secret. Validated with `helm lint` and
+  `helm template`.
+- **`frontend/proxy.conf.mjs`** — dev-server proxy for `make workon-frontend`
+  (iterate on the SPA against a deployed backend; and the reverse via
+  `make workon-backend`).
+
+### Notes
+- The backend image is verified end-to-end: `docker compose up` applies all four
+  migrations and serves `/healthz`; the web container proxies `/api` to the api
+  container.
+
 ## [0.6.1] - 2026-10-21
 
 ### Fixed

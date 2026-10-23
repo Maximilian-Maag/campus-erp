@@ -1,0 +1,48 @@
+% campus-erp — C4 model report
+%
+% Rendered from c4/workspace.dsl by tools/c4_pdf.sh (Structurizr export -> PNG,
+% then this template -> PDF via tectonic). Do not edit the generated copy in
+% c4/export/; edit this template instead.
+%
+% The build runs under XeTeX (tectonic's default engine), so inputenc/fontenc are
+% intentionally omitted.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\definecolor{erpblue}{HTML}{0B4A6F}
+\hypersetup{colorlinks=true,linkcolor=erpblue,urlcolor=erpblue}
+
+\titleformat{\section}{\Large\bfseries\color{erpblue}}{\thesection}{0.8em}{}
+\titleformat{\subsection}[runin]{\bfseries}{}{0em}{}[\ —]
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{campus-erp — C4 model}
+\lhead{\leftmark}
+\cfoot{\thepage}
+
+\title{\vspace{-2cm}\textbf{campus-erp}\\[0.3em]\large C4 architecture model\vspace{-0.5em}}
+\author{HIS-ERP replacement — as-is (legacy) and target architecture}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\section*{About}
+The authoritative model is \texttt{c4/workspace.dsl} (Structurizr DSL). This
+report is generated from it: the diagrams below are the rendered views. When this
+document and the DSL disagree, the DSL wins.
+
+\tableofcontents
+\clearpage
+
+@DIAGRAMS@
+
+\end{document}

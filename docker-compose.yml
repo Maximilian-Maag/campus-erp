@@ -1,0 +1,84 @@
+# Local / single-host stack for campus-erp.
+#
+#   make up          # build + start postgres, api, worker, connectors, web
+#   make logs        # tail everything
+#   make down        # stop (keeps the pgdata volume)
+#   make clean-data  # stop and drop the database volume
+#
+# Kubernetes is the production target (ADR-0007); this file is for development,
+# demos and single-host installs.
+name: campus-erp
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp}
+      POSTGRES_DB: ${POSTGRES_DB:-campus_erp}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"   # 5433 on the host: leaves 5432 free for a local server
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-campus_erp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+    image: ${IMAGE_BACKEND:-campus-erp-backend:dev}
+    environment: &backend_env
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-erp}@postgres:5432/${POSTGRES_DB:-campus_erp}?sslmode=disable
+      ERP_HTTP_ADDR: ":8080"
+      ERP_TENANT: ${ERP_TENANT:-demo}
+      ERP_ROLE: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+    image: ${IMAGE_BACKEND:-campus-erp-backend:dev}
+    command: ["/app/worker"]
+    environment:
+      <<: *backend_env
+      ERP_ROLE: worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  connectors:
+    build:
+      context: ./backend
+    image: ${IMAGE_BACKEND:-campus-erp-backend:dev}
+    command: ["/app/connectors"]
+    environment:
+      <<: *backend_env
+      ERP_ROLE: connectors
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+    image: ${IMAGE_FRONTEND:-campus-erp-frontend:dev}
+    environment:
+      API_UPSTREAM: api:8080
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8081}:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
