@@ -31,3 +31,4 @@ npm-debug.log*
 /frontend/test-results/
 /frontend/playwright-report/
 /frontend/coverage/
+/frontend/.stryker-tmp/
