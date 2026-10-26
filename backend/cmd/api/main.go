@@ -8,6 +8,7 @@ import (
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
@@ -45,6 +46,7 @@ func main() {
 		kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
 		kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
 		kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
+		einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store),
 		store,
 	)
 

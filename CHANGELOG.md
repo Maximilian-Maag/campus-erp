@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.16.0] - 2026-10-26
+
+E-invoicing: XRechnung 3.0 (UBL 2.1) (issue #11).
+
+### Added
+- migration `0011_e_invoice.sql`: `e_invoice`, `e_invoice_party`,
+  `e_invoice_line`, `e_invoice_vat` (EN16931-shaped, docs/08 §4).
+- `internal/core/einvoice`: the model, EN16931 calculation rules and a
+  deterministic **XRechnung 3.0 (UBL 2.1)** generator.
+- `internal/modules/einvoice`: atomic persistence + audited service.
+- HTTP: `POST /api/e-invoices`, `GET /api/e-invoices/{id}`,
+  `GET /api/e-invoices/{id}/xrechnung`.
+- golden file validated against the productive `UBL-Invoice-2.1.xsd`.
+
 ## [0.15.0] - 2026-10-26
 
 S6 — foundation books (issue #9).
