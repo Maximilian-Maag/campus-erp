@@ -42,10 +42,10 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 	}
 
 	fileHash := hashBytes(content)
-	if existing, err := s.repo.StatementsByFile(ctx, accountID, fileHash); err != nil {
+	if _, ok, err := s.repo.FindBankFile(ctx, accountID, fileHash); err != nil {
 		return nil, err
-	} else if len(existing) > 0 {
-		return existing, nil
+	} else if ok {
+		return s.repo.StatementsByFile(ctx, accountID, fileHash)
 	}
 
 	// Reconcile: match each line to the paid order carrying its reference.
@@ -58,6 +58,7 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 	stmts := make([]Statement, 0, len(parsed))
 	for _, ps := range parsed {
 		st := Statement{
+			AccountID:           accountID,
 			Reference:           ps.Reference,
 			Number:              ps.Number,
 			Page:                ps.Page,
@@ -66,6 +67,7 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 			OpeningDate:         ps.OpeningDate,
 			ClosingBalanceCents: ps.ClosingBalanceCents,
 			ClosingDate:         ps.ClosingDate,
+			ImportedBy:          by,
 		}
 		if st.Currency == "" {
 			st.Currency = "EUR"
@@ -101,19 +103,26 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 		stmts = append(stmts, st)
 	}
 
-	saved, err := s.repo.InsertStatements(ctx, accountID, fileHash, by, stmts)
+	file, err := s.repo.InsertBankFile(ctx, BankFile{
+		AccountID:  accountID,
+		FileHash:   fileHash,
+		ImportedBy: by,
+	})
 	if err != nil {
 		return nil, err
 	}
-	for _, st := range saved {
-		if _, err := s.audit.Append(ctx, audit.Event{
-			Actor:   by,
-			Action:  "bank_statement.import",
-			Subject: statementSubject(st.ID),
-			After:   fmt.Sprintf("account=%d lines=%d hash=%s", accountID, st.LineCount, fileHash),
-		}); err != nil {
-			return nil, err
-		}
+
+	saved, err := s.repo.InsertStatements(ctx, file.ID, stmts)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "bank_statement.import",
+		Subject: bankFileSubject(file.ID),
+		After:   fmt.Sprintf("account=%d statements=%d hash=%s", accountID, len(saved), fileHash),
+	}); err != nil {
+		return nil, err
 	}
 	return saved, nil
 }
@@ -121,6 +130,11 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 // Statement loads a statement and its lines.
 func (s *StatementService) Statement(ctx context.Context, id int64) (Statement, error) {
 	return s.repo.GetStatement(ctx, id)
+}
+
+// BankFile loads an imported file.
+func (s *StatementService) BankFile(ctx context.Context, id int64) (BankFile, error) {
+	return s.repo.GetBankFile(ctx, id)
 }
 
 // collectRefs returns the distinct non-empty client references.
@@ -143,4 +157,4 @@ func hashBytes(s string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func statementSubject(id int64) string { return fmt.Sprintf("bank_statement/%d", id) }
+func bankFileSubject(id int64) string { return fmt.Sprintf("bank_file/%d", id) }

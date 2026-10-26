@@ -13,12 +13,13 @@ import (
 type statementService interface {
 	Import(ctx context.Context, accountID int64, content, by string) ([]kasse.Statement, error)
 	Statement(ctx context.Context, id int64) (kasse.Statement, error)
+	BankFile(ctx context.Context, id int64) (kasse.BankFile, error)
 }
 
 // statusForStatement maps a statement error to an HTTP status.
 func statusForStatement(err error) int {
 	switch {
-	case errors.Is(err, kasse.ErrStatementNotFound):
+	case errors.Is(err, kasse.ErrStatementNotFound), errors.Is(err, kasse.ErrBankFileNotFound):
 		return http.StatusNotFound
 	case errors.Is(err, kasse.ErrStatementEmpty),
 		errors.Is(err, kasse.ErrStatementInvalid),
@@ -61,4 +62,18 @@ func (s *Server) getStatement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, st)
+}
+
+func (s *Server) getBankFile(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	file, err := s.statements.BankFile(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), statusForStatement(err))
+		return
+	}
+	writeJSON(w, http.StatusOK, file)
 }

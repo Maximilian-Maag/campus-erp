@@ -12,7 +12,7 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 | S1 cash-book core | **done** — day lifecycle (open / book / close), PostgreSQL repository, HTTP API, audit event on every write |
 | S2 payment orders + four-eyes | **done** — canonical `payment_order`/`payment_recipient`/`budget_position`, enforced four-eyes rule, decision trail, HTTP workflow |
 | S3 payment run + SEPA export | **done** — `cash_account`/`payment_run`/`payment_run_item`; ISO 20022 **pain.001.001.09** (DK/GBIC), golden file validated against the vendor XSD; idempotent on reference; double-payment guard |
-| S4 statement import + reconciliation | **done** — `bank_statement`/`bank_statement_line`; MT940 parser (`internal/core/mt940`), lines reconciled against paid orders and classified `matched`/`returned`/`unmatched`; idempotent on the file hash |
+| S4 statement import + reconciliation | **done** — `bank_file`/`bank_statement`/`bank_statement_line`; MT940 parser (`internal/core/mt940`), lines reconciled against paid orders and classified `matched`/`returned`/`unmatched`; idempotent on the file |
 | S5 dunning | **done** — `dunning_level`/`dunning_band`/`dunning_notice`, any number of ordered bands, integer basis-point rates, stored charges, HTTP workflow |
 | S7 tax-office data + foundations | **done** — `vat_type`, `tax_office`, `foundation`; exact VAT arithmetic, ISO 7064 mod-97 IBAN validation, HTTP workflow |
 | S6, S8 | not started |

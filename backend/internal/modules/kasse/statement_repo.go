@@ -12,7 +12,10 @@ import (
 
 // StatementRepository is the persistence port for bank statements.
 type StatementRepository interface {
-	InsertStatements(ctx context.Context, accountID int64, fileHash, by string, stmts []Statement) ([]Statement, error)
+	InsertBankFile(ctx context.Context, f BankFile) (BankFile, error)
+	FindBankFile(ctx context.Context, accountID int64, fileHash string) (BankFile, bool, error)
+	GetBankFile(ctx context.Context, id int64) (BankFile, error)
+	InsertStatements(ctx context.Context, bankFileID int64, stmts []Statement) ([]Statement, error)
 	StatementsByFile(ctx context.Context, accountID int64, fileHash string) ([]Statement, error)
 	GetStatement(ctx context.Context, id int64) (Statement, error)
 	PaidOrdersByReference(ctx context.Context, refs []string) (map[string]int64, error)
@@ -24,9 +27,11 @@ type StatementRepo struct{ pool *pgxpool.Pool }
 // NewStatementRepo returns a StatementRepo.
 func NewStatementRepo(pool *pgxpool.Pool) *StatementRepo { return &StatementRepo{pool: pool} }
 
-const statementColumns = `id, account_id, reference, statement_number, page, currency,
+const bankFileColumns = `id, account_id, file_name, file_hash, imported_by`
+
+const statementColumns = `id, account_id, bank_file_id, reference, statement_number, page, currency,
 	opening_balance_cents, opening_date, closing_balance_cents, closing_date,
-	line_count, file_hash, imported_by`
+	line_count, imported_by`
 
 const lineColumns = `id, line_no, value_date, booking_date, credit, is_return,
 	amount_cents, currency, posting_key, client_ref, bank_ref, purpose, status, order_id`
@@ -45,8 +50,46 @@ func derefDate(p *time.Time) time.Time {
 	return *p
 }
 
+// InsertBankFile stores an imported file.
+func (r *StatementRepo) InsertBankFile(ctx context.Context, f BankFile) (BankFile, error) {
+	out, err := scanBankFile(r.pool.QueryRow(ctx,
+		`INSERT INTO bank_file (account_id, file_name, file_hash, imported_by)
+		 VALUES ($1,$2,$3,$4)
+		 RETURNING `+bankFileColumns,
+		f.AccountID, f.FileName, f.FileHash, f.ImportedBy))
+	if err != nil {
+		return BankFile{}, fmt.Errorf("kasse: insert bank file: %w", err)
+	}
+	return out, nil
+}
+
+// FindBankFile returns the file already imported for an account and hash.
+func (r *StatementRepo) FindBankFile(ctx context.Context, accountID int64, fileHash string) (BankFile, bool, error) {
+	f, err := scanBankFile(r.pool.QueryRow(ctx,
+		`SELECT `+bankFileColumns+` FROM bank_file WHERE account_id = $1 AND file_hash = $2`, accountID, fileHash))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return BankFile{}, false, nil
+	}
+	if err != nil {
+		return BankFile{}, false, fmt.Errorf("kasse: find bank file: %w", err)
+	}
+	return f, true, nil
+}
+
+// GetBankFile loads a file by id.
+func (r *StatementRepo) GetBankFile(ctx context.Context, id int64) (BankFile, error) {
+	f, err := scanBankFile(r.pool.QueryRow(ctx, `SELECT `+bankFileColumns+` FROM bank_file WHERE id = $1`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return BankFile{}, fmt.Errorf("kasse: bank file %d: %w", id, ErrBankFileNotFound)
+	}
+	if err != nil {
+		return BankFile{}, fmt.Errorf("kasse: get bank file: %w", err)
+	}
+	return f, nil
+}
+
 // InsertStatements stores each statement and its lines in one transaction.
-func (r *StatementRepo) InsertStatements(ctx context.Context, accountID int64, fileHash, by string, stmts []Statement) ([]Statement, error) {
+func (r *StatementRepo) InsertStatements(ctx context.Context, bankFileID int64, stmts []Statement) ([]Statement, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kasse: begin statement import: %w", err)
@@ -57,14 +100,14 @@ func (r *StatementRepo) InsertStatements(ctx context.Context, accountID int64, f
 	for _, s := range stmts {
 		saved, err := scanStatement(tx.QueryRow(ctx,
 			`INSERT INTO bank_statement
-			   (account_id, reference, statement_number, page, currency,
+			   (account_id, bank_file_id, reference, statement_number, page, currency,
 			    opening_balance_cents, opening_date, closing_balance_cents, closing_date,
-			    line_count, file_hash, imported_by)
+			    line_count, imported_by)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 			 RETURNING `+statementColumns,
-			accountID, s.Reference, s.Number, s.Page, s.Currency,
+			s.AccountID, bankFileID, s.Reference, s.Number, s.Page, s.Currency,
 			s.OpeningBalanceCents, nullDate(s.OpeningDate), s.ClosingBalanceCents, nullDate(s.ClosingDate),
-			len(s.Lines), fileHash, by))
+			len(s.Lines), s.ImportedBy))
 		if err != nil {
 			return nil, fmt.Errorf("kasse: insert statement: %w", err)
 		}
@@ -95,7 +138,10 @@ func (r *StatementRepo) InsertStatements(ctx context.Context, accountID int64, f
 // StatementsByFile returns the statements already imported for a file hash.
 func (r *StatementRepo) StatementsByFile(ctx context.Context, accountID int64, fileHash string) ([]Statement, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT `+statementColumns+` FROM bank_statement WHERE account_id = $1 AND file_hash = $2 ORDER BY id`,
+		`SELECT `+statementColumns+`
+		   FROM bank_statement
+		  WHERE bank_file_id = (SELECT id FROM bank_file WHERE account_id = $1 AND file_hash = $2)
+		  ORDER BY id`,
 		accountID, fileHash)
 	if err != nil {
 		return nil, fmt.Errorf("kasse: statements by file: %w", err)
@@ -163,12 +209,18 @@ func (r *StatementRepo) PaidOrdersByReference(ctx context.Context, refs []string
 	return out, rows.Err()
 }
 
+func scanBankFile(row pgx.Row) (BankFile, error) {
+	var f BankFile
+	err := row.Scan(&f.ID, &f.AccountID, &f.FileName, &f.FileHash, &f.ImportedBy)
+	return f, err
+}
+
 func scanStatement(row pgx.Row) (Statement, error) {
 	var s Statement
 	var openingDate, closingDate *time.Time
-	err := row.Scan(&s.ID, &s.AccountID, &s.Reference, &s.Number, &s.Page, &s.Currency,
+	err := row.Scan(&s.ID, &s.AccountID, &s.BankFileID, &s.Reference, &s.Number, &s.Page, &s.Currency,
 		&s.OpeningBalanceCents, &openingDate, &s.ClosingBalanceCents, &closingDate,
-		&s.LineCount, &s.FileHash, &s.ImportedBy)
+		&s.LineCount, &s.ImportedBy)
 	if err != nil {
 		return Statement{}, err
 	}

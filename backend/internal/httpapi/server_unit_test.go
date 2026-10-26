@@ -154,6 +154,10 @@ func (s stubStatements) Statement(context.Context, int64) (kasse.Statement, erro
 	return s.st, s.err
 }
 
+func (s stubStatements) BankFile(context.Context, int64) (kasse.BankFile, error) {
+	return kasse.BankFile{}, s.err
+}
+
 func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
 	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubAudit{}).Handler())
 	defer srv.Close()

@@ -109,9 +109,56 @@ func TestStatementImportReconciles(t *testing.T) {
 		t.Fatalf("loaded = %+v", loaded)
 	}
 
+	// The statement belongs to an imported file.
+	if st.BankFileID == 0 {
+		t.Fatal("BankFileID must be set")
+	}
+	file, err := stmtSvc.BankFile(ctx, st.BankFileID)
+	if err != nil {
+		t.Fatalf("BankFile: %v", err)
+	}
+	if file.FileHash == "" || file.AccountID != account.ID {
+		t.Fatalf("bank file = %+v", file)
+	}
+
 	store := audit.NewStore(testPool(t))
 	if err := store.Verify(ctx); err != nil {
 		t.Fatalf("audit verify: %v", err)
+	}
+}
+
+// TestStatementImportMultipleStatementsInOneFile covers "one file, many
+// statements": both statements share one bank_file.
+func TestStatementImportMultipleStatementsInOneFile(t *testing.T) {
+	ctx := context.Background()
+	runSvc, orderSvc := newRunService(t)
+	stmtSvc := kasse.NewStatementService(kasse.NewStatementRepo(testPool(t)), audit.NewStore(testPool(t)))
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	if err != nil {
+		t.Fatalf("CreateCashAccount: %v", err)
+	}
+	_ = orderSvc
+
+	two := mt940File("STMT-A-"+uniqueSuffix(t), []mtLine{{clientRef: "X", credit: true, cents: 100, key: "051"}}) +
+		strings.Replace(mt940File("STMT-B-"+uniqueSuffix(t), []mtLine{{clientRef: "Y", credit: false, cents: 200, key: "051"}}),
+			":28C:00001/001", ":28C:00002/001", 1)
+	stmts, err := stmtSvc.Import(ctx, account.ID, two, "carol")
+	if err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	if len(stmts) != 2 {
+		t.Fatalf("statements = %d, want 2", len(stmts))
+	}
+	if stmts[0].BankFileID != stmts[1].BankFileID || stmts[0].BankFileID == 0 {
+		t.Fatalf("both statements must share one bank file: %d vs %d", stmts[0].BankFileID, stmts[1].BankFileID)
+	}
+	// Re-import returns the same two statements.
+	again, err := stmtSvc.Import(ctx, account.ID, two, "carol")
+	if err != nil {
+		t.Fatalf("re-import: %v", err)
+	}
+	if len(again) != 2 || again[0].ID != stmts[0].ID {
+		t.Fatalf("re-import = %+v", again)
 	}
 }
 
