@@ -220,3 +220,47 @@ func TestStatementImportMatchesEndToEndRef(t *testing.T) {
 		t.Fatalf("line detail = %+v", l)
 	}
 }
+
+// TestStatementImportCAMT053 covers format detection and reconciliation for a
+// CAMT.053 document.
+func TestStatementImportCAMT053(t *testing.T) {
+	ctx := context.Background()
+	runSvc, orderSvc := newRunService(t)
+	stmtSvc := kasse.NewStatementService(kasse.NewStatementRepo(testPool(t)), audit.NewStore(testPool(t)))
+
+	order := newApprovedOrder(t, orderSvc, 125000)
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	if err != nil {
+		t.Fatalf("CreateCashAccount: %v", err)
+	}
+	if _, err := runSvc.CreateRun(ctx, "RUN-"+uniqueSuffix(t), account.ID,
+		time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC), []int64{order.ID}, "carol"); err != nil {
+		t.Fatalf("CreateRun: %v", err)
+	}
+
+	doc := `<?xml version="1.0" encoding="UTF-8"?>` +
+		`<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08"><BkToCstmrStmt><Stmt>` +
+		`<Id>CAMT-` + uniqueSuffix(t) + `</Id><ElctrncSeqNb>1</ElctrncSeqNb>` +
+		`<Acct><Id><IBAN>DE02120300000000202051</IBAN></Id><Ccy>EUR</Ccy></Acct>` +
+		`<Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">10000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-10-01</Dt></Dt></Bal>` +
+		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>` +
+		`<BookgDt><Dt>2026-10-01</Dt></BookgDt><ValDt><Dt>2026-10-01</Dt></ValDt>` +
+		`<NtryDtls><TxDtls><Refs><EndToEndId>` + order.Reference + `</EndToEndId></Refs>` +
+		`<RltdPties><Dbtr><Nm>Stadtwerke</Nm></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
+		`</Stmt></BkToCstmrStmt></Document>`
+
+	stmts, err := stmtSvc.Import(ctx, account.ID, doc, "carol")
+	if err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	if len(stmts) != 1 || len(stmts[0].Lines) != 1 {
+		t.Fatalf("stmts = %+v", stmts)
+	}
+	l := stmts[0].Lines[0]
+	if l.Status != kasse.StatusMatched || l.OrderID == nil || *l.OrderID != order.ID {
+		t.Fatalf("CAMT line not matched: %+v", l)
+	}
+	if l.CounterpartyName != "Stadtwerke" {
+		t.Fatalf("counterparty = %q", l.CounterpartyName)
+	}
+}

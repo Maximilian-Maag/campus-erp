@@ -76,8 +76,15 @@ line's client reference. A matched line whose direction is a return is classifie
 
 ## Still open
 
-- **CAMT.053** statement import is not implemented. The vendor's parser and the
-  `camt.053.001.02`/`.08` XSDs ship in the productive source
-  (`rm.fia.payments.datex.sepa.camt053v02/v08`), so it is unblocked the same way.
 - **Return postings to FiBu** (the `rueckfibu_*` format) are not produced; the
   ledger is Phase 4 (the pilot keeps only the format in scope).
+
+## CAMT.053 (added)
+
+ISO 20022 **CAMT.053** import is implemented (`internal/core/camt053`); both
+formats now feed one reconciliation path via the shared parsed-statement shape
+(`internal/core/bankstmt`), and `StatementService.Import` detects the format (an
+XML document is CAMT.053, anything else is MT940). The mapping follows the
+productive parser (`rm.fia.payments.datex.sepa.camt053v02/v08`): `Stmt` →
+statement, `Bal` `OPBD`/`CLBD` → opening/closing balance, `Ntry` → line, with
+`TxDtls/Refs/EndToEndId`, `RltdPties` (`Cdtr`/`Dbtr`) and `RmtInf/Ustrd`.

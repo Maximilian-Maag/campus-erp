@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/bankstmt"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/camt053"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/mt940"
 )
 
@@ -36,7 +38,7 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 		return nil, ErrStatementEmpty
 	}
 
-	parsed, err := mt940.Parse(content)
+	parsed, err := parseStatements(content)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrStatementInvalid, err)
 	}
@@ -141,8 +143,17 @@ func (s *StatementService) BankFile(ctx context.Context, id int64) (BankFile, er
 	return s.repo.GetBankFile(ctx, id)
 }
 
+// parseStatements detects the statement format: an XML document is CAMT.053,
+// anything else is MT940.
+func parseStatements(content string) ([]bankstmt.Statement, error) {
+	if strings.HasPrefix(strings.TrimSpace(content), "<") {
+		return camt053.Parse(content)
+	}
+	return mt940.Parse(content)
+}
+
 // collectRefs returns the distinct non-empty references (client and end-to-end).
-func collectRefs(stmts []mt940.Statement) []string {
+func collectRefs(stmts []bankstmt.Statement) []string {
 	seen := make(map[string]bool)
 	var refs []string
 	add := func(r string) {

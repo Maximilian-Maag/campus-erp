@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/bankstmt"
 )
 
 // Parse errors. They are values so callers can match them with errors.Is.
@@ -27,37 +29,12 @@ var (
 	ErrLineWithoutBalance = errors.New("mt940: statement line before any opening balance")
 )
 
-// Line is one :61: statement line (one booking).
-type Line struct {
-	ValueDate        time.Time
-	BookingDate      time.Time
-	Credit           bool
-	Return           bool // RC/RD, or a return posting key (009/059)
-	AmountCents      int64
-	Currency         string
-	PostingKey       string
-	ClientRef        string
-	BankRef          string
-	Purpose          string
-	EndToEndRef      string
-	CounterpartyName string
-	CounterpartyIBAN string
-	CounterpartyBIC  string
-}
+// Line is one :61: statement line (one booking). It is the shared parsed shape.
+type Line = bankstmt.Line
 
-// Statement is one MT940 statement (one account, one statement number).
-type Statement struct {
-	Reference           string
-	Account             string
-	Number              int
-	Page                int
-	Currency            string
-	OpeningBalanceCents int64
-	OpeningDate         time.Time
-	ClosingBalanceCents int64
-	ClosingDate         time.Time
-	Lines               []Line
-}
+// Statement is one MT940 statement (one account, one statement number). It is
+// the shared parsed shape produced by every statement parser.
+type Statement = bankstmt.Statement
 
 type field struct {
 	tag   string
