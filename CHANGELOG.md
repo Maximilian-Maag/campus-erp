@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.14.0] - 2026-10-26
+
+CAMT.053 statement import (issue #7).
+
+### Added
+- **`internal/core/camt053`** — ISO 20022 CAMT.053 parser producing the shared
+  parsed-statement shape; `internal/core/bankstmt` holds that neutral shape (the
+  MT940 types are now aliases of it).
+- `StatementService.Import` detects the format (XML → CAMT.053, else MT940).
+- parser unit tests incl. a golden CAMT.053 sample; integration test importing a
+  CAMT file and matching a paid order.
+- `internal/core/camt053` added to `backend/mutation.json`.
+
+### Changed
+- `docs/legacy/kbs-statement-import.md` documents both formats.
+
 ## [0.13.0] - 2026-10-26
 
 Statement-line detail: uncleared amount, counterparty, structured `:86:` (issue #5).
