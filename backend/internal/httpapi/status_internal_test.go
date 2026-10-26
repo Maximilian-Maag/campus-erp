@@ -168,6 +168,7 @@ func TestStatusForStatement(t *testing.T) {
 		want int
 	}{
 		{"not found", kasse.ErrStatementNotFound, http.StatusNotFound},
+		{"bank file not found", kasse.ErrBankFileNotFound, http.StatusNotFound},
 		{"empty", kasse.ErrStatementEmpty, http.StatusUnprocessableEntity},
 		{"invalid", kasse.ErrStatementInvalid, http.StatusUnprocessableEntity},
 		{"account required", kasse.ErrCashAccountRequired, http.StatusUnprocessableEntity},

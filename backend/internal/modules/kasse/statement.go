@@ -23,6 +23,8 @@ var (
 	ErrStatementEmpty = errors.New("kasse: the statement file is empty")
 	// ErrStatementNotFound is returned when a statement does not exist.
 	ErrStatementNotFound = errors.New("kasse: bank statement not found")
+	// ErrBankFileNotFound is returned when a bank file does not exist.
+	ErrBankFileNotFound = errors.New("kasse: bank file not found")
 	// ErrStatementInvalid is returned when the file cannot be parsed as MT940.
 	ErrStatementInvalid = errors.New("kasse: malformed statement file")
 )
@@ -45,10 +47,20 @@ type StatementLine struct {
 	OrderID     *int64
 }
 
+// BankFile is one imported file. A file may contain several statements.
+type BankFile struct {
+	ID         int64
+	AccountID  int64
+	FileName   string
+	FileHash   string
+	ImportedBy string
+}
+
 // Statement is one imported bank statement with its lines.
 type Statement struct {
 	ID                  int64
 	AccountID           int64
+	BankFileID          int64
 	Reference           string
 	Number              int
 	Page                int
@@ -58,7 +70,6 @@ type Statement struct {
 	ClosingBalanceCents int64
 	ClosingDate         time.Time
 	LineCount           int
-	FileHash            string
 	ImportedBy          string
 	Lines               []StatementLine
 }

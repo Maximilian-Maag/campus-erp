@@ -43,12 +43,11 @@ The vendor splits the import three ways:
   balance; **`UNIQUE (bankfile_id, cash_account_id, bankstatement_number)`**.
 - `bankstatementline` — one booking (35 columns), FK → `bankstatement`.
 
-Our S4 model puts `file_hash` on `bank_statement` and keys idempotency on
-`(account_id, file_hash, statement_number, page)`. Functionally equivalent for
-one-statement files, but the vendor's separate `bankfile` makes **"one file, many
-statements"** first-class. *Refinement: extract a `bank_file` entity (file hash,
-msgid) and let `bank_statement` reference it.* This also matches the legacy
-`datmt940` (which recorded the file, separately from `mt940`).
+Our S4 model put `file_hash` on `bank_statement` and keyed idempotency on
+`(account_id, file_hash, statement_number, page)`. **Applied** (migration `0008`,
+issue #3): a `bank_file` entity now owns `file_hash`; `bank_statement` references
+it and the unique key is `(bank_file_id, statement_number, page)`. This also
+matches the legacy `datmt940` (which recorded the file, separately from `mt940`).
 
 ### 2.2 `bank_account` means the opposite thing
 
@@ -119,7 +118,7 @@ Note the direct correspondence with our S3 field mapping: our `end_to_end_id`
 Nothing in the committed slices is wrong; the cross-walk confirms the Kasse
 design and yields three concrete refinements to schedule:
 
-1. split `bank_file` out of `bank_statement` (§2.1);
+1. ~~split `bank_file` out of `bank_statement`~~ — **done** (issue #3);
 2. ~~rename the own-account entity as `cash_account`~~ — **done** (issue #1);
 3. add `uncleared_amount` + counterparty columns to `bank_statement_line` (§2.3).
 
