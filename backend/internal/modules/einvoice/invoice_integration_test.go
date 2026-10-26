@@ -143,6 +143,40 @@ func TestInvoiceValidationAndDuplicates(t *testing.T) {
 	}
 }
 
+func TestInvoiceImportReceived(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+
+	inv := sampleInvoice(t)
+	doc, err := core.GenerateXRechnung(inv)
+	if err != nil {
+		t.Fatalf("GenerateXRechnung: %v", err)
+	}
+	saved, err := svc.ImportReceived(ctx, doc, "alice")
+	if err != nil {
+		t.Fatalf("ImportReceived: %v", err)
+	}
+	if saved.ID == 0 || saved.Number != inv.Number {
+		t.Fatalf("saved = %+v", saved)
+	}
+	got, err := svc.Get(ctx, saved.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Seller.Name != inv.Seller.Name || len(got.Lines) != 2 || got.Lines[1].NetCents != 2608 {
+		t.Fatalf("round-trip = %+v", got)
+	}
+
+	// A malformed document is rejected.
+	if _, err := svc.ImportReceived(ctx, "<not-xml", "alice"); !errors.Is(err, core.ErrMalformed) {
+		t.Fatalf("malformed = %v", err)
+	}
+	// A blank actor is rejected.
+	if _, err := svc.ImportReceived(ctx, doc, "  "); !errors.Is(err, einvoice.ErrActorRequired) {
+		t.Fatalf("actor = %v", err)
+	}
+}
+
 func TestInvoiceAuditChain(t *testing.T) {
 	ctx := context.Background()
 	pool := testPool(t)

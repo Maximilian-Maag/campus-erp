@@ -41,8 +41,15 @@ enforce the mandatory fields a German public-sector invoice needs:
 - **BR-CO-10**: each line net = quantity × unit price (round half away from zero);
 - VAT breakdown derived per (category, rate) with the tax rounded half-up.
 
+## Inbound (Eingangsrechnung)
+
+`core.ParseXRechnung` reads a received XRechnung 3.0 (UBL 2.1) `Invoice` back
+into the same model and runs the same `Validate`, so a document we accept is held
+to the rules we emit. `InvoiceService.ImportReceived` stores it (audited,
+`einvoice.receive`) and `POST /api/e-invoices/received` takes the raw XML.
+
 ## Not yet done
 
-- Inbound (Eingangsrechnung) parsing/validation of a received XRechnung/ZUGFeRD.
 - ZUGFeRD/CII syntax (the vendor ships it too; UBL is the public-sector format).
 - The full KoSIT Schematron ruleset (we enforce the subset we can satisfy).
+- Matching an inbound invoice to a purchase order / budget position.

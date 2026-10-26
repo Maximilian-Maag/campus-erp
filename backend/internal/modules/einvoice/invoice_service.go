@@ -59,6 +59,32 @@ func (s *InvoiceService) Get(ctx context.Context, id int64) (core.Invoice, error
 	return s.repo.Get(ctx, id)
 }
 
+// ImportReceived parses, validates and stores an inbound XRechnung document.
+func (s *InvoiceService) ImportReceived(ctx context.Context, doc, by string) (core.Invoice, error) {
+	if strings.TrimSpace(by) == "" {
+		return core.Invoice{}, ErrActorRequired
+	}
+	inv, err := core.ParseXRechnung(doc)
+	if err != nil {
+		return core.Invoice{}, err
+	}
+	inv.CreatedBy = by
+	saved, err := s.repo.Insert(ctx, inv)
+	if err != nil {
+		return core.Invoice{}, err
+	}
+	_, _, gross, _ := core.ComputeTotals(saved)
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "einvoice.receive",
+		Subject: fmt.Sprintf("e_invoice/%d", saved.ID),
+		After:   fmt.Sprintf("number=%s seller=%s gross_cents=%d", saved.Number, saved.Seller.Name, gross),
+	}); err != nil {
+		return core.Invoice{}, err
+	}
+	return saved, nil
+}
+
 // Render returns the invoice as an XRechnung 3.0 (UBL 2.1) document.
 func (s *InvoiceService) Render(ctx context.Context, id int64) (string, error) {
 	inv, err := s.repo.Get(ctx, id)

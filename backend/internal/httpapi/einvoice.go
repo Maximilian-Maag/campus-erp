@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 // einvoiceService is the e-invoicing surface the HTTP layer needs.
 type einvoiceService interface {
 	Create(ctx context.Context, inv core.Invoice, by string) (core.Invoice, error)
+	ImportReceived(ctx context.Context, doc, by string) (core.Invoice, error)
 	Get(ctx context.Context, id int64) (core.Invoice, error)
 	Render(ctx context.Context, id int64) (string, error)
 }
@@ -45,7 +47,9 @@ func statusForEInvoice(err error) int {
 		errors.Is(err, core.ErrLineQuantity),
 		errors.Is(err, core.ErrLineAmount),
 		errors.Is(err, core.ErrVATCategoryRequired),
-		errors.Is(err, core.ErrLineNetMismatch):
+		errors.Is(err, core.ErrLineNetMismatch),
+		errors.Is(err, core.ErrMalformed),
+		errors.Is(err, core.ErrBadValue):
 		return http.StatusUnprocessableEntity
 	default:
 		return http.StatusInternalServerError
@@ -122,6 +126,21 @@ func (s *Server) createEInvoice(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	saved, err := s.einvoices.Create(r.Context(), inv, actor(r))
+	if err != nil {
+		http.Error(w, err.Error(), statusForEInvoice(err))
+		return
+	}
+	writeJSON(w, http.StatusCreated, saved)
+}
+
+// receiveEInvoice parses, validates and stores an inbound XRechnung document.
+func (s *Server) receiveEInvoice(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	saved, err := s.einvoices.ImportReceived(r.Context(), string(body), actor(r))
 	if err != nil {
 		http.Error(w, err.Error(), statusForEInvoice(err))
 		return
