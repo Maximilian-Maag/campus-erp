@@ -10,18 +10,22 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 |---|---|
 | S0 platform foundations | **done for the pilot** — tenant DSN (`DATABASE_URL`), embedded migration runner (advisory-locked, safe under concurrent startup), append-only hash-chained audit store, CI with a Postgres service |
 | S1 cash-book core | **done** — day lifecycle (open / book / close), PostgreSQL repository, HTTP API, audit event on every write |
-| S2 payment orders + four-eyes | **done** — canonical `payment_order`/`payment_recipient`/`budget_position`, enforced four-eyes rule, decision trail, HTTP workflow. SEPA export is S3 |
+| S2 payment orders + four-eyes | **done** — canonical `payment_order`/`payment_recipient`/`budget_position`, enforced four-eyes rule, decision trail, HTTP workflow |
+| S3 payment run + SEPA export | **done** — `bank_account`/`payment_run`/`payment_run_item`; ISO 20022 **pain.001.001.09** (DK/GBIC), golden file validated against the vendor XSD; idempotent on reference; double-payment guard |
 | S5 dunning | **done** — `dunning_level`/`dunning_band`/`dunning_notice`, any number of ordered bands, integer basis-point rates, stored charges, HTTP workflow |
 | S7 tax-office data + foundations | **done** — `vat_type`, `tax_office`, `foundation`; exact VAT arithmetic, ISO 7064 mod-97 IBAN validation, HTTP workflow |
-| S3, S4, S6, S8 | not started |
+| S4, S6, S8 | not started |
 
-What exists is a **vertical slice, not parity**: the cash-book day lifecycle and the
-payment-order workflow. Still missing: SEPA export (`pain.001`), MT940/CAMT import,
-dunning, foundations and tax-office data. Interfaces (S3/S4) are blocked on **golden
-files** (real bank formats); the parallel run (S8) is blocked on a production extract.
+What exists is a **vertical slice, not parity**: the cash-book day lifecycle, the
+payment-order workflow and the SEPA export. Still missing: MT940/CAMT import
+(S4), foundations (S6). Interfaces are unblocked on the *format* by the
+productive source (the ISO 20022 XSDs ship with it, `docs/05`); the remaining gap
+is a per-bank sample. The parallel run (S8) is still blocked on a production
+extract.
 
 Legacy findings: `docs/legacy/kbs-payment-orders.md` (S2),
-`docs/legacy/kbs-dunning.md` (S5), `docs/legacy/kbs-tax-and-foundations.md` (S7).
+`docs/legacy/kbs-sepa-export.md` (S3), `docs/legacy/kbs-dunning.md` (S5),
+`docs/legacy/kbs-tax-and-foundations.md` (S7).
 
 ## Why Kasse first
 

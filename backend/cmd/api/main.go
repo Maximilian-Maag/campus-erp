@@ -42,6 +42,7 @@ func main() {
 		kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
 		kasse.NewDunningService(kasse.NewDunningRepo(pool), store),
 		kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
+		kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
 		store,
 	)
 
