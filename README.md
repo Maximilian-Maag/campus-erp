@@ -105,10 +105,13 @@ C4), and the first vertical slice is implemented and tested:
 - payment runs that export **SEPA credit transfers (ISO 20022 pain.001.001.09,
   DK/GBIC)**: the produced file is stored and hash-pinned, the run is idempotent
   on its reference, and an approved order can be paid at most once
+- bank statement import (**MT940**) with reconciliation: each line is matched
+  against the paid orders and classified `matched` / `returned` / `unmatched`;
+  the import is idempotent on the file hash
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
   Go target package, policy-as-code green
 
-Not yet implemented: MT940/CAMT statement import, foundations, and every other
+Not yet implemented: CAMT.053 import, foundations, and every other
 module. The
 legacy analysis under `schema/` and `docs/01..04` remains valid and is the ETL
 input (ADR-0001).

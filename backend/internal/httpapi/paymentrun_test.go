@@ -14,8 +14,9 @@ type accountJSON struct {
 }
 
 type runOrderJSON struct {
-	ID     int64
-	Status string
+	ID        int64
+	Reference string
+	Status    string
 }
 
 type runJSON struct {

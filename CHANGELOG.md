@@ -2,6 +2,33 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.10.0] - 2026-10-26
+
+Slice S4 — bank statement import (MT940) and reconciliation (Kasse).
+
+### Added
+- **Schema** (`migrations/0006_bank_statement.sql`): `bank_statement` (own
+  identity: number, page, opening/closing balance — the legacy `kbs.mt940` god
+  table repeated the header on every line) and `bank_statement_line` (one row per
+  `:61:` with an explicit reconciliation `status` and `order_id`).
+- **`internal/core/mt940`** — a SWIFT MT940 parser matching the productive HISinOne
+  parser (`MT940Record`/`Field61`): tags `:20:/:25:/:28C:/:60F:/:61:/:86:/:62F:`,
+  the `:61:` field layout, German decimal amounts, `C`/`D`/`RC`/`RD` indicators and
+  the `009`/`059` return posting keys.
+- **`internal/modules/kasse`** — `StatementService` + `StatementRepo`: parse,
+  store, and reconcile each line against the **paid** orders (those in a payment
+  run) by order reference, classifying `matched` / `returned` / `unmatched`;
+  idempotent on the file hash.
+- **HTTP**: `POST /api/bank-statements`, `GET /api/bank-statements/{id}`.
+- **Tests**: parser unit tests incl. a golden MT940 sample; integration tests
+  (import, reconciliation, idempotency, audit chain); HTTP e2e.
+- **`docs/legacy/kbs-statement-import.md`** — S4 legacy findings and field mapping.
+- `internal/core/mt940` added to `backend/mutation.json`.
+
+### Quality
+- All seven Go mutation targets above the 0.85 floor (`httpapi` 100 %, `kasse`
+  99.6 %, `mt940` 92 %); policy-as-code green.
+
 ## [0.9.0] - 2026-10-26
 
 Slice S3 — payment run and SEPA credit-transfer export (Kasse).
