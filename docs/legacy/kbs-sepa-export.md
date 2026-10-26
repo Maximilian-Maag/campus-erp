@@ -53,7 +53,7 @@ read from that source and the shipped XSD
 
 | legacy `kbs` | canonical |
 |---|---|
-| debtor denormalised onto each payment | **`bank_account`** entity (the debtor side) |
+| debtor denormalised onto each payment | **`cash_account`** entity (the debtor side) |
 | file discarded | **`payment_run.file_xml` + `file_hash`** — the exact bytes handed to the bank are stored |
 | ten counter pairs | `payment_run.item_count` + `sum_cents` (the totals are recomputed from the items) |
 | nothing stops double payment | **`payment_run_item` `UNIQUE(order_id)`** — an approved order is paid at most once |

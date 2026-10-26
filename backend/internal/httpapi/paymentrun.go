@@ -12,7 +12,7 @@ import (
 
 // paymentRunService is the payment-run surface the HTTP layer needs.
 type paymentRunService interface {
-	CreateBankAccount(ctx context.Context, name, iban, bic, currency string) (kasse.BankAccount, error)
+	CreateCashAccount(ctx context.Context, name, iban, bic, currency string) (kasse.CashAccount, error)
 	CreateRun(ctx context.Context, reference string, accountID int64, executionDate time.Time, orderIDs []int64, by string) (kasse.PaymentRun, error)
 	Run(ctx context.Context, id int64) (kasse.PaymentRun, error)
 	RunFile(ctx context.Context, id int64) (string, error)
@@ -28,7 +28,7 @@ func statusForRun(err error) int {
 	case errors.Is(err, kasse.ErrRunReferenceRequired),
 		errors.Is(err, kasse.ErrNoOrders),
 		errors.Is(err, kasse.ErrOrderNotApproved),
-		errors.Is(err, kasse.ErrBankAccountRequired),
+		errors.Is(err, kasse.ErrCashAccountRequired),
 		errors.Is(err, kasse.ErrExecutionDateRequired),
 		errors.Is(err, kasse.ErrIBANInvalid),
 		errors.Is(err, kasse.ErrBICInvalid),
@@ -41,20 +41,20 @@ func statusForRun(err error) int {
 	}
 }
 
-type createBankAccountRequest struct {
+type createCashAccountRequest struct {
 	Name     string `json:"name"`
 	IBAN     string `json:"iban"`
 	BIC      string `json:"bic"`
 	Currency string `json:"currency"`
 }
 
-func (s *Server) createBankAccount(w http.ResponseWriter, r *http.Request) {
-	var req createBankAccountRequest
+func (s *Server) createCashAccount(w http.ResponseWriter, r *http.Request) {
+	var req createCashAccountRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	account, err := s.runs.CreateBankAccount(r.Context(), req.Name, req.IBAN, req.BIC, req.Currency)
+	account, err := s.runs.CreateCashAccount(r.Context(), req.Name, req.IBAN, req.BIC, req.Currency)
 	if err != nil {
 		http.Error(w, err.Error(), statusForRun(err))
 		return

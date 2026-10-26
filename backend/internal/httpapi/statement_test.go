@@ -40,7 +40,7 @@ func TestHTTPStatementImportFlow(t *testing.T) {
 	srv, _ := newTestServer(t)
 
 	// A debtor account.
-	resp := doJSON(t, http.MethodPost, srv.URL+"/api/bank-accounts", "carol",
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/cash-accounts", "carol",
 		`{"name":"Universität","iban":"DE02120300000000202051","bic":"BYLADEM1001","currency":"EUR"}`)
 	var account accountJSON
 	if err := json.NewDecoder(resp.Body).Decode(&account); err != nil {

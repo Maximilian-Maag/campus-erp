@@ -54,9 +54,9 @@ func TestStatementImportReconciles(t *testing.T) {
 	a := newApprovedOrder(t, orderSvc, 125000)
 	b := newApprovedOrder(t, orderSvc, 4999)
 
-	account, err := runSvc.CreateBankAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
 	if err != nil {
-		t.Fatalf("CreateBankAccount: %v", err)
+		t.Fatalf("CreateCashAccount: %v", err)
 	}
 	// Pay both orders so they count as matched.
 	if _, err := runSvc.CreateRun(ctx, "RUN-"+uniqueSuffix(t), account.ID,
@@ -122,7 +122,7 @@ func TestStatementImportValidation(t *testing.T) {
 	if _, err := stmtSvc.Import(ctx, 1, ":20:A\n:60F:C260101EUR0,00\n:62F:C260101EUR0,00\n", ""); !errors.Is(err, kasse.ErrActorRequired) {
 		t.Fatalf("no actor: %v", err)
 	}
-	if _, err := stmtSvc.Import(ctx, 0, "x", "carol"); !errors.Is(err, kasse.ErrBankAccountRequired) {
+	if _, err := stmtSvc.Import(ctx, 0, "x", "carol"); !errors.Is(err, kasse.ErrCashAccountRequired) {
 		t.Fatalf("no account: %v", err)
 	}
 	if _, err := stmtSvc.Import(ctx, 1, "   ", "carol"); !errors.Is(err, kasse.ErrStatementEmpty) {

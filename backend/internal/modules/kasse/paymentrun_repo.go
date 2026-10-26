@@ -12,8 +12,8 @@ import (
 
 // PaymentRunRepository is the persistence port for payment runs.
 type PaymentRunRepository interface {
-	CreateBankAccount(ctx context.Context, a BankAccount) (BankAccount, error)
-	GetBankAccount(ctx context.Context, id int64) (BankAccount, error)
+	CreateCashAccount(ctx context.Context, a CashAccount) (CashAccount, error)
+	GetCashAccount(ctx context.Context, id int64) (CashAccount, error)
 	RunByReference(ctx context.Context, reference string) (PaymentRun, bool, error)
 	GetRun(ctx context.Context, id int64) (PaymentRun, error)
 	RunFile(ctx context.Context, id int64) (string, error)
@@ -37,31 +37,31 @@ func scanRun(row pgx.Row) (PaymentRun, error) {
 	return r, err
 }
 
-// CreateBankAccount upserts a bank account keyed by IBAN.
-func (r *PaymentRunRepo) CreateBankAccount(ctx context.Context, a BankAccount) (BankAccount, error) {
+// CreateCashAccount upserts a cash account keyed by IBAN.
+func (r *PaymentRunRepo) CreateCashAccount(ctx context.Context, a CashAccount) (CashAccount, error) {
 	row := r.pool.QueryRow(ctx,
-		`INSERT INTO bank_account (name, iban, bic, currency)
+		`INSERT INTO cash_account (name, iban, bic, currency)
 		 VALUES ($1,$2,$3,$4)
 		 ON CONFLICT (iban) DO UPDATE
 		   SET name = EXCLUDED.name, bic = EXCLUDED.bic, currency = EXCLUDED.currency
 		 RETURNING id, name, iban, bic, currency`,
 		a.Name, a.IBAN, a.BIC, a.Currency)
-	var out BankAccount
+	var out CashAccount
 	if err := row.Scan(&out.ID, &out.Name, &out.IBAN, &out.BIC, &out.Currency); err != nil {
-		return BankAccount{}, fmt.Errorf("kasse: create bank account: %w", err)
+		return CashAccount{}, fmt.Errorf("kasse: create cash account: %w", err)
 	}
 	return out, nil
 }
 
-// GetBankAccount loads an account by id.
-func (r *PaymentRunRepo) GetBankAccount(ctx context.Context, id int64) (BankAccount, error) {
-	row := r.pool.QueryRow(ctx, `SELECT id, name, iban, bic, currency FROM bank_account WHERE id = $1`, id)
-	var out BankAccount
+// GetCashAccount loads an account by id.
+func (r *PaymentRunRepo) GetCashAccount(ctx context.Context, id int64) (CashAccount, error) {
+	row := r.pool.QueryRow(ctx, `SELECT id, name, iban, bic, currency FROM cash_account WHERE id = $1`, id)
+	var out CashAccount
 	if err := row.Scan(&out.ID, &out.Name, &out.IBAN, &out.BIC, &out.Currency); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return BankAccount{}, fmt.Errorf("kasse: bank account %d: %w", id, ErrNotFound)
+			return CashAccount{}, fmt.Errorf("kasse: cash account %d: %w", id, ErrNotFound)
 		}
-		return BankAccount{}, fmt.Errorf("kasse: get bank account: %w", err)
+		return CashAccount{}, fmt.Errorf("kasse: get cash account: %w", err)
 	}
 	return out, nil
 }

@@ -63,9 +63,9 @@ func TestPaymentRunProducesSEPAFile(t *testing.T) {
 	a := newApprovedOrder(t, orderSvc, 125000)
 	b := newApprovedOrder(t, orderSvc, 4999)
 
-	account, err := runSvc.CreateBankAccount(ctx, "Universität Musterstadt", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	account, err := runSvc.CreateCashAccount(ctx, "Universität Musterstadt", "DE02120300000000202051", "BYLADEM1001", "EUR")
 	if err != nil {
-		t.Fatalf("CreateBankAccount: %v", err)
+		t.Fatalf("CreateCashAccount: %v", err)
 	}
 
 	ref := "RUN-" + uniqueSuffix(t)
@@ -124,9 +124,9 @@ func TestPaymentRunProducesSEPAFile(t *testing.T) {
 func TestPaymentRunRejectsUnapprovedOrder(t *testing.T) {
 	ctx := context.Background()
 	runSvc, orderSvc := newRunService(t)
-	account, err := runSvc.CreateBankAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
 	if err != nil {
-		t.Fatalf("CreateBankAccount: %v", err)
+		t.Fatalf("CreateCashAccount: %v", err)
 	}
 	// A fresh draft order (not approved).
 	rec, err := orderSvc.CreateRecipient(ctx, kasse.Recipient{Name: "X", AccountHolder: "X", IBAN: "GB29NWBK60161331926819", BIC: "NWBKGB2L"})
@@ -154,9 +154,9 @@ func TestPaymentRunRejectsUnapprovedOrder(t *testing.T) {
 func TestPaymentRunValidation(t *testing.T) {
 	ctx := context.Background()
 	runSvc, orderSvc := newRunService(t)
-	account, err := runSvc.CreateBankAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
 	if err != nil {
-		t.Fatalf("CreateBankAccount: %v", err)
+		t.Fatalf("CreateCashAccount: %v", err)
 	}
 	order := newApprovedOrder(t, orderSvc, 500)
 	exec := time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC)
@@ -174,7 +174,7 @@ func TestPaymentRunValidation(t *testing.T) {
 		}, kasse.ErrActorRequired},
 		{"no account", func() (kasse.PaymentRun, error) {
 			return runSvc.CreateRun(ctx, "RUN-"+uniqueSuffix(t), 0, exec, []int64{order.ID}, "carol")
-		}, kasse.ErrBankAccountRequired},
+		}, kasse.ErrCashAccountRequired},
 		{"no execution date", func() (kasse.PaymentRun, error) {
 			return runSvc.CreateRun(ctx, "RUN-"+uniqueSuffix(t), account.ID, time.Time{}, []int64{order.ID}, "carol")
 		}, kasse.ErrExecutionDateRequired},
@@ -213,9 +213,9 @@ func TestPaymentRunNotFound(t *testing.T) {
 func TestPaymentRunMissingOrderMessage(t *testing.T) {
 	ctx := context.Background()
 	runSvc, orderSvc := newRunService(t)
-	account, err := runSvc.CreateBankAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
 	if err != nil {
-		t.Fatalf("CreateBankAccount: %v", err)
+		t.Fatalf("CreateCashAccount: %v", err)
 	}
 	order := newApprovedOrder(t, orderSvc, 500)
 	_, err = runSvc.CreateRun(ctx, "RUN-"+uniqueSuffix(t), account.ID,
@@ -232,9 +232,9 @@ func TestPaymentRunMissingOrderMessage(t *testing.T) {
 func TestPaymentRunRejectsInvalidCreditorBIC(t *testing.T) {
 	ctx := context.Background()
 	runSvc, orderSvc := newRunService(t)
-	account, err := runSvc.CreateBankAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
 	if err != nil {
-		t.Fatalf("CreateBankAccount: %v", err)
+		t.Fatalf("CreateCashAccount: %v", err)
 	}
 	rec, err := orderSvc.CreateRecipient(ctx, kasse.Recipient{Name: "X", AccountHolder: "X", IBAN: "DE89370400440532013000", BIC: "NOTABIC"})
 	if err != nil {

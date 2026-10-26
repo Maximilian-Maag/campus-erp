@@ -30,7 +30,7 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 		return nil, err
 	}
 	if accountID <= 0 {
-		return nil, ErrBankAccountRequired
+		return nil, ErrCashAccountRequired
 	}
 	if strings.TrimSpace(content) == "" {
 		return nil, ErrStatementEmpty

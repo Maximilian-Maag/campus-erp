@@ -143,7 +143,7 @@ func TestStatusForRun(t *testing.T) {
 		{"reference required", kasse.ErrRunReferenceRequired, http.StatusUnprocessableEntity},
 		{"no orders", kasse.ErrNoOrders, http.StatusUnprocessableEntity},
 		{"order not approved", kasse.ErrOrderNotApproved, http.StatusUnprocessableEntity},
-		{"bank account required", kasse.ErrBankAccountRequired, http.StatusUnprocessableEntity},
+		{"cash account required", kasse.ErrCashAccountRequired, http.StatusUnprocessableEntity},
 		{"execution date required", kasse.ErrExecutionDateRequired, http.StatusUnprocessableEntity},
 		{"iban invalid", kasse.ErrIBANInvalid, http.StatusUnprocessableEntity},
 		{"bic invalid", kasse.ErrBICInvalid, http.StatusUnprocessableEntity},
@@ -170,7 +170,7 @@ func TestStatusForStatement(t *testing.T) {
 		{"not found", kasse.ErrStatementNotFound, http.StatusNotFound},
 		{"empty", kasse.ErrStatementEmpty, http.StatusUnprocessableEntity},
 		{"invalid", kasse.ErrStatementInvalid, http.StatusUnprocessableEntity},
-		{"account required", kasse.ErrBankAccountRequired, http.StatusUnprocessableEntity},
+		{"account required", kasse.ErrCashAccountRequired, http.StatusUnprocessableEntity},
 		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
 		{"anything else", errors.New("boom"), http.StatusInternalServerError},
 	}

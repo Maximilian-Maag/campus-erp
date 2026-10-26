@@ -23,13 +23,13 @@ func NewPaymentRunService(repo PaymentRunRepository, sink AuditSink) *PaymentRun
 	return &PaymentRunService{repo: repo, audit: sink}
 }
 
-// CreateBankAccount validates and stores a debtor bank account.
-func (s *PaymentRunService) CreateBankAccount(ctx context.Context, name, iban, bic, currency string) (BankAccount, error) {
-	account, err := NewBankAccount(name, iban, bic, currency)
+// CreateCashAccount validates and stores a debtor cash account.
+func (s *PaymentRunService) CreateCashAccount(ctx context.Context, name, iban, bic, currency string) (CashAccount, error) {
+	account, err := NewCashAccount(name, iban, bic, currency)
 	if err != nil {
-		return BankAccount{}, err
+		return CashAccount{}, err
 	}
-	return s.repo.CreateBankAccount(ctx, account)
+	return s.repo.CreateCashAccount(ctx, account)
 }
 
 // CreateRun collects the given approved orders into one SEPA credit-transfer
@@ -46,7 +46,7 @@ func (s *PaymentRunService) CreateRun(ctx context.Context, reference string, acc
 		return PaymentRun{}, err
 	}
 	if accountID <= 0 {
-		return PaymentRun{}, ErrBankAccountRequired
+		return PaymentRun{}, ErrCashAccountRequired
 	}
 	if executionDate.IsZero() {
 		return PaymentRun{}, ErrExecutionDateRequired
@@ -61,7 +61,7 @@ func (s *PaymentRunService) CreateRun(ctx context.Context, reference string, acc
 		return existing, nil
 	}
 
-	account, err := s.repo.GetBankAccount(ctx, accountID)
+	account, err := s.repo.GetCashAccount(ctx, accountID)
 	if err != nil {
 		return PaymentRun{}, err
 	}

@@ -8,7 +8,7 @@ import (
 
 // Slice S3: payment run (Zahlungslauf) and SEPA credit-transfer export.
 //
-// A run collects approved payment orders for one debtor bank account and
+// A run collects approved payment orders for one debtor cash account and
 // produces one ISO 20022 pain.001.001.09 file. The produced bytes are stored, so
 // the run is reproducible and an approved order can be paid at most once.
 
@@ -23,8 +23,8 @@ var (
 	ErrOrderNotApproved = errors.New("kasse: only approved orders can be paid")
 	// ErrOrderAlreadyPaid is returned when an order already belongs to a run.
 	ErrOrderAlreadyPaid = errors.New("kasse: the order is already part of a payment run")
-	// ErrBankAccountRequired is returned when no debtor account is given.
-	ErrBankAccountRequired = errors.New("kasse: a bank account is required")
+	// ErrCashAccountRequired is returned when no debtor account is given.
+	ErrCashAccountRequired = errors.New("kasse: a cash account is required")
 	// ErrExecutionDateRequired is returned when the execution date is missing.
 	ErrExecutionDateRequired = errors.New("kasse: an execution date is required")
 	// ErrRunNotFound is returned when a run does not exist.
@@ -33,8 +33,8 @@ var (
 	ErrBICInvalid = errors.New("kasse: invalid BIC")
 )
 
-// BankAccount is one of the university's own accounts (the debtor side).
-type BankAccount struct {
+// CashAccount is one of the university's own accounts (the debtor side).
+type CashAccount struct {
 	ID       int64
 	Name     string
 	IBAN     string
@@ -42,23 +42,23 @@ type BankAccount struct {
 	Currency string
 }
 
-// NewBankAccount validates and builds a bank account.
-func NewBankAccount(name, iban, bic, currency string) (BankAccount, error) {
+// NewCashAccount validates and builds a cash account.
+func NewCashAccount(name, iban, bic, currency string) (CashAccount, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return BankAccount{}, ErrRecipientRequired
+		return CashAccount{}, ErrRecipientRequired
 	}
 	if !ValidIBAN(iban) {
-		return BankAccount{}, ErrIBANInvalid
+		return CashAccount{}, ErrIBANInvalid
 	}
 	currency = strings.ToUpper(strings.TrimSpace(currency))
 	if currency == "" {
 		currency = "EUR"
 	}
 	if len(currency) != 3 {
-		return BankAccount{}, ErrBadCurrency
+		return CashAccount{}, ErrBadCurrency
 	}
-	return BankAccount{Name: name, IBAN: NormalizeIBAN(iban), BIC: strings.ToUpper(strings.TrimSpace(bic)), Currency: currency}, nil
+	return CashAccount{Name: name, IBAN: NormalizeIBAN(iban), BIC: strings.ToUpper(strings.TrimSpace(bic)), Currency: currency}, nil
 }
 
 // PaymentRun is one produced bank file for one debtor account.

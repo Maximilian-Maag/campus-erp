@@ -58,10 +58,10 @@ func TestHTTPPaymentRunFlow(t *testing.T) {
 	srv, _ := newTestServer(t)
 
 	// Bank account.
-	resp := doJSON(t, http.MethodPost, srv.URL+"/api/bank-accounts", "carol",
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/cash-accounts", "carol",
 		`{"name":"Universität Musterstadt","iban":"DE02120300000000202051","bic":"BYLADEM1001","currency":"EUR"}`)
 	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("create bank account = %d", resp.StatusCode)
+		t.Fatalf("create cash account = %d", resp.StatusCode)
 	}
 	var account accountJSON
 	if err := json.NewDecoder(resp.Body).Decode(&account); err != nil {
@@ -149,13 +149,13 @@ func TestHTTPPaymentRunErrorBranches(t *testing.T) {
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/payment-runs/abc/file", "", ""); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad run file id = %d, want 400", resp.StatusCode)
 	}
-	// Bad bank account IBAN -> 422.
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/bank-accounts", "a",
+	// Bad cash account IBAN -> 422.
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/cash-accounts", "a",
 		`{"name":"Uni","iban":"DE00","bic":"BYLADEM1001","currency":"EUR"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("bad iban = %d, want 422", resp.StatusCode)
 	}
 	// Malformed bank-account body -> 400.
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/bank-accounts", "a", `{`); resp.StatusCode != http.StatusBadRequest {
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/cash-accounts", "a", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad account body = %d, want 400", resp.StatusCode)
 	}
 }
