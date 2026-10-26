@@ -108,6 +108,8 @@ C4), and the first vertical slice is implemented and tested:
 - bank statement import (**MT940** and **CAMT.053**) with reconciliation: each
   line is matched against the paid orders and classified `matched` / `returned` /
   `unmatched`; the import is idempotent on the file
+- foundation books: a separate, append-only book per foundation (S6), with a
+  derived balance and tested isolation between foundations
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
   Go target package, policy-as-code green
 
