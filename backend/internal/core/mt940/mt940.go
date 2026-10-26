@@ -11,6 +11,7 @@ package mt940
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,16 +29,20 @@ var (
 
 // Line is one :61: statement line (one booking).
 type Line struct {
-	ValueDate   time.Time
-	BookingDate time.Time
-	Credit      bool
-	Return      bool // RC/RD, or a return posting key (009/059)
-	AmountCents int64
-	Currency    string
-	PostingKey  string
-	ClientRef   string
-	BankRef     string
-	Purpose     string
+	ValueDate        time.Time
+	BookingDate      time.Time
+	Credit           bool
+	Return           bool // RC/RD, or a return posting key (009/059)
+	AmountCents      int64
+	Currency         string
+	PostingKey       string
+	ClientRef        string
+	BankRef          string
+	Purpose          string
+	EndToEndRef      string
+	CounterpartyName string
+	CounterpartyIBAN string
+	CounterpartyBIC  string
 }
 
 // Statement is one MT940 statement (one account, one statement number).
@@ -161,12 +166,7 @@ func Parse(text string) ([]Statement, error) {
 			cur.Lines = append(cur.Lines, line)
 		case "86":
 			if cur != nil && len(cur.Lines) > 0 {
-				purpose := strings.TrimSpace(f.value)
-				if cur.Lines[len(cur.Lines)-1].Purpose == "" {
-					cur.Lines[len(cur.Lines)-1].Purpose = purpose
-				} else {
-					cur.Lines[len(cur.Lines)-1].Purpose += " " + purpose
-				}
+				apply86(&cur.Lines[len(cur.Lines)-1], f.value)
 			}
 		}
 	}
@@ -408,6 +408,123 @@ func atoiSafe(s string) int {
 }
 
 func isDigit(s string) bool { return len(s) == 1 && s[0] >= '0' && s[0] <= '9' }
+
+// dkTags are the DK ("Deutsche Kreditwirtschaft") structured :86: markers the
+// productive parser recognises (MT940.REF_*).
+var dkTags = []string{"EREF+", "KREF+", "MREF+", "CRED+", "DEBT+", "COAM+", "SVWZ+", "ABWA+", "ABWE+"}
+
+// numbered86 matches the numbered subfield convention "?NN".
+var numbered86 = regexp.MustCompile(`\?[0-9]{2}`)
+
+// apply86 parses a :86: field into the last line: the purpose plus any
+// structured references and counterparty data it carries.
+func apply86(line *Line, text string) {
+	purpose, endToEnd, name, iban, bic := parse86(text)
+	if purpose != "" {
+		if line.Purpose == "" {
+			line.Purpose = purpose
+		} else {
+			line.Purpose += " " + purpose
+		}
+	}
+	if endToEnd != "" {
+		line.EndToEndRef = endToEnd
+	}
+	if name != "" {
+		line.CounterpartyName = name
+	}
+	if iban != "" {
+		line.CounterpartyIBAN = iban
+	}
+	if bic != "" {
+		line.CounterpartyBIC = bic
+	}
+}
+
+// parse86 parses a :86: value in either the numbered ("?NN") or the DK ("TAG+")
+// convention; anything else is free text and becomes the purpose.
+func parse86(text string) (purpose, endToEnd, name, iban, bic string) {
+	text = strings.TrimSpace(text)
+	if numbered86.MatchString(text) {
+		return parse86Numbered(text)
+	}
+	if idx := firstDKMarker(text); idx >= 0 {
+		return parse86DK(text, idx)
+	}
+	return text, "", "", "", ""
+}
+
+// parse86Numbered parses the numbered convention: ?30 routing/BIC, ?31
+// account/IBAN, ?32/?33 account holder, ?34 purpose.
+func parse86Numbered(text string) (purpose, endToEnd, name, iban, bic string) {
+	locs := numbered86.FindAllStringIndex(text, -1)
+	var nameParts []string
+	for k, loc := range locs {
+		code := text[loc[0]+1 : loc[1]]
+		valStart := loc[1]
+		valEnd := len(text)
+		if k+1 < len(locs) {
+			valEnd = locs[k+1][0]
+		}
+		val := strings.TrimSpace(text[valStart:valEnd])
+		switch code {
+		case "30":
+			bic = val
+		case "31":
+			iban = val
+		case "32", "33":
+			nameParts = append(nameParts, val)
+		case "34":
+			purpose = val
+		}
+	}
+	return purpose, "", strings.TrimSpace(strings.Join(nameParts, " ")), iban, bic
+}
+
+// parse86DK parses the DK "TAG+" marker convention; idx is the first marker.
+func parse86DK(text string, idx int) (purpose, endToEnd, name, iban, bic string) {
+	purpose = strings.TrimSpace(text[:idx])
+	for _, tag := range dkTags {
+		pos := strings.Index(text, tag)
+		if pos < 0 {
+			continue
+		}
+		val := valueUntilNextTag(text[pos+len(tag):])
+		switch tag {
+		case "EREF+":
+			endToEnd = val
+		case "SVWZ+":
+			purpose = val
+		case "ABWA+", "ABWE+":
+			if name == "" {
+				name = val
+			}
+		}
+	}
+	return purpose, endToEnd, name, iban, bic
+}
+
+// valueUntilNextTag returns the text up to the next DK marker, or to the end.
+func valueUntilNextTag(s string) string {
+	end := len(s)
+	for _, tag := range dkTags {
+		if p := strings.Index(s, tag); p >= 0 && p < end {
+			end = p
+		}
+	}
+	return strings.TrimSpace(s[:end])
+}
+
+// firstDKMarker returns the index of the earliest DK marker in text, or -1.
+func firstDKMarker(text string) int {
+	best := -1
+	for _, tag := range dkTags {
+		if p := strings.Index(text, tag); p >= 0 && (best < 0 || p < best) {
+			best = p
+		}
+	}
+	return best
+}
 
 func isAlpha(s string) bool {
 	if s == "" {

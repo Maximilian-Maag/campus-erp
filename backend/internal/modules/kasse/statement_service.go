@@ -74,23 +74,27 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 		}
 		for i, pl := range ps.Lines {
 			line := StatementLine{
-				LineNo:      i + 1,
-				ValueDate:   pl.ValueDate,
-				BookingDate: pl.BookingDate,
-				Credit:      pl.Credit,
-				Return:      pl.Return,
-				AmountCents: pl.AmountCents,
-				Currency:    pl.Currency,
-				PostingKey:  pl.PostingKey,
-				ClientRef:   pl.ClientRef,
-				BankRef:     pl.BankRef,
-				Purpose:     pl.Purpose,
-				Status:      StatusUnmatched,
+				LineNo:           i + 1,
+				ValueDate:        pl.ValueDate,
+				BookingDate:      pl.BookingDate,
+				Credit:           pl.Credit,
+				Return:           pl.Return,
+				AmountCents:      pl.AmountCents,
+				Currency:         pl.Currency,
+				PostingKey:       pl.PostingKey,
+				ClientRef:        pl.ClientRef,
+				BankRef:          pl.BankRef,
+				Purpose:          pl.Purpose,
+				EndToEndRef:      pl.EndToEndRef,
+				CounterpartyName: pl.CounterpartyName,
+				CounterpartyIBAN: pl.CounterpartyIBAN,
+				CounterpartyBIC:  pl.CounterpartyBIC,
+				Status:           StatusUnmatched,
 			}
 			if line.Currency == "" {
 				line.Currency = st.Currency
 			}
-			if orderID, ok := paid[pl.ClientRef]; ok && pl.ClientRef != "" {
+			if orderID, ok := lookupPaid(paid, pl.ClientRef, pl.EndToEndRef); ok {
 				id := orderID
 				line.OrderID = &id
 				line.Status = StatusMatched
@@ -137,19 +141,37 @@ func (s *StatementService) BankFile(ctx context.Context, id int64) (BankFile, er
 	return s.repo.GetBankFile(ctx, id)
 }
 
-// collectRefs returns the distinct non-empty client references.
+// collectRefs returns the distinct non-empty references (client and end-to-end).
 func collectRefs(stmts []mt940.Statement) []string {
 	seen := make(map[string]bool)
 	var refs []string
+	add := func(r string) {
+		if r != "" && !seen[r] {
+			seen[r] = true
+			refs = append(refs, r)
+		}
+	}
 	for _, st := range stmts {
 		for _, l := range st.Lines {
-			if l.ClientRef != "" && !seen[l.ClientRef] {
-				seen[l.ClientRef] = true
-				refs = append(refs, l.ClientRef)
-			}
+			add(l.ClientRef)
+			add(l.EndToEndRef)
 		}
 	}
 	return refs
+}
+
+// lookupPaid returns the paid order for the first non-empty reference that
+// matches, preferring the earlier argument (client reference before end-to-end).
+func lookupPaid(paid map[string]int64, refs ...string) (int64, bool) {
+	for _, r := range refs {
+		if r == "" {
+			continue
+		}
+		if id, ok := paid[r]; ok {
+			return id, true
+		}
+	}
+	return 0, false
 }
 
 func hashBytes(s string) string {

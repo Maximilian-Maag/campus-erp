@@ -338,3 +338,44 @@ func TestIsDigitAndIsAlpha(t *testing.T) {
 		}
 	}
 }
+
+func TestParse86FreeText(t *testing.T) {
+	purpose, e2e, name, iban, bic := parse86("Stromabschlag Oktober")
+	if purpose != "Stromabschlag Oktober" || e2e != "" || name != "" || iban != "" || bic != "" {
+		t.Fatalf("parse86 free text = %q %q %q %q %q", purpose, e2e, name, iban, bic)
+	}
+}
+
+func TestParse86DKMarkers(t *testing.T) {
+	// EREF + SVWZ + ABWA.
+	purpose, e2e, name, _, _ := parse86("EREF+AO-1 SVWZ+Miete ABWA+Max Mustermann")
+	if purpose != "Miete" || e2e != "AO-1" || name != "Max Mustermann" {
+		t.Fatalf("dk = %q %q %q", purpose, e2e, name)
+	}
+	// ABWE and free text before the first marker (no SVWZ).
+	purpose, e2e, name, _, _ = parse86("Zahlung EREF+AO-2 ABWE+Firma X")
+	if purpose != "Zahlung" || e2e != "AO-2" || name != "Firma X" {
+		t.Fatalf("dk abwe = %q %q %q", purpose, e2e, name)
+	}
+}
+
+func TestParse86Numbered(t *testing.T) {
+	purpose, _, name, iban, bic := parse86("Zahlung ?30COBADEFFXXX?31DE89370400440532013000?32Max?33Mustermann?34Miete")
+	if purpose != "Miete" || name != "Max Mustermann" || iban != "DE89370400440532013000" || bic != "COBADEFFXXX" {
+		t.Fatalf("numbered = %q %q %q %q", purpose, name, iban, bic)
+	}
+}
+
+// TestParseStructured86OnLine covers the whole path: a :86: with an EREF sets the
+// end-to-end reference and counterparty on the statement line.
+func TestParseStructured86OnLine(t *testing.T) {
+	text := ":20:A\n:60F:C260101EUR0,00\n:61:260101C1250,00N051NONREF\n:86:EREF+AO-7 SVWZ+Miete ABWA+Max Mustermann\n:62F:C260101EUR0,00\n"
+	stmts, err := Parse(text)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	l := stmts[0].Lines[0]
+	if l.EndToEndRef != "AO-7" || l.CounterpartyName != "Max Mustermann" || l.Purpose != "Miete" {
+		t.Fatalf("line = %+v", l)
+	}
+}

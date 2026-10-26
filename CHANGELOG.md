@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.13.0] - 2026-10-26
+
+Statement-line detail: uncleared amount, counterparty, structured `:86:` (issue #5).
+
+### Added
+- migration `0009_statement_line_detail.sql`: `bank_statement_line` gains
+  `uncleared_cents`, `end_to_end_ref`, `counterparty_name`, `counterparty_iban`,
+  `counterparty_bic` (docs/06 §2.3).
+- `internal/core/mt940`: parse the structured `:86:` fields in both conventions
+  the productive parser supports — numbered (`?30` BIC, `?31` IBAN, `?32`/`?33`
+  holder, `?34` purpose) and DK markers (`EREF+`, `SVWZ+`, `ABWA+`, `ABWE+`, …);
+  `Line` gains `EndToEndRef` and the counterparty fields.
+
+### Changed
+- reconciliation matches on the client reference **or** the end-to-end reference.
+- statement lines expose the new fields over HTTP.
+
 ## [0.12.0] - 2026-10-26
 
 Split `bank_file` out of `bank_statement` (issue #3).

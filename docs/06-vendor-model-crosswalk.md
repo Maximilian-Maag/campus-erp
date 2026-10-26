@@ -69,9 +69,13 @@ Phase 4.
 (partial clearing), `entry_reference`, `collector_reference`,
 `accounting_transaction_code`, `prima_nota`, `bank_postingtext_supplement`,
 `user_commentary`, plus the counterparty block (`client_iban`, `client_bic`,
-`client_name`, `client_bank_account_number`). Our S4 line has only
-`status` + `order_id`. *Refinement: add `uncleared_amount` and the counterparty
-columns; a partially-cleared line is not the same as a matched one.*
+`client_name`, `client_bank_account_number`). **Applied** (migration `0009`,
+issue #5): `bank_statement_line` gained `uncleared_cents` and the counterparty
+columns (`counterparty_name`/`_iban`/`_bic`) plus `end_to_end_ref`, populated
+from the structured `:86:` fields (the numbered `?30`/`?31`/`?32`/`?33`/`?34`
+convention and the DK `EREF+`/`SVWZ+`/`ABWA+`/`ABWE+` markers); reconciliation
+now matches on the client reference **or** the end-to-end reference. The
+remaining vendor fields (`entry_reference`, `prima_nota`, …) stay open.
 
 ### 2.4 The produced file is a ledger-adjacent document
 
@@ -120,7 +124,7 @@ design and yields three concrete refinements to schedule:
 
 1. ~~split `bank_file` out of `bank_statement`~~ — **done** (issue #3);
 2. ~~rename the own-account entity as `cash_account`~~ — **done** (issue #1);
-3. add `uncleared_amount` + counterparty columns to `bank_statement_line` (§2.3).
+3. ~~add `uncleared_amount` + counterparty columns to `bank_statement_line`~~ —
+   **done** (issue #5).
 
-These are recorded here rather than applied silently, because they touch
-committed schema (ADR-0001 keeps changes explicit and reversible).
+All three refinements from this cross-walk are now applied.
