@@ -38,6 +38,10 @@ relevant facts, read from that source:
   indicator (`C`/`D`, or the reversal forms `RC`/`RD`), an optional currency
   letter (`R` = EUR), the amount, `N`, the three-character posting key, the client
   reference, and an optional bank reference after `//`.
+- `:86:` carries the purpose and, often, structured data: the numbered convention
+  (`?30` routing/BIC, `?31` account/IBAN, `?32`/`?33` account holder, `?34`
+  purpose) or the DK markers (`EREF+` end-to-end, `SVWZ+` purpose, `ABWA+`/
+  `ABWE+` differing account holder, `KREF+`/`MREF+`/`CRED+`/`DEBT+`/`COAM+`).
 - Amounts use a decimal **comma**.
 - Return (back-)postings carry the transaction codes `009` (direct-debit return)
   and `059` (payment-out return).

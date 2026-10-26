@@ -181,4 +181,42 @@ func TestStatementImportValidation(t *testing.T) {
 	if _, err := stmtSvc.Statement(ctx, 9223372036854775807); !errors.Is(err, kasse.ErrStatementNotFound) {
 		t.Fatalf("not found: %v", err)
 	}
+	if _, err := stmtSvc.BankFile(ctx, 9223372036854775807); !errors.Is(err, kasse.ErrBankFileNotFound) {
+		t.Fatalf("bank file not found: %v", err)
+	}
+}
+
+// TestStatementImportMatchesEndToEndRef covers reconciliation on the structured
+// :86: end-to-end reference, plus the counterparty columns.
+func TestStatementImportMatchesEndToEndRef(t *testing.T) {
+	ctx := context.Background()
+	runSvc, orderSvc := newRunService(t)
+	stmtSvc := kasse.NewStatementService(kasse.NewStatementRepo(testPool(t)), audit.NewStore(testPool(t)))
+
+	order := newApprovedOrder(t, orderSvc, 125000)
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	if err != nil {
+		t.Fatalf("CreateCashAccount: %v", err)
+	}
+	if _, err := runSvc.CreateRun(ctx, "RUN-"+uniqueSuffix(t), account.ID,
+		time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC), []int64{order.ID}, "carol"); err != nil {
+		t.Fatalf("CreateRun: %v", err)
+	}
+
+	content := ":20:STMT-" + uniqueSuffix(t) + "\n:25:DE02120300000000202051\n:28C:00001/001\n:60F:C261001EUR10000,00\n" +
+		":61:2610011001D1250,00N051NONREF//BR\n" +
+		":86:EREF+" + order.Reference + " SVWZ+Miete ABWA+Max Mustermann\n" +
+		":62F:C261031EUR10000,00\n-\n"
+
+	stmts, err := stmtSvc.Import(ctx, account.ID, content, "carol")
+	if err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	l := stmts[0].Lines[0]
+	if l.Status != kasse.StatusMatched || l.OrderID == nil || *l.OrderID != order.ID {
+		t.Fatalf("line not matched via EREF: %+v", l)
+	}
+	if l.EndToEndRef != order.Reference || l.CounterpartyName != "Max Mustermann" || l.Purpose != "Miete" {
+		t.Fatalf("line detail = %+v", l)
+	}
 }
