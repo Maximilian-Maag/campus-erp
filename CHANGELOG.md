@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.12.0] - 2026-10-26
+
+Split `bank_file` out of `bank_statement` (issue #3).
+
+### Added
+- migration `0008_bank_file.sql`: a `bank_file` entity (account, file hash;
+  `UNIQUE (account_id, file_hash)`) owns the physical import; `bank_statement`
+  references it and the unique key moves to `(bank_file_id, statement_number,
+  page)`. Existing rows are backfilled. One file may now hold several statements.
+- `kasse.BankFile`; repo `InsertBankFile`/`FindBankFile`/`GetBankFile`;
+  `StatementService.BankFile`; `GET /api/bank-files/{id}`.
+- `docs/06` §2.1 marked applied; `docs/legacy/kbs-statement-import.md` updated.
+
+### Changed
+- `StatementService.Import` is idempotent on the file (via `bank_file`) and
+  audits one event per file; `Statement` carries `BankFileID` (was `FileHash`).
+
 ## [0.11.0] - 2026-10-26
 
 Rename the own-account entity to `cash_account` (issue #1).

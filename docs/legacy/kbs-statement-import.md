@@ -52,13 +52,15 @@ relevant facts, read from that source:
 | 97-column god table | **`bank_statement_line`** — one row per `:61:` |
 | 16 free-text slots | one `purpose` text column |
 | no reconciliation state | **`bank_statement_line.status`** (`unmatched`/`matched`/`returned`) + `order_id` FK |
-| re-import unknowable | **idempotent on the file hash** per account |
+| file not modelled | **`bank_file`** — the physical import (file hash), one row per file; statements reference it, so one file may hold several statements |
+| re-import unknowable | **idempotent on the file** (`bank_file` unique per account+hash) |
 
 The parser is `backend/internal/core/mt940` (`mt940.Parse`); the service
-`kasse.StatementService` maps the parsed statements to the canonical rows and
-reconciles each line against the **paid** orders (those that belong to a payment
-run), matching on the order reference carried in the line's client reference. A
-matched line whose direction is a return is classified `returned`.
+`kasse.StatementService` stores a `bank_file` (the physical import, keyed by hash)
+and its statements, then reconciles each line against the **paid** orders (those
+that belong to a payment run), matching on the order reference carried in the
+line's client reference. A matched line whose direction is a return is classified
+`returned`.
 
 ## Verification
 

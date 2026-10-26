@@ -68,6 +68,7 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("POST /api/bank-statements", s.importStatement)
 	mux.HandleFunc("GET /api/bank-statements/{id}", s.getStatement)
+	mux.HandleFunc("GET /api/bank-files/{id}", s.getBankFile)
 
 	mux.HandleFunc("POST /api/dunning/levels", s.createDunningLevel)
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.getDunningLevel)

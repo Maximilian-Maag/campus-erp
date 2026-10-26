@@ -7,9 +7,10 @@ import (
 )
 
 type statementJSON struct {
-	ID        int64
-	LineCount int
-	Lines     []struct {
+	ID         int64
+	BankFileID int64
+	LineCount  int
+	Lines      []struct {
 		LineNo int
 		Status string
 	}
@@ -82,6 +83,25 @@ func TestHTTPStatementImportFlow(t *testing.T) {
 		t.Fatalf("loaded = %+v", loaded)
 	}
 
+	// The statement belongs to an imported file.
+	if st.BankFileID == 0 {
+		t.Fatal("BankFileID must be set")
+	}
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/bank-files/"+itoa(st.BankFileID), "carol", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("get bank file = %d", resp.StatusCode)
+	}
+	var bf struct {
+		ID       int64
+		FileHash string
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&bf); err != nil {
+		t.Fatalf("decode bank file: %v", err)
+	}
+	if bf.ID != st.BankFileID || bf.FileHash == "" {
+		t.Fatalf("bank file = %+v", bf)
+	}
+
 	// Idempotent re-import.
 	again := importStatement(t, srv.URL, account.ID, content)
 	if again.ID != st.ID {
@@ -113,5 +133,12 @@ func TestHTTPStatementErrorBranches(t *testing.T) {
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/bank-statements", "a",
 		`{"account_id":1,"content":":20:A\n:61:broken\n"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid file = %d, want 422", resp.StatusCode)
+	}
+	// Bank file endpoints.
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/bank-files/9223372036854775807", "", ""); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown bank file = %d, want 404", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/bank-files/abc", "", ""); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad bank file id = %d, want 400", resp.StatusCode)
 	}
 }
