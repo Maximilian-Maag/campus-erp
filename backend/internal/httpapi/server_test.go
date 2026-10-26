@@ -54,6 +54,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
 		kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
 		kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
+		kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
 		store,
 	).Handler())
 	t.Cleanup(srv.Close)
