@@ -32,6 +32,10 @@
       "lang": "go"
     },
     {
+      "path": "internal/modules/lookup",
+      "lang": "go"
+    },
+    {
       "path": "internal/modules/kasse",
       "lang": "go"
     },
