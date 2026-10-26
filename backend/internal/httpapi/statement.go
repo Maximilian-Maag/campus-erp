@@ -22,7 +22,7 @@ func statusForStatement(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, kasse.ErrStatementEmpty),
 		errors.Is(err, kasse.ErrStatementInvalid),
-		errors.Is(err, kasse.ErrBankAccountRequired),
+		errors.Is(err, kasse.ErrCashAccountRequired),
 		errors.Is(err, kasse.ErrActorRequired):
 		return http.StatusUnprocessableEntity
 	default:

@@ -59,10 +59,10 @@ The vendor's `bank_account` is a **counterparty** account — it hangs off
 (`cash_financial_account_id`, `clearing_…`, `suspense_…`, `bank_fees_…`), an
 `accounting_unit_id`, a `matching_algorithm_id` and export formats.
 
-Our `bank_account` (S3) is the *own* (debtor) account — i.e. the vendor's
-`cash_account`. *Refinement: rename our `bank_account` to `cash_account` (or
-introduce both) to avoid the collision, and add the FiBu account wiring
-(`financial_account` links) when Phase 4 lands.*
+Our `bank_account` (S3) was the *own* (debtor) account — i.e. the vendor's
+`cash_account`. **Applied** (migration `0007`, issue #1): our entity is now
+`cash_account`. The FiBu account wiring (`financial_account` links) lands in
+Phase 4.
 
 ### 2.3 Reconciliation is richer than our three states
 
@@ -120,8 +120,7 @@ Nothing in the committed slices is wrong; the cross-walk confirms the Kasse
 design and yields three concrete refinements to schedule:
 
 1. split `bank_file` out of `bank_statement` (§2.1);
-2. rename/duplicate the own-account entity as `cash_account` and keep
-   `bank_account` for counterparties (§2.2);
+2. ~~rename the own-account entity as `cash_account`~~ — **done** (issue #1);
 3. add `uncleared_amount` + counterparty columns to `bank_statement_line` (§2.3).
 
 These are recorded here rather than applied silently, because they touch

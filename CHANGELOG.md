@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.11.0] - 2026-10-26
+
+Rename the own-account entity to `cash_account` (issue #1).
+
+### Changed
+- **Breaking (API + schema):** the university's own account entity is renamed
+  `bank_account` -> `cash_account`, matching the productive HISinOne model
+  (`docs/06` §2.2) and freeing `bank_account` for the counterparty concept.
+  - migration `0007_cash_account.sql` renames the table and its unique
+    constraint; the referencing FKs follow.
+  - Go: `kasse.CashAccount`, `NewCashAccount`, `CreateCashAccount`,
+    `GetCashAccount`, `ErrCashAccountRequired`.
+  - HTTP: `POST /api/cash-accounts` (was `/api/bank-accounts`).
+
 ## [0.10.1] - 2026-10-26
 
 Vendor model cross-walk.

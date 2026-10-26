@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestNewBankAccount(t *testing.T) {
+func TestNewCashAccount(t *testing.T) {
 	cases := []struct {
 		name     string
 		accName  string
@@ -13,21 +13,21 @@ func TestNewBankAccount(t *testing.T) {
 		bic      string
 		currency string
 		wantErr  error
-		check    func(BankAccount) bool
+		check    func(CashAccount) bool
 	}{
 		{name: "valid", accName: "Universität", iban: "DE02120300000000202051", bic: "BYLADEM1001", currency: "EUR",
-			check: func(a BankAccount) bool { return a.IBAN == "DE02120300000000202051" && a.Currency == "EUR" }},
+			check: func(a CashAccount) bool { return a.IBAN == "DE02120300000000202051" && a.Currency == "EUR" }},
 		{name: "normalises iban and bic", accName: "Uni", iban: "de02 1203 0000 0000 2020 51", bic: "byladem1001", currency: "eur",
-			check: func(a BankAccount) bool { return a.IBAN == "DE02120300000000202051" && a.BIC == "BYLADEM1001" && a.Currency == "EUR" }},
+			check: func(a CashAccount) bool { return a.IBAN == "DE02120300000000202051" && a.BIC == "BYLADEM1001" && a.Currency == "EUR" }},
 		{name: "currency defaults to eur", accName: "Uni", iban: "DE02120300000000202051", currency: "",
-			check: func(a BankAccount) bool { return a.Currency == "EUR" }},
+			check: func(a CashAccount) bool { return a.Currency == "EUR" }},
 		{name: "blank name", accName: "  ", iban: "DE02120300000000202051", currency: "EUR", wantErr: ErrRecipientRequired},
 		{name: "bad iban", accName: "Uni", iban: "DE00", currency: "EUR", wantErr: ErrIBANInvalid},
 		{name: "bad currency", accName: "Uni", iban: "DE02120300000000202051", currency: "EURO", wantErr: ErrBadCurrency},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got, err := NewBankAccount(c.accName, c.iban, c.bic, c.currency)
+			got, err := NewCashAccount(c.accName, c.iban, c.bic, c.currency)
 			if c.wantErr != nil {
 				if !errors.Is(err, c.wantErr) {
 					t.Fatalf("err = %v, want %v", err, c.wantErr)

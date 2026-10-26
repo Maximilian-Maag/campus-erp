@@ -61,7 +61,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/payment-orders/{id}/reject", s.rejectOrder)
 	mux.HandleFunc("POST /api/payment-orders/{id}/cancel", s.cancelOrder)
 
-	mux.HandleFunc("POST /api/bank-accounts", s.createBankAccount)
+	mux.HandleFunc("POST /api/cash-accounts", s.createCashAccount)
 	mux.HandleFunc("POST /api/payment-runs", s.createRun)
 	mux.HandleFunc("GET /api/payment-runs/{id}", s.getRun)
 	mux.HandleFunc("GET /api/payment-runs/{id}/file", s.getRunFile)

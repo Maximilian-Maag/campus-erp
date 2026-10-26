@@ -121,13 +121,13 @@ func (s stubTax) CreateFoundation(context.Context, kasse.Foundation, string) (ka
 
 // stubRuns satisfies the payment-run interface with a fixed result.
 type stubRuns struct {
-	account kasse.BankAccount
+	account kasse.CashAccount
 	run     kasse.PaymentRun
 	file    string
 	err     error
 }
 
-func (s stubRuns) CreateBankAccount(context.Context, string, string, string, string) (kasse.BankAccount, error) {
+func (s stubRuns) CreateCashAccount(context.Context, string, string, string, string) (kasse.CashAccount, error) {
 	return s.account, s.err
 }
 
