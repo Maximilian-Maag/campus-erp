@@ -1,16 +1,22 @@
 # Open questions
 
+> **Update (productive source received).** The productive HISinOne build was
+> handed over (three archives in `~/Downloads`). Its measured contents —
+> including the vendor's 1 486-table schema *with declared FKs and German
+> comments*, the payment-traffic layer (SEPA/CAMT/MT940 + ISO 20022 XSDs) and the
+> ERP Java sources — are inventoried in `docs/05-productive-source-inventory.md`.
+> That resolves or de-risks several questions below; the affected answers are
+> noted inline.
+
 To resolve in the project discussion. Ordered by blocking-ness.
 
 ## Q1 — Which product is the target? (blocking)
 
-The request says "HISinOne". The dump contains the **Hochschul-ERP**
-(`HISSVA`/`HISMBS`/`HISFSV`/`HISCOB`/`HISKBS`), not HISinOne campus
-(`APP`/`STU`/`EXA`/`DOC`). They share no tables.
-
-- Is the target the ERP (this dump)?
-- Or was a campus-management dump intended and the wrong file supplied?
-- Or is "HISinOne" being used as an umbrella name for the whole HIS suite?
+**Answered by the productive source (see `docs/05` §8).** HISinOne is the
+vendor's unified product (single schema, English table names); the supplied dump
+is the **legacy** Hochschul-ERP (module schemas `sva4`/`mbs`/`cob`/`kbs`, German
+abbreviations). They share no tables. The target is the legacy ERP (the dump);
+HISinOne is its successor and an authoritative reference model.
 
 ## Q2 — What is the actual objective?
 
