@@ -40,6 +40,10 @@
       "lang": "go"
     },
     {
+      "path": "internal/modules/klr",
+      "lang": "go"
+    },
+    {
       "path": "internal/modules/kasse",
       "lang": "go"
     },

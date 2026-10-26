@@ -10,6 +10,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/klr"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
 )
@@ -309,6 +310,32 @@ func TestStatusForProcurement(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got := statusForProcurement(c.err); got != c.want {
 				t.Fatalf("statusForProcurement(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}
+
+func TestStatusForKLR(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"centre not found", klr.ErrCostCenterNotFound, http.StatusNotFound},
+		{"unit not found", klr.ErrCostUnitNotFound, http.StatusNotFound},
+		{"centre exists", klr.ErrCostCenterExists, http.StatusConflict},
+		{"unit exists", klr.ErrCostUnitExists, http.StatusConflict},
+		{"actor required", klr.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"number required", klr.ErrNumberRequired, http.StatusUnprocessableEntity},
+		{"name required", klr.ErrNameRequired, http.StatusUnprocessableEntity},
+		{"amount not positive", klr.ErrAmountNotPositive, http.StatusUnprocessableEntity},
+		{"unknown kind", klr.ErrUnknownKind, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForKLR(c.err); got != c.want {
+				t.Fatalf("statusForKLR(%v) = %d, want %d", c.err, got, c.want)
 			}
 		})
 	}

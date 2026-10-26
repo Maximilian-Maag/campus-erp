@@ -118,6 +118,8 @@ C4), and the first vertical slice is implemented and tested:
   (draft → approved → received), cancelling releases it
 - **lookups**: one seeded code catalogue keyed by (namespace, code), replacing the
   productive source's 3,532 key tables
+- **KLR**: cost centres, cost units and append-only accounting records with a
+  per-cost-centre report
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
   Go target package, policy-as-code green
 

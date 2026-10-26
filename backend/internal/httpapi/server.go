@@ -41,12 +41,13 @@ type Server struct {
 	budget          budgetService
 	lookups         lookupService
 	procurement     procurementService
+	klr             klrService
 	audit           auditVerifier
 }
 
 // New returns a Server.
-func New(k cashBook, o orderService, d dunningService, tx taxService, runs paymentRunService, statements statementService, foundationBooks foundationBookService, einvoices einvoiceService, budget budgetService, lookups lookupService, procurement procurementService, a auditVerifier) *Server {
-	return &Server{kasse: k, orders: o, dunning: d, tax: tx, runs: runs, statements: statements, foundationBooks: foundationBooks, einvoices: einvoices, budget: budget, lookups: lookups, procurement: procurement, audit: a}
+func New(k cashBook, o orderService, d dunningService, tx taxService, runs paymentRunService, statements statementService, foundationBooks foundationBookService, einvoices einvoiceService, budget budgetService, lookups lookupService, procurement procurementService, klr klrService, a auditVerifier) *Server {
+	return &Server{kasse: k, orders: o, dunning: d, tax: tx, runs: runs, statements: statements, foundationBooks: foundationBooks, einvoices: einvoices, budget: budget, lookups: lookups, procurement: procurement, klr: klr, audit: a}
 }
 
 // Handler returns the routed HTTP handler.
@@ -100,6 +101,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/purchase-orders/{id}/approve", s.approvePurchaseOrder)
 	mux.HandleFunc("POST /api/purchase-orders/{id}/receive", s.receivePurchaseOrder)
 	mux.HandleFunc("POST /api/purchase-orders/{id}/cancel", s.cancelPurchaseOrder)
+
+	mux.HandleFunc("POST /api/klr/cost-centers", s.createCostCenter)
+	mux.HandleFunc("POST /api/klr/cost-units", s.createCostUnit)
+	mux.HandleFunc("POST /api/klr/cost-centers/{id}/records", s.postAccountingRecord)
+	mux.HandleFunc("GET /api/klr/cost-centers/{id}/report", s.getKLRReport)
 
 	mux.HandleFunc("POST /api/dunning/levels", s.createDunningLevel)
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.getDunningLevel)
