@@ -31,6 +31,31 @@ frontend, and `tectonic` for the architecture report PDF.
 | Kubernetes | `helm-lint`, `helm-template`, `deploy-k8s`, `k8s-backend`, `k8s-frontend`, `k8s-status`, `k8s-rollback` |
 | Clean | `clean`, `clean-images`, `distclean` |
 
+## Running the quality suite locally
+
+`make test` runs the full suite (ADR-0008): Go vet/build/unit+integration, the
+Angular build + Karma tests, the ER-generator self-test, and the Go + TypeScript
+mutation floors (0.85).
+
+Go needs `DATABASE_URL` (the integration/e2e tests must not skip):
+
+```bash
+export DATABASE_URL='postgres://postgres:erp@localhost:55432/campus_erp?sslmode=disable'
+```
+
+The frontend steps (Karma, Stryker) need a **Chrome** binary; `karma-chrome-launcher`
+reads `CHROME_BIN`. The system default browser is qutebrowser, so point it at a
+user-local Chrome for Testing — no root, no system change, and the default browser
+is left alone:
+
+```bash
+npx playwright install chromium
+export CHROME_BIN="$HOME/.cache/ms-playwright/chromium-*/chrome-linux64/chrome"
+```
+
+Without `CHROME_BIN` the Angular and Stryker steps are skipped locally (they run
+in CI, which has a browser).
+
 ## Architecture report (C4 + ER models) → PDF
 
 ```bash
