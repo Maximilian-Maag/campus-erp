@@ -39,12 +39,13 @@ type Server struct {
 	foundationBooks foundationBookService
 	einvoices       einvoiceService
 	budget          budgetService
+	lookups         lookupService
 	audit           auditVerifier
 }
 
 // New returns a Server.
-func New(k cashBook, o orderService, d dunningService, tx taxService, runs paymentRunService, statements statementService, foundationBooks foundationBookService, einvoices einvoiceService, budget budgetService, a auditVerifier) *Server {
-	return &Server{kasse: k, orders: o, dunning: d, tax: tx, runs: runs, statements: statements, foundationBooks: foundationBooks, einvoices: einvoices, budget: budget, audit: a}
+func New(k cashBook, o orderService, d dunningService, tx taxService, runs paymentRunService, statements statementService, foundationBooks foundationBookService, einvoices einvoiceService, budget budgetService, lookups lookupService, a auditVerifier) *Server {
+	return &Server{kasse: k, orders: o, dunning: d, tax: tx, runs: runs, statements: statements, foundationBooks: foundationBooks, einvoices: einvoices, budget: budget, lookups: lookups, audit: a}
 }
 
 // Handler returns the routed HTTP handler.
@@ -87,6 +88,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/budget/positions/{id}", s.getBudgetPosition)
 	mux.HandleFunc("POST /api/budget/positions/{id}/postings", s.postBudget)
 	mux.HandleFunc("GET /api/budget/positions/{id}/balance", s.getBudgetBalance)
+
+	mux.HandleFunc("POST /api/lookups/seed", s.seedLookups)
+	mux.HandleFunc("GET /api/lookups/{namespace}", s.listLookups)
+	mux.HandleFunc("GET /api/lookups/{namespace}/{code}", s.getLookup)
+	mux.HandleFunc("POST /api/lookups/{namespace}", s.upsertLookups)
 
 	mux.HandleFunc("POST /api/dunning/levels", s.createDunningLevel)
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.getDunningLevel)

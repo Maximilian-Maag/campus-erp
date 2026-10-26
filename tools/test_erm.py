@@ -59,7 +59,7 @@ def main() -> int:
         target = (out / "target_canonical.puml").read_text()
         entities = re.findall(r"^\s*entity\s+\"", target, re.MULTILINE)
         # +0012(2) = 26 tables
-        check(len(entities) == 26, f"target ER has 21 entities (got {len(entities)})")
+        check(len(entities) == 27, f"target ER has 27 entities (got {len(entities)})")
         fk_edges = re.findall(r"\|\|--o\{", target)
         check(len(fk_edges) >= 4, f"target ER has declared FK edges (got {len(fk_edges)})")
         check("[FK]" in target, "target ER marks foreign-key columns")
