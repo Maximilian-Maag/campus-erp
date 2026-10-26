@@ -2,6 +2,16 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.21.0] - 2026-10-26
+
+KLR: cost centres, cost units and accounting records (issue #20).
+
+### Added
+- migration `0015_klr.sql`: `cost_center`, `cost_unit`, append-only `accounting_record`.
+- `internal/modules/klr`: domain, repo, audited service (`CreateCostCenter`,
+  `CreateCostUnit`, `Post`, `Report`).
+- HTTP: create cost centre / cost unit, post a record, read the report.
+
 ## [0.20.0] - 2026-10-26
 
 Procurement: purchase orders with budget commitment (issue #18).
