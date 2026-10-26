@@ -2,6 +2,26 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.8.0] - 2026-10-26
+
+Productive HISinOne source received and inventoried.
+
+### Added
+- **`docs/05-productive-source-inventory.md`** — measured inventory of the
+  productive HISinOne build handed over as three archives (full product WAR +
+  two hotfixes). Records the module catalogue (341 modules), the vendor data
+  model (`cs.sys.dbschema.hisinone.jar`: 1 486 tables, 1 286 declared FKs,
+  German column comments), the config catalogues (3 532 key tables; 1 762
+  rights / 7 279 role-rights), the ERP Java sources (`rm.erp.*`, 1 481 files)
+  and the payment-traffic layer (`rm.fia.payments.datex`, 1 651 files) with the
+  shipped ISO 20022 XSDs (pain.001/008, camt.052/053/054).
+- **`docs/open-questions.md`** — Q1 (which product) answered: HISinOne is the
+  vendor's unified successor; the dump is the legacy ERP. Q5–Q8 updated.
+
+### Notes
+- The archives are proprietary and remain uncommitted (AGENTS.md 1/2); they were
+  extracted outside the repo. This entry is our analysis citing them.
+
 ## [0.7.1] - 2026-10-23
 
 Architecture report: landscape pages, database ER models, more breathing room.
