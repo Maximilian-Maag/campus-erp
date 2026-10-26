@@ -105,9 +105,9 @@ C4), and the first vertical slice is implemented and tested:
 - payment runs that export **SEPA credit transfers (ISO 20022 pain.001.001.09,
   DK/GBIC)**: the produced file is stored and hash-pinned, the run is idempotent
   on its reference, and an approved order can be paid at most once
-- bank statement import (**MT940**) with reconciliation: each line is matched
-  against the paid orders and classified `matched` / `returned` / `unmatched`;
-  the import is idempotent on the file hash
+- bank statement import (**MT940** and **CAMT.053**) with reconciliation: each
+  line is matched against the paid orders and classified `matched` / `returned` /
+  `unmatched`; the import is idempotent on the file
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
   Go target package, policy-as-code green
 

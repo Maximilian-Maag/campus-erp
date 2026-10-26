@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>STMT-2026-0001</MsgId>
+      <CreDtTm>2026-10-31T09:00:00</CreDtTm>
+    </GrpHdr>
+    <Stmt>
+      <Id>STMT-2026-0001</Id>
+      <ElctrncSeqNb>1</ElctrncSeqNb>
+      <Acct>
+        <Id><IBAN>DE02120300000000202051</IBAN></Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">10000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-10-01</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">11100.01</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-10-31</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="EUR">1250.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-01</Dt></BookgDt>
+        <ValDt><Dt>2026-10-01</Dt></ValDt>
+        <NtryDtls>
+          <TxDtls>
+            <Refs><EndToEndId>AO-2026-0001</EndToEndId><TxId>TX-1</TxId></Refs>
+            <RltdPties>
+              <Dbtr><Nm>Stadtwerke Musterstadt</Nm><Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct></Dbtr>
+            </RltdPties>
+            <RmtInf><Ustrd>Stromabschlag Oktober</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">49.99</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-02</Dt></BookgDt>
+        <ValDt><Dt>2026-10-02</Dt></ValDt>
+        <NtryDtls>
+          <TxDtls>
+            <Refs><EndToEndId>AO-2026-0002</EndToEndId></Refs>
+            <RltdPties>
+              <Cdtr><Nm>Buchhandlung Am Markt</Nm><Acct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></Acct></Cdtr>
+            </RltdPties>
+            <RmtInf><Ustrd>Fachliteratur</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
