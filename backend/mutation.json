@@ -20,6 +20,14 @@
       "lang": "go"
     },
     {
+      "path": "internal/core/einvoice",
+      "lang": "go"
+    },
+    {
+      "path": "internal/modules/einvoice",
+      "lang": "go"
+    },
+    {
       "path": "internal/modules/kasse",
       "lang": "go"
     },

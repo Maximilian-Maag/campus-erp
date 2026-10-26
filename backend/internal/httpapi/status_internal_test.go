@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"testing"
 
+	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 )
 
@@ -183,6 +185,46 @@ func TestStatusForFoundationBook(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got := statusForFoundationBook(c.err); got != c.want {
 				t.Fatalf("statusForFoundationBook(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}
+
+func TestStatusForEInvoice(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", einvoice.ErrNotFound, http.StatusNotFound},
+		{"number exists", einvoice.ErrNumberExists, http.StatusConflict},
+		{"actor required", einvoice.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"number required", core.ErrNumberRequired, http.StatusUnprocessableEntity},
+		{"issue date required", core.ErrIssueDateRequired, http.StatusUnprocessableEntity},
+		{"currency", core.ErrCurrency, http.StatusUnprocessableEntity},
+		{"seller", core.ErrSellerRequired, http.StatusUnprocessableEntity},
+		{"buyer", core.ErrBuyerRequired, http.StatusUnprocessableEntity},
+		{"party name", core.ErrPartyNameRequired, http.StatusUnprocessableEntity},
+		{"party city", core.ErrPartyCityRequired, http.StatusUnprocessableEntity},
+		{"party zip", core.ErrPartyPostalCode, http.StatusUnprocessableEntity},
+		{"party country", core.ErrPartyCountry, http.StatusUnprocessableEntity},
+		{"seller vat", core.ErrSellerVATRequired, http.StatusUnprocessableEntity},
+		{"seller email", core.ErrSellerEmailRequired, http.StatusUnprocessableEntity},
+		{"buyer reference", core.ErrBuyerReference, http.StatusUnprocessableEntity},
+		{"payment means", core.ErrPaymentMeansRequired, http.StatusUnprocessableEntity},
+		{"payee iban", core.ErrPayeeIBANRequired, http.StatusUnprocessableEntity},
+		{"no lines", core.ErrNoLines, http.StatusUnprocessableEntity},
+		{"line description", core.ErrLineDescription, http.StatusUnprocessableEntity},
+		{"line quantity", core.ErrLineQuantity, http.StatusUnprocessableEntity},
+		{"line amount", core.ErrLineAmount, http.StatusUnprocessableEntity},
+		{"vat category", core.ErrVATCategoryRequired, http.StatusUnprocessableEntity},
+		{"line net mismatch", core.ErrLineNetMismatch, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForEInvoice(c.err); got != c.want {
+				t.Fatalf("statusForEInvoice(%v) = %d, want %d", c.err, got, c.want)
 			}
 		})
 	}
