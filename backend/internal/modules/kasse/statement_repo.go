@@ -34,7 +34,9 @@ const statementColumns = `id, account_id, bank_file_id, reference, statement_num
 	line_count, imported_by`
 
 const lineColumns = `id, line_no, value_date, booking_date, credit, is_return,
-	amount_cents, currency, posting_key, client_ref, bank_ref, purpose, status, order_id`
+	amount_cents, currency, posting_key, client_ref, bank_ref, purpose,
+	end_to_end_ref, counterparty_name, counterparty_iban, counterparty_bic,
+	uncleared_cents, status, order_id`
 
 func nullDate(t time.Time) any {
 	if t.IsZero() {
@@ -116,12 +118,15 @@ func (r *StatementRepo) InsertStatements(ctx context.Context, bankFileID int64, 
 			savedLine, err := scanLine(tx.QueryRow(ctx,
 				`INSERT INTO bank_statement_line
 				   (statement_id, line_no, value_date, booking_date, credit, is_return,
-				    amount_cents, currency, posting_key, client_ref, bank_ref, purpose, status, order_id)
-				 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+				    amount_cents, currency, posting_key, client_ref, bank_ref, purpose,
+				    end_to_end_ref, counterparty_name, counterparty_iban, counterparty_bic,
+				    uncleared_cents, status, order_id)
+				 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
 				 RETURNING `+lineColumns,
 				saved.ID, line.LineNo, nullDate(line.ValueDate), nullDate(line.BookingDate),
 				line.Credit, line.Return, line.AmountCents, line.Currency, line.PostingKey,
-				line.ClientRef, line.BankRef, line.Purpose, line.Status, line.OrderID))
+				line.ClientRef, line.BankRef, line.Purpose, line.EndToEndRef, line.CounterpartyName,
+				line.CounterpartyIBAN, line.CounterpartyBIC, line.UnclearedCents, line.Status, line.OrderID))
 			if err != nil {
 				return nil, fmt.Errorf("kasse: insert statement line: %w", err)
 			}
@@ -234,7 +239,8 @@ func scanLine(row pgx.Row) (StatementLine, error) {
 	var valueDate, bookingDate *time.Time
 	err := row.Scan(&l.ID, &l.LineNo, &valueDate, &bookingDate, &l.Credit, &l.Return,
 		&l.AmountCents, &l.Currency, &l.PostingKey, &l.ClientRef, &l.BankRef, &l.Purpose,
-		&l.Status, &l.OrderID)
+		&l.EndToEndRef, &l.CounterpartyName, &l.CounterpartyIBAN, &l.CounterpartyBIC,
+		&l.UnclearedCents, &l.Status, &l.OrderID)
 	if err != nil {
 		return StatementLine{}, err
 	}

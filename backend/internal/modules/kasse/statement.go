@@ -31,20 +31,25 @@ var (
 
 // StatementLine is one booking with its reconciliation outcome.
 type StatementLine struct {
-	ID          int64
-	LineNo      int
-	ValueDate   time.Time
-	BookingDate time.Time
-	Credit      bool
-	Return      bool
-	AmountCents int64
-	Currency    string
-	PostingKey  string
-	ClientRef   string
-	BankRef     string
-	Purpose     string
-	Status      string
-	OrderID     *int64
+	ID               int64
+	LineNo           int
+	ValueDate        time.Time
+	BookingDate      time.Time
+	Credit           bool
+	Return           bool
+	AmountCents      int64
+	Currency         string
+	PostingKey       string
+	ClientRef        string
+	BankRef          string
+	Purpose          string
+	EndToEndRef      string
+	CounterpartyName string
+	CounterpartyIBAN string
+	CounterpartyBIC  string
+	UnclearedCents   int64
+	Status           string
+	OrderID          *int64
 }
 
 // BankFile is one imported file. A file may contain several statements.
