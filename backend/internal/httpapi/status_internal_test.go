@@ -161,6 +161,33 @@ func TestStatusForRun(t *testing.T) {
 	}
 }
 
+func TestStatusForFoundationBook(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"book not found", kasse.ErrFoundationBookNotFound, http.StatusNotFound},
+		{"not found", kasse.ErrNotFound, http.StatusNotFound},
+		{"book exists", kasse.ErrFoundationBookExists, http.StatusConflict},
+		{"reference required", kasse.ErrFoundationBookReferenceRequired, http.StatusUnprocessableEntity},
+		{"foundation required", kasse.ErrFoundationRequired, http.StatusUnprocessableEntity},
+		{"amount not positive", kasse.ErrAmountNotPositive, http.StatusUnprocessableEntity},
+		{"purpose required", kasse.ErrPurposeRequired, http.StatusUnprocessableEntity},
+		{"unknown kind", kasse.ErrUnknownKind, http.StatusUnprocessableEntity},
+		{"bad currency", kasse.ErrBadCurrency, http.StatusUnprocessableEntity},
+		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForFoundationBook(c.err); got != c.want {
+				t.Fatalf("statusForFoundationBook(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}
+
 func TestStatusForStatement(t *testing.T) {
 	cases := []struct {
 		name string

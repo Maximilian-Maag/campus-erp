@@ -14,14 +14,14 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 | S3 payment run + SEPA export | **done** — `cash_account`/`payment_run`/`payment_run_item`; ISO 20022 **pain.001.001.09** (DK/GBIC), golden file validated against the vendor XSD; idempotent on reference; double-payment guard |
 | S4 statement import + reconciliation | **done** — `bank_file`/`bank_statement`/`bank_statement_line`; MT940 **and CAMT.053** parsers, lines reconciled against paid orders and classified `matched`/`returned`/`unmatched`; idempotent on the file |
 | S5 dunning | **done** — `dunning_level`/`dunning_band`/`dunning_notice`, any number of ordered bands, integer basis-point rates, stored charges, HTTP workflow |
+| S6 foundation books | **done** — `foundation_book`/`foundation_booking`; a separate book per foundation, append-only movements, derived balance; isolation tested |
 | S7 tax-office data + foundations | **done** — `vat_type`, `tax_office`, `foundation`; exact VAT arithmetic, ISO 7064 mod-97 IBAN validation, HTTP workflow |
-| S6, S8 | not started |
+| S8 | not started |
 
 What exists is a **vertical slice, not parity**: the cash-book day lifecycle, the
-payment-order workflow, the SEPA export and the statement import. Still missing:
-foundations (S6). CAMT.053 and the return-postings-to-FiBu format are unblocked on
-the *format* by the productive source (`docs/05`). The parallel run (S8) is still
-blocked on a production extract.
+payment-order workflow, the SEPA export, the statement import (MT940 + CAMT.053)
+and foundation books. S8 (ETL + parallel run + cutover) is blocked on a
+production extract.
 
 Legacy findings: `docs/legacy/kbs-payment-orders.md` (S2),
 `docs/legacy/kbs-sepa-export.md` (S3), `docs/legacy/kbs-statement-import.md` (S4),

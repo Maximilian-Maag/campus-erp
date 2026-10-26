@@ -2,6 +2,21 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.15.0] - 2026-10-26
+
+S6 — foundation books (issue #9).
+
+### Added
+- migration `0010_foundation_book.sql`: `foundation_book` (one per foundation;
+  `UNIQUE (foundation_id, reference)`) and append-only `foundation_booking`.
+- `kasse.FoundationBook`/`FoundationBooking`/`FoundationBalance`, a repo and a
+  service (`CreateBook`, `Book`, `Bookings`, `Balance`), audited on every write.
+- HTTP: `POST /api/foundation-books`,
+  `POST|GET /api/foundation-books/{id}/bookings`,
+  `GET /api/foundation-books/{id}/balance`.
+- **isolation test**: a booking on one foundation's book never appears in
+  another's bookings or balance.
+
 ## [0.14.0] - 2026-10-26
 
 CAMT.053 statement import (issue #7).

@@ -158,8 +158,27 @@ func (s stubStatements) BankFile(context.Context, int64) (kasse.BankFile, error)
 	return kasse.BankFile{}, s.err
 }
 
+// stubFoundationBooks satisfies the foundation-book interface with a fixed result.
+type stubFoundationBooks struct{ err error }
+
+func (s stubFoundationBooks) CreateBook(context.Context, int64, string, string, string) (kasse.FoundationBook, error) {
+	return kasse.FoundationBook{}, s.err
+}
+
+func (s stubFoundationBooks) Book(context.Context, int64, int64, kasse.BookingKind, string, string) (kasse.FoundationBooking, error) {
+	return kasse.FoundationBooking{}, s.err
+}
+
+func (s stubFoundationBooks) Bookings(context.Context, int64) ([]kasse.FoundationBooking, error) {
+	return nil, s.err
+}
+
+func (s stubFoundationBooks) Balance(context.Context, int64) (kasse.FoundationBalance, error) {
+	return kasse.FoundationBalance{}, s.err
+}
+
 func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubAudit{}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubAudit{}).Handler())
 	defer srv.Close()
 
 	cases := []struct {
@@ -182,7 +201,7 @@ func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
 }
 
 func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubAudit{err: errors.New("chain broken")}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubAudit{err: errors.New("chain broken")}).Handler())
 	defer srv.Close()
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/audit/verify", "", ""); resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("audit verify = %d, want 500", resp.StatusCode)
@@ -190,7 +209,7 @@ func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
 }
 
 func TestHTTPHealthAndNotFound(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubAudit{}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubAudit{}).Handler())
 	defer srv.Close()
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/healthz", "", ""); resp.StatusCode != http.StatusOK {
 		t.Fatalf("healthz = %d, want 200", resp.StatusCode)
