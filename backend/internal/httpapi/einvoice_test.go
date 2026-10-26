@@ -29,6 +29,69 @@ func einvoiceBody(number string) string {
 		`]}`
 }
 
+func receivedXRechnung(number string) string {
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<ubl:Invoice xmlns:ubl="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>
+  <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+  <cbc:ID>` + number + `</cbc:ID>
+  <cbc:IssueDate>2026-10-26</cbc:IssueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>04011000-12345-03</cbc:BuyerReference>
+  <cac:AccountingSupplierParty><cac:Party>
+    <cbc:EndpointID schemeID="EM">lieferant@example.de</cbc:EndpointID>
+    <cac:PartyName><cbc:Name>Lieferant GmbH</cbc:Name></cac:PartyName>
+    <cac:PostalAddress><cbc:StreetName>Weg 1</cbc:StreetName><cbc:CityName>Stadt</cbc:CityName><cbc:PostalZone>11111</cbc:PostalZone><cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country></cac:PostalAddress>
+    <cac:PartyTaxScheme><cbc:CompanyID>DE999999999</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>
+    <cac:PartyLegalEntity><cbc:RegistrationName>Lieferant GmbH</cbc:RegistrationName></cac:PartyLegalEntity>
+    <cac:Contact><cbc:Name>Lieferant GmbH</cbc:Name><cbc:ElectronicMail>lieferant@example.de</cbc:ElectronicMail></cac:Contact>
+  </cac:Party></cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty><cac:Party>
+    <cac:PartyName><cbc:Name>Universität Musterstadt</cbc:Name></cac:PartyName>
+    <cac:PostalAddress><cbc:StreetName>Musterstraße 1</cbc:StreetName><cbc:CityName>Musterstadt</cbc:CityName><cbc:PostalZone>12345</cbc:PostalZone><cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country></cac:PostalAddress>
+    <cac:PartyLegalEntity><cbc:RegistrationName>Universität Musterstadt</cbc:RegistrationName></cac:PartyLegalEntity>
+  </cac:Party></cac:AccountingCustomerParty>
+  <cac:PaymentMeans><cbc:PaymentMeansCode>58</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>DE75512108001245126199</cbc:ID></cac:PayeeFinancialAccount></cac:PaymentMeans>
+  <cac:PaymentTerms><cbc:Note>Zahlbar in 30 Tagen.</cbc:Note></cac:PaymentTerms>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="EUR">100.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="EUR">100.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="EUR">119.00</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="EUR">119.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">1</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">100.00</cbc:LineExtensionAmount>
+    <cac:Item><cbc:Name>Ware</cbc:Name><cac:ClassifiedTaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>19</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:ClassifiedTaxCategory></cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="EUR">100.00</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>
+</ubl:Invoice>`
+}
+
+func TestHTTPEInvoiceReceive(t *testing.T) {
+	srv, _ := newTestServer(t)
+	doc := receivedXRechnung("REC-" + uniqueSuffix(t))
+
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/e-invoices/received", "alice", doc)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("receive = %d", resp.StatusCode)
+	}
+	var inv einvoiceJSON
+	if err := json.NewDecoder(resp.Body).Decode(&inv); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if inv.ID == 0 || len(inv.Lines) != 1 {
+		t.Fatalf("invoice = %+v", inv)
+	}
+
+	// Malformed document -> 422.
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/e-invoices/received", "alice", "<not-xml"); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("malformed = %d, want 422", resp.StatusCode)
+	}
+}
+
 func TestHTTPEInvoiceFlow(t *testing.T) {
 	srv, _ := newTestServer(t)
 
