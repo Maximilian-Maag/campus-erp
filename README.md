@@ -114,6 +114,8 @@ C4), and the first vertical slice is implemented and tested:
   model, mandatory public-sector fields enforced, golden validated against the
   productive schema) and **receive** them (`POST /api/e-invoices/received`)
 - **budget**: positions with append-only postings and Mittelüberwachung (over-spend guard)
+- **procurement**: purchase orders whose approval commits budget to a position
+  (draft → approved → received), cancelling releases it
 - **lookups**: one seeded code catalogue keyed by (namespace, code), replacing the
   productive source's 3,532 key tables
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every

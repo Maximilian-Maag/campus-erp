@@ -11,6 +11,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
 )
 
 func TestStatusFor(t *testing.T) {
@@ -276,6 +277,38 @@ func TestStatusForLookup(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got := statusForLookup(c.err); got != c.want {
 				t.Fatalf("statusForLookup(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}
+
+func TestStatusForProcurement(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", procurement.ErrOrderNotFound, http.StatusNotFound},
+		{"exists", procurement.ErrOrderExists, http.StatusConflict},
+		{"bad transition", procurement.ErrBadTransition, http.StatusConflict},
+		{"budget exceeded", budget.ErrBudgetExceeded, http.StatusConflict},
+		{"actor required", procurement.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"number required", procurement.ErrNumberRequired, http.StatusUnprocessableEntity},
+		{"supplier required", procurement.ErrSupplierRequired, http.StatusUnprocessableEntity},
+		{"budget position required", procurement.ErrBudgetPositionRequired, http.StatusUnprocessableEntity},
+		{"currency", procurement.ErrCurrency, http.StatusUnprocessableEntity},
+		{"no lines", procurement.ErrNoLines, http.StatusUnprocessableEntity},
+		{"line description", procurement.ErrLineDescription, http.StatusUnprocessableEntity},
+		{"line quantity", procurement.ErrLineQuantity, http.StatusUnprocessableEntity},
+		{"line amount", procurement.ErrLineAmount, http.StatusUnprocessableEntity},
+		{"vat category", procurement.ErrVATCategoryRequired, http.StatusUnprocessableEntity},
+		{"line net mismatch", procurement.ErrLineNetMismatch, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForProcurement(c.err); got != c.want {
+				t.Fatalf("statusForProcurement(%v) = %d, want %d", c.err, got, c.want)
 			}
 		})
 	}
