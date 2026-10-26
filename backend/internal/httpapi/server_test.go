@@ -16,6 +16,7 @@ import (
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
@@ -57,6 +58,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
 		kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
 		einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store),
+		budget.NewPositionService(budget.NewPositionRepo(pool), store),
 		store,
 	).Handler())
 	t.Cleanup(srv.Close)

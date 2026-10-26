@@ -10,6 +10,7 @@ import (
 
 	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 )
 
@@ -197,8 +198,27 @@ func (s stubEInvoices) Render(context.Context, int64) (string, error) {
 	return "", s.err
 }
 
+// stubBudget satisfies the budget interface with a fixed result.
+type stubBudget struct{ err error }
+
+func (s stubBudget) CreatePosition(context.Context, int, string, string, string, int64, string) (budget.Position, error) {
+	return budget.Position{}, s.err
+}
+
+func (s stubBudget) Post(context.Context, int64, budget.PostingKind, int64, string, string) (budget.Posting, error) {
+	return budget.Posting{}, s.err
+}
+
+func (s stubBudget) GetPosition(context.Context, int64) (budget.Position, error) {
+	return budget.Position{}, s.err
+}
+
+func (s stubBudget) Balance(context.Context, int64) (budget.Balance, error) {
+	return budget.Balance{}, s.err
+}
+
 func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubEInvoices{}, stubAudit{}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubEInvoices{}, stubBudget{}, stubAudit{}).Handler())
 	defer srv.Close()
 
 	cases := []struct {
@@ -221,7 +241,7 @@ func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
 }
 
 func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubEInvoices{}, stubAudit{err: errors.New("chain broken")}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubEInvoices{}, stubBudget{}, stubAudit{err: errors.New("chain broken")}).Handler())
 	defer srv.Close()
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/audit/verify", "", ""); resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("audit verify = %d, want 500", resp.StatusCode)
@@ -229,7 +249,7 @@ func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
 }
 
 func TestHTTPHealthAndNotFound(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubEInvoices{}, stubAudit{}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubStatements{}, stubFoundationBooks{}, stubEInvoices{}, stubBudget{}, stubAudit{}).Handler())
 	defer srv.Close()
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/healthz", "", ""); resp.StatusCode != http.StatusOK {
 		t.Fatalf("healthz = %d, want 200", resp.StatusCode)
