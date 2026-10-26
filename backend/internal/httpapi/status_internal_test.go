@@ -160,3 +160,25 @@ func TestStatusForRun(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusForStatement(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", kasse.ErrStatementNotFound, http.StatusNotFound},
+		{"empty", kasse.ErrStatementEmpty, http.StatusUnprocessableEntity},
+		{"invalid", kasse.ErrStatementInvalid, http.StatusUnprocessableEntity},
+		{"account required", kasse.ErrBankAccountRequired, http.StatusUnprocessableEntity},
+		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForStatement(c.err); got != c.want {
+				t.Fatalf("statusForStatement(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}

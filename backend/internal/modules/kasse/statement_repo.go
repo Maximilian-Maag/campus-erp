@@ -1,0 +1,192 @@
+package kasse
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// StatementRepository is the persistence port for bank statements.
+type StatementRepository interface {
+	InsertStatements(ctx context.Context, accountID int64, fileHash, by string, stmts []Statement) ([]Statement, error)
+	StatementsByFile(ctx context.Context, accountID int64, fileHash string) ([]Statement, error)
+	GetStatement(ctx context.Context, id int64) (Statement, error)
+	PaidOrdersByReference(ctx context.Context, refs []string) (map[string]int64, error)
+}
+
+// StatementRepo is the PostgreSQL implementation.
+type StatementRepo struct{ pool *pgxpool.Pool }
+
+// NewStatementRepo returns a StatementRepo.
+func NewStatementRepo(pool *pgxpool.Pool) *StatementRepo { return &StatementRepo{pool: pool} }
+
+const statementColumns = `id, account_id, reference, statement_number, page, currency,
+	opening_balance_cents, opening_date, closing_balance_cents, closing_date,
+	line_count, file_hash, imported_by`
+
+const lineColumns = `id, line_no, value_date, booking_date, credit, is_return,
+	amount_cents, currency, posting_key, client_ref, bank_ref, purpose, status, order_id`
+
+func nullDate(t time.Time) any {
+	if t.IsZero() {
+		return nil
+	}
+	return t
+}
+
+func derefDate(p *time.Time) time.Time {
+	if p == nil {
+		return time.Time{}
+	}
+	return *p
+}
+
+// InsertStatements stores each statement and its lines in one transaction.
+func (r *StatementRepo) InsertStatements(ctx context.Context, accountID int64, fileHash, by string, stmts []Statement) ([]Statement, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: begin statement import: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	out := make([]Statement, 0, len(stmts))
+	for _, s := range stmts {
+		saved, err := scanStatement(tx.QueryRow(ctx,
+			`INSERT INTO bank_statement
+			   (account_id, reference, statement_number, page, currency,
+			    opening_balance_cents, opening_date, closing_balance_cents, closing_date,
+			    line_count, file_hash, imported_by)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+			 RETURNING `+statementColumns,
+			accountID, s.Reference, s.Number, s.Page, s.Currency,
+			s.OpeningBalanceCents, nullDate(s.OpeningDate), s.ClosingBalanceCents, nullDate(s.ClosingDate),
+			len(s.Lines), fileHash, by))
+		if err != nil {
+			return nil, fmt.Errorf("kasse: insert statement: %w", err)
+		}
+		for i := range s.Lines {
+			line := &s.Lines[i]
+			savedLine, err := scanLine(tx.QueryRow(ctx,
+				`INSERT INTO bank_statement_line
+				   (statement_id, line_no, value_date, booking_date, credit, is_return,
+				    amount_cents, currency, posting_key, client_ref, bank_ref, purpose, status, order_id)
+				 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+				 RETURNING `+lineColumns,
+				saved.ID, line.LineNo, nullDate(line.ValueDate), nullDate(line.BookingDate),
+				line.Credit, line.Return, line.AmountCents, line.Currency, line.PostingKey,
+				line.ClientRef, line.BankRef, line.Purpose, line.Status, line.OrderID))
+			if err != nil {
+				return nil, fmt.Errorf("kasse: insert statement line: %w", err)
+			}
+			saved.Lines = append(saved.Lines, savedLine)
+		}
+		out = append(out, saved)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("kasse: commit statement import: %w", err)
+	}
+	return out, nil
+}
+
+// StatementsByFile returns the statements already imported for a file hash.
+func (r *StatementRepo) StatementsByFile(ctx context.Context, accountID int64, fileHash string) ([]Statement, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+statementColumns+` FROM bank_statement WHERE account_id = $1 AND file_hash = $2 ORDER BY id`,
+		accountID, fileHash)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: statements by file: %w", err)
+	}
+	defer rows.Close()
+	var out []Statement
+	for rows.Next() {
+		s, err := scanStatement(rows)
+		if err != nil {
+			return nil, fmt.Errorf("kasse: scan statement: %w", err)
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// GetStatement loads a statement and its lines.
+func (r *StatementRepo) GetStatement(ctx context.Context, id int64) (Statement, error) {
+	s, err := scanStatement(r.pool.QueryRow(ctx, `SELECT `+statementColumns+` FROM bank_statement WHERE id = $1`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Statement{}, fmt.Errorf("kasse: statement %d: %w", id, ErrStatementNotFound)
+	}
+	if err != nil {
+		return Statement{}, fmt.Errorf("kasse: get statement: %w", err)
+	}
+	rows, err := r.pool.Query(ctx, `SELECT `+lineColumns+` FROM bank_statement_line WHERE statement_id = $1 ORDER BY line_no`, id)
+	if err != nil {
+		return Statement{}, fmt.Errorf("kasse: get statement lines: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		line, err := scanLine(rows)
+		if err != nil {
+			return Statement{}, fmt.Errorf("kasse: scan statement line: %w", err)
+		}
+		s.Lines = append(s.Lines, line)
+	}
+	return s, rows.Err()
+}
+
+// PaidOrdersByReference returns the ids of paid orders (those that belong to a
+// payment run) keyed by their reference.
+func (r *StatementRepo) PaidOrdersByReference(ctx context.Context, refs []string) (map[string]int64, error) {
+	out := make(map[string]int64)
+	if len(refs) == 0 {
+		return out, nil
+	}
+	rows, err := r.pool.Query(ctx,
+		`SELECT o.reference, o.id
+		   FROM payment_order o
+		   JOIN payment_run_item i ON i.order_id = o.id
+		  WHERE o.reference = ANY($1)`, refs)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: paid orders by reference: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ref string
+		var id int64
+		if err := rows.Scan(&ref, &id); err != nil {
+			return nil, fmt.Errorf("kasse: scan paid order: %w", err)
+		}
+		out[ref] = id
+	}
+	return out, rows.Err()
+}
+
+func scanStatement(row pgx.Row) (Statement, error) {
+	var s Statement
+	var openingDate, closingDate *time.Time
+	err := row.Scan(&s.ID, &s.AccountID, &s.Reference, &s.Number, &s.Page, &s.Currency,
+		&s.OpeningBalanceCents, &openingDate, &s.ClosingBalanceCents, &closingDate,
+		&s.LineCount, &s.FileHash, &s.ImportedBy)
+	if err != nil {
+		return Statement{}, err
+	}
+	s.OpeningDate = derefDate(openingDate)
+	s.ClosingDate = derefDate(closingDate)
+	return s, nil
+}
+
+func scanLine(row pgx.Row) (StatementLine, error) {
+	var l StatementLine
+	var valueDate, bookingDate *time.Time
+	err := row.Scan(&l.ID, &l.LineNo, &valueDate, &bookingDate, &l.Credit, &l.Return,
+		&l.AmountCents, &l.Currency, &l.PostingKey, &l.ClientRef, &l.BankRef, &l.Purpose,
+		&l.Status, &l.OrderID)
+	if err != nil {
+		return StatementLine{}, err
+	}
+	l.ValueDate = derefDate(valueDate)
+	l.BookingDate = derefDate(bookingDate)
+	return l, nil
+}

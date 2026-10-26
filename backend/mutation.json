@@ -12,6 +12,10 @@
       "lang": "go"
     },
     {
+      "path": "internal/core/mt940",
+      "lang": "go"
+    },
+    {
       "path": "internal/modules/kasse",
       "lang": "go"
     },

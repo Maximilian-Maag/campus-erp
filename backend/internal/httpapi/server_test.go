@@ -53,6 +53,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		kasse.NewDunningService(kasse.NewDunningRepo(pool), store),
 		kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
 		kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
+		kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
 		store,
 	).Handler())
 	t.Cleanup(srv.Close)
