@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 )
@@ -225,6 +226,33 @@ func TestStatusForEInvoice(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got := statusForEInvoice(c.err); got != c.want {
 				t.Fatalf("statusForEInvoice(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}
+
+func TestStatusForBudget(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"position not found", budget.ErrPositionNotFound, http.StatusNotFound},
+		{"position exists", budget.ErrPositionExists, http.StatusConflict},
+		{"budget exceeded", budget.ErrBudgetExceeded, http.StatusConflict},
+		{"actor required", budget.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"year required", budget.ErrYearRequired, http.StatusUnprocessableEntity},
+		{"chapter required", budget.ErrChapterRequired, http.StatusUnprocessableEntity},
+		{"title required", budget.ErrTitleRequired, http.StatusUnprocessableEntity},
+		{"allocated negative", budget.ErrAllocatedNegative, http.StatusUnprocessableEntity},
+		{"amount not positive", budget.ErrAmountNotPositive, http.StatusUnprocessableEntity},
+		{"unknown kind", budget.ErrUnknownKind, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForBudget(c.err); got != c.want {
+				t.Fatalf("statusForBudget(%v) = %d, want %d", c.err, got, c.want)
 			}
 		})
 	}
