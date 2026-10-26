@@ -1,0 +1,168 @@
+package httpapi
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"time"
+
+	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
+)
+
+// einvoiceService is the e-invoicing surface the HTTP layer needs.
+type einvoiceService interface {
+	Create(ctx context.Context, inv core.Invoice, by string) (core.Invoice, error)
+	Get(ctx context.Context, id int64) (core.Invoice, error)
+	Render(ctx context.Context, id int64) (string, error)
+}
+
+// statusForEInvoice maps an e-invoice error to an HTTP status.
+func statusForEInvoice(err error) int {
+	switch {
+	case errors.Is(err, einvoice.ErrNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, einvoice.ErrNumberExists):
+		return http.StatusConflict
+	case errors.Is(err, einvoice.ErrActorRequired),
+		errors.Is(err, core.ErrNumberRequired),
+		errors.Is(err, core.ErrIssueDateRequired),
+		errors.Is(err, core.ErrCurrency),
+		errors.Is(err, core.ErrSellerRequired),
+		errors.Is(err, core.ErrBuyerRequired),
+		errors.Is(err, core.ErrPartyNameRequired),
+		errors.Is(err, core.ErrPartyCityRequired),
+		errors.Is(err, core.ErrPartyPostalCode),
+		errors.Is(err, core.ErrPartyCountry),
+		errors.Is(err, core.ErrSellerVATRequired),
+		errors.Is(err, core.ErrSellerEmailRequired),
+		errors.Is(err, core.ErrBuyerReference),
+		errors.Is(err, core.ErrPaymentMeansRequired),
+		errors.Is(err, core.ErrPayeeIBANRequired),
+		errors.Is(err, core.ErrNoLines),
+		errors.Is(err, core.ErrLineDescription),
+		errors.Is(err, core.ErrLineQuantity),
+		errors.Is(err, core.ErrLineAmount),
+		errors.Is(err, core.ErrVATCategoryRequired),
+		errors.Is(err, core.ErrLineNetMismatch):
+		return http.StatusUnprocessableEntity
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+type einvoicePartyRequest struct {
+	Name           string `json:"name"`
+	Street         string `json:"street"`
+	City           string `json:"city"`
+	PostalCode     string `json:"postal_code"`
+	Country        string `json:"country"`
+	VatID          string `json:"vat_id"`
+	EndpointID     string `json:"endpoint_id"`
+	EndpointScheme string `json:"endpoint_scheme"`
+	Email          string `json:"email"`
+}
+
+type einvoiceLineRequest struct {
+	LineNo         int    `json:"line_no"`
+	Description    string `json:"description"`
+	QuantityMilli  int64  `json:"quantity_milli"`
+	UnitCode       string `json:"unit_code"`
+	UnitPriceCents int64  `json:"unit_price_cents"`
+	NetCents       int64  `json:"net_cents"`
+	VatCategory    string `json:"vat_category"`
+	VatRateBP      int64  `json:"vat_rate_bp"`
+}
+
+type createEInvoiceRequest struct {
+	Number           string                `json:"number"`
+	IssueDate        string                `json:"issue_date"`
+	TypeCode         string                `json:"type_code"`
+	Currency         string                `json:"currency"`
+	BuyerReference   string                `json:"buyer_reference"`
+	Seller           einvoicePartyRequest  `json:"seller"`
+	Buyer            einvoicePartyRequest  `json:"buyer"`
+	PaymentMeansCode string                `json:"payment_means_code"`
+	PayeeIBAN        string                `json:"payee_iban"`
+	PaymentTerms     string                `json:"payment_terms"`
+	Lines            []einvoiceLineRequest `json:"lines"`
+}
+
+func (s *Server) createEInvoice(w http.ResponseWriter, r *http.Request) {
+	var req createEInvoiceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	inv := core.Invoice{
+		Number:           req.Number,
+		TypeCode:         req.TypeCode,
+		Currency:         req.Currency,
+		BuyerReference:   req.BuyerReference,
+		Seller:           toParty(req.Seller),
+		Buyer:            toParty(req.Buyer),
+		PaymentMeansCode: req.PaymentMeansCode,
+		PayeeIBAN:        req.PayeeIBAN,
+		PaymentTerms:     req.PaymentTerms,
+	}
+	if req.IssueDate != "" {
+		d, err := time.Parse("2006-01-02", req.IssueDate)
+		if err != nil {
+			http.Error(w, "bad issue_date", http.StatusBadRequest)
+			return
+		}
+		inv.IssueDate = d
+	}
+	for _, l := range req.Lines {
+		inv.Lines = append(inv.Lines, core.Line{
+			LineNo: l.LineNo, Description: l.Description, QuantityMilli: l.QuantityMilli,
+			UnitCode: l.UnitCode, UnitPriceCents: l.UnitPriceCents, NetCents: l.NetCents,
+			VatCategory: l.VatCategory, VatRateBP: l.VatRateBP,
+		})
+	}
+	saved, err := s.einvoices.Create(r.Context(), inv, actor(r))
+	if err != nil {
+		http.Error(w, err.Error(), statusForEInvoice(err))
+		return
+	}
+	writeJSON(w, http.StatusCreated, saved)
+}
+
+func (s *Server) getEInvoice(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	inv, err := s.einvoices.Get(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), statusForEInvoice(err))
+		return
+	}
+	writeJSON(w, http.StatusOK, inv)
+}
+
+func (s *Server) getEInvoiceXML(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	doc, err := s.einvoices.Render(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), statusForEInvoice(err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(doc))
+}
+
+func toParty(p einvoicePartyRequest) core.Party {
+	return core.Party{
+		Name: p.Name, Street: p.Street, City: p.City, PostalCode: p.PostalCode,
+		Country: p.Country, VatID: p.VatID, EndpointID: p.EndpointID,
+		EndpointScheme: p.EndpointScheme, Email: p.Email,
+	}
+}

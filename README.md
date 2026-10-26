@@ -110,6 +110,9 @@ C4), and the first vertical slice is implemented and tested:
   `unmatched`; the import is idempotent on the file
 - foundation books: a separate, append-only book per foundation (S6), with a
   derived balance and tested isolation between foundations
+- **e-invoicing**: emit **XRechnung 3.0 (UBL 2.1)** invoices (EN16931-shaped
+  model, mandatory public-sector fields enforced, golden validated against the
+  productive schema)
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
   Go target package, policy-as-code green
 
