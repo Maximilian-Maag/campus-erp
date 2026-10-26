@@ -36,6 +36,10 @@
       "lang": "go"
     },
     {
+      "path": "internal/modules/procurement",
+      "lang": "go"
+    },
+    {
       "path": "internal/modules/kasse",
       "lang": "go"
     },

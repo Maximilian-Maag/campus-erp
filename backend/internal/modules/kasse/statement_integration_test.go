@@ -66,7 +66,7 @@ func TestStatementImportReconciles(t *testing.T) {
 
 	content := mt940File("STMT-"+uniqueSuffix(t), []mtLine{
 		{clientRef: a.Reference, credit: false, cents: 125000, key: "051"}, // matched
-		{clientRef: b.Reference, credit: true, cents: 4999, key: "059"},   // returned (059)
+		{clientRef: b.Reference, credit: true, cents: 4999, key: "059"},    // returned (059)
 		{clientRef: "FREMDBUCHUNG", credit: true, cents: 5000, key: "051"}, // unmatched
 	})
 

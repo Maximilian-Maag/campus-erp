@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.20.0] - 2026-10-26
+
+Procurement: purchase orders with budget commitment (issue #18).
+
+### Added
+- migration `0014_procurement.sql`: `purchase_order` + `purchase_order_line`.
+- `internal/modules/procurement`: domain, repo, audited service with the
+  lifecycle `draft → approved → received` (+ `cancelled`), transitions guarded.
+- **budget integration**: approval commits the gross to the order's budget
+  position (via the budget module); cancelling an approved order releases it.
+- HTTP: create/get/approve/receive/cancel purchase orders.
+
 ## [0.19.0] - 2026-10-26
 
 Lookup catalogue (issue #17).

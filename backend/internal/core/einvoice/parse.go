@@ -38,12 +38,12 @@ type ublPartyWrapper struct {
 }
 
 type ublParty struct {
-	EndpointID      ublEndpointID      `xml:"EndpointID"`
-	PartyName       ublPartyName       `xml:"PartyName"`
-	PostalAddress   ublPostalAddress   `xml:"PostalAddress"`
-	PartyTaxScheme  ublPartyTaxScheme  `xml:"PartyTaxScheme"`
+	EndpointID       ublEndpointID       `xml:"EndpointID"`
+	PartyName        ublPartyName        `xml:"PartyName"`
+	PostalAddress    ublPostalAddress    `xml:"PostalAddress"`
+	PartyTaxScheme   ublPartyTaxScheme   `xml:"PartyTaxScheme"`
 	PartyLegalEntity ublPartyLegalEntity `xml:"PartyLegalEntity"`
-	Contact         ublContact         `xml:"Contact"`
+	Contact          ublContact          `xml:"Contact"`
 }
 
 type ublEndpointID struct {

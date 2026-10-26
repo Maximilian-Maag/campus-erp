@@ -12,6 +12,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
 )
@@ -40,6 +41,7 @@ func main() {
 	log.Printf("migrations applied: %d", applied)
 
 	store := audit.NewStore(pool)
+	budgetSvc := budget.NewPositionService(budget.NewPositionRepo(pool), store)
 	api := httpapi.New(
 		kasse.NewService(kasse.NewRepo(pool), store),
 		kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
@@ -49,8 +51,9 @@ func main() {
 		kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
 		kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
 		einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store),
-		budget.NewPositionService(budget.NewPositionRepo(pool), store),
+		budgetSvc,
 		lookup.NewValueService(lookup.NewValueRepo(pool), store),
+		procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store),
 		store,
 	)
 

@@ -40,12 +40,13 @@ type Server struct {
 	einvoices       einvoiceService
 	budget          budgetService
 	lookups         lookupService
+	procurement     procurementService
 	audit           auditVerifier
 }
 
 // New returns a Server.
-func New(k cashBook, o orderService, d dunningService, tx taxService, runs paymentRunService, statements statementService, foundationBooks foundationBookService, einvoices einvoiceService, budget budgetService, lookups lookupService, a auditVerifier) *Server {
-	return &Server{kasse: k, orders: o, dunning: d, tax: tx, runs: runs, statements: statements, foundationBooks: foundationBooks, einvoices: einvoices, budget: budget, lookups: lookups, audit: a}
+func New(k cashBook, o orderService, d dunningService, tx taxService, runs paymentRunService, statements statementService, foundationBooks foundationBookService, einvoices einvoiceService, budget budgetService, lookups lookupService, procurement procurementService, a auditVerifier) *Server {
+	return &Server{kasse: k, orders: o, dunning: d, tax: tx, runs: runs, statements: statements, foundationBooks: foundationBooks, einvoices: einvoices, budget: budget, lookups: lookups, procurement: procurement, audit: a}
 }
 
 // Handler returns the routed HTTP handler.
@@ -93,6 +94,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/lookups/{namespace}", s.listLookups)
 	mux.HandleFunc("GET /api/lookups/{namespace}/{code}", s.getLookup)
 	mux.HandleFunc("POST /api/lookups/{namespace}", s.upsertLookups)
+
+	mux.HandleFunc("POST /api/purchase-orders", s.createPurchaseOrder)
+	mux.HandleFunc("GET /api/purchase-orders/{id}", s.getPurchaseOrder)
+	mux.HandleFunc("POST /api/purchase-orders/{id}/approve", s.approvePurchaseOrder)
+	mux.HandleFunc("POST /api/purchase-orders/{id}/receive", s.receivePurchaseOrder)
+	mux.HandleFunc("POST /api/purchase-orders/{id}/cancel", s.cancelPurchaseOrder)
 
 	mux.HandleFunc("POST /api/dunning/levels", s.createDunningLevel)
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.getDunningLevel)
