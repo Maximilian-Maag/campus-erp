@@ -2,6 +2,34 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.9.0] - 2026-10-26
+
+Slice S3 — payment run and SEPA credit-transfer export (Kasse).
+
+### Added
+- **Schema** (`migrations/0005_sepa_export.sql`): `bank_account` (the debtor
+  side, which the legacy `kbs` schema denormalised onto every row),
+  `payment_run` (stores the produced `file_xml` and its `file_hash`), and
+  `payment_run_item` with `UNIQUE(order_id)` as the double-payment guard.
+- **`internal/core/sepa/pain001.go`** — deterministic generator for ISO 20022
+  **pain.001.001.09** in the German DK/GBIC profile, matching the productive
+  HISinOne writer (`SEPAWriterCreditTransferVersion39`). Full validation
+  (lengths, IBAN, BIC, currency, amounts) and XML escaping.
+- **`internal/modules/kasse`** — `PaymentRunService` + `PaymentRunRepo`: build a
+  run from approved orders for one debtor account, idempotent on its reference,
+  audited; `BankAccount` validation.
+- **HTTP**: `POST /api/bank-accounts`, `POST /api/payment-runs`,
+  `GET /api/payment-runs/{id}`, `GET /api/payment-runs/{id}/file`.
+- **Tests**: generator unit tests incl. a golden file
+  (`internal/core/sepa/testdata/golden_pain001.xml`) **validated against the
+  vendor's own `pain.001.001.09_GBIC_5.xsd`**; integration tests (run, idempotency,
+  double-payment guard, audit chain); HTTP e2e.
+- **`docs/legacy/kbs-sepa-export.md`** — S3 legacy findings and the field mapping.
+
+### Quality
+- `sepa`, `kasse` and `httpapi` at **100 % mutation efficacy** (gremlins,
+  ADR-0008); all six target packages above the 0.85 floor; policy-as-code green.
+
 ## [0.8.0] - 2026-10-26
 
 Productive HISinOne source received and inventoried.

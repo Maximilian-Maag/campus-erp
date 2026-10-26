@@ -119,8 +119,28 @@ func (s stubTax) CreateFoundation(context.Context, kasse.Foundation, string) (ka
 	return s.foundation, s.err
 }
 
+// stubRuns satisfies the payment-run interface with a fixed result.
+type stubRuns struct {
+	account kasse.BankAccount
+	run     kasse.PaymentRun
+	file    string
+	err     error
+}
+
+func (s stubRuns) CreateBankAccount(context.Context, string, string, string, string) (kasse.BankAccount, error) {
+	return s.account, s.err
+}
+
+func (s stubRuns) CreateRun(context.Context, string, int64, time.Time, []int64, string) (kasse.PaymentRun, error) {
+	return s.run, s.err
+}
+
+func (s stubRuns) Run(context.Context, int64) (kasse.PaymentRun, error) { return s.run, s.err }
+
+func (s stubRuns) RunFile(context.Context, int64) (string, error) { return s.file, s.err }
+
 func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubDunning{}, stubTax{}, stubAudit{}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{err: errors.New("boom")}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubAudit{}).Handler())
 	defer srv.Close()
 
 	cases := []struct {
@@ -143,7 +163,7 @@ func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
 }
 
 func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{}, stubOrders{}, stubDunning{}, stubTax{}, stubAudit{err: errors.New("chain broken")}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubAudit{err: errors.New("chain broken")}).Handler())
 	defer srv.Close()
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/audit/verify", "", ""); resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("audit verify = %d, want 500", resp.StatusCode)
@@ -151,7 +171,7 @@ func TestHTTPAuditVerifyFailureReturns500(t *testing.T) {
 }
 
 func TestHTTPHealthAndNotFound(t *testing.T) {
-	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubOrders{}, stubDunning{}, stubTax{}, stubAudit{}).Handler())
+	srv := httptest.NewServer(httpapi.New(stubBook{err: kasse.ErrNotFound}, stubOrders{}, stubDunning{}, stubTax{}, stubRuns{}, stubAudit{}).Handler())
 	defer srv.Close()
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/healthz", "", ""); resp.StatusCode != http.StatusOK {
 		t.Fatalf("healthz = %d, want 200", resp.StatusCode)

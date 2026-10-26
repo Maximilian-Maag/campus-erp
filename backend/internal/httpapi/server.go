@@ -34,12 +34,13 @@ type Server struct {
 	orders  orderService
 	dunning dunningService
 	tax     taxService
+	runs    paymentRunService
 	audit   auditVerifier
 }
 
 // New returns a Server.
-func New(k cashBook, o orderService, d dunningService, tx taxService, a auditVerifier) *Server {
-	return &Server{kasse: k, orders: o, dunning: d, tax: tx, audit: a}
+func New(k cashBook, o orderService, d dunningService, tx taxService, runs paymentRunService, a auditVerifier) *Server {
+	return &Server{kasse: k, orders: o, dunning: d, tax: tx, runs: runs, audit: a}
 }
 
 // Handler returns the routed HTTP handler.
@@ -58,6 +59,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/payment-orders/{id}/approve", s.approveOrder)
 	mux.HandleFunc("POST /api/payment-orders/{id}/reject", s.rejectOrder)
 	mux.HandleFunc("POST /api/payment-orders/{id}/cancel", s.cancelOrder)
+
+	mux.HandleFunc("POST /api/bank-accounts", s.createBankAccount)
+	mux.HandleFunc("POST /api/payment-runs", s.createRun)
+	mux.HandleFunc("GET /api/payment-runs/{id}", s.getRun)
+	mux.HandleFunc("GET /api/payment-runs/{id}/file", s.getRunFile)
 
 	mux.HandleFunc("POST /api/dunning/levels", s.createDunningLevel)
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.getDunningLevel)
