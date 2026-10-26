@@ -104,7 +104,8 @@ runtime validation; `rm.erp.legacy.jar`, `rm.erp.base.jar`,
    vendor's field mapping replace the "golden files" gap for the *format*; only
    a per-bank sample remains.
 2. **Reference model for the canonical schema.** The productive schema's FKs +
-   comments are an evidence base to validate our own design (`docs/adr/0001`).
+   comments are an evidence base to validate our own design (`docs/adr/0001`);
+   the concrete comparison is in `docs/06-vendor-model-crosswalk.md`.
 3. **Business-rule reference for later phases** (procurement, invoicing /
    XRechnung, travel — i.e. Phase 4).
 4. **Answers to the open questions** (below).
