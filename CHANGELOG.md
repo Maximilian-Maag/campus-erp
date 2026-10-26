@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.18.0] - 2026-10-26
+
+Budget: positions + postings with Mittelüberwachung (issue #15).
+
+### Added
+- migration `0012_budget.sql`: extends `budget_position` with `allocated_cents` +
+  description/audit fields and adds append-only `budget_posting`.
+- `internal/modules/budget`: domain, repo and audited service; the over-spend
+  guard (`CheckAvailable`) rejects a commitment/actual beyond the available amount.
+- HTTP: `POST /api/budget/positions`, `GET /api/budget/positions/{id}`,
+  `POST /api/budget/positions/{id}/postings`, `GET /api/budget/positions/{id}/balance`.
+
 ## [0.17.0] - 2026-10-26
 
 Inbound e-invoice: parse + validate a received XRechnung (issue #13).

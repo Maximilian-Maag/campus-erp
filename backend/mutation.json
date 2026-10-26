@@ -28,6 +28,10 @@
       "lang": "go"
     },
     {
+      "path": "internal/modules/budget",
+      "lang": "go"
+    },
+    {
       "path": "internal/modules/kasse",
       "lang": "go"
     },
