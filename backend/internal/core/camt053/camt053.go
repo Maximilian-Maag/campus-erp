@@ -45,10 +45,10 @@ type acctID struct {
 }
 
 type bal struct {
-	Tp        balTp       `xml:"Tp"`
-	Amt       amount      `xml:"Amt"`
-	CdtDbtInd string      `xml:"CdtDbtInd"`
-	Dt        dateChoice  `xml:"Dt"`
+	Tp        balTp      `xml:"Tp"`
+	Amt       amount     `xml:"Amt"`
+	CdtDbtInd string     `xml:"CdtDbtInd"`
+	Dt        dateChoice `xml:"Dt"`
 }
 
 type balTp struct {
