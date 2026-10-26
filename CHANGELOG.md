@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.10.1] - 2026-10-26
+
+Vendor model cross-walk.
+
+### Added
+- **`docs/06-vendor-model-crosswalk.md`** — a measured comparison of the productive
+  HISinOne finance schema (with its declared FKs and comments) against our
+  canonical model and the legacy `kbs` tables. Confirms the Kasse design (our
+  table names match the vendor's: `payment_order`, `bank_account`,
+  `bankstatementline`, …) and records three refinements to schedule: split
+  `bank_file` out of `bank_statement`; keep `cash_account` for the own account and
+  `bank_account` for counterparties; add `uncleared_amount` + counterparty
+  columns to `bank_statement_line`.
+
 ## [0.10.0] - 2026-10-26
 
 Slice S4 — bank statement import (MT940) and reconciliation (Kasse).
