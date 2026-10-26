@@ -78,6 +78,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/foundation-books/{id}/balance", s.getFoundationBalance)
 
 	mux.HandleFunc("POST /api/e-invoices", s.createEInvoice)
+	mux.HandleFunc("POST /api/e-invoices/received", s.receiveEInvoice)
 	mux.HandleFunc("GET /api/e-invoices/{id}", s.getEInvoice)
 	mux.HandleFunc("GET /api/e-invoices/{id}/xrechnung", s.getEInvoiceXML)
 

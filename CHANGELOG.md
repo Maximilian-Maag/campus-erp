@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.17.0] - 2026-10-26
+
+Inbound e-invoice: parse + validate a received XRechnung (issue #13).
+
+### Added
+- `internal/core/einvoice.ParseXRechnung`: parse a UBL 2.1 `Invoice` into our
+  model and validate it with the same rules used for outbound invoices.
+- `InvoiceService.ImportReceived` (audited, `einvoice.receive`) and
+  `POST /api/e-invoices/received`.
+- round-trip + parser error tests; integration and HTTP e2e tests.
+
 ## [0.16.0] - 2026-10-26
 
 E-invoicing: XRechnung 3.0 (UBL 2.1) (issue #11).

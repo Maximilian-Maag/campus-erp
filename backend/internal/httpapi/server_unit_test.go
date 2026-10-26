@@ -185,6 +185,10 @@ func (s stubEInvoices) Create(context.Context, core.Invoice, string) (core.Invoi
 	return core.Invoice{}, s.err
 }
 
+func (s stubEInvoices) ImportReceived(context.Context, string, string) (core.Invoice, error) {
+	return core.Invoice{}, s.err
+}
+
 func (s stubEInvoices) Get(context.Context, int64) (core.Invoice, error) {
 	return core.Invoice{}, s.err
 }
