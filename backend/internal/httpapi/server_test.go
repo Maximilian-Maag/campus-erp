@@ -19,6 +19,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/klr"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
@@ -64,6 +65,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		budgetSvc,
 		lookup.NewValueService(lookup.NewValueRepo(pool), store),
 		procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store),
+		klr.NewService(klr.NewRepo(pool), store),
 		store,
 	).Handler())
 	t.Cleanup(srv.Close)
