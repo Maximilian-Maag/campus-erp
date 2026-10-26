@@ -10,6 +10,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 )
 
 func TestStatusFor(t *testing.T) {
@@ -253,6 +254,28 @@ func TestStatusForBudget(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got := statusForBudget(c.err); got != c.want {
 				t.Fatalf("statusForBudget(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}
+
+func TestStatusForLookup(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", lookup.ErrNotFound, http.StatusNotFound},
+		{"actor required", lookup.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"namespace required", lookup.ErrNamespaceRequired, http.StatusUnprocessableEntity},
+		{"code required", lookup.ErrCodeRequired, http.StatusUnprocessableEntity},
+		{"short text required", lookup.ErrShortTextRequired, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForLookup(c.err); got != c.want {
+				t.Fatalf("statusForLookup(%v) = %d, want %d", c.err, got, c.want)
 			}
 		})
 	}

@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.19.0] - 2026-10-26
+
+Lookup catalogue (issue #17).
+
+### Added
+- migration `0013_lookup.sql`: one `lookup_value` catalogue keyed by
+  `(namespace, code)` instead of 3,532 key tables.
+- `internal/modules/lookup`: domain, repo, audited service (`Upsert`,
+  `UpsertMany`, `Get`, `List`, `Seed`); `Seed` loads the standard code lists
+  (UNTDID 1001/4461/5305, UNECE units, ISO 4217/3166).
+- HTTP: list/get/upsert lookups and `POST /api/lookups/seed`.
+
 ## [0.18.0] - 2026-10-26
 
 Budget: positions + postings with Mittelüberwachung (issue #15).
