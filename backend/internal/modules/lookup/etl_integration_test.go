@@ -43,7 +43,7 @@ func TestCatalogueETLReconcilesAndIsIdempotent(t *testing.T) {
 		Source: lookup.LegacyCatalogueSource(pool, ns, "SELECT code, short_text, long_text, sort_order, active FROM legacy_key ORDER BY code"),
 		Sink:   lookup.NewCatalogueSink(svc),
 	}
-	runner := etl.NewRunner(audit.NewStore(pool))
+	runner := etl.NewRunner(audit.NewStore(pool)).WithLedger(etl.NewAuditLedger(audit.NewStore(pool)))
 
 	first, err := runner.Run(ctx, ds, "etl-bot")
 	if err != nil {
@@ -51,6 +51,9 @@ func TestCatalogueETLReconcilesAndIsIdempotent(t *testing.T) {
 	}
 	if first.Source != 3 || first.Loaded != 3 || first.Checksum == "" {
 		t.Fatalf("report = %+v", first)
+	}
+	if first.Previous != "" || first.Drift {
+		t.Fatalf("a first run has no history: %+v", first)
 	}
 
 	values, err := svc.List(ctx, ns)
@@ -75,6 +78,9 @@ func TestCatalogueETLReconcilesAndIsIdempotent(t *testing.T) {
 	if second.Checksum != first.Checksum {
 		t.Fatalf("checksum drifted on re-run: %s vs %s", first.Checksum, second.Checksum)
 	}
+	if second.Previous != first.Checksum || second.Drift {
+		t.Fatalf("an unchanged re-run must not drift: %+v", second)
+	}
 	if again, _ := svc.List(ctx, ns); len(again) != 3 {
 		t.Fatalf("re-run duplicated rows: %d", len(again))
 	}
@@ -89,6 +95,9 @@ func TestCatalogueETLReconcilesAndIsIdempotent(t *testing.T) {
 	}
 	if third.Checksum == first.Checksum {
 		t.Fatalf("checksum did not move after a source change")
+	}
+	if third.Previous != first.Checksum || !third.Drift {
+		t.Fatalf("a changed source must be flagged as drift: %+v", third)
 	}
 	if v, _ := svc.Get(ctx, ns, "S"); v.ShortText != "Standard" {
 		t.Fatalf("value not updated in place: %+v", v)

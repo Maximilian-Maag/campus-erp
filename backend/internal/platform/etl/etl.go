@@ -78,13 +78,37 @@ type Dataset struct {
 
 // Report is the outcome of one run: the reconciliation record. Source is the rows
 // extracted, Loaded the rows written, Checksum a stable digest of the extracted
-// set (independent of extract order) so consecutive runs can be compared.
+// set (independent of extract order) so consecutive runs can be compared. When a
+// Ledger is attached, Previous is the checksum of the dataset's last run and Drift
+// reports whether the source has changed since then.
 type Report struct {
 	Dataset  string    `json:"dataset"`
 	Source   int       `json:"source"`
 	Loaded   int       `json:"loaded"`
 	Checksum string    `json:"checksum"`
+	Previous string    `json:"previous,omitempty"`
+	Drift    bool      `json:"drift"`
 	At       time.Time `json:"at"`
+}
+
+// checksumPrefix labels the checksum in the audit detail. afterText writes it and
+// checksumOf reads it, so the two stay in step.
+const checksumPrefix = "checksum="
+
+// afterText renders the run detail recorded on the audit event. It is the single
+// place that defines the format, and checksumOf parses it back (see ledger.go).
+func afterText(rep Report) string {
+	text := fmt.Sprintf("source=%d loaded=%d %s%s", rep.Source, rep.Loaded, checksumPrefix, rep.Checksum)
+	if rep.Previous != "" {
+		text += fmt.Sprintf(" previous=%s drift=%t", rep.Previous, rep.Drift)
+	}
+	return text
+}
+
+// Ledger reports the checksum recorded by a dataset's previous run, so a run can
+// flag that its source has drifted since the last import.
+type Ledger interface {
+	LastChecksum(ctx context.Context, dataset string) (checksum string, ok bool, err error)
 }
 
 // AuditSink records each run.
@@ -94,8 +118,9 @@ type AuditSink interface {
 
 // Runner runs datasets and records every run in the audit stream.
 type Runner struct {
-	audit AuditSink
-	now   func() time.Time
+	audit  AuditSink
+	ledger Ledger
+	now    func() time.Time
 }
 
 // NewRunner wires a runner to the audit stream.
@@ -103,12 +128,19 @@ func NewRunner(sink AuditSink) *Runner {
 	return &Runner{audit: sink, now: time.Now}
 }
 
+// WithLedger attaches a ledger, enabling drift detection against the previous run.
+func (r *Runner) WithLedger(l Ledger) *Runner {
+	r.ledger = l
+	return r
+}
+
 // Run extracts, loads and reconciles one dataset, then records the run.
 //
 // It is idempotent: the Sink upserts, so a second run over an unchanged source
 // yields the same state (and the same Checksum). A run whose loaded count does
 // not match the source count returns ErrReconcile — the report is still returned
-// so the drift is visible.
+// so the drift is visible. With a Ledger attached, the report also carries the
+// previous run's checksum and whether the source has drifted from it.
 func (r *Runner) Run(ctx context.Context, ds Dataset, by string) (Report, error) {
 	if strings.TrimSpace(by) == "" {
 		return Report{}, ErrActorRequired
@@ -118,6 +150,17 @@ func (r *Runner) Run(ctx context.Context, ds Dataset, by string) (Report, error)
 		return Report{}, fmt.Errorf("etl: %s: extract: %w", ds.Name, err)
 	}
 	rep := Report{Dataset: ds.Name, Source: len(records), Checksum: Checksum(records), At: r.now().UTC()}
+
+	if r.ledger != nil {
+		prev, ok, err := r.ledger.LastChecksum(ctx, ds.Name)
+		if err != nil {
+			return rep, fmt.Errorf("etl: %s: ledger: %w", ds.Name, err)
+		}
+		if ok {
+			rep.Previous = prev
+			rep.Drift = prev != rep.Checksum
+		}
+	}
 
 	loaded, err := ds.Sink.Load(ctx, records, by)
 	if err != nil {
@@ -131,7 +174,7 @@ func (r *Runner) Run(ctx context.Context, ds Dataset, by string) (Report, error)
 		Actor:   by,
 		Action:  "etl.run",
 		Subject: "etl/" + ds.Name,
-		After:   fmt.Sprintf("source=%d loaded=%d checksum=%s", rep.Source, rep.Loaded, rep.Checksum),
+		After:   afterText(rep),
 	}); err != nil {
 		return rep, err
 	}

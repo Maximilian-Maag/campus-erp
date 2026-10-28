@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.26.0] - 2026-10-28
+
+ETL: the run history is the audit stream, so a run flags source drift.
+
+### Added
+- **`audit.Store.LastEvent(action, subject)`** — read the most recent matching
+  event, so a caller can look back at what it recorded previously.
+- **`etl.AuditLedger` / `Runner.WithLedger`** — a dataset's previous checksum is
+  derived from its last `etl.run` audit event (no separate ledger table). A run
+  then reports `Previous` and `Drift` when the source has changed since last
+  import; `afterText`/`checksumOf` keep the write and parse of the detail in step.
+
+### Changed
+- `docs/19` documents the ledger; the integration test asserts no-drift on an
+  unchanged re-run and drift after a source change.
+
 ## [0.25.0] - 2026-10-28
 
 ETL: the re-runnable, reconcilable legacy → canonical pipeline (roadmap S8).
