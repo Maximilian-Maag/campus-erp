@@ -65,6 +65,25 @@ func (s *Store) Append(ctx context.Context, e Event) (Event, error) {
 	return e, nil
 }
 
+// LastEvent returns the most recent persisted event with the given action and
+// subject, so a caller can look back at what it recorded previously (e.g. an ETL
+// run comparing itself against its last run). It reports false when none exists.
+func (s *Store) LastEvent(ctx context.Context, action, subject string) (Event, bool, error) {
+	var e Event
+	err := s.pool.QueryRow(ctx,
+		`SELECT seq, at, actor, action, subject, before, after, prev_hash, hash
+		 FROM audit_event WHERE action = $1 AND subject = $2
+		 ORDER BY seq DESC LIMIT 1`, action, subject).
+		Scan(&e.Seq, &e.At, &e.Actor, &e.Action, &e.Subject, &e.Before, &e.After, &e.PrevHash, &e.Hash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Event{}, false, nil
+	}
+	if err != nil {
+		return Event{}, false, fmt.Errorf("audit: last event: %w", err)
+	}
+	return e, true, nil
+}
+
 // Verify recomputes the persisted chain and reports the first inconsistency.
 func (s *Store) Verify(ctx context.Context) error {
 	rows, err := s.pool.Query(ctx,

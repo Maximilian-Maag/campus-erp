@@ -32,6 +32,17 @@ A pipeline is a **`Dataset`**: a named `Source` (the legacy side) bound to a
 - **Audited.** Every run appends one `etl.run` event (actor, dataset, source /
   loaded counts, checksum) to the hash-chained stream (ADR-0006).
 
+## Run ledger and drift detection
+
+The run history is the hash-chained audit stream itself — no separate ledger table.
+`audit.Store.LastEvent(action, subject)` reads the most recent matching event, and
+`etl.AuditLedger` turns the last `etl.run` event for a dataset into that run's
+checksum. Attached with `Runner.WithLedger`, each run then reports the previous
+checksum and whether the source has **drifted** from it, so an import that changes
+unexpectedly is visible rather than silent. The audit detail reads
+`source=… loaded=… checksum=… previous=… drift=…`; `afterText` writes it and
+`checksumOf` parses it, from one definition.
+
 ## First pipeline: the lookup catalogue
 
 `internal/modules/lookup/etl.go` wires the framework to the catalogue
@@ -51,5 +62,5 @@ changed source, fail-closed on a bad row, and a verifying audit chain.
 - The **parallel run**: extract from a real legacy database, reconcile against it
   (row counts + checksums + domain invariants such as bookings-per-day), and
   rehearse the reversible cutover. Blocked on a production extract (ADR-0001).
-- Per-dataset reconciliation limits and a stored run ledger (this slice audits
-  runs; it does not yet keep a queryable history of them).
+- A queryable history of runs beyond "the last one" (the audit stream holds every
+  run, but there is no read API that lists them by dataset yet).
