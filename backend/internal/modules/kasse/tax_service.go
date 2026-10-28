@@ -94,6 +94,64 @@ func (s *TaxService) CreateTaxOffice(ctx context.Context, t TaxOffice, by string
 	return saved, nil
 }
 
+// ImportTaxOffices validates and upserts a batch (used by the ETL), auditing once.
+func (s *TaxService) ImportTaxOffices(ctx context.Context, values []TaxOffice, by string) (int, error) {
+	if err := requireActor(by); err != nil {
+		return 0, err
+	}
+	clean := make([]TaxOffice, 0, len(values))
+	for _, t := range values {
+		c, err := NewTaxOffice(t.Year, t.Number, t.Name, t.Street, t.PostalCode, t.City, t.AccountHolder, t.IBAN, t.BIC)
+		if err != nil {
+			return 0, err
+		}
+		clean = append(clean, c)
+	}
+	for _, c := range clean {
+		if _, err := s.repo.UpsertTaxOffice(ctx, c); err != nil {
+			return 0, err
+		}
+	}
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "tax_office.import",
+		Subject: "tax-office",
+		After:   fmt.Sprintf("offices=%d", len(clean)),
+	}); err != nil {
+		return 0, err
+	}
+	return len(clean), nil
+}
+
+// ImportFoundations validates and upserts a batch (used by the ETL), auditing once.
+func (s *TaxService) ImportFoundations(ctx context.Context, values []Foundation, by string) (int, error) {
+	if err := requireActor(by); err != nil {
+		return 0, err
+	}
+	clean := make([]Foundation, 0, len(values))
+	for _, f := range values {
+		c, err := NewFoundation(f.Year, f.Number, f.Description, f.CarryOver)
+		if err != nil {
+			return 0, err
+		}
+		clean = append(clean, c)
+	}
+	for _, c := range clean {
+		if _, err := s.repo.UpsertFoundation(ctx, c); err != nil {
+			return 0, err
+		}
+	}
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "foundation.import",
+		Subject: "foundation",
+		After:   fmt.Sprintf("foundations=%d", len(clean)),
+	}); err != nil {
+		return 0, err
+	}
+	return len(clean), nil
+}
+
 // CreateFoundation stores a foundation reference.
 func (s *TaxService) CreateFoundation(ctx context.Context, f Foundation, by string) (Foundation, error) {
 	if err := requireActor(by); err != nil {

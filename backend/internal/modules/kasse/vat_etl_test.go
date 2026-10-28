@@ -41,3 +41,16 @@ func TestVATKindFromLegacy(t *testing.T) {
 		}
 	}
 }
+
+func TestBoolFromLegacyFlag(t *testing.T) {
+	for _, in := range []string{"J", "j", "Y", "1", "T", " t "} {
+		if !boolFromLegacyFlag(in) {
+			t.Errorf("boolFromLegacyFlag(%q) = false, want true", in)
+		}
+	}
+	for _, in := range []string{"", "N", "0", "x", "  "} {
+		if boolFromLegacyFlag(in) {
+			t.Errorf("boolFromLegacyFlag(%q) = true, want false", in)
+		}
+	}
+}

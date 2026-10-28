@@ -126,3 +126,112 @@ func TestVATETLReconcilesAndIsIdempotent(t *testing.T) {
 		t.Fatalf("audit verify: %v", err)
 	}
 }
+
+// TestTaxOfficeAndFoundationETL drives kbs.finanzamt and kbs.stift through the
+// ETL: two more dataset shapes (an int year and a carry-over flag), reconciled and
+// idempotent, fail-closed on a bad row.
+func TestTaxOfficeAndFoundationETL(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	svc := kasse.NewTaxService(kasse.NewTaxRepo(pool), audit.NewStore(pool))
+	runner := etl.NewRunner(audit.NewStore(pool)).WithLedger(etl.NewAuditLedger(audit.NewStore(pool)))
+
+	const year = 2999 // outside any suite fixture; uniqueness comes from the number
+	officeNo := "F" + uniqueSuffix(t)
+	foundNo := "S" + uniqueSuffix(t)
+	iban := uniqueIBAN(t)
+
+	if _, err := pool.Exec(ctx, `
+		CREATE TABLE legacy_finanzamt (
+			jahr int, finanzamt_nr varchar(20), bezeichnung varchar(60), str varchar(60),
+			plz varchar(10), ort varchar(60), inhaber varchar(60), iban varchar(35), bic varchar(11)
+		)`); err != nil {
+		t.Fatalf("create legacy_finanzamt: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO legacy_finanzamt VALUES ($1,$2,'Finanzamt Test','Hauptstr 1','88046','Friedrichshafen','Land Baden-Wuerttemberg',$3,'SOLADES1KNZ')`,
+		year, officeNo, iban); err != nil {
+		t.Fatalf("seed legacy_finanzamt: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `CREATE TABLE legacy_stift (jahr int, stift_nr varchar(20), bez varchar(30), kz_uebern char(1))`); err != nil {
+		t.Fatalf("create legacy_stift: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO legacy_stift VALUES ($1,$2,'Teststiftung','J'), ($1,$3,'Sammelstiftung','')`,
+		year, foundNo, foundNo+"b"); err != nil {
+		t.Fatalf("seed legacy_stift: %v", err)
+	}
+
+	officeDS := etl.Dataset{
+		Name:   "kasse/tax-office/" + officeNo,
+		Source: kasse.LegacyTaxOfficeSource(pool, "SELECT jahr, finanzamt_nr, bezeichnung, str, plz, ort, inhaber, iban, bic FROM legacy_finanzamt"),
+		Sink:   kasse.NewTaxOfficeSink(svc),
+	}
+	foundDS := etl.Dataset{
+		Name:   "kasse/foundation/" + foundNo,
+		Source: kasse.LegacyFoundationSource(pool, "SELECT jahr, stift_nr, bez, kz_uebern FROM legacy_stift"),
+		Sink:   kasse.NewFoundationSink(svc),
+	}
+
+	for _, ds := range []etl.Dataset{officeDS, foundDS} {
+		rep, err := runner.Run(ctx, ds, "etl-bot")
+		if err != nil {
+			t.Fatalf("Run %s: %v", ds.Name, err)
+		}
+		if rep.Source == 0 || rep.Loaded != rep.Source || rep.Previous != "" || rep.Drift {
+			t.Fatalf("report %s = %+v", ds.Name, rep)
+		}
+	}
+
+	// Canonical state.
+	var gotIBAN, gotBIC string
+	if err := pool.QueryRow(ctx, `SELECT iban, bic FROM tax_office WHERE year=$1 AND number=$2`, year, officeNo).Scan(&gotIBAN, &gotBIC); err != nil {
+		t.Fatalf("read tax_office: %v", err)
+	}
+	if gotIBAN != iban || gotBIC != "SOLADES1KNZ" {
+		t.Fatalf("tax_office = %s/%s", gotIBAN, gotBIC)
+	}
+	var carry bool
+	if err := pool.QueryRow(ctx, `SELECT carry_over FROM foundation WHERE year=$1 AND number=$2`, year, foundNo).Scan(&carry); err != nil {
+		t.Fatalf("read foundation: %v", err)
+	}
+	if !carry {
+		t.Fatalf("foundation carry_over = false, want true for flag J")
+	}
+	if err := pool.QueryRow(ctx, `SELECT carry_over FROM foundation WHERE year=$1 AND number=$2`, year, foundNo+"b").Scan(&carry); err != nil {
+		t.Fatalf("read foundation 2: %v", err)
+	}
+	if carry {
+		t.Fatalf("foundation carry_over = true, want false for empty flag")
+	}
+
+	// Idempotent re-run.
+	second, err := runner.Run(ctx, officeDS, "etl-bot")
+	if err != nil || second.Drift {
+		t.Fatalf("unchanged re-run should not drift: %v %+v", err, second)
+	}
+	var offices, foundations int
+	pool.QueryRow(ctx, `SELECT count(*) FROM tax_office WHERE year=$1`, year).Scan(&offices)
+	pool.QueryRow(ctx, `SELECT count(*) FROM foundation WHERE year=$1`, year).Scan(&foundations)
+	if offices != 1 || foundations != 2 {
+		t.Fatalf("counts after re-run: offices=%d foundations=%d", offices, foundations)
+	}
+
+	// Fail closed: a foundation with no description is rejected, no partial write.
+	if _, err := pool.Exec(ctx, `INSERT INTO legacy_stift VALUES ($1, $2, '', '')`, year, foundNo+"c"); err != nil {
+		t.Fatalf("insert bad foundation: %v", err)
+	}
+	if _, err := runner.Run(ctx, foundDS, "etl-bot"); err == nil {
+		t.Fatalf("blank description should fail the import")
+	}
+	var bad int
+	pool.QueryRow(ctx, `SELECT count(*) FROM foundation WHERE number=$1`, foundNo+"c").Scan(&bad)
+	if bad != 0 {
+		t.Fatalf("bad foundation leaked: %d", bad)
+	}
+
+	if err := audit.NewStore(pool).Verify(ctx); err != nil {
+		t.Fatalf("audit verify: %v", err)
+	}
+}

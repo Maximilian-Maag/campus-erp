@@ -60,6 +60,13 @@ source + sink, not new plumbing.
   unset flag defaults to output tax (the majority case) because the canonical
   model requires a kind; a truly input-tax row with an unset flag (legacy code 67)
   is misclassified until a production extract lets the mapping be reviewed.
+- **Tax offices + foundations** (`internal/modules/kasse/etl.go`,
+  `docs/legacy/kbs-tax-and-foundations.md`): `LegacyTaxOfficeSource` reads
+  `kbs.finanzamt` and `LegacyFoundationSource` reads `kbs.stift`; the sinks load
+  them into `tax_office` and `foundation`. These cover the two remaining shapes —
+  an integer year (validated 1900..2999) and a carry-over flag. *(inferred)*: the
+  legacy `kz_uebern char(1)` encoding is unverified (the Muster dump is empty), so
+  `J`/`Y`/`1`/`T` mean yes and anything else (including empty) means no.
 
 Each dataset's integration test builds a synthetic legacy table in an isolated
 schema and asserts reconciliation, re-run idempotency, in-place update on a
