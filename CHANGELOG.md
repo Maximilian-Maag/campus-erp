@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.25.0] - 2026-10-28
+
+ETL: the re-runnable, reconcilable legacy → canonical pipeline (roadmap S8).
+
+### Added
+- **`internal/platform/etl`** — a `Dataset` (named `Source` → `Sink`), a `Runner`
+  whose runs are idempotent, reconcile (`ErrReconcile` on a dropped row), fail
+  closed on a bad row (no partial load) and append one `etl.run` audit event. A
+  schema-driven `QuerySource` turns a legacy table into records via a SQL query +
+  mapper (`docs/19`).
+- **First pipeline** — `internal/modules/lookup/etl.go` moves a legacy key table
+  into the single canonical catalogue (`LegacyCatalogueSource` + `CatalogueSink`),
+  with an integration test covering reconciliation, re-run idempotency, in-place
+  update and fail-closed behaviour against synthetic fixtures.
+
+### Changed
+- `backend/mutation.json` grades `internal/platform/etl`; the stale
+  `internal/modules/` exemption (module placeholders) is removed — the modules
+  are graded targets.
+- `docs/plan/kbs-pilot.md` records S8 as in progress; the parallel run remains
+  blocked on a production extract (ADR-0001).
+
 ## [0.24.0] - 2026-10-28
 
 Authorisation: per-route role gates on top of authentication.

@@ -66,16 +66,16 @@
     {
       "path": "internal/platform/tenant",
       "lang": "go"
+    },
+    {
+      "path": "internal/platform/etl",
+      "lang": "go"
     }
   ],
   "exempt": [
     {
       "path": "cmd/",
       "reason": "process entrypoints: wiring only, exercised by e2e"
-    },
-    {
-      "path": "internal/modules/",
-      "reason": "module placeholders, no logic yet"
     },
     {
       "path": "internal/core/golden/",

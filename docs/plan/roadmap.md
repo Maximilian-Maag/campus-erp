@@ -11,7 +11,7 @@ Not user-visible, but nothing ships without it:
 - tenancy (database-per-tenant + pool registry) — ADR-0002
 - auth (OIDC against the university IdP) + role/permission model
 - **audit**: append-only, hash-chained event stream — ADR-0006
-- ETL framework: legacy → canonical, re-runnable + reconcilable
+- ETL framework: legacy → canonical, re-runnable + reconcilable — framework + first pipeline (`docs/19`)
 - deployment: CloudNativePG, PgBouncer, River, object storage — ADR-0007
 - quality gates live in CI: unit, integration, e2e, mutation ≥ 0.85 — ADR-0008
 
