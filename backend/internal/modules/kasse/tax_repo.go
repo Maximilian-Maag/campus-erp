@@ -16,7 +16,9 @@ type TaxRepository interface {
 	UpsertVATType(ctx context.Context, v VATType) (VATType, error)
 	GetVATType(ctx context.Context, code string) (VATType, error)
 	CreateTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, error)
+	UpsertTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, error)
 	CreateFoundation(ctx context.Context, f Foundation) (Foundation, error)
+	UpsertFoundation(ctx context.Context, f Foundation) (Foundation, error)
 }
 
 // TaxRepo is the PostgreSQL implementation.
@@ -101,6 +103,28 @@ func (r *TaxRepo) CreateTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, 
 	return out, nil
 }
 
+// UpsertTaxOffice inserts a tax-office record or updates it in place when the
+// (year, number) pair exists, so an import is idempotent.
+func (r *TaxRepo) UpsertTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, error) {
+	row := r.pool.QueryRow(ctx,
+		`INSERT INTO tax_office
+		   (year, number, name, street, postal_code, city, account_holder, iban, bic)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		 ON CONFLICT (year, number) DO UPDATE SET
+		   name = EXCLUDED.name, street = EXCLUDED.street,
+		   postal_code = EXCLUDED.postal_code, city = EXCLUDED.city,
+		   account_holder = EXCLUDED.account_holder,
+		   iban = EXCLUDED.iban, bic = EXCLUDED.bic
+		 RETURNING id, year, number, name, street, postal_code, city, account_holder, iban, bic`,
+		t.Year, t.Number, t.Name, t.Street, t.PostalCode, t.City, t.AccountHolder, t.IBAN, t.BIC)
+	var out TaxOffice
+	if err := row.Scan(&out.ID, &out.Year, &out.Number, &out.Name, &out.Street, &out.PostalCode,
+		&out.City, &out.AccountHolder, &out.IBAN, &out.BIC); err != nil {
+		return TaxOffice{}, fmt.Errorf("kasse: upsert tax office: %w", err)
+	}
+	return out, nil
+}
+
 // CreateFoundation stores a foundation reference.
 func (r *TaxRepo) CreateFoundation(ctx context.Context, f Foundation) (Foundation, error) {
 	row := r.pool.QueryRow(ctx,
@@ -114,6 +138,23 @@ func (r *TaxRepo) CreateFoundation(ctx context.Context, f Foundation) (Foundatio
 			return Foundation{}, fmt.Errorf("kasse: foundation %d/%s: %w", f.Year, f.Number, ErrFoundationExists)
 		}
 		return Foundation{}, fmt.Errorf("kasse: create foundation: %w", err)
+	}
+	return out, nil
+}
+
+// UpsertFoundation inserts a foundation or updates it in place when the
+// (year, number) pair exists, so an import is idempotent.
+func (r *TaxRepo) UpsertFoundation(ctx context.Context, f Foundation) (Foundation, error) {
+	row := r.pool.QueryRow(ctx,
+		`INSERT INTO foundation (year, number, description, carry_over)
+		 VALUES ($1,$2,$3,$4)
+		 ON CONFLICT (year, number) DO UPDATE SET
+		   description = EXCLUDED.description, carry_over = EXCLUDED.carry_over
+		 RETURNING id, year, number, description, carry_over`,
+		f.Year, f.Number, f.Description, f.CarryOver)
+	var out Foundation
+	if err := row.Scan(&out.ID, &out.Year, &out.Number, &out.Description, &out.CarryOver); err != nil {
+		return Foundation{}, fmt.Errorf("kasse: upsert foundation: %w", err)
 	}
 	return out, nil
 }

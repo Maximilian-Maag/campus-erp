@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.29.0] - 2026-10-28
+
+ETL: tax offices (kbs.finanzamt) and foundations (kbs.stift), completing S7.
+
+### Added
+- **Tax offices + foundations datasets** — `LegacyTaxOfficeSource` /
+  `TaxOfficeSink` and `LegacyFoundationSource` / `FoundationSink` move
+  `kbs.finanzamt` and `kbs.stift` into canonical `tax_office` and `foundation`.
+  They add the two remaining dataset shapes: an integer year and a carry-over
+  flag (docs/19); the unset-flag encoding is marked inferred.
+- **`TaxRepository.UpsertTaxOffice` / `UpsertFoundation`** and
+  **`TaxService.ImportTaxOffices` / `ImportFoundations`** — idempotent, once-audited
+  batch imports (`tax_office.import`, `foundation.import`) that validate the whole
+  batch before writing.
+- Tests: the flag mapping and an integration test covering both pipelines
+  (reconciliation, idempotency, and fail-closed on a blank description).
+
 ## [0.28.0] - 2026-10-28
 
 ETL: the VAT catalogue (kbs.mwst_art) as a second dataset.

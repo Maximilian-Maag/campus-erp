@@ -121,3 +121,123 @@ func vatKindFromLegacy(flag string) VATKind {
 	}
 	return VATOutput
 }
+
+// boolFromLegacyFlag interprets a legacy 1-char carry-over flag. The legacy column
+// is an unconstrained char(1) and the Muster dump is empty, so the exact encoding
+// is unverified. *(inferred)*: the common German flags "J"/"Y"/"1"/"T" mean yes;
+// anything else (including empty) means no.
+func boolFromLegacyFlag(flag string) bool {
+	switch strings.ToUpper(strings.TrimSpace(flag)) {
+	case "J", "Y", "1", "T":
+		return true
+	default:
+		return false
+	}
+}
+
+// TaxOfficeSink loads extracted rows into the canonical tax-office table via the
+// tax service; it builds every value before writing, so a bad row fails the import
+// without a partial load.
+type TaxOfficeSink struct {
+	svc *TaxService
+}
+
+// NewTaxOfficeSink wires the sink to the tax service.
+func NewTaxOfficeSink(svc *TaxService) TaxOfficeSink { return TaxOfficeSink{svc: svc} }
+
+// Load implements etl.Sink.
+func (s TaxOfficeSink) Load(ctx context.Context, records []etl.Record, by string) (int, error) {
+	values := make([]TaxOffice, 0, len(records))
+	for _, r := range records {
+		year, err := strconv.Atoi(r.Fields["year"])
+		if err != nil {
+			return 0, fmt.Errorf("tax office %q: year %q: %w", r.Fields["number"], r.Fields["year"], err)
+		}
+		t, err := NewTaxOffice(year, r.Fields["number"], r.Fields["name"], r.Fields["street"],
+			r.Fields["postal_code"], r.Fields["city"], r.Fields["account_holder"], r.Fields["iban"], r.Fields["bic"])
+		if err != nil {
+			return 0, err
+		}
+		values = append(values, t)
+	}
+	n, err := s.svc.ImportTaxOffices(ctx, values, by)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// LegacyTaxOfficeSource reads kbs.finanzamt. The query must select, in order:
+// jahr, finanzamt_nr, bezeichnung, str, plz, ort, inhaber, iban, bic.
+func LegacyTaxOfficeSource(pool *pgxpool.Pool, query string) etl.QuerySource {
+	return etl.QuerySource{
+		Pool: pool,
+		SQL:  query,
+		Scan: func(rows pgx.Rows) (etl.Record, error) {
+			var year int
+			var number, name, street, postal, city, holder, iban, bic string
+			if err := rows.Scan(&year, &number, &name, &street, &postal, &city, &holder, &iban, &bic); err != nil {
+				return etl.Record{}, err
+			}
+			return etl.Record{
+				Key: fmt.Sprintf("tax-office/%d/%s", year, number),
+				Fields: map[string]string{
+					"year": strconv.Itoa(year), "number": number, "name": name, "street": street,
+					"postal_code": postal, "city": city, "account_holder": holder, "iban": iban, "bic": bic,
+				},
+			}, nil
+		},
+	}
+}
+
+// FoundationSink loads extracted rows into the canonical foundation table.
+type FoundationSink struct {
+	svc *TaxService
+}
+
+// NewFoundationSink wires the sink to the tax service.
+func NewFoundationSink(svc *TaxService) FoundationSink { return FoundationSink{svc: svc} }
+
+// Load implements etl.Sink.
+func (s FoundationSink) Load(ctx context.Context, records []etl.Record, by string) (int, error) {
+	values := make([]Foundation, 0, len(records))
+	for _, r := range records {
+		year, err := strconv.Atoi(r.Fields["year"])
+		if err != nil {
+			return 0, fmt.Errorf("foundation %q: year %q: %w", r.Fields["number"], r.Fields["year"], err)
+		}
+		f, err := NewFoundation(year, r.Fields["number"], r.Fields["description"], r.Fields["carry_over"] == "true")
+		if err != nil {
+			return 0, err
+		}
+		values = append(values, f)
+	}
+	n, err := s.svc.ImportFoundations(ctx, values, by)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// LegacyFoundationSource reads kbs.stift. The query must select, in order:
+// jahr, stift_nr, bez, kz_uebern.
+func LegacyFoundationSource(pool *pgxpool.Pool, query string) etl.QuerySource {
+	return etl.QuerySource{
+		Pool: pool,
+		SQL:  query,
+		Scan: func(rows pgx.Rows) (etl.Record, error) {
+			var year int
+			var number, description, carry string
+			if err := rows.Scan(&year, &number, &description, &carry); err != nil {
+				return etl.Record{}, err
+			}
+			return etl.Record{
+				Key: fmt.Sprintf("foundation/%d/%s", year, number),
+				Fields: map[string]string{
+					"year": strconv.Itoa(year), "number": number, "description": description,
+					"carry_over": strconv.FormatBool(boolFromLegacyFlag(carry)),
+				},
+			}, nil
+		},
+	}
+}

@@ -307,6 +307,24 @@ func (f *fakeTaxRepo) CreateTaxOffice(_ context.Context, o TaxOffice) (TaxOffice
 	return o, nil
 }
 
+func (f *fakeTaxRepo) UpsertTaxOffice(_ context.Context, o TaxOffice) (TaxOffice, error) {
+	if f.err != nil {
+		return TaxOffice{}, f.err
+	}
+	o.ID = 6
+	f.office = o
+	return o, nil
+}
+
+func (f *fakeTaxRepo) UpsertFoundation(_ context.Context, fo Foundation) (Foundation, error) {
+	if f.err != nil {
+		return Foundation{}, f.err
+	}
+	fo.ID = 7
+	f.foundation = fo
+	return fo, nil
+}
+
 func (f *fakeTaxRepo) CreateFoundation(_ context.Context, fo Foundation) (Foundation, error) {
 	if f.err != nil {
 		return Foundation{}, f.err
