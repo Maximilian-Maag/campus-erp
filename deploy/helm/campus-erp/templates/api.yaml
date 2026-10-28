@@ -42,6 +42,22 @@ spec:
               value: {{ .Values.config.httpAddr | quote }}
             - name: ERP_TENANT
               value: {{ .Values.config.tenant | quote }}
+            # Multi-tenant DSN template (ADR-0002). Optional: when the key is
+            # absent the API runs single-tenant against DATABASE_URL.
+            - name: ERP_TENANT_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "campus-erp.dbSecretName" . }}
+                  key: {{ .Values.config.tenantDsnKey }}
+                  optional: true
+            # OIDC (ADR-0003): with ERP_OIDC_JWKS_URL set the API requires bearer
+            # tokens on /api/* and enforces per-route roles.
+            - name: ERP_OIDC_ISSUER
+              value: {{ .Values.config.oidc.issuer | quote }}
+            - name: ERP_OIDC_AUDIENCE
+              value: {{ .Values.config.oidc.audience | quote }}
+            - name: ERP_OIDC_JWKS_URL
+              value: {{ .Values.config.oidc.jwksUrl | quote }}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -54,8 +70,11 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 15
           readinessProbe:
+            # Readiness pings the database (NFR-6): a process that cannot serve
+            # is kept out of the Service until it can. Liveness stays /healthz so
+            # a database blip does not restart the process.
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
             initialDelaySeconds: 3
             periodSeconds: 10

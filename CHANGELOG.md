@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.27.0] - 2026-10-28
+
+Deployment: wire the platform config into the chart and compose.
+
+### Fixed
+- The api's Kubernetes **readiness** probe now targets `/readyz` (which pings the
+  database) instead of `/healthz`; liveness stays `/healthz`, so a database blip
+  no longer marks a serving process not-ready nor restarts it (NFR-6).
+- The chart and `docker-compose.yml` now pass the platform's configuration to the
+  api: `ERP_TENANT_DSN` (multi-tenant DSN template, from the db Secret) and
+  `ERP_OIDC_ISSUER`/`ERP_OIDC_AUDIENCE`/`ERP_OIDC_JWKS_URL` — without which a
+  deployed api could not authenticate or serve more than one tenant (ADR-0002/0003).
+- The compose api gains a `/readyz` healthcheck.
+
 ## [0.26.0] - 2026-10-28
 
 ETL: the run history is the audit stream, so a run flags source drift.
