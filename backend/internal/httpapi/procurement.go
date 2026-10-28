@@ -66,7 +66,7 @@ type createPurchaseOrderRequest struct {
 func (s *Server) createPurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	var req createPurchaseOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	lines := make([]procurement.Line, 0, len(req.Lines))
@@ -79,7 +79,7 @@ func (s *Server) createPurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	order, err := s.procurement.Create(r.Context(), req.Number, req.Supplier, req.BudgetPositionID, req.Currency, lines, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForProcurement(err))
+		writeProblem(w, statusForProcurement(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, order)
@@ -88,12 +88,12 @@ func (s *Server) createPurchaseOrder(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getPurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	order, err := s.procurement.Get(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForProcurement(err))
+		writeProblem(w, statusForProcurement(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, order)
@@ -114,12 +114,12 @@ func (s *Server) cancelPurchaseOrder(w http.ResponseWriter, r *http.Request) {
 func (s *Server) purchaseOrderStep(w http.ResponseWriter, r *http.Request, step func(context.Context, int64, string) (procurement.Order, error)) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	order, err := step(r.Context(), id, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForProcurement(err))
+		writeProblem(w, statusForProcurement(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, order)

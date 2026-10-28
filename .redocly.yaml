@@ -1,0 +1,7 @@
+# Redocly configuration for contracts/openapi.yaml (ADR-0003).
+# The repository has no LICENSE file yet, so the info-license rule is off until
+# one is added; every other recommended rule applies.
+extends:
+  - recommended
+rules:
+  info-license: off

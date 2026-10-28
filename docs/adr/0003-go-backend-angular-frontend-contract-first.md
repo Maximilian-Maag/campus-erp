@@ -26,6 +26,26 @@ for German public universities).
   validates the JWT and maps claims to roles. No local password store.
 - **Tenant resolution:** hostname-based; no per-tenant build (per ADR-0002).
 
+## Revision 2026-10-26 — contract-first is now enforced
+
+The client-generation pledge above is implemented and gated in CI:
+
+- `tools/gen_openapi.py` generates `contracts/openapi.yaml` from the Go route
+  table + structs (49 paths / 51 operations / 58 schemas).
+- `tools/api_contract.py` is the drift guard (Go routes ↔ spec, both ways) and
+  generates the Angular client into `frontend/src/app/core/api/generated/`.
+- `.github/workflows/quality.yml` fails if the committed client or spec is stale.
+- Generated code is excluded from the mutation/policy gates (it is generated).
+
+See `docs/15-api-contract.md`.
+
+## Revision 2026-10-26 — OIDC implemented
+
+Authentication is implemented (`internal/platform/auth`): RS256 JWTs are verified
+against the IdP's JWKS and the authenticated subject becomes the audit actor. The
+API requires a bearer token on `/api/*` when `ERP_OIDC_JWKS_URL` is set. Per-route
+role authorisation is the remaining step. See `docs/17`.
+
 ## Consequences
 
 - One artifact per backend service (copy binary + systemd/container) — satisfies

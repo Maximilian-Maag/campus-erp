@@ -25,6 +25,14 @@ Regulatory variance (payroll, statistics, budget rules per Bundesland) is modell
 as **data + per-state Go packages selected by tenant configuration**, never as
 branches in domain code.
 
+## Revision 2026-10-26 — implemented
+
+Host-based resolution (`internal/platform/tenant.Resolve`), the per-tenant pool
+registry (DSN template with `{tenant}`, lazy open + migrate) and the multi-tenant
+request front (`httpapi.Tenancy`) are implemented and wired in `cmd/api`
+(`ERP_TENANT_DSN`); an integration test proves two tenant databases are isolated.
+Tenant resolution is validated before any tenant code runs. See `docs/17`.
+
 ## Consequences
 
 - No cross-tenant query path exists — the strongest isolation available on one

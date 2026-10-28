@@ -46,6 +46,11 @@ system it replaces.
   `time.Now()` repeats and collides on unique constraints. Use the database
   (`testSeqNext`, a sequence) — it is the only source unique across packages *and*
   runs. `CREATE SEQUENCE IF NOT EXISTS` is not atomic either.
+- **The API contract is enforced.** `tools/api_contract.py check` fails if a Go
+  route is undocumented or a documented route is missing from Go; CI also
+  regenerates the client and the spec and fails on any diff. Add a route in
+  `httpapi/server.go` **and** a row in the `CONTRACT` table of
+  `tools/gen_openapi.py`, then `make contracts-gen` (`docs/15`).
 - `db.MigrationsFrom`'s sort comparator (`Version < Version`) is an **equivalent**
   mutant: duplicate versions are rejected before the sort, so `<` and `<=` order
   identically. The surviving mutant is expected and documented, not a gap.

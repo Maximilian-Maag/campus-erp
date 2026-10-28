@@ -11,6 +11,16 @@ type Config struct {
 	HTTPAddr string
 	Role     string
 	Tenant   string
+
+	// OIDC (ADR-0003). When OIDCJWKSURL is set the API requires bearer tokens.
+	OIDCIssuer   string
+	OIDCAudience string
+	OIDCJWKSURL  string
+
+	// TenantDSN is a DSN template containing "{tenant}". When set the API serves
+	// its tenants multi-tenant (ADR-0002); otherwise it runs single-tenant
+	// against DSN.
+	TenantDSN string
 }
 
 // Roles a process may run as.
@@ -29,6 +39,12 @@ func FromEnv(get func(string) string) (Config, error) {
 		HTTPAddr: defaultTo(get("ERP_HTTP_ADDR"), ":8080"),
 		Role:     defaultTo(get("ERP_ROLE"), RoleAPI),
 		Tenant:   defaultTo(get("ERP_TENANT"), "demo"),
+
+		OIDCIssuer:   get("ERP_OIDC_ISSUER"),
+		OIDCAudience: get("ERP_OIDC_AUDIENCE"),
+		OIDCJWKSURL:  get("ERP_OIDC_JWKS_URL"),
+
+		TenantDSN: get("ERP_TENANT_DSN"),
 	}
 	switch c.Role {
 	case RoleAPI, RoleWorker, RoleConnectors:

@@ -2,11 +2,11 @@ package einvoice
 
 import (
 	"errors"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/golden"
 )
 
 func sample() Invoice {
@@ -51,23 +51,7 @@ func TestGenerateXRechnungGolden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateXRechnung: %v", err)
 	}
-	path := filepath.Join("testdata", "golden_invoice.xml")
-	if os.Getenv("UPDATE_GOLDEN") != "" {
-		if err := os.MkdirAll("testdata", 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		return
-	}
-	want, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read golden: %v", err)
-	}
-	if got != string(want) {
-		t.Fatalf("generated document differs from golden.\n--- got ---\n%s", got)
-	}
+	golden.Assert(t, filepath.Join("testdata", "golden_invoice.xml"), []byte(got))
 }
 
 // TestGoldenValidatesAgainstXSD validates the golden against the productive
@@ -75,17 +59,7 @@ func TestGenerateXRechnungGolden(t *testing.T) {
 // vendor's UBL-Invoice-2.1.xsd (the schema is proprietary and lives outside the
 // repo).
 func TestGoldenValidatesAgainstXSD(t *testing.T) {
-	xsd := os.Getenv("ERP_XRECHNUNG_XSD")
-	if xsd == "" {
-		t.Skip("ERP_XRECHNUNG_XSD not set")
-	}
-	if _, err := exec.LookPath("xmllint"); err != nil {
-		t.Skip("xmllint not available")
-	}
-	out, err := exec.Command("xmllint", "--noout", "--schema", xsd, filepath.Join("testdata", "golden_invoice.xml")).CombinedOutput()
-	if err != nil {
-		t.Fatalf("golden does not validate: %v\n%s", err, out)
-	}
+	golden.ValidateXSD(t, "", "ERP_XRECHNUNG_XSD", filepath.Join("testdata", "golden_invoice.xml"))
 }
 
 func TestComputeTotals(t *testing.T) {

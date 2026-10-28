@@ -6,7 +6,10 @@
   "ignore": [
     "frontend/tsconfig.json",
     "frontend/tsconfig.app.json",
-    "frontend/tsconfig.spec.json"
+    "frontend/tsconfig.spec.json",
+    "frontend/src/app/core/api/generated/models.ts",
+    "frontend/src/app/core/api/generated/api.service.ts",
+    "frontend/src/app/core/api/generated/index.ts"
   ],
   "allow": {
     "symlinks": {},

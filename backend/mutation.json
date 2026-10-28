@@ -58,6 +58,14 @@
     {
       "path": "internal/httpapi",
       "lang": "go"
+    },
+    {
+      "path": "internal/platform/auth",
+      "lang": "go"
+    },
+    {
+      "path": "internal/platform/tenant",
+      "lang": "go"
     }
   ],
   "exempt": [
@@ -68,6 +76,14 @@
     {
       "path": "internal/modules/",
       "reason": "module placeholders, no logic yet"
+    },
+    {
+      "path": "internal/core/golden/",
+      "reason": "test harness (golden files + schema validation), not domain logic"
+    },
+    {
+      "path": "internal/platform/dbtest/",
+      "reason": "integration-test harness (schema isolation), not domain logic"
     }
   ]
 }

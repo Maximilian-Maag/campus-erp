@@ -55,6 +55,32 @@ jobs:
       # browsers come from karma.conf.js (headless, --no-sandbox)
       - run: npx ng test --watch=false
 
+  contract:
+    name: api contract (drift guard + generated client)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: drift guard + tool self-test (stdlib only)
+        run: |
+          python3 tools/api_contract.py selftest
+          python3 tools/api_contract.py check
+      - name: generated client is committed and current
+        run: |
+          python3 tools/api_contract.py gen
+          git diff --exit-code -- frontend/src/app/core/api/generated
+      - name: spec is in sync with the Go structs
+        run: |
+          pip install pyyaml
+          python3 tools/gen_openapi.py --check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: validate the OpenAPI document
+        run: npx --yes @redocly/cli lint --config .redocly.yaml contracts/openapi.yaml
+
   mutation-go:
     name: mutation go (floor 85)
     runs-on: ubuntu-latest
