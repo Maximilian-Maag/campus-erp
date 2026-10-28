@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.28.0] - 2026-10-28
+
+ETL: the VAT catalogue (kbs.mwst_art) as a second dataset.
+
+### Added
+- **`kasse.LegacyVATSource` / `kasse.VATSink`** — move the legacy VAT catalogue
+  into canonical `vat_type`: percent → integer basis points, the 1-char `U`/`V`
+  flag → the enumerated kind, no sign column (docs/19). An unset flag defaults to
+  output tax, marked as inferred.
+- **`TaxRepository.UpsertVATType`** and **`TaxService.ImportVATTypes`** — an
+  idempotent, once-audited batch import (`vat_type.import`) that validates the
+  whole batch before writing, so an ETL re-run converges and a bad row fails
+  without a partial load.
+- Unit tests for the percent/basis-point and flag/kind mapping; an integration
+  test covering reconciliation, re-run idempotency, drift, in-place update and
+  fail-closed behaviour on synthetic legacy rows.
+
 ## [0.27.0] - 2026-10-28
 
 Deployment: wire the platform config into the chart and compose.

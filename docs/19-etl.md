@@ -43,16 +43,26 @@ unexpectedly is visible rather than silent. The audit detail reads
 `source=… loaded=… checksum=… previous=… drift=…`; `afterText` writes it and
 `checksumOf` parses it, from one definition.
 
-## First pipeline: the lookup catalogue
+## Datasets
 
-`internal/modules/lookup/etl.go` wires the framework to the catalogue
-(`docs/11`): `LegacyCatalogueSource` reads one legacy key table (the productive
-source's 3,532 coded value sets, each a table with code / texts / order / active)
-and `CatalogueSink` loads it through the value service into the single canonical
-`lookup_value` catalogue.
+A dataset is a `Dataset` value; each is independent, and adding one is a new
+source + sink, not new plumbing.
 
-The integration test creates a synthetic legacy table in an isolated schema, runs
-the pipeline and asserts reconciliation, re-run idempotency, in-place update on a
+- **Lookup catalogue** (`internal/modules/lookup/etl.go`, `docs/11`):
+  `LegacyCatalogueSource` reads one legacy key table (the productive source's
+  3,532 coded value sets) and `CatalogueSink` loads it through the value service
+  into the single canonical `lookup_value` catalogue.
+- **VAT catalogue** (`internal/modules/kasse/etl.go`,
+  `docs/legacy/kbs-tax-and-foundations.md`): `LegacyVATSource` reads `kbs.mwst_art`
+  and `VATSink` loads it through the tax service into `vat_type`. The mapping is
+  the documented S7 one — percent → integer basis points (19.00 → 1900), the
+  1-char `U`/`V` flag → the enumerated kind, and no sign column. *(inferred)*: an
+  unset flag defaults to output tax (the majority case) because the canonical
+  model requires a kind; a truly input-tax row with an unset flag (legacy code 67)
+  is misclassified until a production extract lets the mapping be reviewed.
+
+Each dataset's integration test builds a synthetic legacy table in an isolated
+schema and asserts reconciliation, re-run idempotency, in-place update on a
 changed source, fail-closed on a bad row, and a verifying audit chain.
 
 ## Not yet done
