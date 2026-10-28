@@ -19,6 +19,16 @@ imagePullSecrets: []
 config:
   tenant: demo
   httpAddr: ":8080"
+  # Key in the database Secret holding the per-tenant DSN template (with
+  # "{tenant}"). When present the API serves tenants multi-tenant (ADR-0002);
+  # absent, it runs single-tenant against DATABASE_URL.
+  tenantDsnKey: TENANT_DSN
+  # OIDC (ADR-0003). With jwksUrl set the API requires bearer tokens on /api/*;
+  # empty disables auth (local development only).
+  oidc:
+    issuer: ""
+    audience: ""
+    jwksUrl: ""
 
 # Per-tenant DSN. Either point at an existing Secret (recommended for prod) or let
 # the chart create one from `url` (handy for a first install / demos).

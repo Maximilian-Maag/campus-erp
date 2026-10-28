@@ -57,6 +57,23 @@ helm upgrade --install campus-erp deploy/helm/campus-erp \
 operator keeps the per-tenant DSN fresh). For a first install you can set
 `--set database.url=postgres://…` and the chart creates the Secret itself.
 
+## Platform configuration
+
+The api is a single-tenant or multi-tenant front and, with OIDC configured, the
+policy-enforcing HTTP surface (ADR-0002/0003). The chart wires both:
+
+| env | source | meaning |
+|---|---|---|
+| `ERP_TENANT` | `config.tenant` | the default tenant name |
+| `ERP_TENANT_DSN` | db Secret key `config.tenantDsnKey` (optional) | per-tenant DSN template with `{tenant}`; when absent the api runs single-tenant against `DATABASE_URL` |
+| `ERP_OIDC_ISSUER` / `ERP_OIDC_AUDIENCE` / `ERP_OIDC_JWKS_URL` | `config.oidc.*` | with a JWKS URL the api requires bearer tokens on `/api/*` and enforces per-route roles; empty disables auth (local only) |
+
+Probes: the api's **liveness** is `/healthz` (process up) and its **readiness** is
+`/readyz`, which pings the database (NFR-6) so a process that cannot serve is kept
+out of the Service — a database blip does not restart the process. web serves its
+own `/healthz` from nginx. The same wiring is in `docker-compose.yml` for local
+and single-host installs (`make up`).
+
 ## Runtime components
 
 | Component | Kind | Image | Scaling |

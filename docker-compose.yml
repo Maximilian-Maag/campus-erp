@@ -35,11 +35,25 @@ services:
       ERP_HTTP_ADDR: ":8080"
       ERP_TENANT: ${ERP_TENANT:-demo}
       ERP_ROLE: api
+      # OIDC (ADR-0003): with ERP_OIDC_JWKS_URL set the API requires bearer tokens
+      # on /api/* and enforces per-route roles.
+      ERP_OIDC_ISSUER: ${ERP_OIDC_ISSUER:-}
+      ERP_OIDC_AUDIENCE: ${ERP_OIDC_AUDIENCE:-}
+      ERP_OIDC_JWKS_URL: ${ERP_OIDC_JWKS_URL:-}
+      # Multi-tenant DSN template (ADR-0002); unset runs single-tenant.
+      ERP_TENANT_DSN: ${ERP_TENANT_DSN:-}
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "${API_PORT:-8080}:8080"
+    healthcheck:
+      # Readiness pings the database (NFR-6), not just liveness.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/readyz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     restart: unless-stopped
 
   worker:
