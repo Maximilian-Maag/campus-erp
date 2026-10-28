@@ -13,6 +13,7 @@ import (
 // TaxRepository is the persistence port for VAT types, tax offices and foundations.
 type TaxRepository interface {
 	CreateVATType(ctx context.Context, v VATType) (VATType, error)
+	UpsertVATType(ctx context.Context, v VATType) (VATType, error)
 	GetVATType(ctx context.Context, code string) (VATType, error)
 	CreateTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, error)
 	CreateFoundation(ctx context.Context, f Foundation) (Foundation, error)
@@ -43,6 +44,25 @@ func (r *TaxRepo) CreateVATType(ctx context.Context, v VATType) (VATType, error)
 			return VATType{}, fmt.Errorf("kasse: VAT code %q: %w", v.Code, ErrVATCodeExists)
 		}
 		return VATType{}, fmt.Errorf("kasse: create VAT type: %w", err)
+	}
+	return out, nil
+}
+
+// UpsertVATType inserts a VAT type or updates it in place when the code exists,
+// so an import is idempotent (ETL re-runs converge on the same catalogue).
+func (r *TaxRepo) UpsertVATType(ctx context.Context, v VATType) (VATType, error) {
+	row := r.pool.QueryRow(ctx,
+		`INSERT INTO vat_type (code, description, rate_basis_points, kind)
+		 VALUES ($1,$2,$3,$4)
+		 ON CONFLICT (code) DO UPDATE SET
+		   description       = EXCLUDED.description,
+		   rate_basis_points = EXCLUDED.rate_basis_points,
+		   kind              = EXCLUDED.kind
+		 RETURNING id, code, description, rate_basis_points, kind`,
+		v.Code, v.Description, v.RateBasisPoints, v.Kind)
+	var out VATType
+	if err := row.Scan(&out.ID, &out.Code, &out.Description, &out.RateBasisPoints, &out.Kind); err != nil {
+		return VATType{}, fmt.Errorf("kasse: upsert VAT type: %w", err)
 	}
 	return out, nil
 }

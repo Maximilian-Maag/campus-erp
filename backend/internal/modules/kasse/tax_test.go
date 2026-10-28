@@ -282,6 +282,15 @@ func (f *fakeTaxRepo) CreateVATType(_ context.Context, v VATType) (VATType, erro
 	return v, nil
 }
 
+func (f *fakeTaxRepo) UpsertVATType(_ context.Context, v VATType) (VATType, error) {
+	if f.err != nil {
+		return VATType{}, f.err
+	}
+	v.ID = 5
+	f.vat = v
+	return v, nil
+}
+
 func (f *fakeTaxRepo) GetVATType(context.Context, string) (VATType, error) {
 	if f.err != nil {
 		return VATType{}, f.err
