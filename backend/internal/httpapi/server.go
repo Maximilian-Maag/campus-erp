@@ -6,11 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/auth"
 )
 
 // cashBook is the cash-book use-case surface the HTTP layer needs. It is an
@@ -28,6 +30,16 @@ type auditVerifier interface {
 	Verify(ctx context.Context) error
 }
 
+// readyTimeout bounds the readiness database ping.
+const readyTimeout = 2 * time.Second
+
+// healthChecker reports whether a backing dependency (the database) is reachable.
+// Readiness must not be a constant "ok": a load balancer has to know the process
+// can actually serve (NFR-6).
+type healthChecker interface {
+	Ping(ctx context.Context) error
+}
+
 // Server wires HTTP handlers to the domain services.
 type Server struct {
 	kasse           cashBook
@@ -43,17 +55,64 @@ type Server struct {
 	procurement     procurementService
 	klr             klrService
 	audit           auditVerifier
+	health          healthChecker
+	auth            auth.Verifier
+}
+
+// Deps are the collaborators the HTTP server needs. A struct (not thirteen
+// positional interfaces) keeps the constructor readable and lets tests supply
+// only the collaborators a given case exercises; the zero value of each field is
+// a nil interface that panics only if that route is called.
+type Deps struct {
+	Kasse           cashBook
+	Orders          orderService
+	Dunning         dunningService
+	Tax             taxService
+	Runs            paymentRunService
+	Statements      statementService
+	FoundationBooks foundationBookService
+	EInvoices       einvoiceService
+	Budget          budgetService
+	Lookups         lookupService
+	Procurement     procurementService
+	KLR             klrService
+	Audit           auditVerifier
+	Health          healthChecker
+	Auth            auth.Verifier
 }
 
 // New returns a Server.
-func New(k cashBook, o orderService, d dunningService, tx taxService, runs paymentRunService, statements statementService, foundationBooks foundationBookService, einvoices einvoiceService, budget budgetService, lookups lookupService, procurement procurementService, klr klrService, a auditVerifier) *Server {
-	return &Server{kasse: k, orders: o, dunning: d, tax: tx, runs: runs, statements: statements, foundationBooks: foundationBooks, einvoices: einvoices, budget: budget, lookups: lookups, procurement: procurement, klr: klr, audit: a}
+func New(d Deps) *Server {
+	return &Server{
+		kasse:           d.Kasse,
+		orders:          d.Orders,
+		dunning:         d.Dunning,
+		tax:             d.Tax,
+		runs:            d.Runs,
+		statements:      d.Statements,
+		foundationBooks: d.FoundationBooks,
+		einvoices:       d.EInvoices,
+		budget:          d.Budget,
+		lookups:         d.Lookups,
+		procurement:     d.Procurement,
+		klr:             d.KLR,
+		audit:           d.Audit,
+		health:          d.Health,
+		auth:            d.Auth,
+	}
 }
 
-// Handler returns the routed HTTP handler.
+// Handler returns the routed HTTP handler (cross-cutting middleware included).
 func (s *Server) Handler() http.Handler {
+	return middleware(s.Routes(), slog.Default())
+}
+
+// Routes returns the authenticated route table without the outer middleware, so
+// a multi-tenant front (Tenancy) can compose it under its own access log.
+func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", s.health)
+	mux.HandleFunc("GET /healthz", s.healthz)
+	mux.HandleFunc("GET /readyz", s.readyz)
 	mux.HandleFunc("GET /api/audit/verify", s.auditVerify)
 	mux.HandleFunc("POST /api/cashbook/days", s.openDay)
 	mux.HandleFunc("GET /api/cashbook/days/{id}", s.getDay)
@@ -115,11 +174,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/vat-types/{code}", s.getVATType)
 	mux.HandleFunc("POST /api/tax-offices", s.createTaxOffice)
 	mux.HandleFunc("POST /api/foundations", s.createFoundation)
-	return mux
+	// Auth is part of the route table; correlation id, recovery and the access
+	// log are added once by Handler (or by the Tenancy front) (NFR-5, ADR-0003).
+	return s.authenticate(mux)
 }
 
-// actor identifies the caller until real auth lands (OIDC, ADR-0003).
+// actor is the caller recorded on audit events: the authenticated subject when a
+// token was presented, otherwise the dev X-Actor header, otherwise "anonymous".
 func actor(r *http.Request) string {
+	if p, ok := principalFrom(r.Context()); ok && p.Subject != "" {
+		return p.Subject
+	}
 	if a := r.Header.Get("X-Actor"); a != "" {
 		return a
 	}
@@ -132,13 +197,31 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
+	// Liveness: the process is up. Deliberately does not touch the database.
+	_, _ = w.Write([]byte("ok"))
+}
+
+// readyz reports readiness: it pings the backing dependency so a load balancer
+// only routes to a process that can serve (NFR-6).
+func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
+	if s.health == nil {
+		writeProblem(w, http.StatusServiceUnavailable, "no health checker configured")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), readyTimeout)
+	defer cancel()
+	if err := s.health.Ping(ctx); err != nil {
+		writeProblem(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
 }
 
 func (s *Server) auditVerify(w http.ResponseWriter, r *http.Request) {
 	if err := s.audit.Verify(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeProblem(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	_, _ = w.Write([]byte("ok"))
@@ -152,17 +235,17 @@ type openDayRequest struct {
 func (s *Server) openDay(w http.ResponseWriter, r *http.Request) {
 	var req openDayRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	date, err := time.Parse("2006-01-02", req.BusinessDate)
 	if err != nil {
-		http.Error(w, "business_date must be YYYY-MM-DD", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "business_date must be YYYY-MM-DD")
 		return
 	}
 	day, err := s.kasse.OpenDay(r.Context(), date, req.OpeningCents, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusFor(err))
+		writeProblem(w, statusFor(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, day)
@@ -171,12 +254,12 @@ func (s *Server) openDay(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getDay(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	day, err := s.kasse.Day(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusFor(err))
+		writeProblem(w, statusFor(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, day)
@@ -191,17 +274,17 @@ type bookRequest struct {
 func (s *Server) book(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	var req bookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	b, err := s.kasse.Book(r.Context(), id, kasse.BookingKind(req.Kind), req.AmountCents, req.Purpose, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusFor(err))
+		writeProblem(w, statusFor(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, b)
@@ -210,12 +293,12 @@ func (s *Server) book(w http.ResponseWriter, r *http.Request) {
 func (s *Server) closeDay(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	day, err := s.kasse.CloseDay(r.Context(), id, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusFor(err))
+		writeProblem(w, statusFor(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, day)

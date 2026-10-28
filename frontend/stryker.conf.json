@@ -9,6 +9,7 @@
   "mutate": [
     "src/app/**/*.ts",
     "!src/app/**/*.spec.ts",
+    "!src/app/core/api/generated/**",
     "!src/app/app.config.ts",
     "!src/app/app.routes.ts",
     "!src/main.ts"

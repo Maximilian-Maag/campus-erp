@@ -18,7 +18,7 @@ func newApprovedOrder(t *testing.T, svc *kasse.OrderService, amountCents int64) 
 	ctx := context.Background()
 	rec, err := svc.CreateRecipient(ctx, kasse.Recipient{
 		Name: "Empfänger " + uniqueSuffix(t), AccountHolder: "Empfänger GmbH",
-		IBAN: "DE89370400440532013000", BIC: "COBADEFFXXX", BankName: "Commerzbank",
+		IBAN: uniqueIBAN(t), BIC: "COBADEFFXXX", BankName: "Commerzbank",
 	})
 	if err != nil {
 		t.Fatalf("CreateRecipient: %v", err)
@@ -236,7 +236,7 @@ func TestPaymentRunRejectsInvalidCreditorBIC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateCashAccount: %v", err)
 	}
-	rec, err := orderSvc.CreateRecipient(ctx, kasse.Recipient{Name: "X", AccountHolder: "X", IBAN: "DE89370400440532013000", BIC: "NOTABIC"})
+	rec, err := orderSvc.CreateRecipient(ctx, kasse.Recipient{Name: "X", AccountHolder: "X", IBAN: uniqueIBAN(t), BIC: "NOTABIC"})
 	if err != nil {
 		t.Fatalf("CreateRecipient: %v", err)
 	}

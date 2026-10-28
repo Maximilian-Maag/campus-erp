@@ -46,12 +46,12 @@ type createFoundationBookRequest struct {
 func (s *Server) createFoundationBook(w http.ResponseWriter, r *http.Request) {
 	var req createFoundationBookRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	book, err := s.foundationBooks.CreateBook(r.Context(), req.FoundationID, req.Reference, req.Currency, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForFoundationBook(err))
+		writeProblem(w, statusForFoundationBook(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, book)
@@ -66,17 +66,17 @@ type bookFoundationRequest struct {
 func (s *Server) bookFoundation(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	var req bookFoundationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	booking, err := s.foundationBooks.Book(r.Context(), id, req.AmountCents, kasse.BookingKind(req.Kind), req.Purpose, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForFoundationBook(err))
+		writeProblem(w, statusForFoundationBook(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, booking)
@@ -85,12 +85,12 @@ func (s *Server) bookFoundation(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getFoundationBookings(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	bookings, err := s.foundationBooks.Bookings(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForFoundationBook(err))
+		writeProblem(w, statusForFoundationBook(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, bookings)
@@ -99,12 +99,12 @@ func (s *Server) getFoundationBookings(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getFoundationBalance(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	bal, err := s.foundationBooks.Balance(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForFoundationBook(err))
+		writeProblem(w, statusForFoundationBook(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, bal)

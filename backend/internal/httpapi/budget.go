@@ -48,12 +48,12 @@ type createBudgetPositionRequest struct {
 func (s *Server) createBudgetPosition(w http.ResponseWriter, r *http.Request) {
 	var req createBudgetPositionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	pos, err := s.budget.CreatePosition(r.Context(), req.Year, req.Chapter, req.Title, req.Description, req.AllocatedCents, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForBudget(err))
+		writeProblem(w, statusForBudget(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, pos)
@@ -67,17 +67,17 @@ type budgetPositionResponse struct {
 func (s *Server) getBudgetPosition(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	pos, err := s.budget.GetPosition(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForBudget(err))
+		writeProblem(w, statusForBudget(err), err.Error())
 		return
 	}
 	bal, err := s.budget.Balance(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForBudget(err))
+		writeProblem(w, statusForBudget(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, budgetPositionResponse{Position: pos, Balance: bal})
@@ -92,17 +92,17 @@ type budgetPostingRequest struct {
 func (s *Server) postBudget(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	var req budgetPostingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	posting, err := s.budget.Post(r.Context(), id, budget.PostingKind(req.Kind), req.AmountCents, req.Reference, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForBudget(err))
+		writeProblem(w, statusForBudget(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, posting)
@@ -111,12 +111,12 @@ func (s *Server) postBudget(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getBudgetBalance(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	bal, err := s.budget.Balance(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForBudget(err))
+		writeProblem(w, statusForBudget(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, bal)

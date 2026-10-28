@@ -52,17 +52,17 @@ type vatTypeRequest struct {
 func (s *Server) createVATType(w http.ResponseWriter, r *http.Request) {
 	var req vatTypeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	vat, err := kasse.NewVATType(req.Code, req.Description, req.RateBasisPoints, kasse.VATKind(req.Kind))
 	if err != nil {
-		http.Error(w, err.Error(), statusForTax(err))
+		writeProblem(w, statusForTax(err), err.Error())
 		return
 	}
 	saved, err := s.tax.CreateVATType(r.Context(), vat, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForTax(err))
+		writeProblem(w, statusForTax(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -71,7 +71,7 @@ func (s *Server) createVATType(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getVATType(w http.ResponseWriter, r *http.Request) {
 	vat, err := s.tax.VATType(r.Context(), r.PathValue("code"))
 	if err != nil {
-		http.Error(w, err.Error(), statusForTax(err))
+		writeProblem(w, statusForTax(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, vat)
@@ -92,18 +92,18 @@ type taxOfficeRequest struct {
 func (s *Server) createTaxOffice(w http.ResponseWriter, r *http.Request) {
 	var req taxOfficeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	office, err := kasse.NewTaxOffice(req.Year, req.Number, req.Name, req.Street,
 		req.PostalCode, req.City, req.AccountHolder, req.IBAN, req.BIC)
 	if err != nil {
-		http.Error(w, err.Error(), statusForTax(err))
+		writeProblem(w, statusForTax(err), err.Error())
 		return
 	}
 	saved, err := s.tax.CreateTaxOffice(r.Context(), office, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForTax(err))
+		writeProblem(w, statusForTax(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -119,17 +119,17 @@ type foundationRequest struct {
 func (s *Server) createFoundation(w http.ResponseWriter, r *http.Request) {
 	var req foundationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	foundation, err := kasse.NewFoundation(req.Year, req.Number, req.Description, req.CarryOver)
 	if err != nil {
-		http.Error(w, err.Error(), statusForTax(err))
+		writeProblem(w, statusForTax(err), err.Error())
 		return
 	}
 	saved, err := s.tax.CreateFoundation(r.Context(), foundation, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForTax(err))
+		writeProblem(w, statusForTax(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)

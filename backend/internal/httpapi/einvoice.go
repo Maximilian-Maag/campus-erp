@@ -96,7 +96,7 @@ type createEInvoiceRequest struct {
 func (s *Server) createEInvoice(w http.ResponseWriter, r *http.Request) {
 	var req createEInvoiceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	inv := core.Invoice{
@@ -113,7 +113,7 @@ func (s *Server) createEInvoice(w http.ResponseWriter, r *http.Request) {
 	if req.IssueDate != "" {
 		d, err := time.Parse("2006-01-02", req.IssueDate)
 		if err != nil {
-			http.Error(w, "bad issue_date", http.StatusBadRequest)
+			writeProblem(w, http.StatusBadRequest, "bad issue_date")
 			return
 		}
 		inv.IssueDate = d
@@ -127,7 +127,7 @@ func (s *Server) createEInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := s.einvoices.Create(r.Context(), inv, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForEInvoice(err))
+		writeProblem(w, statusForEInvoice(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -137,12 +137,12 @@ func (s *Server) createEInvoice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) receiveEInvoice(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	saved, err := s.einvoices.ImportReceived(r.Context(), string(body), actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForEInvoice(err))
+		writeProblem(w, statusForEInvoice(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -151,12 +151,12 @@ func (s *Server) receiveEInvoice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getEInvoice(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	inv, err := s.einvoices.Get(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForEInvoice(err))
+		writeProblem(w, statusForEInvoice(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, inv)
@@ -165,12 +165,12 @@ func (s *Server) getEInvoice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getEInvoiceXML(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	doc, err := s.einvoices.Render(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForEInvoice(err))
+		writeProblem(w, statusForEInvoice(err), err.Error())
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")

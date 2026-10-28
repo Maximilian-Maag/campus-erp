@@ -87,6 +87,18 @@ if [[ -f $ROOT/tools/test_erm.py ]]; then
   fi
 fi
 
+# ── Tooling: API contract (drift guard + generated client) ──────────────────
+if [[ -f $ROOT/tools/api_contract.py ]]; then
+  say "== Tooling: API contract (drift guard) =="
+  if have python3; then
+    python3 "$ROOT/tools/api_contract.py" selftest && python3 "$ROOT/tools/api_contract.py" check
+    rc=$?
+    if (( rc == 0 )); then ran=$((ran + 1)); else fail=1; say "FAIL  API contract"; fi
+  else
+    skip_or_fail python3 "install python3"
+  fi
+fi
+
 # ── Mutation: Go (gremlins, per package) ────────────────────────────────────
 say "== Mutation: Go (floor ${MUTATION_THRESHOLD}%) =="
 if [[ -d $ROOT/backend ]]; then

@@ -91,11 +91,12 @@ test: ## Run the full quality suite (tools/run_tests.sh)
 	@$(ROOT)/tools/run_tests.sh
 
 .PHONY: quality
-quality: policy test ## Policy check + full quality suite
+quality: policy contracts-check test ## Policy check + contract + full quality suite
 
 .PHONY: test-tools
-test-tools: ## Self-test the tooling (ER-model generator)
+test-tools: ## Self-test the tooling (ER-model generator + API contract)
 	@python3 $(ROOT)/tools/test_erm.py
+	@python3 $(ROOT)/tools/api_contract.py selftest
 
 .PHONY: policy
 policy: ## Run the policy checker (changed files)
@@ -229,7 +230,17 @@ frontend-serve: ## Dev server (ng serve) at http://localhost:4200
 .PHONY: contracts-validate
 
 contracts-validate: ## Lint contracts/openapi.yaml
-	npx --yes @redocly/cli lint $(ROOT)/contracts/openapi.yaml
+	npx --yes @redocly/cli lint --config $(ROOT)/.redocly.yaml $(ROOT)/contracts/openapi.yaml
+
+.PHONY: contracts-check contracts-gen
+
+contracts-check: ## Verify the OpenAPI spec matches the Go routes (drift guard)
+	@python3 $(ROOT)/tools/api_contract.py selftest
+	@python3 $(ROOT)/tools/api_contract.py check
+
+contracts-gen: ## Regenerate contracts/openapi.yaml and the Angular client
+	@/usr/bin/python3 $(ROOT)/tools/gen_openapi.py
+	@python3 $(ROOT)/tools/api_contract.py gen
 
 # ════════════════════════════════════════════════════════════════════════════
 # Container images

@@ -13,29 +13,16 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
-	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/dbtest"
 )
 
 func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	dsn := os.Getenv(db.EnvDatabaseURL)
-	if dsn == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("DATABASE_URL must be set in CI - integration tests must not be skipped there")
-		}
-		t.Skip("DATABASE_URL not set; skipping integration test")
-	}
-	ctx := context.Background()
-	pool, err := db.Open(ctx, dsn)
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	if _, err := db.Migrate(ctx, pool); err != nil {
-		t.Fatalf("db.Migrate: %v", err)
-	}
-	return pool
+	return dbtest.Pool(t)
 }
+
+func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
 
 func suffix(t *testing.T) string {
 	return strings.ReplaceAll(t.Name(), "/", "-") + "-" + time.Now().Format("150405.000000000")

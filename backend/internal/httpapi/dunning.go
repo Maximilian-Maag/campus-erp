@@ -56,7 +56,7 @@ type createLevelRequest struct {
 func (s *Server) createDunningLevel(w http.ResponseWriter, r *http.Request) {
 	var req createLevelRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	level := kasse.DunningLevel{
@@ -76,7 +76,7 @@ func (s *Server) createDunningLevel(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := s.dunning.CreateLevel(r.Context(), level, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForDunning(err))
+		writeProblem(w, statusForDunning(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -85,12 +85,12 @@ func (s *Server) createDunningLevel(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getDunningLevel(w http.ResponseWriter, r *http.Request) {
 	year, err := strconv.Atoi(r.PathValue("year"))
 	if err != nil {
-		http.Error(w, "year must be an integer", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "year must be an integer")
 		return
 	}
 	level, err := s.dunning.Level(r.Context(), year, r.PathValue("code"))
 	if err != nil {
-		http.Error(w, err.Error(), statusForDunning(err))
+		writeProblem(w, statusForDunning(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, level)
@@ -106,12 +106,12 @@ type issueNoticeRequest struct {
 func (s *Server) issueDunningNotice(w http.ResponseWriter, r *http.Request) {
 	var req issueNoticeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	notice, err := s.dunning.Issue(r.Context(), req.Year, req.LevelCode, req.ClaimReference, req.OutstandingCents, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForDunning(err))
+		writeProblem(w, statusForDunning(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, notice)

@@ -78,12 +78,12 @@ type createOrderRequest struct {
 func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {
 	var req createOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	due, err := time.Parse(time.DateOnly, req.DueDate)
 	if err != nil {
-		http.Error(w, "due_date must be YYYY-MM-DD", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "due_date must be YYYY-MM-DD")
 		return
 	}
 
@@ -95,7 +95,7 @@ func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {
 		BankName:      req.Recipient.BankName,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeProblem(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -107,19 +107,19 @@ func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {
 		CostCarrier: req.BudgetPosition.CostCarrier,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeProblem(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	order, err := kasse.NewPaymentOrder(req.Reference, req.BusinessYear, req.AmountCents, req.Currency,
 		recipient.ID, position.ID, req.Purpose, due, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForOrder(err))
+		writeProblem(w, statusForOrder(err), err.Error())
 		return
 	}
 	saved, err := s.orders.Create(r.Context(), order)
 	if err != nil {
-		http.Error(w, err.Error(), statusForOrder(err))
+		writeProblem(w, statusForOrder(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -128,12 +128,12 @@ func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getOrder(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	order, err := s.orders.Order(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForOrder(err))
+		writeProblem(w, statusForOrder(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, order)
@@ -160,19 +160,19 @@ func (s *Server) cancelOrder(w http.ResponseWriter, r *http.Request) {
 func (s *Server) rejectOrder(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	var req struct {
 		Reason string `json:"reason"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	order, err := s.orders.Reject(r.Context(), id, actor(r), req.Reason)
 	if err != nil {
-		http.Error(w, err.Error(), statusForOrder(err))
+		writeProblem(w, statusForOrder(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, order)
@@ -182,12 +182,12 @@ func (s *Server) orderTransition(w http.ResponseWriter, r *http.Request,
 	fn func(int64, string) (kasse.PaymentOrder, error)) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	order, err := fn(id, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForOrder(err))
+		writeProblem(w, statusForOrder(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, order)

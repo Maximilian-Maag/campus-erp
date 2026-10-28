@@ -39,12 +39,12 @@ type importStatementRequest struct {
 func (s *Server) importStatement(w http.ResponseWriter, r *http.Request) {
 	var req importStatementRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	stmts, err := s.statements.Import(r.Context(), req.AccountID, req.Content, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForStatement(err))
+		writeProblem(w, statusForStatement(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, stmts)
@@ -53,12 +53,12 @@ func (s *Server) importStatement(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getStatement(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	st, err := s.statements.Statement(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForStatement(err))
+		writeProblem(w, statusForStatement(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, st)
@@ -67,12 +67,12 @@ func (s *Server) getStatement(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getBankFile(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	file, err := s.statements.BankFile(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForStatement(err))
+		writeProblem(w, statusForStatement(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, file)

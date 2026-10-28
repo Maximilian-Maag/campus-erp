@@ -2,11 +2,12 @@ package sepa
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/golden"
 )
 
 // fixedCreditTransfer is a deterministic input used to pin the golden file.
@@ -47,22 +48,7 @@ func TestMarshalGolden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	path := filepath.Join("testdata", "golden_pain001.xml")
-	if os.Getenv("UPDATE_GOLDEN") != "" {
-		if err := os.MkdirAll("testdata", 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
-			t.Fatalf("write golden: %v", err)
-		}
-	}
-	want, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read golden: %v", err)
-	}
-	if got != string(want) {
-		t.Fatalf("pain.001 output differs from golden file:\n--- got ---\n%s\n--- want ---\n%s", got, want)
-	}
+	golden.Assert(t, filepath.Join("testdata", "golden_pain001.xml"), []byte(got))
 }
 
 // TestMarshalDeterministic guards the "byte-identical" requirement: the same

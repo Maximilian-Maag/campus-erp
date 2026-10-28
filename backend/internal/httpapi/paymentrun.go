@@ -51,12 +51,12 @@ type createCashAccountRequest struct {
 func (s *Server) createCashAccount(w http.ResponseWriter, r *http.Request) {
 	var req createCashAccountRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	account, err := s.runs.CreateCashAccount(r.Context(), req.Name, req.IBAN, req.BIC, req.Currency)
 	if err != nil {
-		http.Error(w, err.Error(), statusForRun(err))
+		writeProblem(w, statusForRun(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, account)
@@ -72,17 +72,17 @@ type createRunRequest struct {
 func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	var req createRunRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	executionDate, err := time.Parse(time.DateOnly, req.ExecutionDate)
 	if err != nil {
-		http.Error(w, "execution_date must be YYYY-MM-DD", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "execution_date must be YYYY-MM-DD")
 		return
 	}
 	run, err := s.runs.CreateRun(r.Context(), req.Reference, req.AccountID, executionDate, req.OrderIDs, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForRun(err))
+		writeProblem(w, statusForRun(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, run)
@@ -91,12 +91,12 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	run, err := s.runs.Run(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForRun(err))
+		writeProblem(w, statusForRun(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, run)
@@ -105,12 +105,12 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getRunFile(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	file, err := s.runs.RunFile(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForRun(err))
+		writeProblem(w, statusForRun(err), err.Error())
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")

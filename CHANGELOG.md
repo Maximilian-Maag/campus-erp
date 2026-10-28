@@ -2,6 +2,89 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.23.0] - 2026-10-26
+
+Platform spine: authentication, tenancy, readiness and the interface registry.
+
+### Added
+- **`internal/platform/auth`** — stdlib OIDC: RS256 JWTs verified against a JWKS
+  (`JWKVerifier`, `RemoteKeySet`, `StaticKeySet`) with a `Principal` and coarse
+  roles. The HTTP layer requires a bearer token on `/api/*` when configured and
+  records the subject as the audit actor; `docs/17`.
+- **`internal/platform/tenant`** — host-based tenant resolution, a DSN-template
+  pool registry (lazy open + migrate, database-per-tenant) and `httpapi.Tenancy`,
+  a multi-tenant request front. Wired in `cmd/api` via `ERP_TENANT_DSN`; proven by
+  an integration test against two real databases (ADR-0002).
+- **`/readyz`** — readiness that pings the database and returns 503 when it is
+  down (NFR-6); `/healthz` stays pure liveness.
+- **`internal/platform/interfaces`** — a validated registry of the external
+  interfaces (bank, e-invoicing, OIDC, LBV, ELSTER, statistics, DMS, HISinOne
+  WDK SOAP, KfW, BSOS terminal), seeded from requirements §5 and `docs/14`, pinned
+  by a golden file.
+- **`internal/core/golden`** — a golden-file + XSD test harness used by the SEPA
+  and XRechnung tests.
+
+### Added (test infrastructure)
+- **`internal/platform/dbtest`** — an integration-test harness that gives each
+  test **process** its own schema (`test_<pid>`, dropped on exit), so concurrent
+  test binaries never share tables. All packages' `testPool` delegate to it.
+
+### Fixed
+- **Database flakiness.** `TestPaymentRunRejectsInvalidCreditorBIC` failed
+  intermittently under `go test ./...`: every test binary shared one database,
+  `payment_recipient` is keyed by IBAN, `CreateRecipient` upserts the BIC, and the
+  fixtures reused a fixed IBAN — so a concurrent binary could overwrite the BIC
+  the assertion depended on. Fixed by per-process schema isolation plus unique
+  IBAN fixtures (`docs/18-test-isolation.md`).
+
+### Changed
+- `contracts/openapi.yaml` gains `401`/`403` responses on every operation.
+- `mutation.json` adds `internal/platform/auth` and `internal/platform/tenant`;
+  the test harness (`internal/core/golden`) is exempt.
+- ADR-0002 and ADR-0003 record that tenancy and auth are now implemented.
+
+## [0.22.0] - 2026-10-26
+
+Contract-first made real: an executable API contract, a generated Angular
+client and its first consumer, plus the rest of the HISinOne bundle analysed.
+
+### Added
+- **`docs/14-bundle-rest-and-interfaces.md`** — the un-inventoried part of the
+  4.2 GB bundle: `superx` (the legacy ERP's own front-end, JasperReports + Saiku
+  + the `dbt` schema tool), the **WDK SOAP surface** (79 services / 638
+  operations, incl. `PaymentExportService`, `CardTerminalService`,
+  `RightsAndRolesService`) and the shipped **connectors** (`bsos-connector`
+  chip-card bridge, `hs2kfw` KfW SOAP client).
+- **`tools/gen_openapi.py`** — generates `contracts/openapi.yaml` from the Go
+  route table + structs (49 paths, 51 operations, 58 schemas; transitive refs
+  resolved, no permissive schemas).
+- **`tools/api_contract.py`** — stdlib-only drift guard (`check`), Angular
+  client generator (`gen`) and self-test (`selftest`). Fails closed: an
+  undocumented Go route or a dangling `$ref` breaks the build.
+- **Generated Angular client** `frontend/src/app/core/api/generated/`
+  (`models.ts`, `api.service.ts`) from the contract (ADR-0003).
+- **First consumer** `frontend/src/app/kasse/cashbook-day.component.ts` — *Kasse:
+  open a cash-book day* — with a Karma spec; route `/kasse/tag`.
+- **`internal/httpapi/middleware.go`** — correlation id, panic recovery and a
+  structured access log (`log/slog`) around the router (NFR-5), with tests.
+- **`httpapi.Deps`** — `New` takes a dependency struct instead of thirteen
+  positional interfaces; tests supply only what they exercise.
+- **Unified error envelope** — every handler now writes the JSON `Problem`
+  shape from the contract (`writeProblem`), not plain-text `http.Error`.
+- **Nullable fields** — pointer Go fields emit `x-nullable`; the generated
+  TypeScript is `number | null`, so the client stops lying about absent values.
+- **`docs/15-api-contract.md`** and **`docs/16-http-transport.md`** — how the
+  contract pipeline works, and the transport layer that serves it.
+
+### Changed
+- `contracts/openapi.yaml` grew from 2 documented routes to all 51; the phantom
+  `POST /audit` is gone.
+- `tools/run_tests.sh`, `Makefile` (`contracts-check`, `contracts-gen`,
+  `contracts-validate`, `quality`) and `.github/workflows/quality.yml` now gate
+  the contract (drift guard + redocly lint, via `.redocly.yaml`); generated code
+  is excluded from the mutation/policy gates.
+- ADR-0003 records that the contract-first pledge is now enforced.
+
 ## [0.21.0] - 2026-10-26
 
 KLR: cost centres, cost units and accounting records (issue #20).

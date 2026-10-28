@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,33 +14,44 @@ import (
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
-	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/dbtest"
 )
 
-// testPool opens the tenant database and applies migrations. In CI DATABASE_URL is
-// mandatory; locally the test skips (loudly) when it is absent.
-//
-// Tests share one database and must not truncate shared tables (Go runs different
-// packages' tests in parallel). Each test uses unique data instead.
+// testPool returns a pool isolated to this test process (its own schema, its own
+// migrated tables). Isolation — not unique suffixes — is what keeps concurrent
+// test binaries from racing on shared rows; see internal/platform/dbtest.
 func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	dsn := os.Getenv(db.EnvDatabaseURL)
-	if dsn == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("DATABASE_URL must be set in CI — integration tests must not be skipped there")
+	return dbtest.Pool(t)
+}
+
+func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
+
+// uniqueIBAN returns a syntactically valid, database-unique German IBAN, so a
+// fixture never collides with another test's recipient (payment_recipient is
+// keyed by IBAN).
+func uniqueIBAN(t *testing.T) string {
+	t.Helper()
+	bban := fmt.Sprintf("%08d%010d", 12345678, testSeqNext(t))
+	return "DE" + ibanCheckDigits("DE", bban) + bban
+}
+
+// ibanCheckDigits computes the ISO 7064 mod 97-10 check digits for an IBAN.
+func ibanCheckDigits(country, bban string) string {
+	raw := bban + country + "00"
+	var digits strings.Builder
+	for _, c := range raw {
+		if c >= 'A' && c <= 'Z' {
+			digits.WriteString(strconv.Itoa(int(c-'A') + 10))
+		} else {
+			digits.WriteRune(c)
 		}
-		t.Skip("DATABASE_URL not set; skipping integration test")
 	}
-	ctx := context.Background()
-	pool, err := db.Open(ctx, dsn)
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
+	mod := 0
+	for _, ch := range digits.String() {
+		mod = (mod*10 + int(ch-'0')) % 97
 	}
-	t.Cleanup(pool.Close)
-	if _, err := db.Migrate(ctx, pool); err != nil {
-		t.Fatalf("db.Migrate: %v", err)
-	}
-	return pool
+	return fmt.Sprintf("%02d", 98-mod)
 }
 
 // testSeqNext returns the next value of a test-only sequence, created on demand.

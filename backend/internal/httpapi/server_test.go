@@ -22,52 +22,25 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/klr"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
-	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/dbtest"
 )
 
 // testPool opens the tenant database with migrations applied. Tests that only need
 // unique values use it directly; newTestServer builds on it.
 func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	dsn := os.Getenv(db.EnvDatabaseURL)
-	if dsn == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("DATABASE_URL must be set in CI — e2e tests must not be skipped there")
-		}
-		t.Skip("DATABASE_URL not set; skipping HTTP e2e test")
-	}
-	ctx := context.Background()
-	pool, err := db.Open(ctx, dsn)
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	if _, err := db.Migrate(ctx, pool); err != nil {
-		t.Fatalf("db.Migrate: %v", err)
-	}
-	return pool
+	return dbtest.Pool(t)
 }
+
+func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
 
 func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	t.Helper()
 	pool := testPool(t)
 	store := audit.NewStore(pool)
 	budgetSvc := budget.NewPositionService(budget.NewPositionRepo(pool), store)
-	srv := httptest.NewServer(httpapi.New(
-		kasse.NewService(kasse.NewRepo(pool), store),
-		kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
-		kasse.NewDunningService(kasse.NewDunningRepo(pool), store),
-		kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
-		kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
-		kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
-		kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
-		einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store),
-		budgetSvc,
-		lookup.NewValueService(lookup.NewValueRepo(pool), store),
-		procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store),
-		klr.NewService(klr.NewRepo(pool), store),
-		store,
-	).Handler())
+	srv := httptest.NewServer(httpapi.New(httpapi.Deps{Kasse: kasse.NewService(kasse.NewRepo(pool), store), Orders: kasse.NewOrderService(kasse.NewOrderRepo(pool), store), Dunning: kasse.NewDunningService(kasse.NewDunningRepo(pool), store), Tax: kasse.NewTaxService(kasse.NewTaxRepo(pool), store), Runs: kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store), Statements: kasse.NewStatementService(kasse.NewStatementRepo(pool), store), FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store), EInvoices: einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store), Budget: budgetSvc, Lookups: lookup.NewValueService(lookup.NewValueRepo(pool), store), Procurement: procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store), KLR: klr.NewService(klr.NewRepo(pool), store), Audit: store}).Handler())
 	t.Cleanup(srv.Close)
 	return srv, pool
 }

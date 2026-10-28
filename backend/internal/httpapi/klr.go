@@ -43,12 +43,12 @@ type klrNamedRequest struct {
 func (s *Server) createCostCenter(w http.ResponseWriter, r *http.Request) {
 	var req klrNamedRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	center, err := s.klr.CreateCostCenter(r.Context(), req.Number, req.Name, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForKLR(err))
+		writeProblem(w, statusForKLR(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, center)
@@ -57,12 +57,12 @@ func (s *Server) createCostCenter(w http.ResponseWriter, r *http.Request) {
 func (s *Server) createCostUnit(w http.ResponseWriter, r *http.Request) {
 	var req klrNamedRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	unit, err := s.klr.CreateCostUnit(r.Context(), req.Number, req.Name, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForKLR(err))
+		writeProblem(w, statusForKLR(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, unit)
@@ -78,17 +78,17 @@ type klrRecordRequest struct {
 func (s *Server) postAccountingRecord(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	var req klrRecordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
 	rec, err := s.klr.Post(r.Context(), id, req.CostUnitID, klr.Kind(req.Kind), req.AmountCents, req.Reference, actor(r))
 	if err != nil {
-		http.Error(w, err.Error(), statusForKLR(err))
+		writeProblem(w, statusForKLR(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, rec)
@@ -97,12 +97,12 @@ func (s *Server) postAccountingRecord(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getKLRReport(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	rep, err := s.klr.Report(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), statusForKLR(err))
+		writeProblem(w, statusForKLR(err), err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, rep)
