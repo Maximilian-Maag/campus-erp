@@ -16,7 +16,7 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 | S5 dunning | **done** — `dunning_level`/`dunning_band`/`dunning_notice`, any number of ordered bands, integer basis-point rates, stored charges, HTTP workflow |
 | S6 foundation books | **done** — `foundation_book`/`foundation_booking`; a separate book per foundation, append-only movements, derived balance; isolation tested |
 | S7 tax-office data + foundations | **done** — `vat_type`, `tax_office`, `foundation`; exact VAT arithmetic, ISO 7064 mod-97 IBAN validation, HTTP workflow |
-| S8 | not started |
+| S8 | **in progress** — ETL framework + first pipeline (lookup catalogue) done, `docs/19`; parallel run + cutover blocked on a production extract |
 
 What exists is a **vertical slice, not parity**: the cash-book day lifecycle, the
 payment-order workflow, the SEPA export, the statement import (MT940 + CAMT.053)
