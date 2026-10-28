@@ -2,6 +2,24 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.24.0] - 2026-10-28
+
+Authorisation: per-route role gates on top of authentication.
+
+### Added
+- **Per-route authorisation** — `httpapi.authorize` / `authorizeRead` wrap every
+  `/api/*` route with the role that owns it (`erp-kasse`, `erp-finanzen`,
+  `erp-klr`, `erp-personal`; reads also admit `erp-reader`; `erp-admin` may call
+  anything). The gate fails closed if a route is reached without a principal, and
+  is a pass-through only when no verifier is configured. The policy lives next to
+  the route, so it cannot drift from the table (`docs/17`).
+- `internal/httpapi/authz_test.go` — the authorisation matrix (module role,
+  reader, admin, wrong module, no role, open route, missing and bad tokens).
+
+### Changed
+- `docs/17` records the role model; role-based authorisation is no longer an
+  open item.
+
 ## [0.23.0] - 2026-10-26
 
 Platform spine: authentication, tenancy, readiness and the interface registry.
