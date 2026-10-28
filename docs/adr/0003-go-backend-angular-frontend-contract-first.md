@@ -43,8 +43,17 @@ See `docs/15-api-contract.md`.
 
 Authentication is implemented (`internal/platform/auth`): RS256 JWTs are verified
 against the IdP's JWKS and the authenticated subject becomes the audit actor. The
-API requires a bearer token on `/api/*` when `ERP_OIDC_JWKS_URL` is set. Per-route
-role authorisation is the remaining step. See `docs/17`.
+API requires a bearer token on `/api/*` when `ERP_OIDC_JWKS_URL` is set. See
+`docs/17`.
+
+## Revision 2026-10-28 — role authorisation implemented
+
+Per-route role authorisation now backs authentication: `httpapi.authorize` /
+`authorizeRead` gate every `/api/*` route with its owning module role, with
+`erp-admin` as a bypass and `erp-reader` admitted on reads. The gate fails closed
+without a principal and is a pass-through only when no verifier is configured. The
+legacy `sv_rechte_sachb` fine-grained model projects onto these roles at the IdP;
+the API enforces the module boundary. See `docs/17`.
 
 ## Consequences
 

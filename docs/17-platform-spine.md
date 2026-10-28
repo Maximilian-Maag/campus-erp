@@ -71,16 +71,38 @@ and `golden.ValidateXSD` runs `xmllint` against a schema when one is supplied
 (skipping cleanly otherwise). The SEPA and XRechnung tests now use it instead of
 their own copies.
 
+## 6. Authorisation — per-route role gates
+
+`authenticate` proves *who* the caller is; `authorize` decides *what they may
+do*. Every `/api/*` route is wrapped by `s.authorize(handler, roles…)` (writes) or
+`s.authorizeRead(handler, module)` (reads), so the policy sits next to the route
+rather than in a second table that can drift.
+
+- A route is owned by its **module role** (`erp-kasse`, `erp-finanzen`, `erp-klr`,
+  `erp-personal`); reads additionally admit `erp-reader`, and `erp-admin` may call
+  any route. `authorize` folds in `erp-admin`, so a route lists only its own role.
+- Shared reference data (the lookup catalogue) lists no role: any *authenticated*
+  caller may read it, but only `erp-admin` may write it.
+- The gate does not trust the context: reached without a principal it answers
+  `401`, so a route mounted outside `authenticate` fails closed.
+- With no verifier configured (local development) the gate is a pass-through,
+  matching `authenticate`.
+- The wrappers keep the `mux.HandleFunc("METHOD /path", …)` shape, so the contract
+  drift guard (`tools/api_contract.py`) still parses the table unchanged.
+
+The mapping is deliberately coarse — the fine-grained legacy `sv_rechte_sachb`
+model is projected onto these roles at the IdP, so the API enforces only the
+module boundary. `authz_test.go` pins the matrix (module role, reader, admin,
+wrong module, no role, open route, missing/bad token).
+
 ## Verified
 
 Go `vet`/`build`/`test`; gremlins per package ≥ 0.85 (`auth` 98 %, `tenant`
 100 %, `interfaces` 100 %, `httpapi` 100 %); the tenant integration test against
-two real databases.
+two real databases; the authorisation matrix (`authz_test.go`).
 
 ## Still open
 
-- Role-based **authorisation** (which role may call which route) — authentication
-  is enforced, per-route role gates are not yet.
 - The tenant is resolved and used for the pool, but the audit `actor` does not yet
   record the tenant; wiring the tenant into audit events is a small follow-up.
 - Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the WDK SOAP

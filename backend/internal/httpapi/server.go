@@ -111,71 +111,80 @@ func (s *Server) Handler() http.Handler {
 // a multi-tenant front (Tenancy) can compose it under its own access log.
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
+	// Health probes stay open: a load balancer and tooling must reach them without
+	// a token, so they sit outside /api/ and outside authenticate.
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("GET /readyz", s.readyz)
-	mux.HandleFunc("GET /api/audit/verify", s.auditVerify)
-	mux.HandleFunc("POST /api/cashbook/days", s.openDay)
-	mux.HandleFunc("GET /api/cashbook/days/{id}", s.getDay)
-	mux.HandleFunc("POST /api/cashbook/days/{id}/bookings", s.book)
-	mux.HandleFunc("POST /api/cashbook/days/{id}/close", s.closeDay)
 
-	mux.HandleFunc("POST /api/payment-orders", s.createOrder)
-	mux.HandleFunc("GET /api/payment-orders/{id}", s.getOrder)
-	mux.HandleFunc("POST /api/payment-orders/{id}/submit", s.submitOrder)
-	mux.HandleFunc("POST /api/payment-orders/{id}/approve", s.approveOrder)
-	mux.HandleFunc("POST /api/payment-orders/{id}/reject", s.rejectOrder)
-	mux.HandleFunc("POST /api/payment-orders/{id}/cancel", s.cancelOrder)
+	// Role model (ADR-0003): each route is owned by a module role, distinguished
+	// read from write. erp-admin may call any route; erp-reader may call any read.
+	// The fine-grained legacy sv_rechte_sachb model maps onto these roles at the
+	// IdP, so the API only enforces the coarse module boundary.
+	mux.HandleFunc("GET /api/audit/verify", s.authorize(s.auditVerify, auth.RoleAdmin))
 
-	mux.HandleFunc("POST /api/cash-accounts", s.createCashAccount)
-	mux.HandleFunc("POST /api/payment-runs", s.createRun)
-	mux.HandleFunc("GET /api/payment-runs/{id}", s.getRun)
-	mux.HandleFunc("GET /api/payment-runs/{id}/file", s.getRunFile)
+	mux.HandleFunc("POST /api/cashbook/days", s.authorize(s.openDay, auth.RoleKasse))
+	mux.HandleFunc("GET /api/cashbook/days/{id}", s.authorizeRead(s.getDay, auth.RoleKasse))
+	mux.HandleFunc("POST /api/cashbook/days/{id}/bookings", s.authorize(s.book, auth.RoleKasse))
+	mux.HandleFunc("POST /api/cashbook/days/{id}/close", s.authorize(s.closeDay, auth.RoleKasse))
 
-	mux.HandleFunc("POST /api/bank-statements", s.importStatement)
-	mux.HandleFunc("GET /api/bank-statements/{id}", s.getStatement)
-	mux.HandleFunc("GET /api/bank-files/{id}", s.getBankFile)
+	mux.HandleFunc("POST /api/payment-orders", s.authorize(s.createOrder, auth.RoleKasse))
+	mux.HandleFunc("GET /api/payment-orders/{id}", s.authorizeRead(s.getOrder, auth.RoleKasse))
+	mux.HandleFunc("POST /api/payment-orders/{id}/submit", s.authorize(s.submitOrder, auth.RoleKasse))
+	mux.HandleFunc("POST /api/payment-orders/{id}/approve", s.authorize(s.approveOrder, auth.RoleKasse))
+	mux.HandleFunc("POST /api/payment-orders/{id}/reject", s.authorize(s.rejectOrder, auth.RoleKasse))
+	mux.HandleFunc("POST /api/payment-orders/{id}/cancel", s.authorize(s.cancelOrder, auth.RoleKasse))
 
-	mux.HandleFunc("POST /api/foundation-books", s.createFoundationBook)
-	mux.HandleFunc("POST /api/foundation-books/{id}/bookings", s.bookFoundation)
-	mux.HandleFunc("GET /api/foundation-books/{id}/bookings", s.getFoundationBookings)
-	mux.HandleFunc("GET /api/foundation-books/{id}/balance", s.getFoundationBalance)
+	mux.HandleFunc("POST /api/cash-accounts", s.authorize(s.createCashAccount, auth.RoleKasse))
+	mux.HandleFunc("POST /api/payment-runs", s.authorize(s.createRun, auth.RoleKasse))
+	mux.HandleFunc("GET /api/payment-runs/{id}", s.authorizeRead(s.getRun, auth.RoleKasse))
+	mux.HandleFunc("GET /api/payment-runs/{id}/file", s.authorizeRead(s.getRunFile, auth.RoleKasse))
 
-	mux.HandleFunc("POST /api/e-invoices", s.createEInvoice)
-	mux.HandleFunc("POST /api/e-invoices/received", s.receiveEInvoice)
-	mux.HandleFunc("GET /api/e-invoices/{id}", s.getEInvoice)
-	mux.HandleFunc("GET /api/e-invoices/{id}/xrechnung", s.getEInvoiceXML)
+	mux.HandleFunc("POST /api/bank-statements", s.authorize(s.importStatement, auth.RoleKasse))
+	mux.HandleFunc("GET /api/bank-statements/{id}", s.authorizeRead(s.getStatement, auth.RoleKasse))
+	mux.HandleFunc("GET /api/bank-files/{id}", s.authorizeRead(s.getBankFile, auth.RoleKasse))
 
-	mux.HandleFunc("POST /api/budget/positions", s.createBudgetPosition)
-	mux.HandleFunc("GET /api/budget/positions/{id}", s.getBudgetPosition)
-	mux.HandleFunc("POST /api/budget/positions/{id}/postings", s.postBudget)
-	mux.HandleFunc("GET /api/budget/positions/{id}/balance", s.getBudgetBalance)
+	mux.HandleFunc("POST /api/foundation-books", s.authorize(s.createFoundationBook, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/foundation-books/{id}/bookings", s.authorize(s.bookFoundation, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/foundation-books/{id}/bookings", s.authorizeRead(s.getFoundationBookings, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/foundation-books/{id}/balance", s.authorizeRead(s.getFoundationBalance, auth.RoleFinanzen))
 
-	mux.HandleFunc("POST /api/lookups/seed", s.seedLookups)
-	mux.HandleFunc("GET /api/lookups/{namespace}", s.listLookups)
-	mux.HandleFunc("GET /api/lookups/{namespace}/{code}", s.getLookup)
-	mux.HandleFunc("POST /api/lookups/{namespace}", s.upsertLookups)
+	mux.HandleFunc("POST /api/e-invoices", s.authorize(s.createEInvoice, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/e-invoices/received", s.authorize(s.receiveEInvoice, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/e-invoices/{id}", s.authorizeRead(s.getEInvoice, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/e-invoices/{id}/xrechnung", s.authorizeRead(s.getEInvoiceXML, auth.RoleFinanzen))
 
-	mux.HandleFunc("POST /api/purchase-orders", s.createPurchaseOrder)
-	mux.HandleFunc("GET /api/purchase-orders/{id}", s.getPurchaseOrder)
-	mux.HandleFunc("POST /api/purchase-orders/{id}/approve", s.approvePurchaseOrder)
-	mux.HandleFunc("POST /api/purchase-orders/{id}/receive", s.receivePurchaseOrder)
-	mux.HandleFunc("POST /api/purchase-orders/{id}/cancel", s.cancelPurchaseOrder)
+	mux.HandleFunc("POST /api/budget/positions", s.authorize(s.createBudgetPosition, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/budget/positions/{id}", s.authorizeRead(s.getBudgetPosition, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/budget/positions/{id}/postings", s.authorize(s.postBudget, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/budget/positions/{id}/balance", s.authorizeRead(s.getBudgetBalance, auth.RoleFinanzen))
 
-	mux.HandleFunc("POST /api/klr/cost-centers", s.createCostCenter)
-	mux.HandleFunc("POST /api/klr/cost-units", s.createCostUnit)
-	mux.HandleFunc("POST /api/klr/cost-centers/{id}/records", s.postAccountingRecord)
-	mux.HandleFunc("GET /api/klr/cost-centers/{id}/report", s.getKLRReport)
+	// The lookup catalogue is shared reference data: reads are open to any
+	// authenticated caller, writes are administrative.
+	mux.HandleFunc("POST /api/lookups/seed", s.authorize(s.seedLookups, auth.RoleAdmin))
+	mux.HandleFunc("GET /api/lookups/{namespace}", s.authorize(s.listLookups))
+	mux.HandleFunc("GET /api/lookups/{namespace}/{code}", s.authorize(s.getLookup))
+	mux.HandleFunc("POST /api/lookups/{namespace}", s.authorize(s.upsertLookups, auth.RoleAdmin))
 
-	mux.HandleFunc("POST /api/dunning/levels", s.createDunningLevel)
-	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.getDunningLevel)
-	mux.HandleFunc("POST /api/dunning/notices", s.issueDunningNotice)
+	mux.HandleFunc("POST /api/purchase-orders", s.authorize(s.createPurchaseOrder, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/purchase-orders/{id}", s.authorizeRead(s.getPurchaseOrder, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/purchase-orders/{id}/approve", s.authorize(s.approvePurchaseOrder, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/purchase-orders/{id}/receive", s.authorize(s.receivePurchaseOrder, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/purchase-orders/{id}/cancel", s.authorize(s.cancelPurchaseOrder, auth.RoleFinanzen))
 
-	mux.HandleFunc("POST /api/vat-types", s.createVATType)
-	mux.HandleFunc("GET /api/vat-types/{code}", s.getVATType)
-	mux.HandleFunc("POST /api/tax-offices", s.createTaxOffice)
-	mux.HandleFunc("POST /api/foundations", s.createFoundation)
-	// Auth is part of the route table; correlation id, recovery and the access
-	// log are added once by Handler (or by the Tenancy front) (NFR-5, ADR-0003).
+	mux.HandleFunc("POST /api/klr/cost-centers", s.authorize(s.createCostCenter, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-units", s.authorize(s.createCostUnit, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-centers/{id}/records", s.authorize(s.postAccountingRecord, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-centers/{id}/report", s.authorizeRead(s.getKLRReport, auth.RoleKLR))
+
+	mux.HandleFunc("POST /api/dunning/levels", s.authorize(s.createDunningLevel, auth.RoleKasse))
+	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.authorizeRead(s.getDunningLevel, auth.RoleKasse))
+	mux.HandleFunc("POST /api/dunning/notices", s.authorize(s.issueDunningNotice, auth.RoleKasse))
+
+	mux.HandleFunc("POST /api/vat-types", s.authorize(s.createVATType, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/vat-types/{code}", s.authorizeRead(s.getVATType, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/tax-offices", s.authorize(s.createTaxOffice, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/foundations", s.authorize(s.createFoundation, auth.RoleFinanzen))
+	// authenticate runs first (it attaches the principal); authorize reads it.
 	return s.authenticate(mux)
 }
 
