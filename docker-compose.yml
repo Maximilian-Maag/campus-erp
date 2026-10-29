@@ -94,5 +94,27 @@ services:
       - "${WEB_PORT:-8081}:80"
     restart: unless-stopped
 
+
+  # ── ADR-0007 infrastructure (dev / single-host parity with the chart) ─────────
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-erp}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-erp-erp-erp}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - miniodata:/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  miniodata:

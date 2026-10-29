@@ -1,0 +1,23 @@
+{{- if .Values.postgres.enabled }}
+{{- /* CloudNativePG cluster (ADR-0007 / ADR-0002). One cluster, one database per
+       tenant: the operator provides a primary + read replicas; per-tenant
+       databases are created by bootstrap/operator, not by this chart. Disable to
+       point at an external Postgres instead. */ -}}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "campus-erp.fullname" . }}-postgres
+  labels:
+    {{- include "campus-erp.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.postgres.instances }}
+  storage:
+    size: {{ .Values.postgres.storage | quote }}
+    {{- with .Values.postgres.storageClass }}
+    storageClass: {{ . | quote }}
+    {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.config.tenant | quote }}
+      owner: {{ .Values.postgres.owner | quote }}
+{{- end }}
