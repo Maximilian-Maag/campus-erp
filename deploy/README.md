@@ -23,12 +23,35 @@ deploy/
       ingress.yaml        per-tenant hostnames (optional)
       hpa.yaml            autoscaling for api/web (optional)
       secret.yaml         chart-managed DSN (only when asked)
+      postgres-cluster.yaml  CloudNativePG Cluster (gated: postgres.enabled)
+      pgbouncer-pooler.yaml  PgBouncer Pooler (gated: postgres.pooler.enabled)
+      scheduler.yaml      nightly batch CronJob (gated: scheduler.enabled)
+      redis.yaml          Redis Deployment + Service (gated: redis.enabled)
       NOTES.txt
 ```
 
-Not (yet) in the chart: Postgres/CloudNativePG, PgBouncer pool registry, MinIO
-object storage, Redis, the scheduler CronJob, and the `pdf` service. They land
-with the slices that need them.
+Not (yet) in the chart: the `pdf` service (Gotenberg) and the SFTP file gateway.
+They land with the slices that need them.
+
+## ADR-0007 infrastructure
+
+The chart can provision the ADR-0007 infrastructure, all **off by default** so a
+first install stays lean and each piece can instead point at a managed/on-prem
+equivalent:
+
+| value | provides |
+|---|---|
+| `postgres.enabled` | a CloudNativePG `Cluster` (1 primary + N replicas; one database per tenant — ADR-0002) |
+| `postgres.pooler.enabled` | a CloudNativePG `Pooler` (PgBouncer, transaction pooling) |
+| `scheduler.enabled` | a nightly batch `CronJob` (ETL, dunning, statement fetch) |
+| `redis.enabled` | a `redis` Deployment + Service (sessions / rate-limit / cache) |
+| `objectStorage.{endpoint,bucket}` | S3-compatible config consumed by the roles as the features land |
+
+`docker-compose.yml` carries the same pieces (postgres, MinIO, Redis) for local and
+single-host installs, so the dev stack matches the production shape. Async work is
+River (Postgres-backed, ADR-0007) — no extra broker to operate. Still external to
+the chart: OpenTelemetry/Prometheus/Grafana/Loki and the SFTP gateway, which are
+cluster add-ons rather than per-release objects.
 
 ## Use
 

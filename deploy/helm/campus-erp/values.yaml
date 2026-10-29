@@ -105,3 +105,35 @@ securityContext:
   readOnlyRootFilesystem: false
   capabilities:
     drop: ["ALL"]
+
+# ── ADR-0007 infrastructure ──────────────────────────────────────────────────
+# All off by default; each can instead point at a managed/on-prem equivalent. The
+# chart provisions them only when enabled, so a first install stays lean.
+
+postgres:
+  # CloudNativePG cluster (one cluster, one database per tenant — ADR-0002).
+  enabled: false
+  instances: 3            # 1 primary + 2 read replicas
+  storage: 50Gi
+  storageClass: ""        # cluster default when empty
+  owner: erp
+  pooler:
+    # PgBouncer, transaction pooling, one pool per cluster.
+    enabled: false
+    instances: 2
+
+scheduler:
+  # Nightly batch (ETL, dunning, statement fetch) as a CronJob.
+  enabled: false
+  schedule: "0 2 * * *"
+
+redis:
+  # Sessions / rate-limiting / cache.
+  enabled: false
+  image: redis:7-alpine
+
+objectStorage:
+  # S3-compatible (MinIO on-prem or university S3). Consumed by the roles as the
+  # object-storage features land; the chart only carries the endpoint config.
+  endpoint: ""
+  bucket: ""

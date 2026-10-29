@@ -2,6 +2,25 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.33.0] - 2026-10-28
+
+Deployment: ADR-0007 infrastructure in the chart, gated and off by default.
+
+### Added
+- **CloudNativePG `Cluster`** (`postgres-cluster.yaml`) and a **PgBouncer `Pooler`**
+  (`pgbouncer-pooler.yaml`), one cluster with one database per tenant (ADR-0002).
+- **Scheduler `CronJob`** (`scheduler.yaml`) for the nightly batch.
+- **Redis `Deployment` + `Service`** (`redis.yaml`) for sessions / rate-limit /
+  cache.
+- `values.yaml` gains a gated ADR-0007 section (postgres, scheduler, redis,
+  objectStorage); each piece can instead point at a managed/on-prem equivalent.
+- `docker-compose.yml` gains MinIO and Redis, so local / single-host installs match
+  the production shape.
+
+### Changed
+- `deploy/README.md` documents the ADR-0007 map (chart-provided vs external); ADR-0007
+  records the revision.
+
 ## [0.32.0] - 2026-10-28
 
 ETL: the two reference datasets that hold real data (bank codes, insurers).

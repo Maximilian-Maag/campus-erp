@@ -27,6 +27,16 @@ Deploy on Kubernetes with:
 - **SFTP file gateway** for file-based interfaces (LBV, statistics).
 - **Observability**: OpenTelemetry Collector + Prometheus + Grafana + Loki.
 
+## Revision 2026-10-28 — infrastructure provisioned by the chart
+
+The chart (`deploy/helm/campus-erp`) now provisions the platform pieces, each gated
+and off by default: a CloudNativePG `Cluster` (`postgres-cluster.yaml`), a PgBouncer
+`Pooler` (`pgbouncer-pooler.yaml`), a nightly batch `CronJob` (`scheduler.yaml`) and
+Redis (`redis.yaml`); `objectStorage` carries the S3 endpoint config.
+`docker-compose.yml` mirrors postgres/MinIO/Redis for local and single-host
+installs. Still external: the `pdf` (Gotenberg) service, the SFTP file gateway, and
+the observability stack (cluster add-ons, not per-release objects).
+
 ## Consequences
 
 - Read replicas + aggressive catalogue caching are the mechanism that absorbs the

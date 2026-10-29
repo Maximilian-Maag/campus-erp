@@ -1,0 +1,16 @@
+{{- if .Values.postgres.pooler.enabled }}
+{{- /* One PgBouncer pool (transaction mode) per cluster (ADR-0007). */ -}}
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: {{ include "campus-erp.fullname" . }}-pooler
+  labels:
+    {{- include "campus-erp.labels" . | nindent 4 }}
+spec:
+  cluster:
+    name: {{ include "campus-erp.fullname" . }}-postgres
+  instances: {{ .Values.postgres.pooler.instances }}
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+{{- end }}
