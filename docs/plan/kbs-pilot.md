@@ -23,6 +23,10 @@ payment-order workflow, the SEPA export, the statement import (MT940 + CAMT.053)
 and foundation books. S8 (ETL + parallel run + cutover) is blocked on a
 production extract.
 
+Cash-book findings: `docs/legacy/kbs-cashbook.md` (S1) — the cash-book tables are
+**structurally complete but empty** in the Muster (measured), so the cash-book ETL
+dataset is deferred to a production extract, exactly as S2's payment orders are.
+
 Legacy findings: `docs/legacy/kbs-payment-orders.md` (S2),
 `docs/legacy/kbs-sepa-export.md` (S3), `docs/legacy/kbs-statement-import.md` (S4),
 `docs/legacy/kbs-dunning.md` (S5),
@@ -43,7 +47,7 @@ Legacy findings: `docs/legacy/kbs-payment-orders.md` (S2),
 
 | ID | Process | Legacy tables (representative) |
 |---|---|---|
-| FR-K1 | Cash book, bookings, collective bookings | `kass`, `schalterbuch`, `sb`, `sbprot`, `bu`, `buha`, `geing`, `dr`, `drprot` |
+| FR-K1 | Cash book, bookings, collective bookings | `kass`, `schalterbuch`, `bu`, `buha`, `geing`, `dr`, `drprot` (`sb`/`sbprot` are the clerk master + change log, not the cash book — `docs/legacy/kbs-cashbook.md`) |
 | FR-K2 | Payment orders | `ao`, `aoar`, `feao` |
 | FR-K3 | Payment traffic, releases, four-eyes | `zawe`, `zawe_zusatz`, `zabe`, `zbu`, `zp_bankdaten`, `zp_stammdaten`, `zv_freigabe`, `transfrei` |
 | FR-K4 | Statement reconciliation, return postings | `mt940`, `mt940ar`, `datmt940`, `rueckausz_*`, `rueckfibu_*`, `datrueckausz`, `datrueckfibu` |
