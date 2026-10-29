@@ -78,3 +78,54 @@ func orZero(s string) string {
 	}
 	return s
 }
+
+// Reference-dataset namespaces in the canonical catalogue.
+const (
+	// BankDirectoryNamespace holds the German bank-code directory (legacy kbs.blz).
+	BankDirectoryNamespace = "bank_leit_zahl"
+	// InsurersNamespace holds the statutory health insurers (legacy
+	// sva4.k_krankenkasse), reference data for the Personal module.
+	InsurersNamespace = "krankenkasse"
+)
+
+// These are the measured legacy queries for the two reference datasets whose
+// source tables hold real rows in the productive source (unlike most module
+// tables). The tables are addressed unqualified so the dataset pool's search_path
+// selects the schema (kbs for blz, sva4 for k_krankenkasse); fixed-width char
+// columns are trimmed and cast to text.
+const (
+	bankDirectoryQuery = `SELECT btrim(blz_key::text), btrim(bname::text), btrim(langbezeichnung::text), 0, true
+	                        FROM blz WHERE blz_key IS NOT NULL`
+	insurersQuery = `SELECT btrim(key_krankenkasse::text), btrim(kurz_krankenkasse::text), btrim(text_krankenkasse::text), coalesce(sortorder, 0), true
+	                   FROM k_krankenkasse WHERE key_krankenkasse IS NOT NULL`
+)
+
+// BankDirectoryDataset builds the ETL dataset for the German bank-code directory
+// (legacy kbs.blz: 3,732 rows) into the catalogue. It is genuinely useful for
+// SEPA/IBAN work — BLZ -> name/city/BIC.
+func BankDirectoryDataset(pool *pgxpool.Pool, svc *ValueService) etl.Dataset {
+	return etl.Dataset{
+		Name:   "lookup/" + BankDirectoryNamespace,
+		Source: LegacyCatalogueSource(pool, BankDirectoryNamespace, bankDirectoryQuery),
+		Sink:   NewCatalogueSink(svc),
+	}
+}
+
+// InsurersDataset builds the ETL dataset for the statutory health insurers
+// (legacy sva4.k_krankenkasse: 1,677 rows) into the catalogue.
+func InsurersDataset(pool *pgxpool.Pool, svc *ValueService) etl.Dataset {
+	return etl.Dataset{
+		Name:   "lookup/" + InsurersNamespace,
+		Source: LegacyCatalogueSource(pool, InsurersNamespace, insurersQuery),
+		Sink:   NewCatalogueSink(svc),
+	}
+}
+
+// StandardDatasets returns the reference datasets sourced from the productive
+// legacy data (as opposed to the coded value sets seeded in code).
+func StandardDatasets(pool *pgxpool.Pool, svc *ValueService) []etl.Dataset {
+	return []etl.Dataset{
+		BankDirectoryDataset(pool, svc),
+		InsurersDataset(pool, svc),
+	}
+}

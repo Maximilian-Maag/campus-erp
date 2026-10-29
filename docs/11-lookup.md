@@ -26,6 +26,14 @@ document type (UNTDID **1001**), payment means (UNTDID **4461**), VAT category
 (UNTDID **5305**), unit of measure (UNECE Rec. 20), currency (ISO **4217**) and
 country (ISO **3166-1**). Seeding is idempotent.
 
+## Imported reference catalogues
+
+Beyond the code-seeded lists, the ETL imports two reference datasets from the
+productive source (`docs/19`): the **bank-code directory** (`bank_leit_zahl`, from
+`kbs.blz`, 3,732 rows) and the **statutory health insurers** (`krankenkasse`, from
+`sva4.k_krankenkasse`, 1,677 rows). Both are plain catalogue rows, so they need no
+new table (the point of one catalogue keyed by `(namespace, code)`).
+
 ## API
 
 | method | path |
