@@ -3,8 +3,10 @@ package kasse
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -79,33 +81,38 @@ func LegacyVATSource(pool *pgxpool.Pool, query string) etl.QuerySource {
 }
 
 // percentToBasisPoints converts a decimal percent ("19.00", "7", "19.5") to
-// integer basis points (1/100 %): 19.00 -> 1900. It truncates anything past the
-// second decimal (the legacy numeric is unconstrained; a rate with finer
-// precision than 1/100 % cannot be represented and is not expected).
-func percentToBasisPoints(percent string) (int64, error) {
-	percent = strings.TrimSpace(percent)
-	negative := strings.HasPrefix(percent, "-")
-	percent = strings.TrimLeft(percent, "+-")
-	if percent == "" {
-		return 0, fmt.Errorf("percent %q: empty", percent)
+// integer basis points (1/100 %): 19.00 -> 1900.
+func percentToBasisPoints(percent string) (int64, error) { return hundredthsFromDecimal(percent) }
+
+// hundredthsFromDecimal parses a legacy decimal ("19.00", "-7", "100", "19.5")
+// into whole hundredths (×100), truncating past the second decimal. It is the one
+// scaling helper behind both VAT basis points and cash amounts in cents, since
+// both are hundredths of their unit. The legacy numeric is unconstrained; finer
+// precision than 1/100 is not representable and not expected.
+func hundredthsFromDecimal(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	negative := strings.HasPrefix(s, "-")
+	s = strings.TrimLeft(s, "+-")
+	if s == "" {
+		return 0, fmt.Errorf("decimal %q: empty", s)
 	}
-	wholeText, fracText, _ := strings.Cut(percent, ".")
-	// Fix the fraction to exactly two digits (hundredths of a percent): pad with
-	// zeros, or truncate a finer value — no branch, so no spurious mutant.
+	wholeText, fracText, _ := strings.Cut(s, ".")
+	// Fix the fraction to exactly two digits: pad with zeros or truncate a finer
+	// value — no branch, so no spurious mutant.
 	fracText = (fracText + "00")[:2]
 	whole, err := strconv.ParseInt(wholeText, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("percent %q: %w", percent, err)
+		return 0, fmt.Errorf("decimal %q: %w", s, err)
 	}
 	frac, err := strconv.ParseInt(fracText, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("percent %q: %w", percent, err)
+		return 0, fmt.Errorf("decimal %q: %w", s, err)
 	}
-	basisPoints := whole*100 + frac
+	n := whole*100 + frac
 	if negative {
-		basisPoints = -basisPoints
+		n = -n
 	}
-	return basisPoints, nil
+	return n, nil
 }
 
 // vatKindFromLegacy maps the legacy 1-char flag to the canonical kind. The legacy
@@ -236,6 +243,108 @@ func LegacyFoundationSource(pool *pgxpool.Pool, query string) etl.QuerySource {
 				Fields: map[string]string{
 					"year": strconv.Itoa(year), "number": number, "description": description,
 					"carry_over": strconv.FormatBool(boolFromLegacyFlag(carry)),
+				},
+			}, nil
+		},
+	}
+}
+
+// centsAndKindFromLegacyAmount parses a legacy counter-book amount and derives the
+// booking kind. *(inferred)*: the sign decides — positive is income, negative is
+// expense — because no booking-type code list exists in kbs
+// (docs/legacy/kbs-cashbook.md). A zero amount has no kind and is rejected.
+func centsAndKindFromLegacyAmount(amount string) (int64, BookingKind, error) {
+	cents, err := hundredthsFromDecimal(amount)
+	if err != nil {
+		return 0, "", err
+	}
+	if cents == 0 {
+		return 0, "", fmt.Errorf("amount %q: zero has no kind", amount)
+	}
+	if cents < 0 {
+		return -cents, Expense, nil
+	}
+	return cents, Income, nil
+}
+
+// CounterBookSink loads extracted counter-book rows into the cash book via the
+// cash-book service, grouped by business day.
+type CounterBookSink struct {
+	svc *Service
+}
+
+// NewCounterBookSink wires the sink to the cash-book service.
+func NewCounterBookSink(svc *Service) CounterBookSink { return CounterBookSink{svc: svc} }
+
+// Load implements etl.Sink. It validates each record, groups by business date and
+// imports each day through the service (one audited write per day).
+func (s CounterBookSink) Load(ctx context.Context, records []etl.Record, by string) (int, error) {
+	byDate := map[string][]CounterBookEntry{}
+	for _, r := range records {
+		cents, err := strconv.ParseInt(r.Fields["amount_cents"], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("counter book %q: amount_cents %q: %w", r.Key, r.Fields["amount_cents"], err)
+		}
+		d := r.Fields["business_date"]
+		byDate[d] = append(byDate[d], CounterBookEntry{
+			LegacyRef:   r.Fields["legacy_ref"],
+			Kind:        BookingKind(r.Fields["kind"]),
+			AmountCents: cents,
+			Purpose:     r.Fields["purpose"],
+		})
+	}
+	dates := make([]string, 0, len(byDate))
+	for d := range byDate {
+		dates = append(dates, d)
+	}
+	sort.Strings(dates) // deterministic day order
+	total := 0
+	for _, d := range dates {
+		day, err := time.Parse(time.DateOnly, d)
+		if err != nil {
+			return 0, fmt.Errorf("counter book: business_date %q: %w", d, err)
+		}
+		n, err := s.svc.ImportCounterBook(ctx, day, byDate[d], by)
+		if err != nil {
+			return 0, err
+		}
+		total += n
+	}
+	return total, nil
+}
+
+// LegacyCounterBookSource reads kbs.schalterbuch. The query must select, in order:
+// scha_dat, betrag (as text, to avoid float rounding), grund1, grund2, scha_nr,
+// jahr. Kind comes from the amount sign and the purpose from grund1+grund2; the
+// legacy reference (table/year/number) keys the idempotent upsert.
+func LegacyCounterBookSource(pool *pgxpool.Pool, query string) etl.QuerySource {
+	return etl.QuerySource{
+		Pool: pool,
+		SQL:  query,
+		Scan: func(rows pgx.Rows) (etl.Record, error) {
+			var date time.Time
+			var betrag, grund1, grund2, jahr string
+			var schaNr int
+			if err := rows.Scan(&date, &betrag, &grund1, &grund2, &schaNr, &jahr); err != nil {
+				return etl.Record{}, err
+			}
+			cents, kind, err := centsAndKindFromLegacyAmount(betrag)
+			if err != nil {
+				return etl.Record{}, fmt.Errorf("counter book %d/%s: %w", schaNr, jahr, err)
+			}
+			purpose := strings.TrimSpace(strings.TrimSpace(grund1) + " " + strings.TrimSpace(grund2))
+			if purpose == "" {
+				purpose = "(ohne Buchungstext)"
+			}
+			ref := fmt.Sprintf("kbs.schalterbuch/%s/%d", strings.TrimSpace(jahr), schaNr)
+			return etl.Record{
+				Key: ref,
+				Fields: map[string]string{
+					"business_date": date.Format(time.DateOnly),
+					"kind":          string(kind),
+					"amount_cents":  strconv.FormatInt(cents, 10),
+					"purpose":       purpose,
+					"legacy_ref":    ref,
 				},
 			}, nil
 		},

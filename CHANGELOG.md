@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.31.0] - 2026-10-28
+
+ETL: the counter book (kbs.schalterbuch) as a cash-book dataset.
+
+### Added
+- **`kasse.LegacyCounterBookSource` / `CounterBookSink`** — imports the legacy
+  counter book into `cash_book_day` + `cash_booking`, grouped by business day.
+  The legacy table is empty, so the mapping is an explicit inference: **amount sign
+  → kind** (no booking-type code list exists in `kbs`), purpose from
+  `grund1`+`grund2`, and the day created closed with a computed closing balance
+  (`docs/legacy/kbs-cashbook.md`).
+- **Migration `0016`** — a `legacy_ref` column on `cash_booking` with a
+  partial-unique index, giving imported bookings a natural key for idempotent
+  upserts without weakening a day's own integrity.
+- **`Service.ImportCounterBook`** and the repo's `UpsertImportedDay` /
+  `UpsertImportedBooking` / `SetDayClosing` — a validate-all-then-write import that
+  goes through the day service (one `cashbook.import` audit event per day), so
+  every write stays on the audit chain.
+- Unit tests for the sign→kind / amount mapping and the import validation; an
+  integration test for reconciliation, per-day closing balance, idempotency and
+  fail-closed behaviour.
+
 ## [0.30.0] - 2026-10-28
 
 Cash-book legacy findings (measured), and why the dataset is deferred.

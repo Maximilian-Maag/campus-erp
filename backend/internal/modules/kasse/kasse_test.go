@@ -133,6 +133,33 @@ func (f *fakeRepo) CloseDay(_ context.Context, _ int64, closing int64, _ string)
 	return f.day, nil
 }
 
+func (f *fakeRepo) UpsertImportedDay(_ context.Context, date time.Time, _ string) (Day, error) {
+	if f.err != nil {
+		return Day{}, f.err
+	}
+	f.day = Day{ID: 1, BusinessDate: date, Status: DayClosed, OpeningCents: 0}
+	return f.day, nil
+}
+
+func (f *fakeRepo) UpsertImportedBooking(_ context.Context, b Booking, _, _ string) (Booking, error) {
+	if f.err != nil {
+		return Booking{}, f.err
+	}
+	b.ID = int64(len(f.inserted) + 1)
+	f.inserted = append(f.inserted, b)
+	f.bookings = append(f.bookings, b)
+	return b, nil
+}
+
+func (f *fakeRepo) SetDayClosing(_ context.Context, _ int64, closing int64, _ string) (Day, error) {
+	if f.err != nil {
+		return Day{}, f.err
+	}
+	f.day.Status = DayClosed
+	f.day.ClosingCents = &closing
+	return f.day, nil
+}
+
 type failingAudit struct{ err error }
 
 func (f failingAudit) Append(context.Context, audit.Event) (audit.Event, error) {
@@ -218,5 +245,43 @@ func TestServicePropagatesAuditFailures(t *testing.T) {
 	}
 	if _, err := svc.CloseDay(context.Background(), 1, "a"); !errors.Is(err, boom) {
 		t.Fatalf("CloseDay: want the audit error, got %v", err)
+	}
+}
+
+func TestImportCounterBookValidation(t *testing.T) {
+	ctx := context.Background()
+	date := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name    string
+		entries []CounterBookEntry
+		want    error
+	}{
+		{"blank ref", []CounterBookEntry{{LegacyRef: " ", Kind: Income, AmountCents: 1, Purpose: "x"}}, ErrLegacyRefRequired},
+		{"bad kind", []CounterBookEntry{{LegacyRef: "r", Kind: "sideways", AmountCents: 1, Purpose: "x"}}, ErrUnknownKind},
+		{"non-positive amount", []CounterBookEntry{{LegacyRef: "r", Kind: Income, AmountCents: 0, Purpose: "x"}}, ErrAmountNotPositive},
+		{"blank purpose", []CounterBookEntry{{LegacyRef: "r", Kind: Income, AmountCents: 1, Purpose: "  "}}, ErrPurposeRequired},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if _, err := NewService(&fakeRepo{}, &fakeAudit{}).ImportCounterBook(ctx, date, c.entries, "alice"); !errors.Is(err, c.want) {
+				t.Fatalf("err = %v, want %v", err, c.want)
+			}
+		})
+	}
+	if _, err := NewService(&fakeRepo{}, &fakeAudit{}).ImportCounterBook(ctx, date,
+		[]CounterBookEntry{{LegacyRef: "r", Kind: Income, AmountCents: 1, Purpose: "x"}}, "  "); !errors.Is(err, ErrActorRequired) {
+		t.Fatalf("actor: %v", err)
+	}
+
+	auditSink := &fakeAudit{}
+	n, err := NewService(&fakeRepo{}, auditSink).ImportCounterBook(ctx, date, []CounterBookEntry{
+		{LegacyRef: "r1", Kind: Income, AmountCents: 100, Purpose: "in"},
+		{LegacyRef: "r2", Kind: Expense, AmountCents: 40, Purpose: "out"},
+	}, "alice")
+	if err != nil || n != 2 {
+		t.Fatalf("import: %v n=%d", err, n)
+	}
+	if len(auditSink.events) != 1 || auditSink.events[0].Action != "cashbook.import" {
+		t.Fatalf("audit = %+v", auditSink.events)
 	}
 }
