@@ -48,6 +48,20 @@ unexpectedly is visible rather than silent. The audit detail reads
 A dataset is a `Dataset` value; each is independent, and adding one is a new
 source + sink, not new plumbing.
 
+**Reference datasets with real data.** Two source tables hold real rows in the
+productive source (most module tables are empty — `docs/legacy/kbs-cashbook.md`),
+so these import measured data rather than an inference, and `lookup.StandardDatasets`
+registers them:
+
+- **Bank-code directory** — `kbs.blz` (3,732 rows, verified against the restored
+  dump) into the `bank_leit_zahl` catalogue namespace: BLZ → name / city / BIC,
+  directly useful for SEPA and IBAN work.
+- **Health insurers** — `sva4.k_krankenkasse` (1,677 rows) into the `krankenkasse`
+  namespace, reference data for the Personal module (Phase 3).
+
+Both reuse `LegacyCatalogueSource` + `CatalogueSink`; the queries are the measured
+legacy column shapes (fixed-width char columns trimmed and cast to text).
+
 - **Lookup catalogue** (`internal/modules/lookup/etl.go`, `docs/11`):
   `LegacyCatalogueSource` reads one legacy key table (the productive source's
   3,532 coded value sets) and `CatalogueSink` loads it through the value service

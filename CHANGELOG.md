@@ -2,6 +2,25 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.32.0] - 2026-10-28
+
+ETL: the two reference datasets that hold real data (bank codes, insurers).
+
+### Added
+- **`lookup.BankDirectoryDataset`** — imports the German bank-code directory
+  (`kbs.blz`, **3,732 rows verified against the restored dump**) into the
+  `bank_leit_zahl` catalogue namespace: BLZ → name / city / BIC. Useful for SEPA
+  and IBAN work.
+- **`lookup.InsurersDataset`** — imports the statutory health insurers
+  (`sva4.k_krankenkasse`, **1,677 rows**) into the `krankenkasse` namespace.
+- **`lookup.StandardDatasets`** — the registry of reference datasets sourced from
+  the productive legacy data.
+- An integration test driving both datasets against synthetic tables of the same
+  measured shape, including re-run idempotency.
+
+Both reuse the existing catalogue pipeline (`LegacyCatalogueSource` +
+`CatalogueSink`), so a reference list is rows, not a new table.
+
 ## [0.31.0] - 2026-10-28
 
 ETL: the counter book (kbs.schalterbuch) as a cash-book dataset.
