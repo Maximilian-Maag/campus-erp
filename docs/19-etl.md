@@ -72,6 +72,16 @@ Each dataset's integration test builds a synthetic legacy table in an isolated
 schema and asserts reconciliation, re-run idempotency, in-place update on a
 changed source, fail-closed on a bad row, and a verifying audit chain.
 
+## Deferred: the cash book
+
+The cash-book tables (`kbs.schalterbuch`, `kbs.bu`, `kbs.kass`, `kbs.geing`) are
+structurally complete but **empty** in the Muster dump (measured — see
+`docs/legacy/kbs-cashbook.md`), so their mapping cannot be validated and the
+dataset is deliberately not built yet. Two design points are settled for when a
+production extract arrives: `cash_booking` needs a natural key (a migration adding
+a `legacy_ref`), and the import must go through the day-lifecycle service so every
+write stays on the audit chain.
+
 ## Not yet done
 
 - The remaining `kbs` tables (cash book, payment orders, statements) as datasets —

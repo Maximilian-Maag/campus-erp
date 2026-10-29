@@ -2,6 +2,26 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.30.0] - 2026-10-28
+
+Cash-book legacy findings (measured), and why the dataset is deferred.
+
+### Added
+- **`docs/legacy/kbs-cashbook.md`** — the FR-K1 group measured from the restored
+  Muster dump: `schalterbuch` / `bu` / `kass` / `geing` / `dr` are all **empty**
+  (0 rows), so the mapping is unvalidatable before a production extract (the same
+  conclusion as payment orders); the three god tables (152 / 115 / 96 columns), the
+  denomination-count table, and the absence of any booking-type code list.
+
+### Changed
+- **Correction:** `docs/plan/kbs-pilot.md` grouped `sb`/`sbprot` under the cash
+  book; they are the **clerk (Sachbearbeiter) master + change log**, with a
+  per-area `tabr_*` rights model. Recorded, with a structural security finding on
+  the unsalted-looking `sb.pass_wort`.
+- `docs/19` records the cash-book dataset as deferred, with the two settled design
+  points (a `legacy_ref` natural key and routing the import through the day
+  service).
+
 ## [0.29.0] - 2026-10-28
 
 ETL: tax offices (kbs.finanzamt) and foundations (kbs.stift), completing S7.
