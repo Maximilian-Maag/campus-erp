@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
@@ -229,6 +230,122 @@ func TestTaxOfficeAndFoundationETL(t *testing.T) {
 	pool.QueryRow(ctx, `SELECT count(*) FROM foundation WHERE number=$1`, foundNo+"c").Scan(&bad)
 	if bad != 0 {
 		t.Fatalf("bad foundation leaked: %d", bad)
+	}
+
+	if err := audit.NewStore(pool).Verify(ctx); err != nil {
+		t.Fatalf("audit verify: %v", err)
+	}
+}
+
+// TestCounterBookETLReconcilesAndIsIdempotent drives the legacy counter book
+// (kbs.schalterbuch) into the canonical cash book. It proves the sign -> kind
+// mapping, the computed closing balance per day, re-run idempotency (bookings
+// upsert by legacy reference) and fail-closed on a bad row.
+func TestCounterBookETLReconcilesAndIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	svc := kasse.NewService(kasse.NewRepo(pool), audit.NewStore(pool))
+	runner := etl.NewRunner(audit.NewStore(pool)).WithLedger(etl.NewAuditLedger(audit.NewStore(pool)))
+
+	d1 := uniqueDate(t)
+	d2 := d1.AddDate(0, 0, 1)
+
+	if _, err := pool.Exec(ctx, `
+		CREATE TABLE legacy_schalterbuch (
+			scha_dat date, betrag numeric(14,2), grund1 varchar(27), grund2 varchar(27),
+			scha_nr int, jahr varchar(4)
+		)`); err != nil {
+		t.Fatalf("create legacy_schalterbuch: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO legacy_schalterbuch VALUES
+			($1, 123.45, 'Barzahlung',       '',         1, '2026'),
+			($1, -20.00, 'Wechselgeld',      'Rueckgabe',2, '2026'),
+			($2,  50.00, '',                 '',         3, '2026')`,
+		d1, d2); err != nil {
+		t.Fatalf("seed legacy_schalterbuch: %v", err)
+	}
+
+	ds := etl.Dataset{
+		Name:   "kasse/counter-book/" + uniqueSuffix(t),
+		Source: kasse.LegacyCounterBookSource(pool, "SELECT scha_dat, betrag::text, grund1, grund2, scha_nr, jahr FROM legacy_schalterbuch ORDER BY scha_dat, scha_nr"),
+		Sink:   kasse.NewCounterBookSink(svc),
+	}
+
+	first, err := runner.Run(ctx, ds, "etl-bot")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if first.Source != 3 || first.Loaded != 3 || first.Previous != "" || first.Drift {
+		t.Fatalf("report = %+v", first)
+	}
+
+	// Day 1: opening 0, income 123.45 - expense 20.00 -> closing 103.45 (10345).
+	// Day 2: opening 0, income 50.00 -> closing 50.00 (5000).
+	closing := func(date time.Time) int64 {
+		t.Helper()
+		var id, c int64
+		var status string
+		if err := pool.QueryRow(ctx, `SELECT id, status, closing_cents FROM cash_book_day WHERE business_date=$1`, date).Scan(&id, &status, &c); err != nil {
+			t.Fatalf("read day %s: %v", date, err)
+		}
+		if status != "closed" {
+			t.Fatalf("day %s status = %s, want closed", date, status)
+		}
+		return c
+	}
+	if got := closing(d1); got != 10345 {
+		t.Fatalf("day1 closing = %d, want 10345", got)
+	}
+	if got := closing(d2); got != 5000 {
+		t.Fatalf("day2 closing = %d, want 5000", got)
+	}
+
+	var income, expense int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*) FILTER (WHERE b.kind='income'), count(*) FILTER (WHERE b.kind='expense')
+		FROM cash_booking b JOIN cash_book_day d ON d.id = b.day_id
+		WHERE d.business_date = $1`, d1).Scan(&income, &expense); err != nil {
+		t.Fatalf("kind counts: %v", err)
+	}
+	if income != 1 || expense != 1 {
+		t.Fatalf("day1 kinds = %d income / %d expense, want 1/1 (sign -> kind)", income, expense)
+	}
+	// Blank legacy text becomes a placeholder, not an import failure.
+	var purpose string
+	if err := pool.QueryRow(ctx, `SELECT b.purpose FROM cash_booking b JOIN cash_book_day d ON d.id=b.day_id WHERE d.business_date=$1`, d2).Scan(&purpose); err != nil {
+		t.Fatalf("purpose: %v", err)
+	}
+	if purpose != "(ohne Buchungstext)" {
+		t.Fatalf("blank purpose = %q", purpose)
+	}
+
+	// Idempotent re-run: same checksum, no drift, no duplicate bookings.
+	second, err := runner.Run(ctx, ds, "etl-bot")
+	if err != nil {
+		t.Fatalf("re-Run: %v", err)
+	}
+	if second.Checksum != first.Checksum || second.Previous != first.Checksum || second.Drift {
+		t.Fatalf("unchanged re-run: %+v", second)
+	}
+	var total int
+	pool.QueryRow(ctx, `SELECT count(*) FROM cash_booking WHERE legacy_ref LIKE 'kbs.schalterbuch/%'`).Scan(&total)
+	if total != 3 {
+		t.Fatalf("booking count after re-run = %d, want 3", total)
+	}
+
+	// Fail closed: a zero-amount row has no kind, so the day's import fails and
+	// its state is unchanged.
+	if _, err := pool.Exec(ctx, `INSERT INTO legacy_schalterbuch VALUES ($1, 0.00, 'null', '', 4, '2026')`, d2); err != nil {
+		t.Fatalf("insert bad row: %v", err)
+	}
+	if _, err := runner.Run(ctx, ds, "etl-bot"); err == nil {
+		t.Fatalf("a zero-amount row should fail the import")
+	}
+	var day2 int
+	pool.QueryRow(ctx, `SELECT count(*) FROM cash_booking b JOIN cash_book_day d ON d.id=b.day_id WHERE d.business_date=$1`, d2).Scan(&day2)
+	if day2 != 1 || closing(d2) != 5000 {
+		t.Fatalf("day2 changed after a failed run: bookings=%d closing=%d", day2, closing(d2))
 	}
 
 	if err := audit.NewStore(pool).Verify(ctx); err != nil {

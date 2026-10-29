@@ -3,6 +3,7 @@ package kasse
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
@@ -15,6 +16,12 @@ type Repository interface {
 	Bookings(ctx context.Context, dayID int64) ([]Booking, error)
 	InsertBooking(ctx context.Context, b Booking, by string) (Booking, error)
 	CloseDay(ctx context.Context, id, closingCents int64, by string) (Day, error)
+
+	// Import path (counter-book ETL): idempotent upserts keyed by date and the
+	// booking's legacy reference (docs/legacy/kbs-cashbook.md).
+	UpsertImportedDay(ctx context.Context, date time.Time, by string) (Day, error)
+	UpsertImportedBooking(ctx context.Context, b Booking, by, legacyRef string) (Booking, error)
+	SetDayClosing(ctx context.Context, id, closingCents int64, by string) (Day, error)
 }
 
 // AuditSink records every state change (ADR-0006).
@@ -102,6 +109,65 @@ func (s *Service) CloseDay(ctx context.Context, dayID int64, by string) (Day, er
 		return Day{}, err
 	}
 	return closed, nil
+}
+
+// CounterBookEntry is one legacy counter-book booking to import.
+type CounterBookEntry struct {
+	LegacyRef   string
+	Kind        BookingKind
+	AmountCents int64
+	Purpose     string
+}
+
+// ImportCounterBook imports one day's counter-book bookings (legacy
+// kbs.schalterbuch). The whole batch is validated before any write; the day is
+// created closed with a computed closing balance; bookings upsert by legacy
+// reference, so a re-run converges. One audit event per day.
+func (s *Service) ImportCounterBook(ctx context.Context, date time.Time, entries []CounterBookEntry, by string) (int, error) {
+	if err := requireActor(by); err != nil {
+		return 0, err
+	}
+	for _, e := range entries {
+		if strings.TrimSpace(e.LegacyRef) == "" {
+			return 0, fmt.Errorf("kasse: counter-book entry: %w", ErrLegacyRefRequired)
+		}
+		if e.Kind != Income && e.Kind != Expense {
+			return 0, ErrUnknownKind
+		}
+		if e.AmountCents <= 0 {
+			return 0, ErrAmountNotPositive
+		}
+		if strings.TrimSpace(e.Purpose) == "" {
+			return 0, ErrPurposeRequired
+		}
+	}
+	d, err := s.repo.UpsertImportedDay(ctx, date, by)
+	if err != nil {
+		return 0, err
+	}
+	for _, e := range entries {
+		b := Booking{DayID: d.ID, Kind: e.Kind, AmountCents: e.AmountCents, Purpose: strings.TrimSpace(e.Purpose)}
+		if _, err := s.repo.UpsertImportedBooking(ctx, b, by, e.LegacyRef); err != nil {
+			return 0, err
+		}
+	}
+	bookings, err := s.repo.Bookings(ctx, d.ID)
+	if err != nil {
+		return 0, err
+	}
+	closing := Balance(d.OpeningCents, bookings)
+	if _, err := s.repo.SetDayClosing(ctx, d.ID, closing, by); err != nil {
+		return 0, err
+	}
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "cashbook.import",
+		Subject: fmt.Sprintf("day/%d", d.ID),
+		After:   fmt.Sprintf("date=%s bookings=%d closing_cents=%d", date.Format(time.DateOnly), len(entries), closing),
+	}); err != nil {
+		return 0, err
+	}
+	return len(entries), nil
 }
 
 // Day returns a day by id.

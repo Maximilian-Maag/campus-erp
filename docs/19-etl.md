@@ -60,6 +60,14 @@ source + sink, not new plumbing.
   unset flag defaults to output tax (the majority case) because the canonical
   model requires a kind; a truly input-tax row with an unset flag (legacy code 67)
   is misclassified until a production extract lets the mapping be reviewed.
+- **Counter book** (`internal/modules/kasse/etl.go`,
+  `docs/legacy/kbs-cashbook.md`): `LegacyCounterBookSource` reads
+  `kbs.schalterbuch` and `CounterBookSink` imports each day through the cash-book
+  service into `cash_book_day` + `cash_booking`. The legacy table is empty, so the
+  mapping is an explicit inference: **amount sign → kind** (no booking-type code
+  list exists in `kbs`), the purpose from `grund1`+`grund2`, and the day created
+  closed with a computed closing balance. Idempotency comes from a `legacy_ref`
+  natural key (migration `0016`).
 - **Tax offices + foundations** (`internal/modules/kasse/etl.go`,
   `docs/legacy/kbs-tax-and-foundations.md`): `LegacyTaxOfficeSource` reads
   `kbs.finanzamt` and `LegacyFoundationSource` reads `kbs.stift`; the sinks load
@@ -72,15 +80,13 @@ Each dataset's integration test builds a synthetic legacy table in an isolated
 schema and asserts reconciliation, re-run idempotency, in-place update on a
 changed source, fail-closed on a bad row, and a verifying audit chain.
 
-## Deferred: the cash book
+## Deferred: the rest of the cash book
 
-The cash-book tables (`kbs.schalterbuch`, `kbs.bu`, `kbs.kass`, `kbs.geing`) are
-structurally complete but **empty** in the Muster dump (measured — see
-`docs/legacy/kbs-cashbook.md`), so their mapping cannot be validated and the
-dataset is deliberately not built yet. Two design points are settled for when a
-production extract arrives: `cash_booking` needs a natural key (a migration adding
-a `legacy_ref`), and the import must go through the day-lifecycle service so every
-write stays on the audit chain.
+The counter book above is imported on an inferred mapping; the rest of the
+cash-book group (`kbs.bu` the ledger-side bookings, `kbs.kass` the denomination
+count, `kbs.geing`) stays out of scope: it is **empty** in the Muster (measured —
+`docs/legacy/kbs-cashbook.md`), so no mapping can be validated, and `kbs.bu`
+belongs to the ledger (Phase 4, `mbs`).
 
 ## Not yet done
 

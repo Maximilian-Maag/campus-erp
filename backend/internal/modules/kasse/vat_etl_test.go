@@ -54,3 +54,28 @@ func TestBoolFromLegacyFlag(t *testing.T) {
 		}
 	}
 }
+
+func TestCentsAndKindFromLegacyAmount(t *testing.T) {
+	cases := []struct {
+		in    string
+		cents int64
+		kind  BookingKind
+	}{
+		{"123.45", 12345, Income},
+		{"-7", 700, Expense},
+		{"100", 10000, Income},
+		{"0.01", 1, Income},
+		{"-0.01", 1, Expense},
+	}
+	for _, c := range cases {
+		cents, kind, err := centsAndKindFromLegacyAmount(c.in)
+		if err != nil || cents != c.cents || kind != c.kind {
+			t.Errorf("centsAndKindFromLegacyAmount(%q) = %d, %q, %v; want %d, %q", c.in, cents, kind, err, c.cents, c.kind)
+		}
+	}
+	for _, bad := range []string{"0", "0.00", "", "abc"} {
+		if _, _, err := centsAndKindFromLegacyAmount(bad); err == nil {
+			t.Errorf("centsAndKindFromLegacyAmount(%q) should fail", bad)
+		}
+	}
+}

@@ -30,6 +30,9 @@ var (
 	ErrPurposeRequired = errors.New("kasse: purpose is required")
 	// ErrUnknownKind is returned for a booking kind other than income/expense.
 	ErrUnknownKind = errors.New("kasse: unknown booking kind")
+	// ErrLegacyRefRequired is returned by an import when a booking has no legacy
+	// reference to key its idempotent upsert on.
+	ErrLegacyRefRequired = errors.New("kasse: a legacy reference is required")
 )
 
 // Day is one cash-book business day.

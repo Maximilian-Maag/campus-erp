@@ -80,18 +80,25 @@ must never store reversible or unsalted secrets, and must delegate authenticatio
 to the IdP (ADR-0003) rather than a local password column. Not reasoned further —
 no application code was available.
 
-## Proposed canonical mapping *(inferred)*
+## Canonical mapping — the counter book is implemented *(inferred)*
 
-Not yet implemented; recorded so the dataset is mechanical when a production extract
-arrives.
+The counter book (`kbs.schalterbuch`) is wired as an ETL dataset
+(`internal/modules/kasse/etl.go`, `docs/19`). Because the table is empty, the
+mapping cannot be data-validated, so it is built explicitly as an inference and
+marked here:
 
-| legacy | canonical | note |
+| legacy | canonical | rule |
 |---|---|---|
-| `kbs.schalterbuch` row | `cash_booking` | `betrag`→`amount_cents` (sign→`kind` *(inferred)*), `grund1`+`grund2`→`purpose`, `scha_dat`→the day's `business_date` |
-| `kbs.schalterbuch.scha_nr` (+`jahr`) | `cash_booking` natural key | needed for idempotent upsert — `cash_booking` has none today, so the dataset needs a migration adding a `legacy_ref` unique key, and must go through the day service (not raw inserts) to keep the audit chain intact |
-| `kbs.kass` row | `cash_book_day` counts | `kass_dat`→`business_date`; the count total maps onto `opening`/`closing_cents` *(inferred)* |
-| `kbs.bu` | `cash_booking` / ledger | out of scope for Kasse (ledger is Phase 4, `mbs`) |
+| `kbs.schalterbuch` row | `cash_booking` | `betrag`→`amount_cents`, **sign → `kind`** *(inferred: no booking-type code list exists)*, `grund1`+`grund2`→`purpose` (blank → `(ohne Buchungstext)`), `scha_dat`→the day's `business_date` |
+| `scha_nr` (+`jahr`) | `cash_booking.legacy_ref` | `kbs.schalterbuch/<jahr>/<scha_nr>`; migration `0016` adds the partial-unique key so the import upserts in place |
+| one `scha_dat` | one `cash_book_day` | created **closed** with a zero opening balance; `closing_cents` is computed from the imported bookings (`Balance`) |
 
-Two blockers hold this back beyond the missing data: the booking natural key (a
-migration) and routing the import through the day-lifecycle service so every write
-is audited. Both are designed for; neither is worth building against zero rows.
+The import goes through the day service (`ImportCounterBook`), not raw inserts, so
+every write stays on the audit chain (one `cashbook.import` event per day), and the
+whole batch is validated before any write. `kbs.kass` (the denomination count) and
+`kbs.bu` (ledger-side bookings) are still out of scope: the former needs a data
+decision on how a physical count maps onto opening/closing, the latter belongs to
+the ledger (Phase 4, `mbs`).
+
+**Still inferred / open:** the sign→kind rule (a zero amount is rejected rather
+than guessed), and the `kbs.kass` count mapping. Both need a production extract.
