@@ -49,6 +49,7 @@ func main() {
 			Procurement:     procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store),
 			KLR:             klr.NewService(klr.NewRepo(pool), store),
 			Mandates:        kasse.NewMandateService(kasse.NewMandateRepo(pool), store),
+			CollectionRuns:  kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), store),
 			Audit:           store,
 			Health:          pool,
 		}

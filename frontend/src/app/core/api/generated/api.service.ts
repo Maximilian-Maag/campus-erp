@@ -71,6 +71,14 @@ export class CampusErpApi {
     return this.http.get<m.Mandate>(this.base + `/api/direct-debit/mandates/${reference}`);
   }
 
+  createCollectionRun(body: m.CollectionRunRequest): Observable<m.CollectionRun> {
+    return this.http.post<m.CollectionRun>(this.base + `/api/direct-debit/runs`, body);
+  }
+
+  getCollectionRunFile(reference: number | string): Observable<string> {
+    return this.http.get<string>(this.base + `/api/direct-debit/runs/${reference}/file`);
+  }
+
   createDunningLevel(body: m.CreateLevelRequest): Observable<m.DunningLevel> {
     return this.http.post<m.DunningLevel>(this.base + `/api/dunning/levels`, body);
   }
