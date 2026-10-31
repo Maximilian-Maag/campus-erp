@@ -1,5 +1,6 @@
 key | requirement | direction | status | name | format
 bank-camt053 | IR-2 | in | implemented | Bank — statement import (CAMT.053) | ISO 20022 camt.053.001.08
+bank-camt054 | IR-2 | in | implemented | Bank — notification import (CAMT.054) | ISO 20022 camt.054.001.08
 bank-ebics | IR-2 | both | planned | Bank — EBICS channel | EBICS
 bank-mt940 | IR-2 | in | implemented | Bank — statement import (MT940) | SWIFT MT940
 bank-sepa-sct | IR-2 | out | implemented | Bank — SEPA credit transfer | pain.001.001.09 (GBIC/DK)
