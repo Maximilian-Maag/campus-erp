@@ -107,6 +107,14 @@ export class CampusErpApi {
     return this.http.get<string>(this.base + `/api/e-invoices/${id}/xrechnung`);
   }
 
+  listETLDatasets(): Observable<m.DatasetsResponse> {
+    return this.http.get<m.DatasetsResponse>(this.base + `/api/etl/datasets`);
+  }
+
+  runETLDataset(body: m.EtlRunRequest): Observable<m.Report> {
+    return this.http.post<m.Report>(this.base + `/api/etl/runs`, body);
+  }
+
   createFoundationBook(body: m.CreateFoundationBookRequest): Observable<m.FoundationBook> {
     return this.http.post<m.FoundationBook>(this.base + `/api/foundation-books`, body);
   }

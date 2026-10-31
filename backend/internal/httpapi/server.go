@@ -56,6 +56,7 @@ type Server struct {
 	klr             klrService
 	mandates        mandateService
 	collectionRuns  collectionRunService
+	etl             etlRunner
 	audit           auditVerifier
 	health          healthChecker
 	auth            auth.Verifier
@@ -80,6 +81,7 @@ type Deps struct {
 	KLR             klrService
 	Mandates        mandateService
 	CollectionRuns  collectionRunService
+	ETL             etlRunner
 	Audit           auditVerifier
 	Health          healthChecker
 	Auth            auth.Verifier
@@ -102,6 +104,7 @@ func New(d Deps) *Server {
 		klr:             d.KLR,
 		mandates:        d.Mandates,
 		collectionRuns:  d.CollectionRuns,
+		etl:             d.ETL,
 		audit:           d.Audit,
 		health:          d.Health,
 		auth:            d.Auth,
@@ -127,6 +130,10 @@ func (s *Server) Routes() http.Handler {
 	// The fine-grained legacy sv_rechte_sachb model maps onto these roles at the
 	// IdP, so the API only enforces the coarse module boundary.
 	mux.HandleFunc("GET /api/audit/verify", s.authorize(s.auditVerify, auth.RoleAdmin))
+
+	// ETL: list + run the registered datasets (admin).
+	mux.HandleFunc("GET /api/etl/datasets", s.authorize(s.listETLDatasets, auth.RoleAdmin))
+	mux.HandleFunc("POST /api/etl/runs", s.authorize(s.runETLDataset, auth.RoleAdmin))
 
 	mux.HandleFunc("POST /api/cashbook/days", s.authorize(s.openDay, auth.RoleKasse))
 	mux.HandleFunc("GET /api/cashbook/days/{id}", s.authorizeRead(s.getDay, auth.RoleKasse))
