@@ -52,6 +52,7 @@ func Standard() *Registry {
 		{Key: "bank-sepa-sdd", Requirement: "IR-2", Name: "Bank — SEPA direct debit", Direction: Out, Format: "pain.008.001.08", Status: Implemented, Reference: "docs/20-sepa-direct-debit.md, docs/22-collection-runs.md"},
 		{Key: "bank-mt940", Requirement: "IR-2", Name: "Bank — statement import (MT940)", Direction: In, Format: "SWIFT MT940", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
 		{Key: "bank-camt053", Requirement: "IR-2", Name: "Bank — statement import (CAMT.053)", Direction: In, Format: "ISO 20022 camt.053.001.08", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
+		{Key: "bank-camt054", Requirement: "IR-2", Name: "Bank — notification import (CAMT.054)", Direction: In, Format: "ISO 20022 camt.054.001.08", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
 		{Key: "bank-ebics", Requirement: "IR-2", Name: "Bank — EBICS channel", Direction: Both, Format: "EBICS", Status: Planned, Reference: "docs/14 §4.3"},
 		{Key: "einvoice-out", Requirement: "IR-7", Name: "E-invoice — outbound XRechnung", Direction: Out, Format: "XRechnung 3.0 (UBL 2.1)", Status: Implemented, Reference: "docs/09-e-invoicing.md"},
 		{Key: "einvoice-in", Requirement: "IR-7", Name: "E-invoice — inbound XRechnung", Direction: In, Format: "XRechnung 3.0 (UBL 2.1)", Status: Implemented, Reference: "docs/09-e-invoicing.md"},
