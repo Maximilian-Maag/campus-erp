@@ -363,3 +363,30 @@ func TestStatusForStatement(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusForMandate(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", kasse.ErrMandateNotFound, http.StatusNotFound},
+		{"duplicate", kasse.ErrMandateReferenceExists, http.StatusConflict},
+		{"reference required", kasse.ErrMandateReferenceRequired, http.StatusUnprocessableEntity},
+		{"reference too long", kasse.ErrMandateReferenceTooLong, http.StatusUnprocessableEntity},
+		{"name required", kasse.ErrNameRequired, http.StatusUnprocessableEntity},
+		{"bad iban", kasse.ErrIBANInvalid, http.StatusUnprocessableEntity},
+		{"bad bic", kasse.ErrDebtorBICInvalid, http.StatusUnprocessableEntity},
+		{"signature required", kasse.ErrSignatureDateRequired, http.StatusUnprocessableEntity},
+		{"bad sequence", kasse.ErrSequenceTypeUnknown, http.StatusUnprocessableEntity},
+		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForMandate(c.err); got != c.want {
+				t.Fatalf("statusForMandate(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}

@@ -63,6 +63,14 @@ export class CampusErpApi {
     return this.http.post<m.Day>(this.base + `/api/cashbook/days/${id}/close`, null);
   }
 
+  createMandate(body: m.MandateRequest): Observable<m.Mandate> {
+    return this.http.post<m.Mandate>(this.base + `/api/direct-debit/mandates`, body);
+  }
+
+  getMandate(reference: number | string): Observable<m.Mandate> {
+    return this.http.get<m.Mandate>(this.base + `/api/direct-debit/mandates/${reference}`);
+  }
+
   createDunningLevel(body: m.CreateLevelRequest): Observable<m.DunningLevel> {
     return this.http.post<m.DunningLevel>(this.base + `/api/dunning/levels`, body);
   }

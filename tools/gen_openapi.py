@@ -194,6 +194,12 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/foundations": {
         "post": ("createFoundation", "kasse", "Create a foundation", "httpapi.foundationRequest", "kasse.Foundation", 201, "json"),
     },
+    "/api/direct-debit/mandates": {
+        "post": ("createMandate", "kasse", "Register a SEPA direct-debit mandate", "httpapi.mandateRequest", "kasse.Mandate", 201, "json"),
+    },
+    "/api/direct-debit/mandates/{reference}": {
+        "get": ("getMandate", "kasse", "Read a SEPA direct-debit mandate", None, "kasse.Mandate", 200, "json"),
+    },
 }
 
 # Synthetic schemas for constructs that exist only as anonymous structs in Go.

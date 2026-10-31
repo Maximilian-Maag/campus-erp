@@ -62,9 +62,9 @@ IBAN (ISO 7064 mod-97) and BIC (ISO 9362) validation are shared with pain.001.
 
 - **No direct-debit run entity** to drive it. The credit transfer is produced by a
   payment run (`internal/modules/kasse/paymentrun.go`); the direct-debit equivalent
-  — a collection run that gathers mandates and outstanding claims and calls this
-  generator — is a separate slice. Today the generator is exercised by its golden
-  and validation tests.
+  — a collection run that gathers mandates (`docs/21-mandates.md`) and outstanding
+  claims and calls this generator — is a separate slice. Today the generator is
+  exercised by its golden and validation tests.
 - **XSD validation is skipped**: the vendor ships the ISO 20022 schemas, but none is
   committed here, so `golden.ValidateXSD` has no schema to run against. The golden
   file plus the structural tests are the guard.

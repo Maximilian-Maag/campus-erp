@@ -1808,6 +1808,72 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/direct-debit/mandates:
+    post:
+      tags:
+      - kasse
+      operationId: createMandate
+      summary: Register a SEPA direct-debit mandate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MandateRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mandate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/direct-debit/mandates/{reference}:
+    get:
+      tags:
+      - kasse
+      operationId: getMandate
+      summary: Read a SEPA direct-debit mandate
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mandate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
 components:
   schemas:
     SeedResult:
@@ -1825,6 +1891,55 @@ components:
           type: string
       required:
       - reason
+    Mandate:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Reference:
+          type: string
+        DebtorName:
+          type: string
+        DebtorIBAN:
+          type: string
+        DebtorBIC:
+          type: string
+        SignatureDate:
+          type: string
+          format: date-time
+        SequenceType:
+          type: string
+        Active:
+          type: boolean
+      required:
+      - ID
+      - Reference
+      - DebtorName
+      - DebtorIBAN
+      - DebtorBIC
+      - SignatureDate
+      - SequenceType
+      - Active
+    MandateRequest:
+      type: object
+      properties:
+        reference:
+          type: string
+        debtor_name:
+          type: string
+        debtor_iban:
+          type: string
+        debtor_bic:
+          type: string
+        sequence_type:
+          type: string
+      required:
+      - reference
+      - debtor_name
+      - debtor_iban
+      - debtor_bic
+      - sequence_type
     Foundation:
       type: object
       properties:
