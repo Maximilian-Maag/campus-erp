@@ -49,7 +49,7 @@ type Registry struct {
 func Standard() *Registry {
 	r, err := New([]Interface{
 		{Key: "bank-sepa-sct", Requirement: "IR-2", Name: "Bank — SEPA credit transfer", Direction: Out, Format: "pain.001.001.09 (GBIC/DK)", Status: Implemented, Reference: "docs/legacy/kbs-sepa-export.md"},
-		{Key: "bank-sepa-sdd", Requirement: "IR-2", Name: "Bank — SEPA direct debit", Direction: Out, Format: "pain.008.001.08", Status: Planned, Reference: "docs/05 §6"},
+		{Key: "bank-sepa-sdd", Requirement: "IR-2", Name: "Bank — SEPA direct debit", Direction: Out, Format: "pain.008.001.08", Status: Implemented, Reference: "docs/20-sepa-direct-debit.md"},
 		{Key: "bank-mt940", Requirement: "IR-2", Name: "Bank — statement import (MT940)", Direction: In, Format: "SWIFT MT940", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
 		{Key: "bank-camt053", Requirement: "IR-2", Name: "Bank — statement import (CAMT.053)", Direction: In, Format: "ISO 20022 camt.053.001.08", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
 		{Key: "bank-ebics", Requirement: "IR-2", Name: "Bank — EBICS channel", Direction: Both, Format: "EBICS", Status: Planned, Reference: "docs/14 §4.3"},

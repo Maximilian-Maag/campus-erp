@@ -17,8 +17,8 @@ func TestStandardRegistryIsValid(t *testing.T) {
 			t.Fatalf("registry not sorted at %d", i)
 		}
 	}
-	if got := r.Count(Implemented); got != 6 {
-		t.Errorf("implemented = %d, want 6", got)
+	if got := r.Count(Implemented); got != 7 {
+		t.Errorf("implemented = %d, want 7", got)
 	}
 	if r.Count(Planned) == 0 {
 		t.Error("expected planned interfaces")
