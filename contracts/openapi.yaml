@@ -1874,6 +1874,76 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/direct-debit/runs:
+    post:
+      tags:
+      - kasse
+      operationId: createCollectionRun
+      summary: Create a SEPA direct-debit collection run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionRunRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/direct-debit/runs/{reference}/file:
+    get:
+      tags:
+      - kasse
+      operationId: getCollectionRunFile
+      summary: Download the pain.008 XML of a collection run
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Binary/XML payload
+          content:
+            application/xml:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
 components:
   schemas:
     SeedResult:
@@ -1891,6 +1961,90 @@ components:
           type: string
       required:
       - reason
+    CollectionRun:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Reference:
+          type: string
+        AccountID:
+          type: integer
+          format: int64
+        CreditorID:
+          type: string
+        CollectionDate:
+          type: string
+          format: date-time
+        SequenceType:
+          type: string
+        MessageID:
+          type: string
+        ItemCount:
+          type: integer
+          format: int64
+        SumCents:
+          type: integer
+          format: int64
+        FileHash:
+          type: string
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - Reference
+      - AccountID
+      - CreditorID
+      - CollectionDate
+      - SequenceType
+      - MessageID
+      - ItemCount
+      - SumCents
+      - FileHash
+      - CreatedBy
+    CollectionRunRequest:
+      type: object
+      properties:
+        reference:
+          type: string
+        account_id:
+          type: integer
+          format: int64
+        creditor_id:
+          type: string
+        sequence_type:
+          type: string
+        local_instrument:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectionItemRequest'
+      required:
+      - reference
+      - account_id
+      - creditor_id
+      - sequence_type
+      - local_instrument
+      - items
+    CollectionItemRequest:
+      type: object
+      properties:
+        mandate_reference:
+          type: string
+        end_to_end_id:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+        purpose:
+          type: string
+      required:
+      - mandate_reference
+      - end_to_end_id
+      - amount_cents
+      - purpose
     Mandate:
       type: object
       properties:

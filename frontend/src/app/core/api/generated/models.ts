@@ -55,6 +55,36 @@ export interface CashAccount {
   Currency: string;
 }
 
+export interface CollectionItemRequest {
+  mandate_reference: string;
+  end_to_end_id: string;
+  amount_cents: number;
+  purpose: string;
+}
+
+export interface CollectionRun {
+  ID: number;
+  Reference: string;
+  AccountID: number;
+  CreditorID: string;
+  CollectionDate: string;
+  SequenceType: string;
+  MessageID: string;
+  ItemCount: number;
+  SumCents: number;
+  FileHash: string;
+  CreatedBy: string;
+}
+
+export interface CollectionRunRequest {
+  reference: string;
+  account_id: number;
+  creditor_id: string;
+  sequence_type: string;
+  local_instrument: string;
+  items: CollectionItemRequest[];
+}
+
 export interface CostCenter {
   ID: number;
   Number: string;

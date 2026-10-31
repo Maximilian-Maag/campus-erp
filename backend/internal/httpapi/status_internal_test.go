@@ -390,3 +390,37 @@ func TestStatusForMandate(t *testing.T) {
 		})
 	}
 }
+
+func TestStatusForCollectionRun(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", kasse.ErrCollectionRunNotFound, http.StatusNotFound},
+		{"duplicate reference", kasse.ErrRunReferenceExists, http.StatusConflict},
+		{"reference required", kasse.ErrRunReferenceRequired, http.StatusUnprocessableEntity},
+		{"account required", kasse.ErrCashAccountRequired, http.StatusUnprocessableEntity},
+		{"creditor id required", kasse.ErrCollectionCreditorIDRequired, http.StatusUnprocessableEntity},
+		{"date required", kasse.ErrCollectionDateRequired, http.StatusUnprocessableEntity},
+		{"bad sequence", kasse.ErrSequenceTypeUnknown, http.StatusUnprocessableEntity},
+		{"bad local instrument", kasse.ErrLocalInstrumentUnknown, http.StatusUnprocessableEntity},
+		{"no items", kasse.ErrNoCollectionItems, http.StatusUnprocessableEntity},
+		{"blank mandate", kasse.ErrMandateReferenceRequired, http.StatusUnprocessableEntity},
+		{"duplicate mandate", kasse.ErrDuplicateMandate, http.StatusUnprocessableEntity},
+		{"end-to-end required", kasse.ErrEndToEndIDRequired, http.StatusUnprocessableEntity},
+		{"amount", kasse.ErrAmountNotPositive, http.StatusUnprocessableEntity},
+		{"inactive mandate", kasse.ErrMandateNotActive, http.StatusUnprocessableEntity},
+		{"sequence mismatch", kasse.ErrMandateSequenceMismatch, http.StatusUnprocessableEntity},
+		{"mandate not found", kasse.ErrMandateNotFound, http.StatusUnprocessableEntity},
+		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForCollectionRun(c.err); got != c.want {
+				t.Fatalf("statusForCollectionRun(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}
