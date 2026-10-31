@@ -206,6 +206,12 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/direct-debit/runs/{reference}/file": {
         "get": ("getCollectionRunFile", "kasse", "Download the pain.008 XML of a collection run", None, None, 200, "file"),
     },
+    "/api/etl/datasets": {
+        "get": ("listETLDatasets", "etl", "List the registered ETL datasets", None, "httpapi.datasetsResponse", 200, "json"),
+    },
+    "/api/etl/runs": {
+        "post": ("runETLDataset", "etl", "Run a named ETL dataset", "httpapi.etlRunRequest", "etl.Report", 200, "json"),
+    },
 }
 
 # Synthetic schemas for constructs that exist only as anonymous structs in Go.

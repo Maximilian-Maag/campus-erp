@@ -21,6 +21,10 @@ type Config struct {
 	// its tenants multi-tenant (ADR-0002); otherwise it runs single-tenant
 	// against DSN.
 	TenantDSN string
+
+	// LegacyDSN is the DSN of the legacy database the ETL datasets read from
+	// (docs/19). When empty the ETL source is the main pool (dev/seed).
+	LegacyDSN string
 }
 
 // Roles a process may run as.
@@ -45,6 +49,8 @@ func FromEnv(get func(string) string) (Config, error) {
 		OIDCJWKSURL:  get("ERP_OIDC_JWKS_URL"),
 
 		TenantDSN: get("ERP_TENANT_DSN"),
+
+		LegacyDSN: get("ERP_LEGACY_DATABASE_URL"),
 	}
 	switch c.Role {
 	case RoleAPI, RoleWorker, RoleConnectors:

@@ -13,6 +13,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/klr"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/etl"
 )
 
 func TestStatusFor(t *testing.T) {
@@ -420,6 +421,26 @@ func TestStatusForCollectionRun(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got := statusForCollectionRun(c.err); got != c.want {
 				t.Fatalf("statusForCollectionRun(%v) = %d, want %d", c.err, got, c.want)
+			}
+		})
+	}
+}
+
+func TestStatusForETL(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"unknown dataset", etl.ErrUnknownDataset, http.StatusNotFound},
+		{"actor required", etl.ErrActorRequired, http.StatusUnprocessableEntity},
+		{"reconcile", etl.ErrReconcile, http.StatusUnprocessableEntity},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := statusForETL(c.err); got != c.want {
+				t.Fatalf("statusForETL(%v) = %d, want %d", c.err, got, c.want)
 			}
 		})
 	}

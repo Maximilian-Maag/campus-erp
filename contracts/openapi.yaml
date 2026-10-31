@@ -1944,6 +1944,66 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/etl/datasets:
+    get:
+      tags:
+      - etl
+      operationId: listETLDatasets
+      summary: List the registered ETL datasets
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/etl/runs:
+    post:
+      tags:
+      - etl
+      operationId: runETLDataset
+      summary: Run a named ETL dataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EtlRunRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
 components:
   schemas:
     SeedResult:
@@ -1961,6 +2021,38 @@ components:
           type: string
       required:
       - reason
+    Report:
+      type: object
+      properties:
+        CostCenterID:
+          type: integer
+          format: int64
+        CostsCents:
+          type: integer
+          format: int64
+        RevenuesCents:
+          type: integer
+          format: int64
+      required:
+      - CostCenterID
+      - CostsCents
+      - RevenuesCents
+    EtlRunRequest:
+      type: object
+      properties:
+        dataset:
+          type: string
+      required:
+      - dataset
+    DatasetsResponse:
+      type: object
+      properties:
+        datasets:
+          type: array
+          items:
+            type: string
+      required:
+      - datasets
     CollectionRun:
       type: object
       properties:
@@ -2238,22 +2330,6 @@ components:
       - description
       - rate_basis_points
       - kind
-    Report:
-      type: object
-      properties:
-        CostCenterID:
-          type: integer
-          format: int64
-        CostsCents:
-          type: integer
-          format: int64
-        RevenuesCents:
-          type: integer
-          format: int64
-      required:
-      - CostCenterID
-      - CostsCents
-      - RevenuesCents
     Record:
       type: object
       properties:
