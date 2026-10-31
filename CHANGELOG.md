@@ -2,6 +2,25 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.35.0] - 2026-10-28
+
+SEPA direct-debit mandates.
+
+### Added
+- **`direct_debit_mandate`** (migration `0017`) — the mandate reference, debtor,
+  signature date and sequence type, with a constrained sequence type and no hard
+  deletes.
+- **`kasse.Mandate`** + `NewMandate` validation (reference, ISO 7064 IBAN, ISO 9362
+  BIC via `core/sepa`, signature date, sequence type) and the mandate service
+  (`mandate.create` audited).
+- **API** (contract-first): `POST /api/direct-debit/mandates` and
+  `GET /api/direct-debit/mandates/{reference}`, behind `erp-kasse` like dunning.
+  `contracts/openapi.yaml` and the generated Angular client regenerated (54
+  operations, 60 schemas).
+- Tests: domain validation, an integration test (persist + get + duplicate +
+  missing + audit), the HTTP handlers, and the status mapping.
+- `docs/21-mandates.md`.
+
 ## [0.34.0] - 2026-10-28
 
 Interface: SEPA direct debit (pain.008.001.08).

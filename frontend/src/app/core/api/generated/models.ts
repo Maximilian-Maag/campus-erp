@@ -310,6 +310,25 @@ export interface LookupValueRequest {
   active: boolean;
 }
 
+export interface Mandate {
+  ID: number;
+  Reference: string;
+  DebtorName: string;
+  DebtorIBAN: string;
+  DebtorBIC: string;
+  SignatureDate: string;
+  SequenceType: string;
+  Active: boolean;
+}
+
+export interface MandateRequest {
+  reference: string;
+  debtor_name: string;
+  debtor_iban: string;
+  debtor_bic: string;
+  sequence_type: string;
+}
+
 export interface OpenDayRequest {
   business_date: string;
   opening_cents: number;

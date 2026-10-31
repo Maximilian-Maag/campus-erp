@@ -54,6 +54,7 @@ type Server struct {
 	lookups         lookupService
 	procurement     procurementService
 	klr             klrService
+	mandates        mandateService
 	audit           auditVerifier
 	health          healthChecker
 	auth            auth.Verifier
@@ -76,6 +77,7 @@ type Deps struct {
 	Lookups         lookupService
 	Procurement     procurementService
 	KLR             klrService
+	Mandates        mandateService
 	Audit           auditVerifier
 	Health          healthChecker
 	Auth            auth.Verifier
@@ -96,6 +98,7 @@ func New(d Deps) *Server {
 		lookups:         d.Lookups,
 		procurement:     d.Procurement,
 		klr:             d.KLR,
+		mandates:        d.Mandates,
 		audit:           d.Audit,
 		health:          d.Health,
 		auth:            d.Auth,
@@ -184,6 +187,10 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/vat-types/{code}", s.authorizeRead(s.getVATType, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/tax-offices", s.authorize(s.createTaxOffice, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/foundations", s.authorize(s.createFoundation, auth.RoleFinanzen))
+
+	// SEPA direct-debit mandates (receivables — Kasse, like dunning).
+	mux.HandleFunc("POST /api/direct-debit/mandates", s.authorize(s.createMandate, auth.RoleKasse))
+	mux.HandleFunc("GET /api/direct-debit/mandates/{reference}", s.authorizeRead(s.getMandate, auth.RoleKasse))
 	// authenticate runs first (it attaches the principal); authorize reads it.
 	return s.authenticate(mux)
 }
