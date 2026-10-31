@@ -264,3 +264,54 @@ func TestStatementImportCAMT053(t *testing.T) {
 		t.Fatalf("counterparty = %q", l.CounterpartyName)
 	}
 }
+
+func TestStatementImportCAMT054(t *testing.T) {
+	ctx := context.Background()
+	runSvc, orderSvc := newRunService(t)
+	stmtSvc := kasse.NewStatementService(kasse.NewStatementRepo(testPool(t)), audit.NewStore(testPool(t)))
+
+	order := newApprovedOrder(t, orderSvc, 125000)
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	if err != nil {
+		t.Fatalf("CreateCashAccount: %v", err)
+	}
+	if _, err := runSvc.CreateRun(ctx, "RUN-"+uniqueSuffix(t), account.ID,
+		time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC), []int64{order.ID}, "carol"); err != nil {
+		t.Fatalf("CreateRun: %v", err)
+	}
+
+	// A camt.054 notification: the same entry set, no balance.
+	doc := `<?xml version="1.0" encoding="UTF-8"?>` +
+		`<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.08"><BkToCstmrDbtCdtNtfctn><Ntfctn>` +
+		`<Id>NTC-` + uniqueSuffix(t) + `</Id>` +
+		`<Acct><Id><IBAN>DE02120300000000202051</IBAN></Id><Ccy>EUR</Ccy></Acct>` +
+		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>` +
+		`<BookgDt><Dt>2026-10-28</Dt></BookgDt><ValDt><Dt>2026-10-28</Dt></ValDt>` +
+		`<NtryDtls><TxDtls><Refs><EndToEndId>` + order.Reference + `</EndToEndId></Refs>` +
+		`<RltdPties><Dbtr><Nm>Stadtwerke</Nm></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
+		`</Ntfctn></BkToCstmrDbtCdtNtfctn></Document>`
+
+	stmts, err := stmtSvc.Import(ctx, account.ID, doc, "carol")
+	if err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	if len(stmts) != 1 || len(stmts[0].Lines) != 1 {
+		t.Fatalf("stmts = %+v", stmts)
+	}
+	l := stmts[0].Lines[0]
+	if l.Status != kasse.StatusMatched || l.OrderID == nil || *l.OrderID != order.ID {
+		t.Fatalf("CAMT.054 line not matched: %+v", l)
+	}
+	if l.CounterpartyName != "Stadtwerke" {
+		t.Fatalf("counterparty = %q", l.CounterpartyName)
+	}
+
+	// Idempotent on the file: re-import returns the stored statements.
+	again, err := stmtSvc.Import(ctx, account.ID, doc, "carol")
+	if err != nil {
+		t.Fatalf("re-import: %v", err)
+	}
+	if len(again) != 1 || again[0].Reference != stmts[0].Reference {
+		t.Fatalf("re-import not idempotent: %+v", again)
+	}
+}

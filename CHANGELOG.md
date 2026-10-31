@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.37.0] - 2026-10-28
+
+Bank statement import: CAMT.054 (#23).
+
+### Added
+- **`internal/core/camt054`** — parses an ISO 20022 camt.054 debit/credit
+  notification into the shared `bankstmt` shape. A notification carries no
+  balance, so the parsed statements hold lines only. Mutation target added.
+- `StatementService.Import` detects the XML container: `BkToCstmrDbtCdtNtfctn`
+  → CAMT.054, otherwise CAMT.053; both reconcile identically (matched / returned /
+  unmatched, idempotent on the file hash).
+- Tests: a golden notification (credits + debits, counterparty, purpose, dates),
+  the no-balance invariant, error cases, amount/date parsing, and an integration
+  test that imports a CAMT.054 and reconciles a line against a paid order.
+- `bank-camt054` added to the interface registry (IR-2); `docs/legacy/kbs-statement-import.md` notes the format.
+
 ## [0.36.0] - 2026-10-28
 
 SEPA direct-debit collection run (#22).

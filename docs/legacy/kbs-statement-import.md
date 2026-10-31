@@ -84,7 +84,17 @@ line's client reference. A matched line whose direction is a return is classifie
 ISO 20022 **CAMT.053** import is implemented (`internal/core/camt053`); both
 formats now feed one reconciliation path via the shared parsed-statement shape
 (`internal/core/bankstmt`), and `StatementService.Import` detects the format (an
-XML document is CAMT.053, anything else is MT940). The mapping follows the
+XML document is CAMT, anything else is MT940). The mapping follows the
 productive parser (`rm.fia.payments.datex.sepa.camt053v02/v08`): `Stmt` →
 statement, `Bal` `OPBD`/`CLBD` → opening/closing balance, `Ntry` → line, with
 `TxDtls/Refs/EndToEndId`, `RltdPties` (`Cdtr`/`Dbtr`) and `RmtInf/Ustrd`.
+
+## CAMT.054 (added)
+
+ISO 20022 **CAMT.054** debit/credit *notification* import is implemented
+(`internal/core/camt054`). It is the same entry set as a statement but the message
+type carries **no balance**, so the parsed statements hold lines only (both
+balances zero). `StatementService.Import` routes an XML document by its container
+element — `BkToCstmrDbtCdtNtfctn` → CAMT.054, otherwise CAMT.053 — and reconciles
+the entries exactly as CAMT.053. Field mapping follows the productive parser
+(`rm.fia.payments.datex.sepa.camt054v02/v08`): `Ntfctn` → statement, `Ntry` → line.
