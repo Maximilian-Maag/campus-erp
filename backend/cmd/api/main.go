@@ -20,6 +20,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/auth"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/etl"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/tenant"
 )
 
@@ -30,11 +31,30 @@ func main() {
 	}
 	ctx := context.Background()
 
+	// The ETL datasets read from the legacy database (docs/19). When no legacy DSN
+	// is configured, the source is the canonical pool (dev/seed).
+	var legacyPool *pgxpool.Pool
+	if cfg.LegacyDSN != "" {
+		lp, err := db.Open(ctx, cfg.LegacyDSN)
+		if err != nil {
+			log.Fatalf("legacy db: %v", err)
+		}
+		defer lp.Close()
+		legacyPool = lp
+	}
+
 	// buildServer wires the whole modular monolith over one tenant's pool. It is
 	// the seam the multi-tenant front uses to build each tenant's server lazily.
 	buildServer := func(pool *pgxpool.Pool) *httpapi.Server {
 		store := audit.NewStore(pool)
 		budgetSvc := budget.NewPositionService(budget.NewPositionRepo(pool), store)
+		lookupSvc := lookup.NewValueService(lookup.NewValueRepo(pool), store)
+		srcPool := pool
+		if legacyPool != nil {
+			srcPool = legacyPool
+		}
+		etlRunner := etl.NewRunner(store).WithLedger(etl.NewAuditLedger(store))
+		etlRegistry := etl.NewRegistry(etlRunner, lookup.StandardDatasets(srcPool, lookupSvc)...)
 		deps := httpapi.Deps{
 			Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
 			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
@@ -45,11 +65,12 @@ func main() {
 			FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
 			EInvoices:       einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store),
 			Budget:          budgetSvc,
-			Lookups:         lookup.NewValueService(lookup.NewValueRepo(pool), store),
+			Lookups:         lookupSvc,
 			Procurement:     procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store),
 			KLR:             klr.NewService(klr.NewRepo(pool), store),
 			Mandates:        kasse.NewMandateService(kasse.NewMandateRepo(pool), store),
 			CollectionRuns:  kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), store),
+			ETL:             etlRegistry,
 			Audit:           store,
 			Health:          pool,
 		}

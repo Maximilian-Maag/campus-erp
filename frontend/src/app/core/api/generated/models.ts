@@ -180,6 +180,10 @@ export interface CreateRunRequest {
   order_ids: number[];
 }
 
+export interface DatasetsResponse {
+  datasets: string[];
+}
+
 export interface Day {
   ID: number;
   BusinessDate: string;
@@ -251,6 +255,10 @@ export interface EinvoicePartyRequest {
   endpoint_id: string;
   endpoint_scheme: string;
   email: string;
+}
+
+export interface EtlRunRequest {
+  dataset: string;
 }
 
 export interface Foundation {

@@ -62,6 +62,25 @@ registers them:
 Both reuse `LegacyCatalogueSource` + `CatalogueSink`; the queries are the measured
 legacy column shapes (fixed-width char columns trimmed and cast to text).
 
+## Running a dataset (API)
+
+`etl.NewRegistry` binds a `*Runner` to a set of named datasets, and the API exposes
+it so a re-run / reconciliation can be triggered on a real system (not only from
+tests):
+
+| method | path |
+|---|---|
+| `GET` | `/api/etl/datasets` — the registered dataset names |
+| `POST` | `/api/etl/runs` `{ "dataset": "..." }` — run one, returns the `etl.Report` |
+
+Both are behind `erp-admin` (an import changes canonical data). An unknown dataset
+name is a `404`. The runner's audit sink and ledger are the canonical store, so a
+run continues the hash-chained audit stream and drift detection works as in a test.
+
+The datasets read from the **legacy** database; the sink writes the canonical one.
+Set `ERP_LEGACY_DATABASE_URL` to point the source at the legacy DSN — when unset the
+source is the canonical pool (dev / seed, where the synthetic source tables live).
+
 - **Lookup catalogue** (`internal/modules/lookup/etl.go`, `docs/11`):
   `LegacyCatalogueSource` reads one legacy key table (the productive source's
   3,532 coded value sets) and `CatalogueSink` loads it through the value service

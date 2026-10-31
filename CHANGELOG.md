@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.38.0] - 2026-10-28
+
+ETL: run datasets from the API (#26).
+
+### Added
+- **`etl.Registry`** — binds a `Runner` to named datasets (`Names`, `Run`,
+  `ErrUnknownDataset`), so a run no longer needs hand-wiring.
+- **API** (contract-first): `GET /api/etl/datasets` and `POST /api/etl/runs`
+  `{"dataset":"..."}` (returns the `etl.Report`), behind `erp-admin`.
+  `contracts/openapi.yaml` + generated client regenerated (58 operations,
+  65 schemas); drift guard green.
+- `ERP_LEGACY_DATABASE_URL` — the ETL source pool (legacy DSN); when unset the
+  canonical pool is used (dev / seed). `cmd/api` opens the second pool and builds
+  the registry from `lookup.StandardDatasets`.
+- Tests: registry (names sorted, blank/duplicate handling, delegation, unknown
+  name), the HTTP handlers, and the status mapping.
+
 ## [0.37.0] - 2026-10-28
 
 Bank statement import: CAMT.054 (#23).
