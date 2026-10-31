@@ -2,6 +2,24 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.34.0] - 2026-10-28
+
+Interface: SEPA direct debit (pain.008.001.08).
+
+### Added
+- **`sepa.DirectDebit`** (`internal/core/sepa/pain008.go`) — generates an ISO 20022
+  pain.008.001.08 direct-debit initiation, the collection counterpart of the
+  credit transfer: stdlib-only, deterministic, pinned by a golden file. The SEPA
+  creditor identifier goes in `CdtrSchmeId`, each transaction carries its mandate
+  (`MndtId` + `DtOfSgntr`), and sequence type / local instrument are constrained to
+  the SEPA sets. Full validation with sentinel errors (`docs/20`).
+- Tests: a golden file, determinism, structure (incl. optional agent blocks and
+  empty-currency default), the length-limit boundaries and every validation branch.
+
+### Changed
+- The interface registry marks `bank-sepa-sdd` **implemented** (was planned);
+  `testdata/interfaces.txt` regenerated.
+
 ## [0.33.0] - 2026-10-28
 
 Deployment: ADR-0007 infrastructure in the chart, gated and off by default.
