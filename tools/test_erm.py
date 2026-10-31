@@ -58,8 +58,8 @@ def main() -> int:
 
         target = (out / "target_canonical.puml").read_text()
         entities = re.findall(r"^\s*entity\s+\"", target, re.MULTILINE)
-        # One entity per canonical table (0017 added direct_debit_mandate).
-        check(len(entities) == 33, f"target ER has 33 entities (got {len(entities)})")
+        # One entity per canonical table (0017/0018 added the direct-debit tables).
+        check(len(entities) == 35, f"target ER has 35 entities (got {len(entities)})")
         fk_edges = re.findall(r"\|\|--o\{", target)
         check(len(fk_edges) >= 4, f"target ER has declared FK edges (got {len(fk_edges)})")
         check("[FK]" in target, "target ER marks foreign-key columns")

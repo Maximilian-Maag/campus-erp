@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.36.0] - 2026-10-28
+
+SEPA direct-debit collection run (#22).
+
+### Added
+- **`direct_debit_run`** + **`direct_debit_run_item`** (migration `0018`) — one
+  produced pain.008 file per collection date/sequence type, with the stored file,
+  its hash, and one row per collected mandate (`UNIQUE (run_id, mandate_reference)`).
+- **`kasse.CollectionRun`** domain + repo + audited service `CreateCollectionRun`:
+  resolves each item's mandate, builds a `sepa.DirectDebit`, stores the file, and
+  is idempotent on the reference. Fails closed on an unknown/inactive mandate, a
+  sequence-type mismatch, a blank reference or a duplicate mandate in one run.
+- **API** (contract-first): `POST /api/direct-debit/runs` and
+  `GET /api/direct-debit/runs/{reference}/file`, behind `erp-kasse`.
+  `contracts/openapi.yaml` and the generated client regenerated (56 operations,
+  63 schemas); the drift guard passes.
+- Tests: run-level validation (every branch), an integration test (produced file
+  bytes + hash, idempotent re-run, unknown mandate, sequence mismatch, the DB-level
+  per-run uniqueness, audit), the HTTP handlers and the status mapping.
+- `docs/22-collection-runs.md`; the interface registry's `bank-sepa-sdd` reference
+  now points at the run.
+
 ## [0.35.0] - 2026-10-28
 
 SEPA direct-debit mandates.
