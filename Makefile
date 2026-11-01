@@ -87,11 +87,19 @@ check-tools: ## Report which optional tools are available
 all: c4-pdf backend frontend docker ## Architecture report PDF + build backend & frontend + images
 
 .PHONY: test
-test: ## Run the full quality suite (tools/run_tests.sh)
-	@$(ROOT)/tools/run_tests.sh
+test: ## Fast suite: Go + Angular + tooling + contract (no mutation)
+	@STEPS=fast $(ROOT)/tools/run_tests.sh
+
+.PHONY: mutation
+mutation: ## Mutation gates only: gremlins per package + Stryker (floor 85)
+	@STEPS=mutation $(ROOT)/tools/run_tests.sh
+
+.PHONY: test-all
+test-all: ## Full suite: the fast checks + the mutation gates
+	@STEPS=fast,mutation $(ROOT)/tools/run_tests.sh
 
 .PHONY: quality
-quality: policy contracts-check test ## Policy check + contract + full quality suite
+quality: policy contracts-check test-all ## Policy check + contract + full quality suite
 
 .PHONY: test-tools
 test-tools: ## Self-test the tooling (ER-model generator + API contract)

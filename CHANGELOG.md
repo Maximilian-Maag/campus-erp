@@ -2,6 +2,21 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.39.0] - 2026-11-01
+
+Tooling: split the quality gate into a fast suite and the mutation gates (#32).
+
+### Changed
+- `tools/run_tests.sh` takes a `STEPS` selector: `fast` (Go vet/build/unit+integration,
+  Angular build + unit, the ER self-test, the API-contract drift guard) and
+  `mutation` (gremlins per package + Stryker); default is both.
+- **`make test`** now runs the fast suite (seconds when warm — it previously ran
+  everything and took ~13 min, which is over an interactive command budget);
+  **`make mutation`** runs the mutation gates alone; **`make test-all`** runs both.
+  `make quality` runs policy + contract + the full suite. CI is unaffected (it
+  already splits these into separate jobs).
+- README / AGENTS / `docs/build-and-deploy.md` updated for the split.
+
 ## [0.38.0] - 2026-10-28
 
 ETL: run datasets from the API (#26).

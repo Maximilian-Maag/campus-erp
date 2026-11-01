@@ -63,7 +63,9 @@ One `Makefile` drives everything (needs only docker; the Go toolchain is optiona
 ```bash
 make help           # all targets
 make all            # C4 PDF + backend + frontend + container images
-make test           # full quality suite (tools/run_tests.sh)
+make test           # fast suite: Go + Angular + tooling + contract (no mutation)
+make mutation       # mutation gates only: gremlins + stryker (floor 85)
+make test-all       # both
 
 make c4-pdf         # C4 model → c4/export/campus-erp-c4-model.pdf
 make docker-images  # backend + frontend images
