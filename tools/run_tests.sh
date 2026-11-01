@@ -18,6 +18,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CI="${CI:-}"
 GO_IMAGE="${GO_IMAGE:-golang:1.25-alpine}"
 MUTATION_THRESHOLD="${MUTATION_THRESHOLD:-85}"
+# Step groups. `fast` runs the code checks (Go, Angular, tooling, contract);
+# `mutation` runs the mutation gates (gremlins per package + Stryker). A full run is
+# both. The mutation sweep is ~11 min on its own - over an interactive command
+# budget - so `make test` selects `fast` and `make mutation` runs the gates alone;
+# `make test-all` runs everything.
+STEPS="${STEPS:-fast,mutation}"
+want() { [[ ",$STEPS," == *",$1,"* ]]; }
 
 fail=0
 ran=0
@@ -43,7 +50,7 @@ PY
 }
 
 # ── Go: vet + build + unit tests ────────────────────────────────────────────
-if [[ -d $ROOT/backend ]]; then
+if want fast && [[ -d $ROOT/backend ]]; then
   say "== Go: vet + build + unit + integration tests =="
   # The integration/e2e tests must not be skipped in CI: they need a database.
   if [[ -n $CI ]] && [[ -z ${DATABASE_URL:-} ]]; then
@@ -63,7 +70,7 @@ if [[ -d $ROOT/backend ]]; then
 fi
 
 # ── Angular: build + unit tests ─────────────────────────────────────────────
-if [[ -d $ROOT/frontend ]]; then
+if want fast && [[ -d $ROOT/frontend ]]; then
   say "== Angular: build + unit tests =="
   if [[ -d $ROOT/frontend/node_modules ]] && have npx; then
     ( cd "$ROOT/frontend" && npx ng build --configuration development >/dev/null && \
@@ -76,7 +83,7 @@ if [[ -d $ROOT/frontend ]]; then
 fi
 
 # ── Tooling: ER-model generator self-test ───────────────────────────────────
-if [[ -f $ROOT/tools/test_erm.py ]]; then
+if want fast && [[ -f $ROOT/tools/test_erm.py ]]; then
   say "== Tooling: ER-model generator self-test =="
   if have python3; then
     python3 "$ROOT/tools/test_erm.py"
@@ -88,7 +95,7 @@ if [[ -f $ROOT/tools/test_erm.py ]]; then
 fi
 
 # ── Tooling: API contract (drift guard + generated client) ──────────────────
-if [[ -f $ROOT/tools/api_contract.py ]]; then
+if want fast && [[ -f $ROOT/tools/api_contract.py ]]; then
   say "== Tooling: API contract (drift guard) =="
   if have python3; then
     python3 "$ROOT/tools/api_contract.py" selftest && python3 "$ROOT/tools/api_contract.py" check
@@ -100,6 +107,7 @@ if [[ -f $ROOT/tools/api_contract.py ]]; then
 fi
 
 # ── Mutation: Go (gremlins, per package) ────────────────────────────────────
+if want mutation; then
 say "== Mutation: Go (floor ${MUTATION_THRESHOLD}%) =="
 if [[ -d $ROOT/backend ]]; then
   if have gremlins; then
@@ -128,8 +136,10 @@ if [[ -d $ROOT/backend ]]; then
     skip_or_fail gremlins "go install github.com/go-gremlins/gremlins/cmd/gremlins@latest"
   fi
 fi
+fi
 
 # ── Mutation: TypeScript (stryker) ──────────────────────────────────────────
+if want mutation; then
 say "== Mutation: TypeScript (floor ${MUTATION_THRESHOLD}%) =="
 if [[ -f $ROOT/frontend/stryker.conf.json ]]; then
   if [[ -d $ROOT/frontend/node_modules ]] && have npx; then
@@ -139,6 +149,7 @@ if [[ -f $ROOT/frontend/stryker.conf.json ]]; then
   else
     skip_or_fail npx "npm ci in frontend/"
   fi
+fi
 fi
 
 say ""

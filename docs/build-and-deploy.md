@@ -33,9 +33,14 @@ frontend, and `tectonic` for the architecture report PDF.
 
 ## Running the quality suite locally
 
-`make test` runs the full suite (ADR-0008): Go vet/build/unit+integration, the
-Angular build + Karma tests, the ER-generator self-test, and the Go + TypeScript
-mutation floors (0.85).
+The gate is split (ADR-0008) so the common check is quick:
+
+- `make test` — the **fast** suite: Go vet/build/unit+integration, the Angular
+  build + Karma tests, the ER-generator self-test and the API-contract drift
+  guard. Seconds when warm.
+- `make mutation` — the mutation gates only: gremlins per package + Stryker
+  (floor 0.85). ~11 min on its own.
+- `make test-all` — both; `make quality` adds the policy + contract checks.
 
 Go needs `DATABASE_URL` (the integration/e2e tests must not skip):
 
