@@ -81,9 +81,34 @@ jobs:
       - name: validate the OpenAPI document
         run: npx --yes @redocly/cli lint --config .redocly.yaml contracts/openapi.yaml
 
-  mutation-go:
-    name: mutation go (floor 85)
+  # The target list comes from backend/mutation.json. A separate job publishes it so
+  # mutation-go can fan out one job per package (a matrix cannot read a file).
+  mutation-go-targets:
+    name: mutation go targets
     runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        name: read backend/mutation.json
+        run: |
+          targets=$(python3 -c "import json;print(json.dumps([t['path'] for t in json.load(open('backend/mutation.json'))['targets']]))")
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+
+  mutation-go:
+    # One job per package. gremlins' full per-package sweep is minutes long, and a
+    # single job running every target was terminated by the runner before it could
+    # report a score (issue #28). Sharding keeps each job well inside a bounded
+    # timeout and lets its output stream.
+    name: mutation go ${{ matrix.target }} (floor 85)
+    needs: mutation-go-targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.mutation-go-targets.outputs.targets) }}
     defaults:
       run:
         working-directory: backend
@@ -110,22 +135,20 @@ jobs:
         with:
           go-version: '1.25'
       - run: go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
-      - name: gremlins per package (fail on a vacuous run)
+      - name: gremlins ${{ matrix.target }}
         run: |
           set -euo pipefail
-          targets=$(python3 -c "import json;print(' '.join(t['path'] for t in json.load(open('mutation.json'))['targets']))")
+          pkg="${{ matrix.target }}"
+          # Isolate gremlins' coverage cache per package: a shared cache yields
+          # wrong, non-reproducible scores.
           cache_root=$(mktemp -d)
-          for pkg in $targets; do
-            echo "::group::gremlins $pkg"
-            # Isolate gremlins' coverage cache per package: a shared cache yields
-            # wrong, non-reproducible scores.
-            out=$(XDG_CACHE_HOME="$cache_root/${pkg//\//_}" gremlins unleash --threshold-efficacy 85 "./$pkg" 2>&1) || { echo "$out"; exit 1; }
-            echo "$out"
-            if echo "$out" | grep -q "No results to report"; then
-              echo "no mutants produced for $pkg (vacuous run)"; exit 1
-            fi
-            echo "::endgroup::"
-          done
+          df -h /
+          free -m
+          out=$(XDG_CACHE_HOME="$cache_root/${pkg//\//_}" stdbuf -oL -eL gremlins unleash --threshold-efficacy 85 "./$pkg" 2>&1) || { echo "$out"; df -h /; exit 1; }
+          echo "$out"
+          if echo "$out" | grep -q "No results to report"; then
+            echo "no mutants produced for $pkg (vacuous run)"; exit 1
+          fi
 
   mutation-web:
     name: mutation web (floor 85)
