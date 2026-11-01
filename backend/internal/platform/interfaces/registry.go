@@ -51,6 +51,7 @@ func Standard() *Registry {
 		{Key: "bank-sepa-sct", Requirement: "IR-2", Name: "Bank — SEPA credit transfer", Direction: Out, Format: "pain.001.001.09 (GBIC/DK)", Status: Implemented, Reference: "docs/legacy/kbs-sepa-export.md"},
 		{Key: "bank-sepa-sdd", Requirement: "IR-2", Name: "Bank — SEPA direct debit", Direction: Out, Format: "pain.008.001.08", Status: Implemented, Reference: "docs/20-sepa-direct-debit.md, docs/22-collection-runs.md"},
 		{Key: "bank-mt940", Requirement: "IR-2", Name: "Bank — statement import (MT940)", Direction: In, Format: "SWIFT MT940", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
+		{Key: "bank-camt052", Requirement: "IR-2", Name: "Bank — account report (CAMT.052)", Direction: In, Format: "ISO 20022 camt.052.001.08", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
 		{Key: "bank-camt053", Requirement: "IR-2", Name: "Bank — statement import (CAMT.053)", Direction: In, Format: "ISO 20022 camt.053.001.08", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
 		{Key: "bank-camt054", Requirement: "IR-2", Name: "Bank — notification import (CAMT.054)", Direction: In, Format: "ISO 20022 camt.054.001.08", Status: Implemented, Reference: "docs/legacy/kbs-statement-import.md"},
 		{Key: "bank-ebics", Requirement: "IR-2", Name: "Bank — EBICS channel", Direction: Both, Format: "EBICS", Status: Planned, Reference: "docs/14 §4.3"},
