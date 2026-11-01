@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.08">
+  <BkToCstmrAcctRpt>
+    <GrpHdr>
+      <MsgId>RPT-2026-0001</MsgId>
+      <CreDtTm>2026-10-29T18:00:00</CreDtTm>
+    </GrpHdr>
+    <Rpt>
+      <Id>RPT-2026-0001</Id>
+      <ElctrncSeqNb>7</ElctrncSeqNb>
+      <Acct>
+        <Id><IBAN>DE02120300000000202051</IBAN></Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">10000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-10-28</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">11200.01</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-10-28</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="EUR">1250.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-28</Dt></BookgDt>
+        <ValDt><Dt>2026-10-28</Dt></ValDt>
+        <NtryDtls>
+          <TxDtls>
+            <Refs><EndToEndId>AO-2026-0001</EndToEndId><TxId>TX-1</TxId></Refs>
+            <RltdPties>
+              <Dbtr>
+                <Nm>Stadtwerke Musterstadt</Nm>
+                <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>
+              </Dbtr>
+            </RltdPties>
+            <RmtInf><Ustrd>Stromabschlag Oktober</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">49.99</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><Dt>2026-10-28</Dt></BookgDt>
+        <ValDt><Dt>2026-10-28</Dt></ValDt>
+        <NtryDtls>
+          <TxDtls>
+            <Refs><EndToEndId>AO-2026-0002</EndToEndId><TxId>TX-2</TxId></Refs>
+            <RltdPties>
+              <Cdtr>
+                <Nm>Buchhandlung Am Markt</Nm>
+                <Acct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></Acct>
+              </Cdtr>
+            </RltdPties>
+            <RmtInf><Ustrd>Fachliteratur</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Rpt>
+  </BkToCstmrAcctRpt>
+</Document>

@@ -49,7 +49,7 @@ C4Context
 | Req | External system | Interfaces (registry keys) | Status |
 |---|---|---|---|
 | IR-1 | LBV / state pay office | `lbv-payoffice` (per-Bundesland file) | planned |
-| IR-2 | Bank | `bank-sepa-sct`, `bank-sepa-sdd` (out); `bank-mt940`, `bank-camt053`, `bank-camt054` (in) | implemented |
+| IR-2 | Bank | `bank-sepa-sct`, `bank-sepa-sdd` (out); `bank-mt940`, `bank-camt052`, `bank-camt053`, `bank-camt054` (in) | implemented |
 | IR-2 | Bank | `bank-ebics` (channel, both) | planned |
 | IR-3 | Finanzamt | `elster-eric` (ERiC) | planned |
 | IR-4 | Statistics offices | `statistics` (per-state) | planned |

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/bankstmt"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/camt052"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/camt053"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/camt054"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/mt940"
@@ -145,15 +146,19 @@ func (s *StatementService) BankFile(ctx context.Context, id int64) (BankFile, er
 }
 
 // parseStatements detects the statement format: an XML document is CAMT — a
-// camt.054 notification (no balance) or a camt.053 statement — anything else is
-// MT940.
+// camt.052 account report, a camt.054 notification, or a camt.053 statement —
+// anything else is MT940.
 func parseStatements(content string) ([]bankstmt.Statement, error) {
 	trimmed := strings.TrimSpace(content)
 	if strings.HasPrefix(trimmed, "<") {
-		if strings.Contains(trimmed, "BkToCstmrDbtCdtNtfctn") {
+		switch {
+		case strings.Contains(trimmed, "BkToCstmrAcctRpt"):
+			return camt052.Parse(content)
+		case strings.Contains(trimmed, "BkToCstmrDbtCdtNtfctn"):
 			return camt054.Parse(content)
+		default:
+			return camt053.Parse(content)
 		}
-		return camt053.Parse(content)
 	}
 	return mt940.Parse(content)
 }
