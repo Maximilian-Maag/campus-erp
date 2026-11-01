@@ -60,7 +60,12 @@ system it replaces.
 `make` is the single entry point (see `docs/build-and-deploy.md`):
 
 - `make all` — C4 PDF + backend + frontend + container images.
-- `make test` — the quality suite (`tools/run_tests.sh`).
+- `make test` — the fast quality suite: Go vet/build/unit+integration, Angular
+  build + unit, the tooling self-tests and the contract drift guard
+  (`tools/run_tests.sh` with `STEPS=fast`).
+- `make mutation` — the mutation gates only (gremlins per package + Stryker, floor
+  0.85). Run it before landing a change that touches mutation targets; `make
+  test-all` runs both.
 - `make c4-pdf` — `c4/workspace.dsl` → `c4/export/campus-erp-c4-model.pdf`
   (`tools/c4_pdf.sh`). The Structurizr image cannot render PNG locally, so the
   script exports PlantUML and renders with `plantuml/plantuml`; both containers
