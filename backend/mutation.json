@@ -78,6 +78,10 @@
     {
       "path": "internal/platform/etl",
       "lang": "go"
+    },
+    {
+      "path": "internal/platform/jobs",
+      "lang": "go"
     }
   ],
   "exempt": [

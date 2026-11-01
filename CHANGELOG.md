@@ -2,6 +2,27 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.41.0] - 2026-11-01
+
+Platform: the worker runtime (River) — the last Phase-0 gap (#44).
+
+### Added
+- **`internal/platform/jobs`** — the async runtime on River/Postgres (ADR-0007):
+  `Migrate` (idempotent River schema), `New` (client with the standard workers),
+  `StandardWorkers`, and the `etl` job kind (`EtlArgs{Dataset, Actor}`) which runs a
+  registered dataset and puts the run on the audit stream. `EnqueueEtl` is the
+  enqueue seam for the API role.
+- `cmd/worker` is wired: opens the pool, migrates, builds the ETL registry (legacy
+  source pool when `ERP_LEGACY_DATABASE_URL` is set), starts the client, blocks until
+  SIGINT/SIGTERM and drains with a bounded stop.
+- Tests: the `etl` kind's args/error paths, and an integration test that migrates
+  River's schema, starts a client, enqueues a job and waits for it to complete.
+
+### Changed
+- The module moves to **Go 1.26** (River v0.51 requires it): `go.mod` and the CI
+  workflows' `setup-go`. The local docker fallback image follows (`golang:1.26-alpine`).
+- `internal/platform/jobs` is a mutation target (100 % efficacy).
+
 ## [0.40.0] - 2026-11-01
 
 Bank statement import: CAMT.052 (intraday account report) (#34).

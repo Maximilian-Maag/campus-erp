@@ -12,7 +12,8 @@ Not user-visible, but nothing ships without it:
 - auth (OIDC against the university IdP) + role/permission model
 - **audit**: append-only, hash-chained event stream — ADR-0006
 - ETL framework: legacy → canonical, re-runnable + reconcilable — framework + first pipeline (`docs/19`)
-- deployment: CloudNativePG, PgBouncer, River, object storage — ADR-0007
+- deployment: CloudNativePG, PgBouncer, object storage — ADR-0007 (chart); the
+  River worker runtime is wired (`internal/platform/jobs`, `cmd/worker`)
 - quality gates live in CI: unit, integration, e2e, mutation ≥ 0.85 — ADR-0008
 
 ## Phase order and rationale
