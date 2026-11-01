@@ -27,6 +27,10 @@ C4Context
     System_Ext(statistik, "Statistik / Landesamt", "Statistics offices")
     System_Ext(qis, "QIS / SAP HCM", "External campus & HR systems")
     System_Ext(bi, "Business Intelligence", "HISinOne-BI / reporting")
+    System_Ext(idp, "IdP (Shibboleth/OIDC)", "Identity provider (IR-5)")
+    System_Ext(kfw, "KfW Studentendarlehen", "Loan SOAP portal (hs2kfw, docs/14 §4.2)")
+    System_Ext(bsos, "Chipkarte / Kassenautomat", "BSOS terminal (bsos-connector, docs/14 §4.1)")
+    System_Ext(hss, "hochschulstart.de / DoSV", "Admission portal (IR-8)")
 
     Rel(sachb_pers, erp, "verwaltet Personal, Stellen, Reisen")
     Rel(sachb_fin, erp, "verwaltet Haushalt, Rechnungen, Beschaffung")
@@ -42,7 +46,14 @@ C4Context
     Rel(erp, statistik, "Personal-/Finanzstatistik", "Export (out_*)")
     Rel(erp, qis, "Personendaten-Transfer", "qis_sva_personendaten_transfer")
     Rel(erp, bi, "Auswertungen/Kennzahlen", "Datenbank-Views")
+    Rel(erp, idp, "Login / Rechte", "OIDC/SAML (IR-5)")
+    Rel(erp, kfw, "Studienkredit-Anträge", "SOAP SBwsService (docs/14 §4.2)")
+    Rel(erp, bsos, "Karten-/Kassenautomat", "TCP-Bridge (BSOS, docs/14 §4.1)")
+    Rel(erp, hss, "Bewerbung / DoSV", "IR-8")
 ```
+
+> For the **replacement's** external systems and each interface's
+> implemented/planned status, see `05-external-systems.md`.
 
 ## Actors
 
@@ -66,6 +77,11 @@ C4Context
 | DMS | `dokumente`, `__dokumente*`, `k_dokumente_*` across schemas |
 | Statistics offices | `sva4.k_referenz_personalstatistik`, `out_*` exports |
 | HISinOne campus | inferred; not present as tables in this dump |
+| Identity provider (Shibboleth/OIDC) | `docs/14` (bundle ships an IdM connector: `UniBielefeldIdmConnectorService`) |
+| KfW student loan | `sonst/hs2kfw` — a shipped Axis2 SOAP client for the KfW portal (`docs/14` §4.2) |
+| Chip-card / cash terminal (BSOS) | `sonst/bsos-connector` (TCP bridge to `bsos.exe`, `docs/14` §4.1) |
+| hochschulstart.de / DoSV | requirement IR-8 (admission); no tables in this dump |
+| Bank (EBICS channel) | `docs/14` §4.3 — the SEPA file layer plus an EBICS transport, beyond the file tables above |
 
 ## Key open point
 

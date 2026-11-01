@@ -128,7 +128,10 @@ inventory**.
    (SEPA/datex + SOAP `PaymentExportService`), cash/chip terminal (`bsos` +
    `CardTerminalService`), KfW (`hs2kfw`), IdM (`UniBielefeldIdmConnector`),
    ELSTER/LBV/statistics (`IR-1..IR-4`). They belong in one registry, each with a
-   versioned format contract and a golden file (`requirements.md` §5).
+   versioned format contract and a golden file (`requirements.md` §5). The
+   resulting picture — campus-erp and all its external systems, with each
+   interface's implemented/planned status — is diagrammed in
+   `docs/c4/05-external-systems.md`.
 2. **Reporting/BI (`FR-X2`).** `superx` shows the legacy reporting stack
    (**JasperReports** for documents, **Saiku OLAP** for controlling analytics) —
    the parity targets for our reporting centre and KLR evaluations (`FR-C6`).
