@@ -98,3 +98,13 @@ balances zero). `StatementService.Import` routes an XML document by its containe
 element — `BkToCstmrDbtCdtNtfctn` → CAMT.054, otherwise CAMT.053 — and reconciles
 the entries exactly as CAMT.053. Field mapping follows the productive parser
 (`rm.fia.payments.datex.sepa.camt054v02/v08`): `Ntfctn` → statement, `Ntry` → line.
+
+## CAMT.052 (added)
+
+ISO 20022 **CAMT.052** bank-to-customer *account report* (the intraday statement)
+is implemented (`internal/core/camt052`). `StatementService.Import` routes an XML
+document by container: `BkToCstmrAcctRpt` → CAMT.052, `BkToCstmrDbtCdtNtfctn` →
+CAMT.054, otherwise CAMT.053. Unlike a notification, a report *may* carry balances:
+`Bal` `OPBD`/`CLBD` are mapped when present and left zero otherwise. Entries
+reconcile exactly as the other formats. Field mapping follows the productive parser
+(`rm.fia.payments.datex.sepa.camt052v02/v08`): `Rpt` → statement, `Ntry` → line.

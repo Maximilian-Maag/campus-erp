@@ -16,6 +16,10 @@
       "lang": "go"
     },
     {
+     "path": "internal/core/camt052",
+     "lang": "go"
+    },
+    {
      "path": "internal/core/camt053",
      "lang": "go"
     },

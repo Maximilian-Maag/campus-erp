@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.40.0] - 2026-11-01
+
+Bank statement import: CAMT.052 (intraday account report) (#34).
+
+### Added
+- **`internal/core/camt052`** — parses an ISO 20022 camt.052 bank-to-customer
+  account report into the shared `bankstmt` shape; `Bal` `OPBD`/`CLBD` are mapped
+  when present and left zero otherwise. Mutation target added.
+- `StatementService.Import` routes the XML container: `BkToCstmrAcctRpt` →
+  CAMT.052, `BkToCstmrDbtCdtNtfctn` → CAMT.054, otherwise CAMT.053.
+- Tests: a golden report (balances + credits + debits), the no-balance case, error
+  cases, amount/date parsing, and an integration test reconciling a CAMT.052 line
+  against a paid order.
+- `bank-camt052` added to the interface registry (IR-2); the statement-import doc and
+  the C4 external-systems diagram note the format.
+
 ## [0.39.0] - 2026-11-01
 
 Tooling: split the quality gate into a fast suite and the mutation gates (#32).
