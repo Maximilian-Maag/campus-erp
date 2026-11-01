@@ -11,12 +11,12 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 | S0 platform foundations | **done for the pilot** — tenant DSN (`DATABASE_URL`), embedded migration runner (advisory-locked, safe under concurrent startup), append-only hash-chained audit store, CI with a Postgres service |
 | S1 cash-book core | **done** — day lifecycle (open / book / close), PostgreSQL repository, HTTP API, audit event on every write |
 | S2 payment orders + four-eyes | **done** — canonical `payment_order`/`payment_recipient`/`budget_position`, enforced four-eyes rule, decision trail, HTTP workflow |
-| S3 payment run + SEPA export | **done** — `cash_account`/`payment_run`/`payment_run_item`; ISO 20022 **pain.001.001.09** (DK/GBIC), golden file validated against the vendor XSD; idempotent on reference; double-payment guard |
+| S3 payment run + SEPA export | **done** — `cash_account`/`payment_run`/`payment_run_item`; ISO 20022 **pain.001.001.09** (DK/GBIC), byte-identical golden file (XSD validation is wired via `golden.ValidateXSD` but skipped — the vendor schema is proprietary and not committed); idempotent on reference; double-payment guard |
 | S4 statement import + reconciliation | **done** — `bank_file`/`bank_statement`/`bank_statement_line`; MT940 **and CAMT.053** parsers, lines reconciled against paid orders and classified `matched`/`returned`/`unmatched`; idempotent on the file |
 | S5 dunning | **done** — `dunning_level`/`dunning_band`/`dunning_notice`, any number of ordered bands, integer basis-point rates, stored charges, HTTP workflow |
 | S6 foundation books | **done** — `foundation_book`/`foundation_booking`; a separate book per foundation, append-only movements, derived balance; isolation tested |
 | S7 tax-office data + foundations | **done** — `vat_type`, `tax_office`, `foundation`; exact VAT arithmetic, ISO 7064 mod-97 IBAN validation, HTTP workflow |
-| S8 | **in progress** — ETL framework + first pipeline (lookup catalogue) done, `docs/19`; parallel run + cutover blocked on a production extract |
+| S8 | **in progress** — ETL framework + pipelines (lookup catalogue, reference datasets) runnable from the API (`docs/19`); parallel run + cutover blocked on a production extract |
 
 What exists is a **vertical slice, not parity**: the cash-book day lifecycle, the
 payment-order workflow, the SEPA export, the statement import (MT940 + CAMT.053)
@@ -66,11 +66,11 @@ Legacy findings: `docs/legacy/kbs-payment-orders.md` (S2),
 
 | Interface | Direction | Detail | Test |
 |---|---|---|---|
-| SEPA credit transfer (pain.001) | out | payment runs | golden files |
-| SEPA direct debit (pain.008) | out | if used by the university | golden files |
-| Bank statement (MT940 / CAMT.053) | in | reconciliation | golden files |
-| EBICS transport | both | via `connectors` | sandbox/contract |
-| Return postings to FiBu | out | `rueckfibu_*` format | golden files |
+| SEPA credit transfer (pain.001) | out | payment runs — **implemented** | golden files |
+| SEPA direct debit (pain.008) | out | mandates + collection run (`docs/20`–`22`) — **implemented** | golden files |
+| Bank statement (MT940 / CAMT.052/053/054) | in | reconciliation — **implemented** | golden files |
+| EBICS transport | both | via `connectors` — **planned** | sandbox/contract |
+| Return postings to FiBu | out | `rueckfibu_*` format — **not implemented** | golden files |
 
 Every interface: versioned contract, golden-file tests, idempotent re-processing.
 
