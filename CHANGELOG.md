@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.46.0] - 2026-11-02
+
+Ledger posting export, format + renderer (increment 1 of #42).
+
+### Added
+- `internal/core/ledger`: the `cash-postings/v1` export that carries confirmed cash
+  bookings to the ledger side. `Marshal` is versioned, validated, sorted by booking
+  date then reference and field-trimmed, so the same booking set always renders
+  byte-identically; references are the idempotency key. Mutation target (100 %).
+- `docs/23-ledger-postings.md`: the format and how it is consumed.
+
 ## [0.45.0] - 2026-11-02
 
 Make the repository vendor-neutral.
