@@ -54,6 +54,11 @@ func (s *DunningService) CreateLevel(ctx context.Context, l DunningLevel, by str
 	return saved, nil
 }
 
+// Notice loads a notice by id, including the key of its stored document.
+func (s *DunningService) Notice(ctx context.Context, id int64) (DunningNotice, error) {
+	return s.repo.GetNotice(ctx, id)
+}
+
 // Level loads a dunning level.
 func (s *DunningService) Level(ctx context.Context, year int, code string) (DunningLevel, error) {
 	return s.repo.GetLevel(ctx, year, code)

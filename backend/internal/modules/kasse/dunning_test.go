@@ -249,6 +249,15 @@ func (f *fakeDunningRepo) InsertNotice(_ context.Context, n DunningNotice) (Dunn
 	return n, nil
 }
 
+func (f *fakeDunningRepo) GetNotice(_ context.Context, id int64) (DunningNotice, error) {
+	if f.getErr != nil {
+		return DunningNotice{}, f.getErr
+	}
+	n := f.notice
+	n.ID = id
+	return n, nil
+}
+
 func (f *fakeDunningRepo) SetNoticeDocument(_ context.Context, id int64, key string) error {
 	if f.documentErr != nil {
 		return f.documentErr

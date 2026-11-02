@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.58.0] - 2026-11-02
+
+Dunning: read a notice back, with its document key.
+
+### Added
+- `kasse.DunningRepository.GetNotice` / `DunningRepo.GetNotice`: load a notice by id,
+  including the key of its stored document; a missing id is `ErrNotFound` in the repo's
+  idiom, alongside the other read methods.
+- `DunningService.Notice`: the read path the document route and any consumer need. The
+  write half (rendering and storing the notice's PDF) shipped in 0.52.0.
+- Tests: the service read path and its not-found propagation, plus a real-database round
+  trip (insert, read with no document yet, record the key, read it back, missing id, and
+  recording a document on a missing notice failing).
+
 ## [0.57.5] - 2026-11-02
 
 Docs: no pointers to the vendor product or its delivery archives.

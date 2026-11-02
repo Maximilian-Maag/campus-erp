@@ -16,6 +16,7 @@ type DunningRepository interface {
 	GetLevel(ctx context.Context, year int, code string) (DunningLevel, error)
 	InsertNotice(ctx context.Context, n DunningNotice) (DunningNotice, error)
 	SetNoticeDocument(ctx context.Context, id int64, key string) error
+	GetNotice(ctx context.Context, id int64) (DunningNotice, error)
 }
 
 // DunningRepo is the PostgreSQL implementation.
@@ -99,6 +100,28 @@ func (r *DunningRepo) InsertNotice(ctx context.Context, n DunningNotice) (Dunnin
 		n.ClaimReference, n.LevelCode, n.OutstandingCents, n.ChargeCents, n.IssuedOn, n.IssuedBy)
 	if err := row.Scan(&n.ID); err != nil {
 		return DunningNotice{}, fmt.Errorf("kasse: insert dunning notice: %w", err)
+	}
+	return n, nil
+}
+
+const noticeColumns = "id, claim_reference, level_code, outstanding_cents, charge_cents, issued_on, issued_by, coalesce(document_key, '')"
+
+func scanNotice(row pgx.Row) (DunningNotice, error) {
+	var n DunningNotice
+	err := row.Scan(&n.ID, &n.ClaimReference, &n.LevelCode, &n.OutstandingCents,
+		&n.ChargeCents, &n.IssuedOn, &n.IssuedBy, &n.DocumentKey)
+	return n, err
+}
+
+// GetNotice loads a notice by id.
+func (r *DunningRepo) GetNotice(ctx context.Context, id int64) (DunningNotice, error) {
+	n, err := scanNotice(r.pool.QueryRow(ctx,
+		`SELECT `+noticeColumns+` FROM dunning_notice WHERE id = $1`, id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return DunningNotice{}, fmt.Errorf("kasse: dunning notice %d: %w", id, ErrNotFound)
+		}
+		return DunningNotice{}, fmt.Errorf("kasse: get dunning notice: %w", err)
 	}
 	return n, nil
 }
