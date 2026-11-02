@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.63.0] - 2026-11-02
+
+Audit events now record the tenant, and two stale doc claims are corrected.
+
+### Changed
+- The audit `actor` is qualified with the resolved tenant (`uni-a/alice`), so an audit row
+  says which tenant it belongs to. The tenant is already in the request context from the
+  tenancy front (ADR-0002); `actor()` now prefixes it. A server with no tenant in context (a
+  handler test) is unchanged, so this is a single chokepoint, not a schema change.
+- docs/17 lists all six enqueue seams and states plainly that only `EnqueueEtl` is wired to a
+  route today. open-questions Q9 no longer calls the repository private.
+
+### Tests
+- The actor rules: header fallback, the token subject winning over the header, the tenant
+  qualification, and an empty tenant not qualifying; plus a guard through the tenancy front
+  that the resolved tenant is the one the actor carries.
+
 ## [0.62.0] - 2026-11-02
 
 Statistics exports: the per-state layout is data, and the last job kind is wired.

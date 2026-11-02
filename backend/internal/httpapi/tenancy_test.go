@@ -70,3 +70,19 @@ func TestTenancyHeaderOverride(t *testing.T) {
 		t.Fatalf("body = %q, want uni-y", rec.Body.String())
 	}
 }
+
+// TestTenancyQualifiesTheActor: the tenant the front resolves is the one the actor an
+// audit event would carry is qualified with, so the two cannot drift apart.
+func TestTenancyQualifiesTheActor(t *testing.T) {
+	var got string
+	tr := NewTenancy(func(_ context.Context, _ string) (http.Handler, error) {
+		return http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = actor(r) }), nil
+	})
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req.Host = "uni-x.erp.example.org"
+	req.Header.Set("X-Actor", "alice")
+	tr.Handler().ServeHTTP(httptest.NewRecorder(), req)
+	if got != "uni-x/alice" {
+		t.Fatalf("actor through the tenancy front = %q, want uni-x/alice", got)
+	}
+}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/auth"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/tenant"
 )
 
 // cashBook is the cash-book use-case surface the HTTP layer needs. It is an
@@ -214,8 +215,16 @@ func (s *Server) Routes() http.Handler {
 }
 
 // actor is the caller recorded on audit events: the authenticated subject when a
-// token was presented, otherwise the dev X-Actor header, otherwise "anonymous".
+// token was presented, otherwise the dev X-Actor header, otherwise "anonymous",
+// qualified by the tenant the request was resolved for. Recording the tenant on every
+// event makes an audit row say which tenant it belongs to without a schema change
+// (ADR-0002, docs/17).
 func actor(r *http.Request) string {
+	return withTenant(r.Context(), caller(r))
+}
+
+// caller is the caller identity, before the tenant is qualified onto it.
+func caller(r *http.Request) string {
 	if p, ok := principalFrom(r.Context()); ok && p.Subject != "" {
 		return p.Subject
 	}
@@ -223,6 +232,16 @@ func actor(r *http.Request) string {
 		return a
 	}
 	return "anonymous"
+}
+
+// withTenant prefixes the actor with the resolved tenant. A server built without the
+// tenancy front — as the handler tests do — has no tenant in context, so the actor is
+// left as it was.
+func withTenant(ctx context.Context, who string) string {
+	if name, ok := tenant.From(ctx); ok && name != "" {
+		return name + "/" + who
+	}
+	return who
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

@@ -21,8 +21,10 @@ the security-critical path pulls in no third-party dependency.
 The HTTP layer (`httpapi/auth.go`) requires a bearer token on `/api/*` when a
 verifier is configured; `/healthz`, `/readyz` stay open. The authenticated
 subject becomes the audit `actor` (falling back to the dev `X-Actor` header only
-when auth is disabled). Roles are coarse (`erp-kasse`, `erp-admin`, …); the
-fine-grained legacy `sv_rechte_sachb` model maps onto them at the IdP.
+when auth is disabled), **qualified with the resolved tenant** (`uni-a/alice`) so an
+audit row says which tenant it belongs to. Roles are coarse (`erp-kasse`,
+`erp-admin`, …); the fine-grained legacy `sv_rechte_sachb` model maps onto them at
+the IdP.
 
 Config: `ERP_OIDC_ISSUER`, `ERP_OIDC_AUDIENCE`, `ERP_OIDC_JWKS_URL`. With the
 JWKS URL unset the API logs `auth: DISABLED`.
@@ -125,9 +127,11 @@ on Postgres (ADR-0007) — no extra broker. The runtime is `internal/platform/jo
   by id over a period and stores its artefact. `ReportRenderFunc` keeps the package free of
   the domains that own the reports; the worker role knows `kasse-daily-close` and renders it
   through the document service (`docs/25`).
-- `EnqueueEtl` / `EnqueueStatementImport` / `EnqueueLedgerExport` / `EnqueueReportRender`
-  are the enqueue seams the API role can use to hand work to the worker instead of running
-  it inline.
+- `EnqueueEtl` / `EnqueueStatementImport` / `EnqueueLedgerExport` / `EnqueueSepaExport` /
+  `EnqueueReportRender` / `EnqueueStatisticsExport` are the enqueue seams the API role can
+  use to hand work to the worker instead of running it inline. Only `EnqueueEtl` is wired to
+  a route today (`POST /api/etl/runs`); the export/render seams are the worker-facing half of
+  a hand-over whose API trigger is still to be built.
 - `cmd/worker` is the wiring: it opens the pool, migrates, builds the registry
   (legacy source pool when `ERP_LEGACY_DATABASE_URL` is set), starts the client and
   blocks until SIGINT/SIGTERM, then drains with a bounded stop.
@@ -163,8 +167,6 @@ status then stays `planned` on purpose.
 
 ## Still open
 
-- The tenant is resolved and used for the pool, but the audit `actor` does not yet
-  record the tenant; wiring the tenant into audit events is a small follow-up.
 - Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the SOAP
   client and the rest remain `planned`.
 - Six job kinds are wired: `etl`, `statement-import`, `ledger-export`, `sepa-export`,
