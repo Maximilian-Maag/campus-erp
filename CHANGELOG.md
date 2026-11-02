@@ -27,6 +27,11 @@ Statistics exports: the per-state layout is data, and the last job kind is wired
 - `jobs.safeName` became `jobs.plainFileName` and its messages no longer name SEPA: both export
   kinds share the outbox rule, so the rule and its wording now live in one place.
 
+### Tests
+- The statistics format rules (validation, projection, aggregation, rendering) as table tests,
+  the job kind's args and every refusal, and a worker integration test that runs a
+  `statistics-export` job through the real River runtime and asserts the seam receives its args.
+
 ## [0.61.0] - 2026-11-02
 
 Artefacts: reports, ledger and SEPA exports are fetchable too.
