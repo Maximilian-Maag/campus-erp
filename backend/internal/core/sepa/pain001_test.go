@@ -232,3 +232,11 @@ func TestValidCurrency(t *testing.T) {
 		}
 	}
 }
+
+// TestGoldenValidatesAgainstVendorXSD validates the golden pain.001.001.09 (DK/GBIC) file against the
+// vendor schema when ERP_XSD_PAIN001 points at it. The schema is proprietary and is not
+// committed, so the check skips when the variable is unset (CI stays green); set it
+// to the extracted XSD to actually validate.
+func TestPain001ValidatesAgainstVendorXSD(t *testing.T) {
+	golden.ValidateXSD(t, "", "ERP_XSD_PAIN001", filepath.Join("testdata", "golden_pain001.xml"))
+}

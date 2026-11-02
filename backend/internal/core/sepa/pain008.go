@@ -37,6 +37,10 @@ var (
 	ErrCollectionDateRequired = errors.New("sepa: collection date is required")
 	ErrMandateIDRequired      = errors.New("sepa: mandate id is required")
 	ErrMandateDateRequired    = errors.New("sepa: mandate signature date is required")
+	// ErrDebtorAgentRequired is returned when a transaction has no debtor BIC:
+	// DbtrAgt is 1..1 in pain.008 (the GBIC profile enforces it), so a file without
+	// it is rejected by the bank.
+	ErrDebtorAgentRequired = errors.New("sepa: debtor BIC is required (DbtrAgt is mandatory)")
 )
 
 // DirectDebitTransaction is one collection from one debtor under one mandate.
@@ -183,7 +187,10 @@ func (tx DirectDebitTransaction) validate() error {
 	if !ValidIBAN(tx.DebtorIBAN) {
 		return ErrDebtorIBANInvalid
 	}
-	if tx.DebtorBIC != "" && !ValidBIC(tx.DebtorBIC) {
+	if strings.TrimSpace(tx.DebtorBIC) == "" {
+		return ErrDebtorAgentRequired
+	}
+	if !ValidBIC(tx.DebtorBIC) {
 		return ErrDebtorBICInvalid
 	}
 	return nil
@@ -253,7 +260,9 @@ func (dd DirectDebit) writePaymentInstruction(b *strings.Builder) {
 	b.WriteString("      <CdtrSchmeId>\n        <Id>\n          <PrvtId>\n            <Othr>\n")
 	textElem(b, 7, "Id", dd.CreditorID)
 	b.WriteString("              <SchmeNm>\n")
-	textElem(b, 8, "Cd", "SEPA")
+	// The scheme name in the creditor identifier is proprietary by definition; the
+	// GBIC profile rejects <Cd>SEPA</Cd> here (expects Prtry).
+	textElem(b, 8, "Prtry", "SEPA")
 	b.WriteString("              </SchmeNm>\n")
 	b.WriteString("            </Othr>\n          </PrvtId>\n        </Id>\n      </CdtrSchmeId>\n")
 	for _, tx := range dd.Transactions {
@@ -272,11 +281,10 @@ func (dd DirectDebit) writeTransaction(b *strings.Builder, tx DirectDebitTransac
 	textElem(b, 6, "MndtId", tx.MandateID)
 	textElem(b, 6, "DtOfSgntr", tx.MandateDate.Format("2006-01-02"))
 	b.WriteString("          </MndtRltdInf>\n        </DrctDbtTx>\n")
-	if tx.DebtorBIC != "" {
-		b.WriteString("        <DbtrAgt>\n          <FinInstnId>\n")
-		textElem(b, 6, "BICFI", tx.DebtorBIC)
-		b.WriteString("          </FinInstnId>\n        </DbtrAgt>\n")
-	}
+	// DbtrAgt is mandatory (1..1) in pain.008 and must precede Dbtr.
+	b.WriteString("        <DbtrAgt>\n          <FinInstnId>\n")
+	textElem(b, 6, "BICFI", tx.DebtorBIC)
+	b.WriteString("          </FinInstnId>\n        </DbtrAgt>\n")
 	b.WriteString("        <Dbtr>\n")
 	textElem(b, 5, "Nm", tx.DebtorName)
 	b.WriteString("        </Dbtr>\n")

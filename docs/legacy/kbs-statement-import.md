@@ -108,3 +108,10 @@ CAMT.054, otherwise CAMT.053. Unlike a notification, a report *may* carry balanc
 `Bal` `OPBD`/`CLBD` are mapped when present and left zero otherwise. Entries
 reconcile exactly as the other formats. Field mapping follows the productive parser
 (`rm.fia.payments.datex.sepa.camt052v02/v08`): `Rpt` → statement, `Ntry` → line.
+
+All three CAMT parsers read the ISO 20022 `TransactionParties` shape: a party's name
+sits under `Pty` (`RltdPties/Dbtr/Pty/Nm`), and the account is a sibling element
+(`RltdPties/DbtrAcct/Id/IBAN`), not nested inside the party. The test fixtures are
+schema-valid (balances, `Sts`, `BkTxCd`, party/account nesting) and can be checked
+against the vendor's XSDs by setting `ERP_XSD_CAMT052` / `ERP_XSD_CAMT053` /
+`ERP_XSD_CAMT054` (see docs/20 for the SEPA equivalent).

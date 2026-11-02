@@ -58,6 +58,17 @@ when a BIC is present.
 
 IBAN (ISO 7064 mod-97) and BIC (ISO 9362) validation are shared with pain.001.
 
+## The GBIC profile
+
+Generated files are validated against the vendor's German Banking Industry Committee
+(GBIC) schema, which is stricter than plain ISO 20022. Two consequences for callers:
+
+- The scheme name in the creditor identifier is proprietary: the file carries
+  `CdtrSchmeId/Id/PrvtId/Othr/SchmeNm/Prtry` (not `Cd`).
+- `DbtrAgt` (the debtor agent, i.e. the debtor's BIC) is **mandatory** in pain.008.
+  A transaction whose mandate carries no BIC cannot be rendered — `Marshal` returns
+  `ErrDebtorAgentRequired` rather than emitting a file the bank would reject.
+
 ## Not yet done
 
 - **The collection run exists** (`internal/modules/kasse/collectionrun*.go`,
