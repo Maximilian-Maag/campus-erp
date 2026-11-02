@@ -2,6 +2,26 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.47.0] - 2026-11-02
+
+Ledger posting export: collection + service (increment 2 of #42).
+
+### Added
+- `kasse.LedgerRepo.ListBookingsForExport`: every booking made on a day inside the
+  period, in (business date, booking id) order. The reference is the import reference
+  when the booking has one and a derived `BK-######` otherwise - it is the export's
+  idempotency key.
+- `kasse.LedgerExportService.Export`: maps each booking to a posting (income credits
+  the counterpart account, expense debits it), renders the `cash-postings/v1` export,
+  and records the run on the audit stream. It refuses a blank actor, incomplete
+  accounts, an inverted period and an empty period rather than emitting an empty file.
+- `kasse.LedgerAccounts` (+ `DefaultLedgerAccounts`) for the cash/income/expense
+  account mapping, validated before use.
+- Tests: the posting mapping, ordering and determinism, the full error table
+  (actor, accounts, period, empty period, repository, unknown kind, audit), and an
+  integration test that seeds a day with two bookings and exports them twice -
+  byte-identical - plus the empty-period refusal.
+
 ## [0.46.0] - 2026-11-02
 
 Ledger posting export, format + renderer (increment 1 of #42).
