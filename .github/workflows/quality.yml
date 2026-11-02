@@ -100,11 +100,12 @@ jobs:
     # One job per package. gremlins' full per-package sweep is minutes long, and a
     # single job running every target was terminated by the runner before it could
     # report a score (issue #28). Sharding keeps each job well inside a bounded
-    # timeout and lets its output stream.
+    # timeout and lets its output stream. The bound is headroom, not a target: the
+    # largest package (kasse) has taken up to ~30 minutes on a 2-core runner (#47).
     name: mutation go ${{ matrix.target }} (floor 85)
     needs: mutation-go-targets
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
