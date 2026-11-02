@@ -28,9 +28,19 @@ reference,booking_date,account,cash_account,direction,amount_cents,currency,purp
 so the same booking set always produces byte-identical output, whatever order it was
 collected in. Values containing commas or quotes are quoted by `encoding/csv`.
 
+## Collection
+
+`kasse.LedgerExportService.Export` collects the confirmed bookings of a period
+(`LedgerRepo.ListBookingsForExport`, ordered by business date and booking id), maps each
+to a posting and renders the file. Income credits the counterpart account and an
+expense debits it; the accounts come from `LedgerAccounts` (defaults 1200 / 8400 /
+4400). A blank actor, incomplete accounts, an inverted period or an empty period are
+refused rather than silently producing an empty file, and every run is recorded on the
+audit stream.
+
 ## Not yet done
 
-- The query that collects confirmed bookings for a period, and the endpoint/run that
-  hands the file to the ledger (issue #42, increment 2).
+- The endpoint/run that hands the rendered file to the ledger side (issue #42,
+  increment 3).
 - The tie-back reconciliation: assert every exported posting maps to exactly one
   booking, and surface bookings that did not export.
