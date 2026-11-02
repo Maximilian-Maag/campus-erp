@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.50.0] - 2026-11-02
+
+Ledger export: tie-back reconciliation (increment 3 of #42, first half).
+
+### Added
+- `ledger.Reconcile`: compares the booking references of a period with the postings
+  rendered from them, counts each side (so a duplicate cannot hide behind a matching
+  reference) and reports the surplus as `Missing`/`Extra` with `Balanced()`.
+- `LedgerExportService.Export` now reconciles the run and records it on the audit
+  stream (`matched`, `missing`, `extra`, `balanced`), so an export that does not
+  account for its bookings is visible rather than silent.
+
 ## [0.49.0] - 2026-11-02
 
 Worker: the statement-import job kind (part of #38).
