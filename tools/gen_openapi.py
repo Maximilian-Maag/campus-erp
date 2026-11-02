@@ -109,6 +109,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/dunning/notices/{id}/document": {
         "get": ("getDunningNoticeDocument", "kasse", "Read a dunning notice's stored PDF", None, None, 200, "pdf"),
     },
+    "/api/artefacts/{kind}/{name}": {
+        "get": ("getArtefact", "kasse", "Download a stored artefact (notice PDF, report, ledger/SEPA export)", None, None, 200, "artefact"),
+    },
     "/api/dunning/levels": {
         "post": ("createDunningLevel", "kasse", "Create a dunning level", "httpapi.createLevelRequest", "kasse.DunningLevel", 201, "json"),
     },
@@ -489,6 +492,15 @@ def build_document(res: Resolver) -> dict:
                     "content": {
                         "application/xml": {"schema": {"type": "string", "format": "binary"}},
                         "text/plain": {"schema": {"type": "string"}},
+                    },
+                }
+            elif kind == "artefact":
+                responses[str(status)] = {
+                    "description": "Stored artefact",
+                    "content": {
+                        "application/pdf": {"schema": {"type": "string", "format": "binary"}},
+                        "text/csv": {"schema": {"type": "string", "format": "binary"}},
+                        "application/xml": {"schema": {"type": "string", "format": "binary"}},
                     },
                 }
             elif kind == "pdf":

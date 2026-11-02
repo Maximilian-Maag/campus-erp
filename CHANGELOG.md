@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.61.0] - 2026-11-02
+
+Artefacts: reports, ledger and SEPA exports are fetchable too.
+
+### Added
+- `GET /api/artefacts/{kind}/{name}` (role `kasse`): serves stored artefacts of kind
+  `dunning`, `reports`, `ledger` or `sepa`. Two path segments rather than a wildcard, so the
+  router and the contract generator handle it unchanged - and the kind allowlist keeps the
+  route from becoming a read-anything primitive over the store. The kind fixes the media
+  type, the extension overrides it (a CSV report is `text/csv`), anything else is
+  `application/octet-stream`. An unknown kind is 400, an absent artefact 404.
+- The contract generator learned an `artefact` response kind documenting the three media
+  types the route can return.
+- Tests: the helper rules (allowlist, bare names, traversal refused, media types) as a table
+  test, and the route over HTTP for all four kinds plus the refusal and not-found cases.
+
 ## [0.60.0] - 2026-11-02
 
 Documents are fetchable: GET a dunning notice's stored PDF.
