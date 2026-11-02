@@ -1,10 +1,10 @@
 # Open questions
 
 > **Update (productive source received).** The productive the reference implementation build was
-> handed over (three archives in `~/Downloads`). Its measured contents —
+> handed over as three archives. Its measured contents —
 > including the vendor's 1 486-table schema *with declared FKs and German
 > comments*, the payment-traffic layer (SEPA/CAMT/MT940 + ISO 20022 XSDs) and the
-> ERP Java sources — are inventoried in `docs/05-productive-source-inventory.md`.
+> ERP Java sources — are inventoried in `docs/08-reuse-inventory.md`.
 > That resolves or de-risks several questions below; the affected answers are
 > noted inline.
 

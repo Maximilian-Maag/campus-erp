@@ -1,7 +1,7 @@
 # Reuse inventory — what in the reference implementation sources is usable for campus-erp
 
 This is the "everything we can mine" pass over the three archives in
-`~/Downloads` (productive the reference implementation source + the legacy ERP dump). It indexes the
+the handed-over reference sources. It indexes the
 reusable assets and what each is good for. Companion docs: `docs/05` (source
 inventory), `docs/06` (vendor ↔ canonical cross-walk), `docs/07` (dump data +
 generated layer), `docs/03` (legacy schema).
