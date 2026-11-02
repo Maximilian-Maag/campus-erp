@@ -33,6 +33,10 @@ report by id, collects its data and stores the artefact. The worker role knows
 converts it through the document service (ADR-0009) and stores the PDF under
 `reports/<report id>-<from>-<to>.pdf` (ADR-0011). An unknown report id is refused.
 
+`POST /api/reports/renders` (role `kasse`) queues one: `{report_id, from, to}` -> `202`
+with the job id, and the PDF is then reachable through `GET /api/artefacts/reports/<name>`
+(docs/27 describes the queueing seam).
+
 ## Adding a report
 
 1. Define it: a `report.Definition` with a stable id (the job's argument) and its columns.

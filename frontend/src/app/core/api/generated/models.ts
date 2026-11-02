@@ -262,6 +262,10 @@ export interface EtlRunRequest {
   dataset: string;
 }
 
+export interface ExportQueuedResponse {
+  job_id: number;
+}
+
 export interface Foundation {
   ID: number;
   Year: number;
@@ -339,6 +343,11 @@ export interface KlrRecordRequest {
   kind: string;
   amount_cents: number;
   reference: string;
+}
+
+export interface LedgerExportRequest {
+  from: string;
+  to: string;
 }
 
 export interface LookupValueRequest {
@@ -489,6 +498,12 @@ export interface Report {
   RevenuesCents: number;
 }
 
+export interface ReportRenderRequest {
+  report_id: string;
+  from: string;
+  to: string;
+}
+
 export interface SeedResult {
   seeded: number;
 }
@@ -536,10 +551,6 @@ export interface StatisticsExportRequest {
   state: string;
   from: string;
   to: string;
-}
-
-export interface StatisticsExportResponse {
-  job_id: number;
 }
 
 export interface TaxOffice {

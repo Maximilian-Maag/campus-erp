@@ -46,6 +46,9 @@ implementation drops it into `ERP_LEDGER_OUTBOX_DIR`; object storage or SFTP rep
 that one function without touching the kind. The service refuses an export that does
 not balance against its bookings, so an unbalanced file is never handed over.
 
+`POST /api/ledger/exports` (role `kasse`) queues one for a period: `{from, to}` -> `202`
+with the job id (docs/27 describes the queueing seam).
+
 ## Not yet done
 
 - Replace the outbox directory with the real transport (object storage or SFTP) and

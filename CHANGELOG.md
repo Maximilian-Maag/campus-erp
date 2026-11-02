@@ -2,6 +2,27 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.65.0] - 2026-11-02
+
+The remaining export/render kinds are queueable from the API too.
+
+### Added
+- `POST /api/ledger/exports` (role `kasse`): `{from, to}` -> `202 {job_id}`, queuing the
+  `ledger-export` kind (docs/23).
+- `POST /api/reports/renders` (role `kasse`): `{report_id, from, to}` -> `202 {job_id}`,
+  queuing the `report-render` kind (docs/25).
+- `jobs.Exports` gains `EnqueueLedgerExport` and `EnqueueReportRender`, so every queueable
+  export goes through one seam.
+
+### Changed
+- The three export routes share the request handling (`decodeExportRequest`, `exportPeriod`,
+  `enqueueExport`) and one `{job_id}` response type, so a third route added no second copy of
+  the validation rules.
+
+### Tests
+- The routes as one table (statistics, ledger, report), every refusal, a queue failure, and
+  the no-queue case.
+
 ## [0.64.0] - 2026-11-02
 
 The API can queue a statistics export — the first export kind reachable from a client.
