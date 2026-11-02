@@ -134,6 +134,7 @@ func (s *Server) Routes() http.Handler {
 	// The fine-grained legacy sv_rechte_sachb model maps onto these roles at the
 	// IdP, so the API only enforces the coarse module boundary.
 	mux.HandleFunc("GET /api/audit/verify", s.authorize(s.auditVerify, auth.RoleAdmin))
+	mux.HandleFunc("GET /api/artefacts/{kind}/{name}", s.authorizeRead(s.getArtefact, auth.RoleKasse))
 
 	// ETL: list + run the registered datasets (admin).
 	mux.HandleFunc("GET /api/etl/datasets", s.authorize(s.listETLDatasets, auth.RoleAdmin))

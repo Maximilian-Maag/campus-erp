@@ -11,6 +11,10 @@ export class CampusErpApi {
 
   constructor(private readonly http: HttpClient) {}
 
+  getArtefact(kind: number | string, name: number | string): Observable<string> {
+    return this.http.get<string>(this.base + `/api/artefacts/${kind}/${name}`);
+  }
+
   verifyAuditChain(): Observable<string> {
     return this.http.get<string>(this.base + `/api/audit/verify`);
   }
