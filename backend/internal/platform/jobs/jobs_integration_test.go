@@ -47,7 +47,7 @@ func TestWorkerRunsEtlJob(t *testing.T) {
 	}
 
 	stub := &stubDatasets{}
-	client, err := jobs.New(pool, stub)
+	client, err := jobs.New(pool, stub, nil)
 	if err != nil {
 		t.Fatalf("jobs.New: %v", err)
 	}
