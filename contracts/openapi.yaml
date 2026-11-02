@@ -843,6 +843,41 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/dunning/notices/{id}/document:
+    get:
+      tags:
+      - kasse
+      operationId: getDunningNoticeDocument
+      summary: Read a dunning notice's stored PDF
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: PDF document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/dunning/levels:
     post:
       tags:
@@ -2958,6 +2993,8 @@ components:
           format: date-time
         IssuedBy:
           type: string
+        DocumentKey:
+          type: string
       required:
       - ID
       - ClaimReference
@@ -2966,6 +3003,7 @@ components:
       - ChargeCents
       - IssuedOn
       - IssuedBy
+      - DocumentKey
     IssueNoticeRequest:
       type: object
       properties:
