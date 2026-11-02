@@ -2,6 +2,24 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.52.0] - 2026-11-02
+
+Dunning notices get their document (increment 2 of #39).
+
+### Added
+- `documents.Store` and `documents.DirStore`: keep rendered documents under a key,
+  creating parents; a key that is empty, absolute or escapes the root is refused.
+- `DunningNotice.DocumentKey` and `kasse.DunningRepository.SetNoticeDocument`
+  (migration 0019): the notice row carries the reference to its stored artefact.
+- `kasse.DunningDocuments` + `DunningService.WithDocuments`: issuing a notice renders
+  and stores its PDF and records the key. A render or store failure fails the issue, so
+  a notice never claims a document it does not have; the audit detail names the key.
+- The API role builds the issuer from `ERP_DOCUMENTS_URL` and `ERP_DOCUMENTS_DIR`
+  (`ERP_ORGANISATION` for the issuer line); with either unset, notices are issued
+  without a document instead of failing.
+- Tests: the store (save, nesting, every refusal), the hook (key recorded, audit names
+  it, no documents -> no key, render failure, record failure).
+
 ## [0.51.0] - 2026-11-02
 
 Ledger export: the worker job kind and the hand-over seam (increment 3 of #42).

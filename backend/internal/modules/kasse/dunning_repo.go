@@ -15,6 +15,7 @@ type DunningRepository interface {
 	CreateLevel(ctx context.Context, l DunningLevel) (DunningLevel, error)
 	GetLevel(ctx context.Context, year int, code string) (DunningLevel, error)
 	InsertNotice(ctx context.Context, n DunningNotice) (DunningNotice, error)
+	SetNoticeDocument(ctx context.Context, id int64, key string) error
 }
 
 // DunningRepo is the PostgreSQL implementation.
@@ -100,4 +101,17 @@ func (r *DunningRepo) InsertNotice(ctx context.Context, n DunningNotice) (Dunnin
 		return DunningNotice{}, fmt.Errorf("kasse: insert dunning notice: %w", err)
 	}
 	return n, nil
+}
+
+// SetNoticeDocument records the stored document of a notice.
+func (r *DunningRepo) SetNoticeDocument(ctx context.Context, id int64, key string) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE dunning_notice SET document_key = $2 WHERE id = $1`, id, key)
+	if err != nil {
+		return fmt.Errorf("kasse: set dunning document: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("kasse: set dunning document: notice %d not found", id)
+	}
+	return nil
 }

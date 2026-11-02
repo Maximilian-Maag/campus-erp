@@ -7,15 +7,28 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 )
 
+// DunningDocuments renders a notice to a document and stores it, returning the key of
+// the artefact (docs/24). A service without one issues notices that carry no document.
+type DunningDocuments interface {
+	StoreNotice(ctx context.Context, n DunningNotice, level DunningLevel) (string, error)
+}
+
 // DunningService implements the dunning workflow (S5).
 type DunningService struct {
 	repo  DunningRepository
 	audit AuditSink
+	docs  DunningDocuments
 }
 
 // NewDunningService wires the dunning service.
 func NewDunningService(repo DunningRepository, sink AuditSink) *DunningService {
 	return &DunningService{repo: repo, audit: sink}
+}
+
+// WithDocuments makes the service produce a document for every notice it issues.
+func (s *DunningService) WithDocuments(d DunningDocuments) *DunningService {
+	s.docs = d
+	return s
 }
 
 // CreateLevel validates and stores a dunning level with its bands.
@@ -62,11 +75,28 @@ func (s *DunningService) Issue(ctx context.Context, year int, levelCode, claimRe
 	if err != nil {
 		return DunningNotice{}, err
 	}
+	// Render and store the document, and record where it went on the notice. A failure
+	// here fails the issue: a notice that claims to have a document must have one.
+	if s.docs != nil {
+		key, err := s.docs.StoreNotice(ctx, saved, level)
+		if err != nil {
+			return DunningNotice{}, err
+		}
+		if err := s.repo.SetNoticeDocument(ctx, saved.ID, key); err != nil {
+			return DunningNotice{}, err
+		}
+		saved.DocumentKey = key
+	}
+	detail := fmt.Sprintf("claim=%s level=%s outstanding_cents=%d charge_cents=%d",
+		saved.ClaimReference, saved.LevelCode, saved.OutstandingCents, saved.ChargeCents)
+	if saved.DocumentKey != "" {
+		detail += " document=" + saved.DocumentKey
+	}
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
 		Action:  "dunning.notice.issue",
 		Subject: fmt.Sprintf("notice/%d", saved.ID),
-		After:   fmt.Sprintf("claim=%s level=%s outstanding_cents=%d charge_cents=%d", saved.ClaimReference, saved.LevelCode, saved.OutstandingCents, saved.ChargeCents),
+		After:   detail,
 	}); err != nil {
 		return DunningNotice{}, err
 	}
