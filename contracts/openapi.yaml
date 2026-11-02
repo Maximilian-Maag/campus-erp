@@ -943,7 +943,73 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatisticsExportResponse'
+                $ref: '#/components/schemas/ExportQueuedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/ledger/exports:
+    post:
+      tags:
+      - kasse
+      operationId: requestLedgerExport
+      summary: Queue a ledger posting export (renders on the worker role)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerExportRequest'
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportQueuedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/reports/renders:
+    post:
+      tags:
+      - kasse
+      operationId: requestReportRender
+      summary: Queue a report render (renders on the worker role)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRenderRequest'
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportQueuedResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3188,7 +3254,7 @@ components:
       - up_to_cents
       - fee_cents
       - rate_basis_points
-    StatisticsExportResponse:
+    ExportQueuedResponse:
       type: object
       properties:
         job_id:
@@ -3196,6 +3262,29 @@ components:
           format: int64
       required:
       - job_id
+    ReportRenderRequest:
+      type: object
+      properties:
+        report_id:
+          type: string
+        from:
+          type: string
+        to:
+          type: string
+      required:
+      - report_id
+      - from
+      - to
+    LedgerExportRequest:
+      type: object
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+      required:
+      - from
+      - to
     StatisticsExportRequest:
       type: object
       properties:

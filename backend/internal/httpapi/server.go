@@ -142,6 +142,8 @@ func (s *Server) Routes() http.Handler {
 
 	// Exports run on the worker role; the API only queues them (docs/27).
 	mux.HandleFunc("POST /api/statistics/exports", s.authorize(s.requestStatisticsExport, auth.RoleKasse))
+	mux.HandleFunc("POST /api/ledger/exports", s.authorize(s.requestLedgerExport, auth.RoleKasse))
+	mux.HandleFunc("POST /api/reports/renders", s.authorize(s.requestReportRender, auth.RoleKasse))
 
 	// ETL: list + run the registered datasets (admin).
 	mux.HandleFunc("GET /api/etl/datasets", s.authorize(s.listETLDatasets, auth.RoleAdmin))

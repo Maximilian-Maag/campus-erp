@@ -100,9 +100,10 @@ POST /api/statistics/exports   (role kasse)
 - The request is validated at the edge (`state` required, the dates parsed as `YYYY-MM-DD`)
   so a doomed job is not queued; the worker re-validates, because a job argument can be
   persisted and replayed by hand.
-- The other export/render kinds (`ledger-export`, `report-render`) take the same
-  `{id, from, to}` shape and follow this pattern; only `POST /api/statistics/exports` is
-  wired so far.
+- The other export/render kinds take the same `{id, from, to}` shape and are wired the same
+  way: `POST /api/ledger/exports` (`{from, to}`) and `POST /api/reports/renders`
+  (`{report_id, from, to}`). `statement-import` and `sepa-export` follow the pattern when their
+  triggers are needed.
 
 ## The layouts are placeholders
 

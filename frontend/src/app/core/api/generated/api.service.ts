@@ -159,6 +159,10 @@ export class CampusErpApi {
     return this.http.post<m.CostUnit>(this.base + `/api/klr/cost-units`, body);
   }
 
+  requestLedgerExport(body: m.LedgerExportRequest): Observable<m.ExportQueuedResponse> {
+    return this.http.post<m.ExportQueuedResponse>(this.base + `/api/ledger/exports`, body);
+  }
+
   seedLookups(): Observable<m.SeedResult> {
     return this.http.post<m.SeedResult>(this.base + `/api/lookups/seed`, null);
   }
@@ -231,8 +235,12 @@ export class CampusErpApi {
     return this.http.post<m.Order>(this.base + `/api/purchase-orders/${id}/receive`, null);
   }
 
-  requestStatisticsExport(body: m.StatisticsExportRequest): Observable<m.StatisticsExportResponse> {
-    return this.http.post<m.StatisticsExportResponse>(this.base + `/api/statistics/exports`, body);
+  requestReportRender(body: m.ReportRenderRequest): Observable<m.ExportQueuedResponse> {
+    return this.http.post<m.ExportQueuedResponse>(this.base + `/api/reports/renders`, body);
+  }
+
+  requestStatisticsExport(body: m.StatisticsExportRequest): Observable<m.ExportQueuedResponse> {
+    return this.http.post<m.ExportQueuedResponse>(this.base + `/api/statistics/exports`, body);
   }
 
   createTaxOffice(body: m.TaxOfficeRequest): Observable<m.TaxOffice> {

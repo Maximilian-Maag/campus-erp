@@ -10,11 +10,13 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/jobs"
 )
 
-// exportQueue is the enqueue seam: it hands an export to the worker role instead of
-// running it inline, and returns the queued job's id. It is an interface so the
-// transport is testable with a stub and so River stays out of this package.
+// exportQueue is the enqueue seam: it hands an export or a render to the worker role
+// instead of running it inline, and returns the queued job's id. It is an interface so
+// the transport is testable with a stub and so River stays out of this package.
 type exportQueue interface {
 	EnqueueStatisticsExport(ctx context.Context, state, from, to, actor string) (int64, error)
+	EnqueueLedgerExport(ctx context.Context, from, to, actor string) (int64, error)
+	EnqueueReportRender(ctx context.Context, reportID, from, to, actor string) (int64, error)
 }
 
 // statisticsExportRequest is the payload of POST /api/statistics/exports.
@@ -24,23 +26,31 @@ type statisticsExportRequest struct {
 	To    string `json:"to"`
 }
 
-// statisticsExportResponse is the accepted job.
-type statisticsExportResponse struct {
+// ledgerExportRequest is the payload of POST /api/ledger/exports.
+type ledgerExportRequest struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// reportRenderRequest is the payload of POST /api/reports/renders.
+type reportRenderRequest struct {
+	ReportID string `json:"report_id"`
+	From     string `json:"from"`
+	To       string `json:"to"`
+}
+
+// exportQueuedResponse is an accepted job: the work runs on the worker role, so the
+// caller gets the job id and follows the artefact it produces.
+type exportQueuedResponse struct {
 	JobID int64 `json:"job_id"`
 }
 
-// requestStatisticsExport queues a per-state statistics export (docs/27). The work runs
-// on the worker role, so this handler only accepts the request and returns the job id;
-// the file is stored under `statistics/<state>-<from>-<to>.csv` and is then reachable
-// through GET /api/artefacts/statistics/<name>.
+// requestStatisticsExport queues a per-state statistics export (docs/27). The file lands
+// under `statistics/<state>-<from>-<to>.csv` and is then reachable through
+// GET /api/artefacts/statistics/<name>.
 func (s *Server) requestStatisticsExport(w http.ResponseWriter, r *http.Request) {
-	if s.exports == nil {
-		writeProblem(w, http.StatusServiceUnavailable, "export queue is not configured")
-		return
-	}
 	var req statisticsExportRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeProblem(w, http.StatusBadRequest, "bad request")
+	if !s.decodeExportRequest(w, r, &req) {
 		return
 	}
 	state := strings.TrimSpace(req.State)
@@ -48,22 +58,91 @@ func (s *Server) requestStatisticsExport(w http.ResponseWriter, r *http.Request)
 		writeProblem(w, http.StatusUnprocessableEntity, "state is required")
 		return
 	}
-	from, err := parseExportDate(req.From)
+	from, to, ok := s.exportPeriod(w, req.From, req.To)
+	if !ok {
+		return
+	}
+	s.enqueueExport(w, func() (int64, error) {
+		return s.exports.EnqueueStatisticsExport(r.Context(), state, from, to, actor(r))
+	})
+}
+
+// requestLedgerExport queues a ledger posting export for a period (docs/23). The file
+// lands under `ledger/ledger-postings-<timestamp>.csv`.
+func (s *Server) requestLedgerExport(w http.ResponseWriter, r *http.Request) {
+	var req ledgerExportRequest
+	if !s.decodeExportRequest(w, r, &req) {
+		return
+	}
+	from, to, ok := s.exportPeriod(w, req.From, req.To)
+	if !ok {
+		return
+	}
+	s.enqueueExport(w, func() (int64, error) {
+		return s.exports.EnqueueLedgerExport(r.Context(), from, to, actor(r))
+	})
+}
+
+// requestReportRender queues a report render by id over a period (docs/25). The PDF lands
+// under `reports/<report id>-<from>-<to>.pdf`.
+func (s *Server) requestReportRender(w http.ResponseWriter, r *http.Request) {
+	var req reportRenderRequest
+	if !s.decodeExportRequest(w, r, &req) {
+		return
+	}
+	reportID := strings.TrimSpace(req.ReportID)
+	if reportID == "" {
+		writeProblem(w, http.StatusUnprocessableEntity, "report_id is required")
+		return
+	}
+	from, to, ok := s.exportPeriod(w, req.From, req.To)
+	if !ok {
+		return
+	}
+	s.enqueueExport(w, func() (int64, error) {
+		return s.exports.EnqueueReportRender(r.Context(), reportID, from, to, actor(r))
+	})
+}
+
+// decodeExportRequest checks the queue is configured and decodes the body, writing the
+// problem response itself. It reports whether the caller should continue.
+func (s *Server) decodeExportRequest(w http.ResponseWriter, r *http.Request, into any) bool {
+	if s.exports == nil {
+		writeProblem(w, http.StatusServiceUnavailable, "export queue is not configured")
+		return false
+	}
+	if err := json.NewDecoder(r.Body).Decode(into); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return false
+	}
+	return true
+}
+
+// exportPeriod validates both period boundaries at the edge, so a doomed job is not
+// queued; the worker re-validates, because a job argument can be persisted and replayed
+// by hand.
+func (s *Server) exportPeriod(w http.ResponseWriter, from, to string) (string, string, bool) {
+	f, err := parseExportDate(from)
 	if err != nil {
 		writeProblem(w, http.StatusUnprocessableEntity, "from must be YYYY-MM-DD")
-		return
+		return "", "", false
 	}
-	to, err := parseExportDate(req.To)
+	t, err := parseExportDate(to)
 	if err != nil {
 		writeProblem(w, http.StatusUnprocessableEntity, "to must be YYYY-MM-DD")
-		return
+		return "", "", false
 	}
-	id, err := s.exports.EnqueueStatisticsExport(r.Context(), state, from, to, actor(r))
+	return f, t, true
+}
+
+// enqueueExport runs a queue call and writes the accepted (or failed) response.
+func (s *Server) enqueueExport(w http.ResponseWriter, enqueue func() (int64, error)) {
+	id, err := enqueue()
 	if err != nil {
 		writeProblem(w, http.StatusInternalServerError, "could not queue the export")
 		return
 	}
-	writeJSON(w, http.StatusAccepted, statisticsExportResponse{JobID: id})
+	writeJSON(w, http.StatusAccepted, exportQueuedResponse{JobID: id})
 }
 
 // parseExportDate normalises an export's period boundary to the layout the job carries,
