@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -15,6 +16,37 @@ type dunningService interface {
 	CreateLevel(ctx context.Context, l kasse.DunningLevel, by string) (kasse.DunningLevel, error)
 	Level(ctx context.Context, year int, code string) (kasse.DunningLevel, error)
 	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, by string) (kasse.DunningNotice, error)
+	Notice(ctx context.Context, id int64) (kasse.DunningNotice, error)
+}
+
+// getDunningNoticeDocument serves the stored PDF of a dunning notice (docs/24). The
+// notice carries the key of its artefact; the bytes come from the artefact store.
+func (s *Server) getDunningNoticeDocument(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	notice, err := s.dunning.Notice(r.Context(), id)
+	if err != nil {
+		writeProblem(w, statusForDunning(err), err.Error())
+		return
+	}
+	if notice.DocumentKey == "" {
+		writeProblem(w, http.StatusNotFound, "this notice has no stored document")
+		return
+	}
+	pdf, err := s.artefacts.Get(r.Context(), notice.DocumentKey)
+	if err != nil {
+		// The key is recorded but the artefact cannot be read: a server-side
+		// inconsistency, not a client error.
+		writeProblem(w, http.StatusInternalServerError, "the stored document could not be read")
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", fmt.Sprintf("dunning-notice-%d.pdf", notice.ID)))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(pdf)
 }
 
 // statusForDunning maps a dunning error to an HTTP status.

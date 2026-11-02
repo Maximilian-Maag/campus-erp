@@ -91,6 +91,10 @@ export class CampusErpApi {
     return this.http.post<m.DunningNotice>(this.base + `/api/dunning/notices`, body);
   }
 
+  getDunningNoticeDocument(id: number | string): Observable<string> {
+    return this.http.get<string>(this.base + `/api/dunning/notices/${id}/document`);
+  }
+
   createEInvoice(body: m.CreateEInvoiceRequest): Observable<m.Invoice> {
     return this.http.post<m.Invoice>(this.base + `/api/e-invoices`, body);
   }

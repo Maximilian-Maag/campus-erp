@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/storage"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,12 +38,36 @@ func testPool(t *testing.T) *pgxpool.Pool {
 
 func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
 
+// artefactsDirs maps a test to its artefacts directory. It must be memoised: t.TempDir()
+// returns a NEW directory on every call, so a helper that called it each time would hand
+// the server and the test two different roots.
+var artefactsDirs sync.Map
+
+// artefactsDir is the directory the test server's artefact store is rooted at. A test
+// that exercises a route serving a stored document writes into this same path.
+func artefactsDir(t *testing.T) string {
+	t.Helper()
+	if dir, ok := artefactsDirs.Load(t); ok {
+		return dir.(string)
+	}
+	dir := filepath.Join(t.TempDir(), "artefacts")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatalf("artefacts dir: %v", err)
+	}
+	artefactsDirs.Store(t, dir)
+	return dir
+}
+
 func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	t.Helper()
 	pool := testPool(t)
 	store := audit.NewStore(pool)
+	artefactStore, err := storage.NewDir(artefactsDir(t))
+	if err != nil {
+		t.Fatalf("artefact store: %v", err)
+	}
 	budgetSvc := budget.NewPositionService(budget.NewPositionRepo(pool), store)
-	srv := httptest.NewServer(httpapi.New(httpapi.Deps{Kasse: kasse.NewService(kasse.NewRepo(pool), store), Orders: kasse.NewOrderService(kasse.NewOrderRepo(pool), store), Dunning: kasse.NewDunningService(kasse.NewDunningRepo(pool), store), Tax: kasse.NewTaxService(kasse.NewTaxRepo(pool), store), Runs: kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store), Statements: kasse.NewStatementService(kasse.NewStatementRepo(pool), store), FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store), EInvoices: einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store), Budget: budgetSvc, Lookups: lookup.NewValueService(lookup.NewValueRepo(pool), store), Procurement: procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store), KLR: klr.NewService(klr.NewRepo(pool), store), Audit: store}).Handler())
+	srv := httptest.NewServer(httpapi.New(httpapi.Deps{Kasse: kasse.NewService(kasse.NewRepo(pool), store), Orders: kasse.NewOrderService(kasse.NewOrderRepo(pool), store), Dunning: kasse.NewDunningService(kasse.NewDunningRepo(pool), store), Tax: kasse.NewTaxService(kasse.NewTaxRepo(pool), store), Runs: kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store), Statements: kasse.NewStatementService(kasse.NewStatementRepo(pool), store), FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store), EInvoices: einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store), Budget: budgetSvc, Lookups: lookup.NewValueService(lookup.NewValueRepo(pool), store), Procurement: procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store), KLR: klr.NewService(klr.NewRepo(pool), store), Audit: store, Artefacts: artefactStore}).Handler())
 	t.Cleanup(srv.Close)
 	return srv, pool
 }

@@ -96,6 +96,10 @@ func (s stubDunning) Level(context.Context, int, string) (kasse.DunningLevel, er
 	return s.level, s.err
 }
 
+func (s stubDunning) Notice(context.Context, int64) (kasse.DunningNotice, error) {
+	return s.notice, s.err
+}
+
 func (s stubDunning) Issue(context.Context, int, string, string, int64, string) (kasse.DunningNotice, error) {
 	return s.notice, s.err
 }

@@ -23,11 +23,19 @@ as HTML and converted to PDF by one dedicated component (ADR-0009).
 - Amounts are integer minor units formatted at render time, so no float rounding
   reaches a notice.
 
+## Fetching a stored document
+
+`GET /api/dunning/notices/{id}/document` serves a notice's stored PDF (role `kasse`). The
+notice row carries the artefact key; the bytes come from the artefact store, so the route
+works the same whether that is a directory or an S3 bucket (ADR-0011). A notice with no
+document is a 404, a malformed id a 400, and a recorded key whose artefact cannot be read a
+500 - a server-side inconsistency rather than a client error.
+
 ## Not yet done
 
-- Wiring the dunning run to render a notice per case, store it and record the
-  reference (issue #39); the notice + renderer themselves are in place.
-- The service URL is not read from configuration yet (`ERP_DOCUMENTS_URL`).
+- Reports and the ledger/SEPA exports are stored but have no route yet; a generic
+  `GET /api/artefacts/{key...}` would need the wildcard path checked against the drift
+  guard.
 
 ## Wiring the dunning run
 

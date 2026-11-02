@@ -106,6 +106,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/foundation-books/{id}/balance": {
         "get": ("getFoundationBalance", "kasse", "Read a foundation balance", None, "kasse.FoundationBalance", 200, "json"),
     },
+    "/api/dunning/notices/{id}/document": {
+        "get": ("getDunningNoticeDocument", "kasse", "Read a dunning notice's stored PDF", None, None, 200, "pdf"),
+    },
     "/api/dunning/levels": {
         "post": ("createDunningLevel", "kasse", "Create a dunning level", "httpapi.createLevelRequest", "kasse.DunningLevel", 201, "json"),
     },
@@ -487,6 +490,11 @@ def build_document(res: Resolver) -> dict:
                         "application/xml": {"schema": {"type": "string", "format": "binary"}},
                         "text/plain": {"schema": {"type": "string"}},
                     },
+                }
+            elif kind == "pdf":
+                responses[str(status)] = {
+                    "description": "PDF document",
+                    "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
                 }
             elif kind == "text":
                 responses[str(status)] = {

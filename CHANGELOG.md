@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.60.0] - 2026-11-02
+
+Documents are fetchable: GET a dunning notice's stored PDF.
+
+### Added
+- `GET /api/dunning/notices/{id}/document` (role `kasse`): serves the notice's stored PDF
+  from the artefact store, so it works over a directory or an S3 bucket alike. No document
+  recorded is 404, a malformed id 400, and a recorded key whose artefact cannot be read 500
+  - a server-side inconsistency, not a client error.
+- `httpapi.Deps.Artefacts` (`storage.Store`) wires the store into the server.
+- The contract generator learned a `pdf` response kind, so the route documents an
+  `application/pdf` binary response instead of the nearest fit.
+- Tests: the route end to end against the real database and a real directory store -
+  served bytes with the right content type, no document, malformed id, unknown id. The
+  harness gained a shared artefacts directory (memoised: `t.TempDir()` returns a new
+  directory per call, which had the server and the test looking in different places).
+
 ## [0.59.0] - 2026-11-02
 
 Storage: RustFS is the S3 endpoint, and the S3 path is verified against it.

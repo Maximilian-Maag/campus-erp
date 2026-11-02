@@ -221,6 +221,7 @@ export interface DunningNotice {
   ChargeCents: number;
   IssuedOn: string;
   IssuedBy: string;
+  DocumentKey: string;
 }
 
 export interface EinvoiceLine {

@@ -65,10 +65,15 @@ func main() {
 		if issuer := dunningDocumentsFromEnv(); issuer != nil {
 			dunningSvc = dunningSvc.WithDocuments(issuer)
 		}
+		artefactStore, storeErr := storage.FromEnv(ctx, strings.TrimSpace(os.Getenv("ERP_DOCUMENTS_DIR")))
+		if storeErr != nil {
+			log.Fatalf("api: artefact store: %v", storeErr)
+		}
 		deps := httpapi.Deps{
 			Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
 			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
 			Dunning:         dunningSvc,
+			Artefacts:       artefactStore,
 			Tax:             kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
 			Runs:            kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
 			Statements:      kasse.NewStatementService(kasse.NewStatementRepo(pool), store),

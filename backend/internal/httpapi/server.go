@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/storage"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -60,6 +61,7 @@ type Server struct {
 	audit           auditVerifier
 	health          healthChecker
 	auth            auth.Verifier
+	artefacts       storage.Store
 }
 
 // Deps are the collaborators the HTTP server needs. A struct (not thirteen
@@ -85,6 +87,7 @@ type Deps struct {
 	Audit           auditVerifier
 	Health          healthChecker
 	Auth            auth.Verifier
+	Artefacts       storage.Store
 }
 
 // New returns a Server.
@@ -108,6 +111,7 @@ func New(d Deps) *Server {
 		audit:           d.Audit,
 		health:          d.Health,
 		auth:            d.Auth,
+		artefacts:       d.Artefacts,
 	}
 }
 
@@ -191,6 +195,7 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("POST /api/dunning/levels", s.authorize(s.createDunningLevel, auth.RoleKasse))
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.authorizeRead(s.getDunningLevel, auth.RoleKasse))
+	mux.HandleFunc("GET /api/dunning/notices/{id}/document", s.authorizeRead(s.getDunningNoticeDocument, auth.RoleKasse))
 	mux.HandleFunc("POST /api/dunning/notices", s.authorize(s.issueDunningNotice, auth.RoleKasse))
 
 	mux.HandleFunc("POST /api/vat-types", s.authorize(s.createVATType, auth.RoleFinanzen))
