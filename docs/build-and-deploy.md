@@ -133,6 +133,17 @@ make clean-data    # drops the database volume
 Ports (overridable in `.env`, see `.env.example`): web `8081`, api `8080`,
 postgres `5433`.
 
+MinIO (an S3-compatible endpoint for the artefact store) is **opt-in**: the default store is
+a directory (`docs/26`), so a contributor needs no S3 image — and some registries refuse
+`minio/minio` anyway. Start it when you want the S3 path:
+
+```bash
+docker compose --profile s3 up minio
+```
+
+and point the roles at it with `ERP_S3_ENDPOINT` (plus `ERP_S3_BUCKET`,
+`ERP_S3_ACCESS_KEY`, `ERP_S3_SECRET_KEY`).
+
 ## Deploy — one half at a time
 
 The point of splitting `deploy-backend` / `deploy-frontend` is that you can

@@ -2,6 +2,16 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.57.2] - 2026-11-02
+
+Local stack: MinIO is opt-in.
+
+### Changed
+- `docker-compose.yml` puts `minio` behind the `s3` profile, so `docker compose up` no
+  longer tries to pull an image the registry may refuse; the default artefact store is a
+  directory (`docs/26`) and needs nothing. Start it with `docker compose --profile s3 up
+  minio` — `docs/build-and-deploy.md` says how, with the `ERP_S3_*` variables.
+
 ## [0.57.1] - 2026-11-02
 
 Docs: bring the indexes up to date.
