@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.57.4] - 2026-11-02
+
+Gate: the mutation sweep contains its own scratch space.
+
+### Fixed
+- `tools/run_tests.sh` now points `TMPDIR` into the same per-package cache dir it already
+  cleans, so the object files and coverage profiles gremlins and the Go toolchain spill into
+  `/tmp` are removed with it. A sweep leaves no more space behind than it found: previously
+  8 GB of leftover scratch filled a 16 GB `/tmp` and made the back half of a sweep report
+  `below floor` on packages that were green.
+
 ## [0.57.3] - 2026-11-02
 
 Gate: a failing mutation run says why.

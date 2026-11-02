@@ -116,11 +116,19 @@ if [[ -d $ROOT/backend ]]; then
     # gremlins caches its coverage profile in the user cache dir. Sharing it across
     # packages yields WRONG, non-reproducible scores (observed: a package reporting
     # 0 killed after another package had run), so give every package its own cache.
+    #
+    # TMPDIR points into the same per-package dir: gremlins and the Go toolchain also
+    # spill into /tmp (object files, coverage profiles), and on a small /tmp those
+    # leftovers fill the disk mid-sweep - which surfaces as "below floor" on packages
+    # that are actually green. Keeping every byte under cache_root means the trap
+    # removes all of it, so a sweep leaves no more space behind than it found.
     cache_root="$(mktemp -d)"
     trap 'rm -rf "$cache_root"' EXIT
     while read -r pkg; do
       [[ -z $pkg ]] && continue
-      out="$( cd "$ROOT/backend" && XDG_CACHE_HOME="$cache_root/${pkg//\//_}" \
+      pkg_home="$cache_root/${pkg//\//_}"
+      mkdir -p "$pkg_home/tmp"
+      out="$( cd "$ROOT/backend" && XDG_CACHE_HOME="$pkg_home" TMPDIR="$pkg_home/tmp" \
         gremlins unleash --threshold-efficacy "$MUTATION_THRESHOLD" "./$pkg" 2>&1 )"
       rc=$?
       if grep -q "No results to report" <<<"$out"; then
