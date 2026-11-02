@@ -2,6 +2,21 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.49.0] - 2026-11-02
+
+Worker: the statement-import job kind (part of #38).
+
+### Added
+- `jobs.KindStatementImport` with `StatementImportArgs` and `StatementImportWorker`:
+  imports one bank-statement file (content travels with the job, so a retry re-imports
+  the same bytes), refuses a missing account or empty content, and returns failures so
+  River retries them. `EnqueueStatementImport` is the API-side entry point.
+- `StatementImportFunc` keeps the jobs package free of a dependency on the module that
+  owns the import, exactly as `DatasetRunner` does for ETL.
+- Registered in `StandardWorkers`; the worker role builds the importer from the cash-book
+  statement service. Tests for the args kind, the happy path, every refusal and the
+  logger.
+
 ## [0.48.0] - 2026-11-02
 
 Documents: HTML notice + PDF service (part of #39).

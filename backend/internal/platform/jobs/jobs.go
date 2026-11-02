@@ -87,18 +87,19 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 // StandardWorkers is the set of job kinds the worker role runs.
-func StandardWorkers(datasets DatasetRunner) *river.Workers {
+func StandardWorkers(datasets DatasetRunner, importStatement StatementImportFunc) *river.Workers {
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &EtlWorker{Datasets: datasets})
+	river.AddWorker(workers, &StatementImportWorker{Import: importStatement})
 	return workers
 }
 
 // New builds a River client that works the standard job kinds over pool. The
 // caller owns the pool and must call Migrate before Start.
-func New(pool *pgxpool.Pool, datasets DatasetRunner) (*river.Client[pgx.Tx], error) {
+func New(pool *pgxpool.Pool, datasets DatasetRunner, importStatement StatementImportFunc) (*river.Client[pgx.Tx], error) {
 	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Queues:  map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: 4}},
-		Workers: StandardWorkers(datasets),
+		Workers: StandardWorkers(datasets, importStatement),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("jobs: client: %w", err)

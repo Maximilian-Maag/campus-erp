@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 	"log"
 	"os"
 	"os/signal"
@@ -69,7 +70,12 @@ func main() {
 	if err := jobs.Migrate(ctx, pool); err != nil {
 		log.Fatalf("jobs: %v", err)
 	}
-	client, err := jobs.New(pool, registry)
+	statementSvc := kasse.NewStatementService(kasse.NewStatementRepo(pool), audit.NewStore(pool))
+	importer := func(ctx context.Context, accountID int64, content, by string) (int, error) {
+		statements, err := statementSvc.Import(ctx, accountID, content, by)
+		return len(statements), err
+	}
+	client, err := jobs.New(pool, registry, importer)
 	if err != nil {
 		log.Fatalf("jobs: %v", err)
 	}
