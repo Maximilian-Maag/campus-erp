@@ -53,6 +53,44 @@ C4Container
 | Batch / interfaces | `imp_*`/`out_*`, SEPA/MT940/LBV tables — **[c]** |
 | Document storage | `dokumente`, `k_dokumente_*`; product material names DB/filesystem/DMS options — **[c]** |
 
+## Target containers (overview)
+
+The replacement's containers. Descriptions are deliberately short — detail lives in
+`docs/17`; the as-is model above is the legacy system.
+
+```mermaid
+C4Container
+    title Container — target (university-ERP replacement)
+
+    Person(user, "Sachbearbeiter:in", "HR / finance / cashier staff")
+
+    Container(web, "Web UI", "Angular SPA", "Role-specific UI")
+    Container(ingress, "Ingress", "nginx/Traefik", "TLS, per-tenant hosts")
+    Container(api, "API", "Go", "REST/JSON, OpenAPI; modular monolith")
+    Container(worker, "Worker", "Go", "Async jobs: imports, exports, ETL")
+    Container(sched, "Scheduler", "CronJob", "Nightly batch, dunning runs")
+    Container(conn, "Connectors", "Go + cgo", "ELSTER/ERiC, EBICS")
+    Container(pdf, "Document service", "Gotenberg", "HTML → PDF")
+    ContainerDb(db, "PostgreSQL", "CloudNativePG", "Database per tenant")
+    ContainerDb(store, "Object storage", "S3/MinIO", "Documents, exports, archive")
+    ContainerDb(redis, "Redis", "Redis", "Sessions, cache")
+
+    Rel(user, web, "uses", "HTTPS")
+    Rel(web, ingress, " ", "HTTPS")
+    Rel(ingress, api, " ", "HTTPS/JSON")
+    Rel(api, db, "reads/writes", "SQL")
+    Rel(api, worker, "enqueues", "River on Postgres")
+    Rel(sched, worker, "enqueues", "River on Postgres")
+    Rel(worker, conn, "drives", "in-process")
+    Rel(worker, pdf, "renders", "HTTP (HTML → PDF)")
+    Rel(worker, store, "stores", "S3")
+    Rel(api, redis, " ", "RESP")
+```
+
+The document path is the one new move: **API/worker render HTML → the document service
+returns a PDF → the artefact goes to object storage**, and the case keeps a reference to
+it (ADR-0009).
+
 ## Container-level observations
 
 1. **One database, four module schemas, no shared schema.** Each module app owns

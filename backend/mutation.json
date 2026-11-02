@@ -16,6 +16,10 @@
       "lang": "go"
     },
     {
+      "path": "internal/platform/documents",
+      "lang": "go"
+    },
+    {
       "path": "internal/core/mt940",
       "lang": "go"
     },

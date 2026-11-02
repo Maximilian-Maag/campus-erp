@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.48.0] - 2026-11-02
+
+Documents: HTML notice + PDF service (part of #39).
+
+### Added
+- `internal/platform/documents`: `DunningNotice.HTML` (deterministic, escaped HTML from
+  a dunning case; golden-tested) and `Renderer` / `NewHTTPRenderer`, which posts the
+  HTML to the document service and returns the PDF. Mutation target.
+- One new deploy component: the document service (stateless HTML→PDF), gated in the
+  chart (`pdf.enabled`, off by default) with values in `values.yaml`.
+- **ADR-0009** (render documents with a service, and why not an in-process PDF
+  library), `docs/24-documents.md`, and a short target-container overview with the
+  document path in `docs/c4/02-container.md`.
+
 ## [0.47.0] - 2026-11-02
 
 Ledger posting export: collection + service (increment 2 of #42).
