@@ -1,0 +1,6 @@
+# cash-postings/v1
+# period: 2026-10-01..2026-10-31
+# cash_account: 1200
+reference,booking_date,account,cash_account,direction,amount_cents,currency,purpose
+BK-2026-0001,2026-10-01,8400,1200,credit,125000,EUR,Stromabschlag Oktober
+BK-2026-0002,2026-10-02,4400,1200,debit,4999,EUR,Fachliteratur

@@ -12,20 +12,24 @@
       "lang": "go"
     },
     {
+      "path": "internal/core/ledger",
+      "lang": "go"
+    },
+    {
       "path": "internal/core/mt940",
       "lang": "go"
     },
     {
-     "path": "internal/core/camt052",
-     "lang": "go"
+      "path": "internal/core/camt052",
+      "lang": "go"
     },
     {
-     "path": "internal/core/camt053",
-     "lang": "go"
+      "path": "internal/core/camt053",
+      "lang": "go"
     },
     {
-     "path": "internal/core/camt054",
-     "lang": "go"
+      "path": "internal/core/camt054",
+      "lang": "go"
     },
     {
       "path": "internal/core/einvoice",
