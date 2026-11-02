@@ -132,6 +132,23 @@ redis:
   enabled: false
   image: redis:7-alpine
 
+pdf:
+  # Document service (HTML -> PDF, ADR-0009). Off by default: without it the roles
+  # still run, they just cannot produce documents (dunning notices, certificates).
+  enabled: false
+  replicas: 1
+  port: 3000
+  image:
+    repository: gotenberg/gotenberg
+    tag: "8"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
 objectStorage:
   # S3-compatible (MinIO on-prem or university S3). Consumed by the roles as the
   # object-storage features land; the chart only carries the endpoint config.
