@@ -122,6 +122,27 @@ test against two real databases; the authorisation matrix (`authz_test.go`); and
 worker integration test (`jobs`) which migrates River's schema, starts a client,
 enqueues an `etl` job and waits for it to complete.
 
+## 8. Interface artefacts - what each planned interface still needs
+
+The registry (§4) marks nine interfaces `planned`. None is blocked on code: each is
+blocked on an external artefact. This is the ledger, so the block is explicit rather
+than implicit.
+
+| Interface | Needs to proceed |
+|---|---|
+| Bank - EBICS channel | an EBICS contract, the agreed protocol version and a sandbox endpoint |
+| State pay office (LBV) | the per-Bundesland file/communication specification and a test connection |
+| ELSTER / ERiC | the ERiC library plus a test certificate and account |
+| Statistics offices | the per-state export format (each office differs) |
+| Document store (DMS) | the target DMS API definition and credentials |
+| ERP SOAP services | a service catalogue / WSDL snapshot and a test instance |
+| Student-loan portal | the loan service WSDL and test access |
+| Card / cash terminal | the terminal protocol or its bridge documentation |
+| Admission (DoSV) | the DoSV API specification and a test account |
+
+Each entry is descoped explicitly if the artefact cannot be obtained; the registry
+status then stays `planned` on purpose.
+
 ## Still open
 
 - The tenant is resolved and used for the pool, but the audit `actor` does not yet
