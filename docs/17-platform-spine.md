@@ -117,6 +117,10 @@ on Postgres (ADR-0007) — no extra broker. The runtime is `internal/platform/jo
   `cash-postings/v1` export (`docs/23`) and hands it over via `LedgerExportFunc`. The
   service refuses an export that does not balance against its bookings
   (`ErrLedgerUnbalanced`), so the job never delivers an unbalanced file.
+- The `sepa-export` kind (`SepaExportArgs{RunID, Actor}`) delivers a payment run's
+  already-rendered pain.001 file to the bank channel. `SepaExportFunc` returns the file
+  name and bytes; a name that is empty, nested or escaping is refused, so the outbox
+  cannot be written outside.
 - `EnqueueEtl` / `EnqueueStatementImport` / `EnqueueLedgerExport` are the enqueue
   seams the API role can use to hand work to the worker instead of running it inline.
 - `cmd/worker` is the wiring: it opens the pool, migrates, builds the registry
@@ -158,8 +162,9 @@ status then stays `planned` on purpose.
   record the tenant; wiring the tenant into audit events is a small follow-up.
 - Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the SOAP
   client and the rest remain `planned`.
-- Three job kinds are wired: `etl`, `statement-import` and `ledger-export`. The
-  remaining kinds (`sepa-export`, `statistics-export`, `report-render`) are not
-  registered yet; each is a `JobArgs` + worker plus its enqueue call site.
+- Four job kinds are wired: `etl`, `statement-import`, `ledger-export` and
+  `sepa-export`. The remaining kinds (`statistics-export`, `report-render`) are not
+  registered yet; `report-render` can build on the document service (docs/24), while
+  `statistics-export` waits on the per-state format specs.
 - The worker's ledger hand-over is a directory (`ERP_LEDGER_OUTBOX_DIR`); object
   storage or SFTP replaces that function without touching the job kind.

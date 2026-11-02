@@ -92,7 +92,20 @@ func main() {
 		}
 		return len(exp.Postings), writeOutbox(content)
 	}
-	client, err := jobs.New(pool, registry, importer, exporter)
+	runRepo := kasse.NewPaymentRunRepo(pool)
+	sepaExporter := func(ctx context.Context, runID int64, _ string) (string, string, error) {
+		content, err := runRepo.RunFile(ctx, runID)
+		if err != nil {
+			return "", "", err
+		}
+		name := fmt.Sprintf("sepa-%d.xml", runID)
+		if err := writeTo(strings.TrimSpace(os.Getenv("ERP_SEPA_OUTBOX_DIR")),
+			"worker: ERP_SEPA_OUTBOX_DIR is not set", name, content); err != nil {
+			return "", "", err
+		}
+		return name, content, nil
+	}
+	client, err := jobs.New(pool, registry, importer, exporter, sepaExporter)
 	if err != nil {
 		log.Fatalf("jobs: %v", err)
 	}
@@ -110,14 +123,18 @@ func main() {
 	}
 }
 
-// writeOutbox drops a ledger export into the configured outbox directory. The
-// directory is the seam to the ledger side: object storage or SFTP replaces this
-// function without touching the job kind.
-func writeOutbox(content string) error {
-	dir := strings.TrimSpace(os.Getenv("ERP_LEDGER_OUTBOX_DIR"))
+// writeTo drops content into dir under name. It is the outbox seam: object storage or
+// SFTP replaces this one function.
+func writeTo(dir, missing, name, content string) error {
 	if dir == "" {
-		return errors.New("worker: ERP_LEDGER_OUTBOX_DIR is not set")
+		return errors.New(missing)
 	}
-	name := fmt.Sprintf("ledger-postings-%s.csv", time.Now().UTC().Format("20060102T150405"))
 	return os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600)
+}
+
+// writeOutbox drops a ledger export into the configured outbox directory.
+func writeOutbox(content string) error {
+	name := fmt.Sprintf("ledger-postings-%s.csv", time.Now().UTC().Format("20060102T150405"))
+	return writeTo(strings.TrimSpace(os.Getenv("ERP_LEDGER_OUTBOX_DIR")),
+		"worker: ERP_LEDGER_OUTBOX_DIR is not set", name, content)
 }
