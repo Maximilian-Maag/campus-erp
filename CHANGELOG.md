@@ -2,6 +2,19 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.53.0] - 2026-11-02
+
+Worker: the sepa-export job kind (part of #38).
+
+### Added
+- `jobs.KindSepaExport` with `SepaExportArgs{RunID, Actor}` and `SepaExportWorker`:
+  delivers a payment run's already-rendered pain.001 file to the bank channel through
+  `SepaExportFunc`. Refuses a missing run, an empty file name or content, and a name
+  that is nested or escapes the outbox; failures are returned so River retries.
+- Registered in `StandardWorkers`; the worker role fetches the run file from the
+  cash-book payment-run repository and writes it to `ERP_SEPA_OUTBOX_DIR`.
+- Tests: the kind, the happy path, every refusal, the logger.
+
 ## [0.52.0] - 2026-11-02
 
 Dunning notices get their document (increment 2 of #39).
