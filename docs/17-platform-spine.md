@@ -95,11 +95,32 @@ model is projected onto these roles at the IdP, so the API enforces only the
 module boundary. `authz_test.go` pins the matrix (module role, reader, admin,
 wrong module, no role, open route, missing/bad token).
 
+## 7. Async jobs — the worker runtime (`internal/platform/jobs`)
+
+Long-running work (imports, exports, ETL, report generation) runs through **River**
+on Postgres (ADR-0007) — no extra broker. The runtime is `internal/platform/jobs`:
+
+- `Migrate(ctx, pool)` applies River's schema — idempotent, called on every start.
+  River owns its own tables, so they are not part of the app migrations and not in
+  the ER model.
+- `New(pool, datasets)` builds a client with the standard workers registered;
+  `StandardWorkers` currently registers one kind, `etl`.
+- The `etl` kind (`EtlArgs{Dataset, Actor}`) runs a named dataset through the
+  registry of §Platform-ETL (`docs/19`) and records the run on the audit stream,
+  exactly as the API endpoint does. A dataset failure is returned so River retries.
+- `EnqueueEtl(ctx, client, dataset, actor)` is the enqueue seam the API role can use
+  to hand an ETL run to the worker instead of running it inline.
+- `cmd/worker` is the wiring: it opens the pool, migrates, builds the registry
+  (legacy source pool when `ERP_LEGACY_DATABASE_URL` is set), starts the client and
+  blocks until SIGINT/SIGTERM, then drains with a bounded stop.
+
 ## Verified
 
 Go `vet`/`build`/`test`; gremlins per package ≥ 0.85 (`auth` 98 %, `tenant`
-100 %, `interfaces` 100 %, `httpapi` 100 %); the tenant integration test against
-two real databases; the authorisation matrix (`authz_test.go`).
+100 %, `interfaces` 100 %, `httpapi` 100 %, `jobs` 100 %); the tenant integration
+test against two real databases; the authorisation matrix (`authz_test.go`); and the
+worker integration test (`jobs`) which migrates River's schema, starts a client,
+enqueues an `etl` job and waits for it to complete.
 
 ## Still open
 
@@ -107,3 +128,6 @@ two real databases; the authorisation matrix (`authz_test.go`).
   record the tenant; wiring the tenant into audit events is a small follow-up.
 - Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the WDK SOAP
   client and the rest remain `planned`.
+- Only the `etl` job kind is wired. The other kinds the worker role is meant to run
+  (imports, exports, statistics, report rendering — `report-render`) are not
+  registered yet; each is a `JobArgs` + worker plus its enqueue call site.
