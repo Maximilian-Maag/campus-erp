@@ -48,11 +48,11 @@ func (w *ReportRenderWorker) Work(ctx context.Context, job *river.Job[ReportRend
 	if id == "" {
 		return errors.New("jobs: report render needs a report id")
 	}
-	from, err := time.Parse(ledgerDate, strings.TrimSpace(job.Args.From))
+	from, err := time.Parse(PeriodLayout, strings.TrimSpace(job.Args.From))
 	if err != nil {
 		return fmt.Errorf("jobs: report render period from %q: %w", job.Args.From, err)
 	}
-	to, err := time.Parse(ledgerDate, strings.TrimSpace(job.Args.To))
+	to, err := time.Parse(PeriodLayout, strings.TrimSpace(job.Args.To))
 	if err != nil {
 		return fmt.Errorf("jobs: report render period to %q: %w", job.Args.To, err)
 	}

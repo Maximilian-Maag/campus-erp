@@ -532,6 +532,16 @@ export interface StatementLine {
   OrderID: number | null;
 }
 
+export interface StatisticsExportRequest {
+  state: string;
+  from: string;
+  to: string;
+}
+
+export interface StatisticsExportResponse {
+  job_id: number;
+}
+
 export interface TaxOffice {
   ID: number;
   Year: number;

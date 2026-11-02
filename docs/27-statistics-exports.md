@@ -83,6 +83,27 @@ invalid seed, which is a compile-time-constant bug by construction.
 - **The file is reachable.** `GET /api/artefacts/statistics/<name>` (role `kasse`) serves it,
   like every other stored artefact (docs/24).
 
+## Triggering an export from the API
+
+The work runs on the worker role, so the API only queues it:
+
+```
+POST /api/statistics/exports   (role kasse)
+{ "state": "bw", "from": "2026-11-01", "to": "2026-11-30" }
+  -> 202 { "job_id": 42 }
+```
+
+- The API role holds an **insert-only** River client (`jobs.NewEnqueuer`: no queues and no
+  workers, so it cannot work a job). `jobs.Exports` is the seam it hands to the HTTP layer,
+  which is why `httpapi` does not import River. With no queue configured the route answers
+  `503` rather than pretending the export was queued.
+- The request is validated at the edge (`state` required, the dates parsed as `YYYY-MM-DD`)
+  so a doomed job is not queued; the worker re-validates, because a job argument can be
+  persisted and replayed by hand.
+- The other export/render kinds (`ledger-export`, `report-render`) take the same
+  `{id, from, to}` shape and follow this pattern; only `POST /api/statistics/exports` is
+  wired so far.
+
 ## The layouts are placeholders
 
 The three seeded layouts (`default`, `bw`, `by`) are **project-defined placeholders**, marked as

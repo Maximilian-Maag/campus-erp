@@ -15,8 +15,8 @@ import (
 // KindLedgerExport renders a period's posting export and hands it to the ledger side.
 const KindLedgerExport = "ledger-export"
 
-// ledgerDate is the layout the job carries its period in.
-const ledgerDate = "2006-01-02"
+// PeriodLayout is the date layout a period-carrying job takes in its From/To args.
+const PeriodLayout = "2006-01-02"
 
 // LedgerExportArgs is the payload of a KindLedgerExport job.
 type LedgerExportArgs struct {
@@ -49,11 +49,11 @@ func (w *LedgerExportWorker) Work(ctx context.Context, job *river.Job[LedgerExpo
 	if strings.TrimSpace(job.Args.Actor) == "" {
 		return errors.New("jobs: ledger export needs an actor")
 	}
-	from, err := time.Parse(ledgerDate, strings.TrimSpace(job.Args.From))
+	from, err := time.Parse(PeriodLayout, strings.TrimSpace(job.Args.From))
 	if err != nil {
 		return fmt.Errorf("jobs: ledger export period from %q: %w", job.Args.From, err)
 	}
-	to, err := time.Parse(ledgerDate, strings.TrimSpace(job.Args.To))
+	to, err := time.Parse(PeriodLayout, strings.TrimSpace(job.Args.To))
 	if err != nil {
 		return fmt.Errorf("jobs: ledger export period to %q: %w", job.Args.To, err)
 	}
@@ -62,7 +62,7 @@ func (w *LedgerExportWorker) Work(ctx context.Context, job *river.Job[LedgerExpo
 		return fmt.Errorf("jobs: ledger export: %w", err)
 	}
 	w.log().InfoContext(ctx, "ledger export finished",
-		"from", from.Format(ledgerDate), "to", to.Format(ledgerDate), "postings", n)
+		"from", from.Format(PeriodLayout), "to", to.Format(PeriodLayout), "postings", n)
 	return nil
 }
 

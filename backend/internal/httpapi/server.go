@@ -63,6 +63,7 @@ type Server struct {
 	health          healthChecker
 	auth            auth.Verifier
 	artefacts       storage.Store
+	exports         exportQueue
 }
 
 // Deps are the collaborators the HTTP server needs. A struct (not thirteen
@@ -89,6 +90,7 @@ type Deps struct {
 	Health          healthChecker
 	Auth            auth.Verifier
 	Artefacts       storage.Store
+	Exports         exportQueue
 }
 
 // New returns a Server.
@@ -113,6 +115,7 @@ func New(d Deps) *Server {
 		health:          d.Health,
 		auth:            d.Auth,
 		artefacts:       d.Artefacts,
+		exports:         d.Exports,
 	}
 }
 
@@ -136,6 +139,9 @@ func (s *Server) Routes() http.Handler {
 	// IdP, so the API only enforces the coarse module boundary.
 	mux.HandleFunc("GET /api/audit/verify", s.authorize(s.auditVerify, auth.RoleAdmin))
 	mux.HandleFunc("GET /api/artefacts/{kind}/{name}", s.authorizeRead(s.getArtefact, auth.RoleKasse))
+
+	// Exports run on the worker role; the API only queues them (docs/27).
+	mux.HandleFunc("POST /api/statistics/exports", s.authorize(s.requestStatisticsExport, auth.RoleKasse))
 
 	// ETL: list + run the registered datasets (admin).
 	mux.HandleFunc("GET /api/etl/datasets", s.authorize(s.listETLDatasets, auth.RoleAdmin))

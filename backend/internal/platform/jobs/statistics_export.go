@@ -48,11 +48,11 @@ func (w *StatisticsExportWorker) Work(ctx context.Context, job *river.Job[Statis
 	if state == "" {
 		return errors.New("jobs: statistics export needs a state")
 	}
-	from, err := time.Parse(ledgerDate, strings.TrimSpace(job.Args.From))
+	from, err := time.Parse(PeriodLayout, strings.TrimSpace(job.Args.From))
 	if err != nil {
 		return fmt.Errorf("jobs: statistics export period from %q: %w", job.Args.From, err)
 	}
-	to, err := time.Parse(ledgerDate, strings.TrimSpace(job.Args.To))
+	to, err := time.Parse(PeriodLayout, strings.TrimSpace(job.Args.To))
 	if err != nil {
 		return fmt.Errorf("jobs: statistics export period to %q: %w", job.Args.To, err)
 	}
@@ -67,7 +67,7 @@ func (w *StatisticsExportWorker) Work(ctx context.Context, job *river.Job[Statis
 		return errors.New("jobs: statistics export produced no file content")
 	}
 	w.log().InfoContext(ctx, "statistics export finished",
-		"state", state, "from", from.Format(ledgerDate), "to", to.Format(ledgerDate), "file", name)
+		"state", state, "from", from.Format(PeriodLayout), "to", to.Format(PeriodLayout), "file", name)
 	return nil
 }
 

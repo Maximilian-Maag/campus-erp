@@ -163,3 +163,71 @@ func TestWorkerRunsStatisticsExportJob(t *testing.T) {
 		t.Fatalf("period = %s..%s", gotFrom.Format("2006-01-02"), gotTo.Format("2006-01-02"))
 	}
 }
+
+// TestEnqueueOnlyClientReachesTheWorker exercises the API role's half of the hand-over:
+// an insert-only client (NewEnqueuer) queues through the Exports seam, and the worker
+// role — a separate client working the same database — picks the job up and runs it.
+func TestEnqueueOnlyClientReachesTheWorker(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pool := jobsTestPool(t)
+	if err := jobs.Migrate(ctx, pool); err != nil {
+		t.Fatalf("jobs.Migrate: %v", err)
+	}
+
+	var calls int
+	var gotState, gotActor string
+	export := func(_ context.Context, state string, from, to time.Time, by string) (string, string, error) {
+		calls++
+		gotState, gotActor = state, by
+		return "bw-20261101-20261130.csv", "Zweck;Einnahmen\nMensa;10.00\n", nil
+	}
+	worker, err := jobs.New(pool, nil, nil, nil, nil, nil, export)
+	if err != nil {
+		t.Fatalf("jobs.New: %v", err)
+	}
+	if err := worker.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer stopCancel()
+		if err := worker.Stop(stopCtx); err != nil {
+			t.Errorf("Stop: %v", err)
+		}
+	})
+
+	enqueuer, err := jobs.NewEnqueuer(pool)
+	if err != nil {
+		t.Fatalf("jobs.NewEnqueuer: %v", err)
+	}
+	id, err := jobs.NewExports(enqueuer).EnqueueStatisticsExport(ctx, "bw", "2026-11-01", "2026-11-30", "alice")
+	if err != nil {
+		t.Fatalf("EnqueueStatisticsExport: %v", err)
+	}
+	if id == 0 {
+		t.Fatal("EnqueueStatisticsExport returned job id 0")
+	}
+
+	deadline := time.Now().Add(20 * time.Second)
+	for {
+		job, err := worker.JobGet(ctx, id)
+		if err != nil {
+			t.Fatalf("JobGet: %v", err)
+		}
+		if job.State == rivertype.JobStateCompleted {
+			break
+		}
+		if job.State == rivertype.JobStateDiscarded || job.State == rivertype.JobStateCancelled {
+			t.Fatalf("job %d ended in state %q", id, job.State)
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("job %d stuck in state %q", id, job.State)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if calls != 1 || gotState != "bw" || gotActor != "alice" {
+		t.Fatalf("worker got (%d, %q, %q), want (1, bw, alice)", calls, gotState, gotActor)
+	}
+}

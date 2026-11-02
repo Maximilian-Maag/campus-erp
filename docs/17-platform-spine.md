@@ -129,9 +129,10 @@ on Postgres (ADR-0007) — no extra broker. The runtime is `internal/platform/jo
   through the document service (`docs/25`).
 - `EnqueueEtl` / `EnqueueStatementImport` / `EnqueueLedgerExport` / `EnqueueSepaExport` /
   `EnqueueReportRender` / `EnqueueStatisticsExport` are the enqueue seams the API role can
-  use to hand work to the worker instead of running it inline. Only `EnqueueEtl` is wired to
-  a route today (`POST /api/etl/runs`); the export/render seams are the worker-facing half of
-  a hand-over whose API trigger is still to be built.
+  use to hand work to the worker instead of running it inline. Two are wired to a route today:
+  `POST /api/etl/runs` (which runs the dataset inline) and `POST /api/statistics/exports`,
+  which queues through an **insert-only** client (`jobs.NewEnqueuer` — no queues, no workers)
+  so the API can never work a job. The remaining export seams follow the same pattern.
 - `cmd/worker` is the wiring: it opens the pool, migrates, builds the registry
   (legacy source pool when `ERP_LEGACY_DATABASE_URL` is set), starts the client and
   blocks until SIGINT/SIGTERM, then drains with a bounded stop.

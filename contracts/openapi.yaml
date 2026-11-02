@@ -925,6 +925,39 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/statistics/exports:
+    post:
+      tags:
+      - kasse
+      operationId: requestStatisticsExport
+      summary: Queue a per-state statistics export (renders on the worker role)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatisticsExportRequest'
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatisticsExportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/dunning/levels:
     post:
       tags:
@@ -3155,6 +3188,27 @@ components:
       - up_to_cents
       - fee_cents
       - rate_basis_points
+    StatisticsExportResponse:
+      type: object
+      properties:
+        job_id:
+          type: integer
+          format: int64
+      required:
+      - job_id
+    StatisticsExportRequest:
+      type: object
+      properties:
+        state:
+          type: string
+        from:
+          type: string
+        to:
+          type: string
+      required:
+      - state
+      - from
+      - to
     FoundationBalance:
       type: object
       properties:
