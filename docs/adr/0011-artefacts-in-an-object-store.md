@@ -25,6 +25,9 @@ S3-compatible bucket via minio-go). `storage.FromEnv` picks: `ERP_S3_ENDPOINT` s
   MinIO on-prem and a university S3 both work.
 - Keys are validated in one place (`CheckKey`): empty, absolute and escaping keys are
   refused, so a caller cannot write outside the store.
-- **Not verified end to end yet:** the S3 round-trip test exists
-  (`storage.TestS3RoundTrip`, gated on `ERP_S3_TEST_ENDPOINT`) but has not been executed
-  against a live endpoint — the MinIO image could not be pulled in this environment.
+- The S3 path is verified end to end by `storage.TestS3RoundTrip`: it serves an in-process
+  S3-compatible server (gofakes3) so the path is exercised on every build and cannot rot,
+  and `ERP_S3_TEST_ENDPOINT` points it at a real endpoint instead (MinIO, a university S3).
+- MinIO's own image could not be pulled in this environment (the registry refuses that
+  repository), so the verification runs against an S3-compatible server rather than MinIO
+  itself. The client speaks the S3 protocol either way.

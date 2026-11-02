@@ -30,7 +30,11 @@ Keys are checked once (`CheckKey`): empty, absolute, and escaping keys are refus
 ## Verification status
 
 - Directory store and key handling: unit-tested.
-- **S3 store: not verified end to end here.** `storage.TestS3RoundTrip` round-trips a
-  value when `ERP_S3_TEST_ENDPOINT` is set; the MinIO image could not be pulled in this
-  environment, so that test has not been run. Treat the S3 path as written-but-unproven
-  until it is run against a real endpoint.
+- **S3 store: verified end to end.** `storage.TestS3RoundTrip` runs on every build against
+  an in-process S3-compatible server (gofakes3): bucket creation (idempotent), `Save` and
+  `Get` round trips including nested keys, a missing key failing, and an escaping key being
+  refused. Set `ERP_S3_TEST_ENDPOINT` (plus `ERP_S3_BUCKET`, `ERP_S3_ACCESS_KEY`,
+  `ERP_S3_SECRET_KEY`) to run the same test against a real endpoint.
+- MinIO's image cannot be pulled in this environment, so the endpoint under test is an
+  S3-compatible server rather than MinIO itself; the client is minio-go and speaks the same
+  protocol.

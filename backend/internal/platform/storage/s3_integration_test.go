@@ -2,19 +2,29 @@ package storage_test
 
 import (
 	"context"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/johannesboyne/gofakes3"
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/storage"
 )
 
-// TestS3RoundTrip exercises the S3 store against a real endpoint. It is skipped unless
-// ERP_S3_TEST_ENDPOINT is set (e.g. the MinIO service in docker-compose).
+// TestS3RoundTrip exercises the S3 store against a real S3 API. By default it serves an
+// in-process S3-compatible server (gofakes3), so the S3 path is exercised on every run
+// and cannot rot; set ERP_S3_TEST_ENDPOINT to point it at an external endpoint (MinIO,
+// a university S3) instead.
 func TestS3RoundTrip(t *testing.T) {
-	endpoint := os.Getenv("ERP_S3_TEST_ENDPOINT")
+	endpoint := strings.TrimSpace(os.Getenv("ERP_S3_TEST_ENDPOINT"))
 	if endpoint == "" {
-		t.Skip("ERP_S3_TEST_ENDPOINT not set")
+		srv := httptest.NewServer(gofakes3.New(s3mem.New()).Server())
+		defer srv.Close()
+		endpoint = strings.TrimPrefix(srv.URL, "http://")
 	}
+
 	ctx := context.Background()
 	s, err := storage.NewS3(endpoint,
 		envOr("ERP_S3_BUCKET", "campus-erp-test"),
@@ -30,19 +40,29 @@ func TestS3RoundTrip(t *testing.T) {
 		t.Fatalf("EnsureBucket must be idempotent: %v", err)
 	}
 
-	key := "test/round-trip.txt"
-	if err := s.Save(ctx, key, []byte("hallo")); err != nil {
+	if err := s.Save(ctx, "sepa/sepa-7.xml", []byte("<Document/>")); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	got, err := s.Get(ctx, key)
+	got, err := s.Get(ctx, "sepa/sepa-7.xml")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if string(got) != "hallo" {
+	if string(got) != "<Document/>" {
 		t.Fatalf("content = %q", got)
 	}
-	if _, err := s.Get(ctx, "test/does-not-exist.txt"); err == nil {
-		t.Fatal("missing key must fail")
+
+	if err := s.Save(ctx, "nested/deep/key.csv", []byte("a,b\n")); err != nil {
+		t.Fatalf("Save nested: %v", err)
+	}
+	if got, err := s.Get(ctx, "nested/deep/key.csv"); err != nil || string(got) != "a,b\n" {
+		t.Fatalf("nested round trip = %q, %v", got, err)
+	}
+
+	if _, err := s.Get(ctx, "sepa/missing.xml"); err == nil {
+		t.Fatal("a missing key must fail")
+	}
+	if err := s.Save(ctx, "../escape", []byte("x")); err == nil {
+		t.Fatal("an escaping key must be refused")
 	}
 }
 

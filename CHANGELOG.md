@@ -2,6 +2,19 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.56.0] - 2026-11-02
+
+Storage: the S3 path is verified.
+
+### Changed
+- `storage.TestS3RoundTrip` now serves an in-process S3-compatible server (gofakes3) when
+  `ERP_S3_TEST_ENDPOINT` is unset, so the S3 store is exercised on every build instead of
+  being written-but-unproven: bucket creation (idempotent), Save/Get round trips with nested
+  keys, a missing key failing, and an escaping key refused — all through the minio-go client.
+  `ERP_S3_TEST_ENDPOINT` still points the same test at a real endpoint.
+- MinIO's own image is refused by this environment's registry, so verification runs against
+  an S3-compatible server rather than MinIO itself. ADR-0011 and `docs/26` updated.
+
 ## [0.55.0] - 2026-11-02
 
 Storage: one keyed artefact store (ADR-0011).
