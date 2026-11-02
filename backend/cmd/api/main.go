@@ -3,8 +3,13 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/documents"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -55,10 +60,14 @@ func main() {
 		}
 		etlRunner := etl.NewRunner(store).WithLedger(etl.NewAuditLedger(store))
 		etlRegistry := etl.NewRegistry(etlRunner, lookup.StandardDatasets(srcPool, lookupSvc)...)
+		dunningSvc := kasse.NewDunningService(kasse.NewDunningRepo(pool), store)
+		if issuer := dunningDocumentsFromEnv(); issuer != nil {
+			dunningSvc = dunningSvc.WithDocuments(issuer)
+		}
 		deps := httpapi.Deps{
 			Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
 			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
-			Dunning:         kasse.NewDunningService(kasse.NewDunningRepo(pool), store),
+			Dunning:         dunningSvc,
 			Tax:             kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
 			Runs:            kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
 			Statements:      kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
@@ -129,4 +138,74 @@ func main() {
 	if err := http.ListenAndServe(cfg.HTTPAddr, handler); err != nil {
 		log.Fatalf("serve: %v", err)
 	}
+}
+
+// dunningDocumentsFromEnv builds the dunning document issuer, or nil when the document
+// service or the store directory is not configured: notices are then issued without a
+// document rather than failing.
+func dunningDocumentsFromEnv() kasse.DunningDocuments {
+	url := strings.TrimSpace(os.Getenv("ERP_DOCUMENTS_URL"))
+	dir := strings.TrimSpace(os.Getenv("ERP_DOCUMENTS_DIR"))
+	if url == "" || dir == "" {
+		return nil
+	}
+	renderer, err := documents.NewHTTPRenderer(url, nil)
+	if err != nil {
+		log.Printf("documents: %v - notices will have no document", err)
+		return nil
+	}
+	store, err := documents.NewDirStore(dir)
+	if err != nil {
+		log.Printf("documents: %v - notices will have no document", err)
+		return nil
+	}
+	return dunningDocuments{renderer: renderer, store: store, issuer: organisation()}
+}
+
+func organisation() string {
+	if v := strings.TrimSpace(os.Getenv("ERP_ORGANISATION")); v != "" {
+		return v
+	}
+	return "Universitaet"
+}
+
+// dunningDocuments renders a dunning notice and stores the PDF.
+type dunningDocuments struct {
+	renderer documents.Renderer
+	store    documents.Store
+	issuer   string
+}
+
+// StoreNotice implements kasse.DunningDocuments.
+func (d dunningDocuments) StoreNotice(ctx context.Context, n kasse.DunningNotice, level kasse.DunningLevel) (string, error) {
+	// The claim reference stands in for the addressee until claims carry a debtor.
+	html, err := (documents.DunningNotice{
+		Reference:   n.ClaimReference,
+		DebtorName:  n.ClaimReference,
+		Issuer:      d.issuer,
+		Level:       dunningLevelNumber(n.LevelCode),
+		AmountCents: n.OutstandingCents + n.ChargeCents,
+		Currency:    "EUR",
+		DueDate:     n.IssuedOn.AddDate(0, 0, level.DaysAllowed).Format("2006-01-02"),
+	}).HTML()
+	if err != nil {
+		return "", err
+	}
+	pdf, err := d.renderer.Render(ctx, html)
+	if err != nil {
+		return "", err
+	}
+	key := fmt.Sprintf("dunning/%d.pdf", n.ID)
+	if err := d.store.Save(ctx, key, pdf); err != nil {
+		return "", err
+	}
+	return key, nil
+}
+
+// dunningLevelNumber reads the numeric stage out of a level code, defaulting to 1.
+func dunningLevelNumber(code string) int {
+	if n, err := strconv.Atoi(strings.TrimSpace(code)); err == nil && n > 0 {
+		return n
+	}
+	return 1
 }

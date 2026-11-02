@@ -28,3 +28,17 @@ as HTML and converted to PDF by one dedicated component (ADR-0009).
 - Wiring the dunning run to render a notice per case, store it and record the
   reference (issue #39); the notice + renderer themselves are in place.
 - The service URL is not read from configuration yet (`ERP_DOCUMENTS_URL`).
+
+## Wiring the dunning run
+
+`DunningService.WithDocuments` takes a `kasse.DunningDocuments`: issuing a notice renders
+the HTML, converts it to PDF through the document service and stores the bytes under
+`dunning/<notice id>.pdf`. The key goes into `dunning_notice.document_key` and into the
+`dunning.notice.issue` audit detail, so the artefact and the case are tied together.
+
+A render or store failure fails the issue: a notice must not claim a document it does not
+have. When `ERP_DOCUMENTS_URL` or `ERP_DOCUMENTS_DIR` is unset the service runs without a
+document issuer and issues notices with no artefact — the existing behaviour.
+
+The store is a seam: `documents.Store` is implemented by `DirStore` for local use, and
+object storage replaces it without touching the dunning workflow.

@@ -215,11 +215,14 @@ func TestNewDunningNotice(t *testing.T) {
 // ── service level ───────────────────────────────────────────────────────────
 
 type fakeDunningRepo struct {
-	level     DunningLevel
-	notice    DunningNotice
-	getErr    error
-	createErr error
-	insertErr error
+	level       DunningLevel
+	notice      DunningNotice
+	getErr      error
+	createErr   error
+	insertErr   error
+	documentErr error
+	documentKey string
+	documentID  int64
 }
 
 func (f *fakeDunningRepo) CreateLevel(_ context.Context, l DunningLevel) (DunningLevel, error) {
@@ -244,6 +247,14 @@ func (f *fakeDunningRepo) InsertNotice(_ context.Context, n DunningNotice) (Dunn
 	}
 	n.ID = 9
 	return n, nil
+}
+
+func (f *fakeDunningRepo) SetNoticeDocument(_ context.Context, id int64, key string) error {
+	if f.documentErr != nil {
+		return f.documentErr
+	}
+	f.documentID, f.documentKey = id, key
+	return nil
 }
 
 func TestDunningServiceCreateLevel(t *testing.T) {

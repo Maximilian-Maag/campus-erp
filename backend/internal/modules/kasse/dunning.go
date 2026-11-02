@@ -125,6 +125,8 @@ type DunningNotice struct {
 	ChargeCents      int64
 	IssuedOn         time.Time
 	IssuedBy         string
+	// DocumentKey names the stored PDF of this notice, empty when none was produced.
+	DocumentKey string
 }
 
 // NewDunningNotice validates a notice and computes its charge from the level.
