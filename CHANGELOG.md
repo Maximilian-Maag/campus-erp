@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.57.3] - 2026-11-02
+
+Gate: a failing mutation run says why.
+
+### Fixed
+- `tools/run_tests.sh` reported `below floor` for any non-zero gremlins exit, including a
+  build error, a coverage-gathering failure or a full disk. It now prints the reason
+  (`Killed:`/`Test efficacy`/`failed to`/`fatal`/`quota`) under the failure, so a mechanical
+  failure cannot masquerade as a regression - which is exactly how a full `/tmp` sent me
+  hunting eight packages that were green.
+
 ## [0.57.2] - 2026-11-02
 
 Local stack: MinIO is opt-in.
