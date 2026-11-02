@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.57.1] - 2026-11-02
+
+Docs: bring the indexes up to date.
+
+### Fixed
+- The ADR index stopped at 0008; it now lists 0009 (documents via a service), 0010 (a
+  report is a definition plus rows) and 0011 (artefacts go through one keyed store).
+- The README's document map stopped before the platform docs; it now points at docs/17
+  (platform), 19 (ETL), 23 (ledger postings), 24 (documents), 25 (reports) and 26 (storage),
+  and the ADR row now reads 0001-0011.
+
 ## [0.57.0] - 2026-11-02
 
 Worker: the report-render job kind (closes the code work on #38).

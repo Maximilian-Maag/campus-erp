@@ -23,9 +23,15 @@ skeleton.
 | `docs/02-database-overview.md` | legacy schemas, sizes, conventions, no-FK finding |
 | `docs/03-schema-analysis.md` | reverse-engineered legacy data model |
 | `docs/04-data-dictionary.md` | generated dictionary guide |
+| `docs/17-platform-spine.md` | **the platform** (auth, tenancy, audit, jobs, interfaces) |
+| `docs/19-etl.md` | the ETL registry and datasets |
+| `docs/23-ledger-postings.md` | the ledger posting export (`cash-postings/v1`) |
+| `docs/24-documents.md` | documents: HTML → PDF via the document service |
+| `docs/25-reports.md` | reports: a definition plus rows |
+| `docs/26-storage.md` | the artefact store (directory or S3) |
 | `docs/glossary.md` | German domain terms |
 | `docs/requirements.md` | **target-system requirements** (parity, interfaces, compliance, NFRs) |
-| `docs/adr/` | **architecture decision records** 0001–0008 |
+| `docs/adr/` | **architecture decision records** 0001–0011 |
 | `docs/plan/` | **delivery roadmap** + Phase 1 (Kasse) pilot plan |
 | `docs/legacy/` | **measured legacy findings** per process (input to the canonical design) |
 | `docs/open-questions.md` | open points |
