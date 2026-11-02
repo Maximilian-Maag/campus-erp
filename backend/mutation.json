@@ -90,6 +90,10 @@
     {
       "path": "internal/platform/jobs",
       "lang": "go"
+    },
+    {
+      "path": "internal/core/report",
+      "lang": "go"
     }
   ],
   "exempt": [
