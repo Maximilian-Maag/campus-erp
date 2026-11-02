@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.43.0] - 2026-11-02
+
+CI: retry runs killed by a runner preemption, and only those (#41).
+
+### Added
+- `.github/workflows/rerun-on-runner-shutdown.yml` — on `quality` completion, if a run
+  failed and **every** failed job's log carries the runner-shutdown marker
+  (`received a shutdown signal`, exit 143), it re-runs the failed jobs. It declines
+  when any failure looks real, when there are no failed jobs, and when the run has
+  already been re-run once (`run_attempt > 1`), so it cannot loop. Also runnable via
+  `workflow_dispatch` with a `run_id` and a `dry_run` flag for inspection.
+
 ## [0.42.0] - 2026-11-01
 
 XSD validation wired up, and the bugs it found (#40).

@@ -1,0 +1,88 @@
+name: rerun-on-runner-shutdown
+
+# A hosted runner is occasionally preempted mid-job. The job dies with exit 143 and
+# the log says "The runner has received a shutdown signal", the run goes red, and
+# the only remedy is a manual `gh run rerun --failed` (issue #41).
+#
+# This retries that case - and only that case - at most once per run:
+#   - every failed job must carry the runner-shutdown marker, so a real failure is
+#     never retried;
+#   - the run_attempt guard stops a retry loop (a re-run completing fires this
+#     workflow again, and the guard then declines).
+on:
+  workflow_run:
+    workflows: ["quality"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Run to inspect (defaults to the run that finished)
+        required: false
+      dry_run:
+        description: Report the decision without re-running anything
+        type: boolean
+        default: false
+
+permissions:
+  actions: write # required to re-run a run's failed jobs
+  contents: read
+
+jobs:
+  rerun:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-run failed jobs that died from a runner shutdown (once)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -uo pipefail
+          attempt=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '.run_attempt')
+          echo "run $RUN_ID: attempt $attempt"
+          if [[ ${attempt:-1} -gt 1 ]]; then
+            echo "already re-run once - leaving it alone"
+            exit 0
+          fi
+
+          failed=$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+            --jq '.jobs[] | select(.conclusion=="failure") | "\(.id)\t\(.name)"')
+          if [[ -z $failed ]]; then
+            echo "no failed jobs - nothing to do"
+            exit 0
+          fi
+
+          shutdown=()
+          real=()
+          while IFS=$'\t' read -r id name; do
+            [[ -z ${id:-} ]] && continue
+            # The log download can itself fail (expired blob, network); anything that
+            # is not the shutdown marker counts as a real failure, so we only ever
+            # retry when the evidence is unambiguous.
+            # gh refuses a logs response that contains terminal escapes unless
+            # --allow-escape-sequences is passed, so it is required here.
+            if gh api --allow-escape-sequences "repos/$REPO/actions/jobs/$id/logs" 2>/dev/null \
+                 | grep -qi "received a shutdown signal"; then
+              shutdown+=("$name")
+            else
+              real+=("$name")
+            fi
+          done <<<"$failed"
+
+          echo "killed by a runner shutdown: ${shutdown[*]:-none}"
+          echo "other failures: ${real[*]:-none}"
+          if [[ ${#shutdown[@]} -eq 0 || ${#real[@]} -gt 0 ]]; then
+            echo "not purely a runner shutdown - not re-running"
+            exit 0
+          fi
+
+          if [[ ${DRY_RUN:-false} == true ]]; then
+            echo "dry run - would re-run the failed jobs of $RUN_ID"
+            exit 0
+          fi
+          echo "re-running the failed jobs of $RUN_ID"
+          gh api -X POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
