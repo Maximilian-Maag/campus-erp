@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.57.5] - 2026-11-02
+
+Docs: no pointers to the vendor product or its delivery archives.
+
+### Removed
+- `docs/05-productive-source-inventory.md`: it existed only to inventory the vendor's
+  delivery archives, so nothing of it could be kept without naming them.
+
+### Fixed
+- `docs/08` and `docs/14` no longer name the delivery archives or the directory they were
+  handed over in, and the `unzip` lines that pointed at them are gone; the analysis they
+  carry is unchanged. `docs/open-questions.md` points at `docs/08` instead of the removed
+  file. Verified: no tracked file names the vendor product, its archives or that directory.
+
 ## [0.57.4] - 2026-11-02
 
 Gate: the mutation sweep contains its own scratch space.
@@ -939,7 +953,7 @@ Slice S3 — payment run and SEPA credit-transfer export (Kasse).
 Productive the reference implementation source received and inventoried.
 
 ### Added
-- **`docs/05-productive-source-inventory.md`** — measured inventory of the
+- **`docs/08-reuse-inventory.md`** — measured inventory of the
   productive the reference implementation build handed over as three archives (full product WAR +
   two hotfixes). Records the module catalogue (341 modules), the vendor data
   model (`the reference schema jar`: 1 486 tables, 1 286 declared FKs,

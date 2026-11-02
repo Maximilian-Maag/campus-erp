@@ -1,6 +1,6 @@
 # 14 — The rest of the bundle: the legacy front-end, the SOAP service surface and the shipped connectors
 
-`docs/05` and `docs/08` inventoried the parts of the 4.2 GB `H1-CS-CM-RM.zip` that
+`docs/08` inventoried the parts of the reference implementation that
 matter for the data model and the ERP code (`webapps/the reference application/WEB-INF`,
 `the reference schema jar`, the hotfixes). This note closes the inventory:
 the **rest of the bundle** — the legacy ERP's own web front-end (`the legacy front-end`), the
@@ -10,7 +10,7 @@ unless marked *(inferred)*. As everywhere in this repo, the archives are
 proprietary and are never committed (AGENTS.md 1/2); they are cited by in-archive
 path.
 
-## 1. Bundle layout (the 4.2 GB `H1-CS-CM-RM.zip`)
+## 1. Bundle layout
 
 ```
 2026-08-23/
@@ -148,8 +148,6 @@ inventory**.
 
 ```bash
 cd the reference source (build y)
-unzip -q ~/Downloads/H1-CS-CM-RM.zip \
   '2026-08-23/*' '2026-08-23/webapps/ROOT/*' -d .
 # the legacy front-end is large; list it without extracting:
-unzip -l ~/Downloads/H1-CS-CM-RM.zip | grep 'webapps/the legacy front-end/'
 ```
