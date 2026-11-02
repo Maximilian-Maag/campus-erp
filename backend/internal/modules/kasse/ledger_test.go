@@ -88,6 +88,10 @@ func TestLedgerExportRendersPostings(t *testing.T) {
 	if !strings.Contains(e.After, "postings=2") {
 		t.Fatalf("audit detail = %q", e.After)
 	}
+	// the run ties back: two bookings, two postings, balanced
+	if !strings.Contains(e.After, "matched=2") || !strings.Contains(e.After, "balanced=true") {
+		t.Fatalf("the run must record its reconciliation: %q", e.After)
+	}
 }
 
 func TestLedgerExportIsDeterministic(t *testing.T) {

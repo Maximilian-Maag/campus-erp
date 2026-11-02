@@ -84,11 +84,20 @@ func (s *LedgerExportService) Export(ctx context.Context, from, to time.Time, by
 		}
 		exp.Postings = append(exp.Postings, p)
 	}
+	// Tie-back: every collected booking must have become exactly one posting. The
+	// result goes on the audit stream, so an export that does not account for its
+	// bookings is visible rather than silent.
+	refs := make([]string, 0, len(rows))
+	for _, b := range rows {
+		refs = append(refs, b.Reference)
+	}
+	rec := ledger.Reconcile(refs, exp.Postings)
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
 		Action:  "ledger.export",
 		Subject: ledgerPeriodSubject(from, to),
-		After:   fmt.Sprintf("postings=%d cash_account=%s", len(exp.Postings), exp.CashAccount),
+		After: fmt.Sprintf("postings=%d cash_account=%s matched=%d missing=%d extra=%d balanced=%t",
+			len(exp.Postings), exp.CashAccount, rec.Matched, len(rec.Missing), len(rec.Extra), rec.Balanced()),
 	}); err != nil {
 		return ledger.Export{}, err
 	}
