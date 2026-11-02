@@ -22,12 +22,12 @@ S3-compatible bucket via minio-go). `storage.FromEnv` picks: `ERP_S3_ENDPOINT` s
 
 - Replicas can produce documents and exports: the artefact is not tied to a pod.
 - One dependency (minio-go) instead of a client per role; it speaks the S3 protocol, so
-  MinIO on-prem and a university S3 both work.
+  RustFS on-prem and a university S3 both work.
 - Keys are validated in one place (`CheckKey`): empty, absolute and escaping keys are
   refused, so a caller cannot write outside the store.
 - The S3 path is verified end to end by `storage.TestS3RoundTrip`: it serves an in-process
   S3-compatible server (gofakes3) so the path is exercised on every build and cannot rot,
-  and `ERP_S3_TEST_ENDPOINT` points it at a real endpoint instead (MinIO, a university S3).
-- MinIO's own image could not be pulled in this environment (the registry refuses that
-  repository), so the verification runs against an S3-compatible server rather than MinIO
-  itself. The client speaks the S3 protocol either way.
+  and it has also been run green against **RustFS**, the S3-compatible endpoint the local
+  stack ships. `ERP_S3_TEST_ENDPOINT` points it at any other real endpoint.
+- The endpoint is deliberately not tied to one vendor: RustFS is the default in the compose
+  file, and a university S3 works unchanged. The client speaks the S3 protocol either way.

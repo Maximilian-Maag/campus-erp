@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.59.0] - 2026-11-02
+
+Storage: RustFS is the S3 endpoint, and the S3 path is verified against it.
+
+### Changed
+- The local stack's S3 service is **RustFS** (`rustfs/rustfs`), still behind the `s3`
+  profile, replacing an endpoint whose vendor is now commercial. Ports and credentials are
+  unchanged in shape (`S3_PORT`, `S3_CONSOLE_PORT`, `RUSTFS_ACCESS_KEY`,
+  `RUSTFS_SECRET_KEY`).
+- **The S3 store is verified against a real server, not only the synthetic one:**
+  `storage.TestS3RoundTrip` passes against RustFS (bucket creation, Save/Get with nested
+  keys, a missing key failing, an escaping key refused). `docs/26` and ADR-0011 say so, and
+  `docs/build-and-deploy.md` shows how to start it.
+- The Go client is still minio-go (a library, not the product); the endpoint is deliberately
+  not tied to one vendor.
+
 ## [0.58.0] - 2026-11-02
 
 Dunning: read a notice back, with its document key.

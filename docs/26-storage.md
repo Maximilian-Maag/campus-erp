@@ -30,11 +30,12 @@ Keys are checked once (`CheckKey`): empty, absolute, and escaping keys are refus
 ## Verification status
 
 - Directory store and key handling: unit-tested.
-- **S3 store: verified end to end.** `storage.TestS3RoundTrip` runs on every build against
-  an in-process S3-compatible server (gofakes3): bucket creation (idempotent), `Save` and
-  `Get` round trips including nested keys, a missing key failing, and an escaping key being
-  refused. Set `ERP_S3_TEST_ENDPOINT` (plus `ERP_S3_BUCKET`, `ERP_S3_ACCESS_KEY`,
-  `ERP_S3_SECRET_KEY`) to run the same test against a real endpoint.
-- MinIO's image cannot be pulled in this environment, so the endpoint under test is an
-  S3-compatible server rather than MinIO itself; the client is minio-go and speaks the same
-  protocol.
+- **S3 store: verified end to end, both against a synthetic server and a real one.**
+  `storage.TestS3RoundTrip` runs on every build against an in-process S3-compatible server
+  (gofakes3): bucket creation (idempotent), `Save` and `Get` round trips including nested
+  keys, a missing key failing, and an escaping key being refused. It has also been run
+  against **RustFS**, the S3-compatible endpoint the local stack ships
+  (`docker compose --profile s3 up rustfs`), and passes.
+- Point the same test at any endpoint with `ERP_S3_ENDPOINT`/`ERP_S3_TEST_ENDPOINT` plus
+  `ERP_S3_BUCKET`, `ERP_S3_ACCESS_KEY`, `ERP_S3_SECRET_KEY`. The client is minio-go; the
+  server can be RustFS, a university S3, or anything else that speaks S3.
