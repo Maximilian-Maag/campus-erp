@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/documents"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/storage"
 	"log"
 	"net/http"
 	"os"
@@ -154,7 +155,7 @@ func dunningDocumentsFromEnv() kasse.DunningDocuments {
 		log.Printf("documents: %v - notices will have no document", err)
 		return nil
 	}
-	store, err := documents.NewDirStore(dir)
+	store, err := storage.FromEnv(context.Background(), dir)
 	if err != nil {
 		log.Printf("documents: %v - notices will have no document", err)
 		return nil

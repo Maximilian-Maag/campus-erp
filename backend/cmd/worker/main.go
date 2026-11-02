@@ -4,13 +4,12 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/storage"
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -74,6 +73,10 @@ func main() {
 	if err := jobs.Migrate(ctx, pool); err != nil {
 		log.Fatalf("jobs: %v", err)
 	}
+	artefacts, err := storage.FromEnv(ctx, strings.TrimSpace(os.Getenv("ERP_OUTBOX_DIR")))
+	if err != nil {
+		log.Fatalf("worker: artefact store: %v", err)
+	}
 	statementSvc := kasse.NewStatementService(kasse.NewStatementRepo(pool), audit.NewStore(pool))
 	importer := func(ctx context.Context, accountID int64, content, by string) (int, error) {
 		statements, err := statementSvc.Import(ctx, accountID, content, by)
@@ -90,7 +93,7 @@ func main() {
 		if err != nil {
 			return 0, err
 		}
-		return len(exp.Postings), writeOutbox(content)
+		return len(exp.Postings), writeOutbox(ctx, artefacts, content)
 	}
 	runRepo := kasse.NewPaymentRunRepo(pool)
 	sepaExporter := func(ctx context.Context, runID int64, _ string) (string, string, error) {
@@ -99,8 +102,7 @@ func main() {
 			return "", "", err
 		}
 		name := fmt.Sprintf("sepa-%d.xml", runID)
-		if err := writeTo(strings.TrimSpace(os.Getenv("ERP_SEPA_OUTBOX_DIR")),
-			"worker: ERP_SEPA_OUTBOX_DIR is not set", name, content); err != nil {
+		if err := artefacts.Save(ctx, "sepa/"+name, []byte(content)); err != nil {
 			return "", "", err
 		}
 		return name, content, nil
@@ -123,18 +125,8 @@ func main() {
 	}
 }
 
-// writeTo drops content into dir under name. It is the outbox seam: object storage or
-// SFTP replaces this one function.
-func writeTo(dir, missing, name, content string) error {
-	if dir == "" {
-		return errors.New(missing)
-	}
-	return os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600)
-}
-
-// writeOutbox drops a ledger export into the configured outbox directory.
-func writeOutbox(content string) error {
-	name := fmt.Sprintf("ledger-postings-%s.csv", time.Now().UTC().Format("20060102T150405"))
-	return writeTo(strings.TrimSpace(os.Getenv("ERP_LEDGER_OUTBOX_DIR")),
-		"worker: ERP_LEDGER_OUTBOX_DIR is not set", name, content)
+// writeOutbox stores a ledger export in the artefact store.
+func writeOutbox(ctx context.Context, store storage.Store, content string) error {
+	name := fmt.Sprintf("ledger/ledger-postings-%s.csv", time.Now().UTC().Format("20060102T150405"))
+	return store.Save(ctx, name, []byte(content))
 }
