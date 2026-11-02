@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/bankstmt"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/golden"
 )
 
 func TestParseGolden(t *testing.T) {
@@ -125,4 +126,12 @@ func mustParse(t *testing.T) []bankstmt.Statement {
 		t.Fatal(err)
 	}
 	return stmts
+}
+
+// TestGoldenValidatesAgainstVendorXSD validates the golden camt.054.001.08 file against the
+// vendor schema when ERP_XSD_CAMT054 points at it. The schema is proprietary and is not
+// committed, so the check skips when the variable is unset (CI stays green); set it
+// to the extracted XSD to actually validate.
+func TestGoldenValidatesAgainstVendorXSD(t *testing.T) {
+	golden.ValidateXSD(t, "", "ERP_XSD_CAMT054", filepath.Join("testdata", "golden_camt054.xml"))
 }

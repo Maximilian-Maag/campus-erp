@@ -32,7 +32,7 @@ func TestCollectionRunProducesAndIsIdempotent(t *testing.T) {
 		{m1, "Max Mustermann", "DE89370400440532013000"},
 		{m2, "Erika Musterfrau", "GB29NWBK60161331926819"},
 	} {
-		mand, err := kasse.NewMandate(m.ref, m.name, m.iban, "", sig, kasse.SequenceRecurring)
+		mand, err := kasse.NewMandate(m.ref, m.name, m.iban, "COBADEFFXXX", sig, kasse.SequenceRecurring)
 		if err != nil {
 			t.Fatalf("NewMandate(%s): %v", m.ref, err)
 		}
@@ -115,7 +115,7 @@ func TestCollectionRunFailsClosed(t *testing.T) {
 
 	// Sequence-type mismatch (FRST mandate, RCUR run).
 	ref := "MAN-" + uniqueSuffix(t)
-	mand, err := kasse.NewMandate(ref, "Max Mustermann", "DE89370400440532013000", "", sig, kasse.SequenceFirst)
+	mand, err := kasse.NewMandate(ref, "Max Mustermann", "DE89370400440532013000", "COBADEFFXXX", sig, kasse.SequenceFirst)
 	if err != nil {
 		t.Fatalf("NewMandate: %v", err)
 	}

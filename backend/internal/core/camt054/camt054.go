@@ -76,14 +76,23 @@ type refs struct {
 	TxID       string `xml:"TxId"`
 }
 
+// rltdPties mirrors TransactionParties6 (ISO 20022). Each party is a
+// Party40Choice: the name sits under Pty (a party may instead be an Agt, which we
+// do not read), and the account is a sibling element (DbtrAcct/CdtrAcct) rather
+// than nested inside the party.
 type rltdPties struct {
-	Cdtr party `xml:"Cdtr"`
-	Dbtr party `xml:"Dbtr"`
+	Cdtr     party40Choice `xml:"Cdtr"`
+	Dbtr     party40Choice `xml:"Dbtr"`
+	CdtrAcct partyAcct     `xml:"CdtrAcct"`
+	DbtrAcct partyAcct     `xml:"DbtrAcct"`
 }
 
-type party struct {
-	Nm   string    `xml:"Nm"`
-	Acct partyAcct `xml:"Acct"`
+type party40Choice struct {
+	Pty partyID `xml:"Pty"`
+}
+
+type partyID struct {
+	Nm string `xml:"Nm"`
 }
 
 type partyAcct struct {
@@ -138,12 +147,14 @@ func parseEntry(n ntry) bankstmt.Line {
 	line.Purpose = strings.TrimSpace(strings.Join(tx.RmtInf.Ustrd, " "))
 	// The counterparty is the payer for a credit and the payee for a debit;
 	// prefer whichever party the message carries.
-	cp := tx.RltdPties.Cdtr
-	if cp.Nm == "" {
-		cp = tx.RltdPties.Dbtr
+	cp := tx.RltdPties.Cdtr.Pty
+	acct := tx.RltdPties.CdtrAcct
+	if strings.TrimSpace(cp.Nm) == "" {
+		cp = tx.RltdPties.Dbtr.Pty
+		acct = tx.RltdPties.DbtrAcct
 	}
 	line.CounterpartyName = strings.TrimSpace(cp.Nm)
-	line.CounterpartyIBAN = strings.TrimSpace(cp.Acct.ID.IBAN)
+	line.CounterpartyIBAN = strings.TrimSpace(acct.ID.IBAN)
 	return line
 }
 

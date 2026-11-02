@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.42.0] - 2026-11-01
+
+XSD validation wired up, and the bugs it found (#40).
+
+Wiring `golden.ValidateXSD` into the SEPA and CAMT tests (schema path from
+`ERP_XSD_PAIN001/Pain008/CAMT052/053/054`, skipped when unset) exposed real defects:
+
+### Fixed
+- **CAMT parsers read the counterparty from a non-ISO path.** `Dbtr/Nm` and
+  `Dbtr/Acct/Id/IBAN` do not exist in ISO 20022 — a party is a `Party40Choice`
+  (`Dbtr/Pty/Nm`) and the account is a sibling (`DbtrAcct/Id/IBAN`). On a real bank
+  file the counterparty name and IBAN were therefore empty. Fixed in camt.052/053/054.
+- **pain.008 emitted an invalid creditor scheme name** (`SchmeNm/Cd`); the GBIC
+  profile requires `Prtry`.
+- **pain.008 made `DbtrAgt` optional**, but it is 1..1: a transaction without a
+  debtor BIC now fails with `ErrDebtorAgentRequired` instead of producing a file the
+  bank rejects.
+
+### Changed
+- The CAMT test fixtures are now schema-valid (they were hand-written and had never
+  been validated): `Sts`, `BkTxCd`, and the ISO party/account nesting.
+
 ## [0.41.0] - 2026-11-01
 
 Platform: the worker runtime (River) — the last Phase-0 gap (#44).
