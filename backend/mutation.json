@@ -94,6 +94,10 @@
     {
       "path": "internal/core/report",
       "lang": "go"
+    },
+    {
+      "path": "internal/platform/storage",
+      "lang": "go"
     }
   ],
   "exempt": [

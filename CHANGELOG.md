@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.55.0] - 2026-11-02
+
+Storage: one keyed artefact store (ADR-0011).
+
+### Added
+- `internal/platform/storage`: `Store` (`Save`/`Get`), a directory implementation and an
+  S3-compatible one (minio-go), plus `FromEnv` (`ERP_S3_ENDPOINT` → S3, else a directory)
+  and `CheckKey` (empty/absolute/escaping keys refused). Mutation target.
+- The three artefact writers now share it: dunning notices (`cmd/api`), and the ledger and
+  SEPA exports (`cmd/worker`), with keys `dunning/<id>.pdf`, `ledger/…csv`, `sepa/…xml`.
+  `documents.Store` is the one-method subset, so no adapter is needed.
+- **ADR-0011** and `docs/26-storage.md`, which states plainly that the S3 path is
+  written but not yet verified end to end (the MinIO image could not be pulled here).
+
 ## [0.54.0] - 2026-11-02
 
 Reports: the model and the first report (part of #38).
