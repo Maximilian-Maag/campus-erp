@@ -29,9 +29,10 @@ skeleton.
 | `docs/24-documents.md` | documents: HTML → PDF via the document service |
 | `docs/25-reports.md` | reports: a definition plus rows |
 | `docs/26-storage.md` | the artefact store (directory or S3) |
+| `docs/27-statistics-exports.md` | per-state statistics exports (the layout is data) |
 | `docs/glossary.md` | German domain terms |
 | `docs/requirements.md` | **target-system requirements** (parity, interfaces, compliance, NFRs) |
-| `docs/adr/` | **architecture decision records** 0001–0011 |
+| `docs/adr/` | **architecture decision records** 0001–0012 |
 | `docs/plan/` | **delivery roadmap** + Phase 1 (Kasse) pilot plan |
 | `docs/legacy/` | **measured legacy findings** per process (input to the canonical design) |
 | `docs/open-questions.md` | open points |

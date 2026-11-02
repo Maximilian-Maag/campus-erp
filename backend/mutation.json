@@ -96,6 +96,10 @@
       "lang": "go"
     },
     {
+      "path": "internal/core/statistics",
+      "lang": "go"
+    },
+    {
       "path": "internal/platform/storage",
       "lang": "go"
     }

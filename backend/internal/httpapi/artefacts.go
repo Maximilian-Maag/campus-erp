@@ -12,10 +12,11 @@ import (
 // write into (docs/26). An allowlist, not a passthrough: without it the route would be a
 // read-anything primitive over the whole store, and a new writer would silently widen it.
 var artefactKinds = map[string]string{
-	"dunning": "application/pdf",
-	"reports": "application/pdf",
-	"ledger":  "text/csv",
-	"sepa":    "application/xml",
+	"dunning":    "application/pdf",
+	"reports":    "application/pdf",
+	"ledger":     "text/csv",
+	"sepa":       "application/xml",
+	"statistics": "text/csv",
 }
 
 // ErrArtefactKind / ErrArtefactName are client errors: the request named something the

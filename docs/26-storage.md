@@ -23,6 +23,7 @@ Keys are checked once (`CheckKey`): empty, absolute, and escaping keys are refus
 | Dunning notices (`cmd/api`) | `dunning/<notice id>.pdf` |
 | Ledger export (`cmd/worker`) | `ledger/ledger-postings-<timestamp>.csv` |
 | SEPA export (`cmd/worker`) | `sepa/sepa-<run id>.xml` |
+| Statistics export (`cmd/worker`) | `statistics/<state>-<from>-<to>.csv` |
 
 `documents.Store` is the one-method subset the document workflow needs, so a
 `storage.Store` is passed to it directly.
@@ -30,7 +31,7 @@ Keys are checked once (`CheckKey`): empty, absolute, and escaping keys are refus
 ## Reaching what is stored
 
 `GET /api/artefacts/{kind}/{name}` serves stored artefacts (role `kasse`); the kinds are
-`dunning`, `reports`, `ledger` and `sepa` (docs/24). The route is an allowlist, not a
+`dunning`, `reports`, `ledger`, `sepa` and `statistics` (docs/24). The route is an allowlist, not a
 passthrough to the store: a key outside those kinds is a 400, whatever the store holds.
 
 ## Verification status

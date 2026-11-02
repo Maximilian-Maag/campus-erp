@@ -47,7 +47,7 @@ func (w *SepaExportWorker) Work(ctx context.Context, job *river.Job[SepaExportAr
 	if err != nil {
 		return fmt.Errorf("jobs: SEPA export: %w", err)
 	}
-	if err := safeName(name); err != nil {
+	if err := plainFileName(name); err != nil {
 		return err
 	}
 	if strings.TrimSpace(content) == "" {
@@ -57,14 +57,15 @@ func (w *SepaExportWorker) Work(ctx context.Context, job *river.Job[SepaExportAr
 	return nil
 }
 
-// safeName refuses a file name that would escape the outbox.
-func safeName(name string) error {
+// plainFileName refuses a file name that would escape the outbox. Both export kinds
+// use it, so the rule and its wording are in one place.
+func plainFileName(name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return errors.New("jobs: SEPA export produced no file name")
+		return errors.New("jobs: export produced no file name")
 	}
 	if name != filepath.Base(name) || strings.ContainsAny(name, `\/`) {
-		return fmt.Errorf("jobs: SEPA export file name %q is not a plain name", name)
+		return fmt.Errorf("jobs: export file name %q is not a plain name", name)
 	}
 	return nil
 }

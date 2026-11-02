@@ -56,6 +56,10 @@ Payroll (LBV), banking (SEPA/MT940), ELSTER, statistics: are interface specs
 available, or must they be reverse-engineered from the `imp_*`/`out_*` tables
 and file formats?
 
+*Partly answered for statistics.* The layout is data (ADR-0012, docs/27), so a
+project-defined placeholder ships and a real per-state layout replaces it without a code
+change. The offices' actual layouts are still outstanding.
+
 ## Q9 — Repository name & visibility?
 
 Currently `campus-erp` (private). Rename if Q1 changes the

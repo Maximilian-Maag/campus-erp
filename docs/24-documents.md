@@ -34,7 +34,7 @@ document is a 404, a malformed id a 400, and a recorded key whose artefact canno
 ## Not yet done
 
 - Artefacts are served by `GET /api/artefacts/{kind}/{name}` (role `kasse`), where `<kind>`
-  is one of `dunning`, `reports`, `ledger`, `sepa`. Two path segments rather than a wildcard:
+  is one of `dunning`, `reports`, `ledger`, `sepa`, `statistics`. Two path segments rather than a wildcard:
   the Go router and the contract generator both handle it, and an allowlist of kinds is what
   keeps a download route from becoming a read-anything primitive over the store. The kind
   fixes the media type, the extension overrides it where a report is not a PDF (a CSV

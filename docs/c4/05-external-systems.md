@@ -36,7 +36,7 @@ C4Context
     Rel(erp, bank, "pain.001 / pain.008 out; MT940, CAMT.053, CAMT.054 in", "implemented; EBICS planned")
     Rel(erp, lbv, "payroll / Besoldung notifications", "planned")
     Rel(erp, elster, "VAT filings", "planned")
-    Rel(erp, stat, "Personal- / Finanzstatistik", "planned")
+    Rel(erp, stat, "Personal- / Finanzstatistik", "per-state CSV (docs/27)")
     Rel(erp, dms, "documents", "planned")
     Rel(erp, his, "SOAP services", "planned")
     Rel(erp, kfw, "loan application traffic", "planned")
@@ -52,7 +52,7 @@ C4Context
 | IR-2 | Bank | `bank-sepa-sct`, `bank-sepa-sdd` (out); `bank-mt940`, `bank-camt052`, `bank-camt053`, `bank-camt054` (in) | implemented |
 | IR-2 | Bank | `bank-ebics` (channel, both) | planned |
 | IR-3 | Finanzamt | `elster-eric` (ERiC) | planned |
-| IR-4 | Statistics offices | `statistics` (per-state) | planned |
+| IR-4 | Statistics offices | `statistics` (per-state CSV) | implemented |
 | IR-5 | University IdP | `idp-oidc` (OIDC JWT/JWKS) | implemented |
 | IR-6 | DMS | `dms` (own store + connector) | planned |
 | IR-7 | the reference implementation | `erp-soap` (SOAP, 79 services); `einvoice-in`/`einvoice-out` (XRechnung) | SOAP planned, e-invoice implemented |

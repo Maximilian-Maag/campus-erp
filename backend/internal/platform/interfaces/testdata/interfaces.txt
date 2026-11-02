@@ -16,4 +16,4 @@ hochschulstart | IR-8 | both | planned | hochschulstart.de / DoSV | DoSV
 idp-oidc | IR-5 | in | implemented | Identity provider — OIDC | OIDC (JWT/JWKS)
 kfw-loan | IR-7 | out | planned | KfW — student loan SOAP | SOAP (SBwsService)
 lbv-payoffice | IR-1 | out | planned | State pay office (LBV) | per-Bundesland file
-statistics | IR-4 | out | planned | Statistics offices | per-state formats
+statistics | IR-4 | out | implemented | Statistics offices | per-state CSV (layouts project-defined, docs/27)

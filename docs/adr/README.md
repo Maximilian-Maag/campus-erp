@@ -16,6 +16,7 @@ Status values: Proposed, Accepted, Superseded by NNNN.
 | 0009 | Render documents with an HTML→PDF service | Accepted |
 | 0010 | A report is a definition plus rows | Accepted |
 | 0011 | Artefacts go through one keyed store (directory or S3) | Accepted |
+| 0012 | Per-state statistics formats as data | Accepted |
 
 Context for all decisions: reverse-engineering of the legacy university ERP sample dataset is in
 `../01-module-catalogue.md` .. `../03-schema-analysis.md`.
