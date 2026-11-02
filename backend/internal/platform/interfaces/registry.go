@@ -60,7 +60,7 @@ func Standard() *Registry {
 		{Key: "idp-oidc", Requirement: "IR-5", Name: "Identity provider — OIDC", Direction: In, Format: "OIDC (JWT/JWKS)", Status: Implemented, Reference: "docs/16-http-transport.md"},
 		{Key: "lbv-payoffice", Requirement: "IR-1", Name: "State pay office (LBV)", Direction: Out, Format: "per-Bundesland file", Status: Planned, Reference: "requirements §5"},
 		{Key: "elster-eric", Requirement: "IR-3", Name: "Finanzamt — ELSTER/ERiC", Direction: Out, Format: "ERiC", Status: Planned, Reference: "requirements §5"},
-		{Key: "statistics", Requirement: "IR-4", Name: "Statistics offices", Direction: Out, Format: "per-state formats", Status: Planned, Reference: "requirements §5"},
+		{Key: "statistics", Requirement: "IR-4", Name: "Statistics offices", Direction: Out, Format: "per-state CSV (layouts project-defined, docs/27)", Status: Implemented, Reference: "docs/27-statistics-exports.md"},
 		{Key: "dms", Requirement: "IR-6", Name: "DMS / document store", Direction: Both, Format: "own store + connector", Status: Planned, Reference: "requirements §5"},
 		{Key: "erp-soap", Requirement: "IR-7", Name: "ERP SOAP services", Direction: Both, Format: "SOAP (79 services)", Status: Planned, Reference: "docs/14 §3"},
 		{Key: "kfw-loan", Requirement: "IR-7", Name: "KfW — student loan SOAP", Direction: Out, Format: "SOAP (SBwsService)", Status: Planned, Reference: "docs/14 §4.2"},

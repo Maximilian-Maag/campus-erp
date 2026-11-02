@@ -2,6 +2,31 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.62.0] - 2026-11-02
+
+Statistics exports: the per-state layout is data, and the last job kind is wired.
+
+### Added
+- `internal/core/statistics`: the per-state statistics export (IR-4 / FR-P9, docs/27). A
+  `Format` names a state's columns, their order, their headings and the field separator, and
+  the `Registry` holds one per state — so a state is added or changed by editing *data*, never
+  the pipeline. Only the set of canonical fields is code. `Group` aggregates neutral entries
+  into one record per key; `Render` projects records through a format. Formats are validated on
+  construction, so a malformed layout fails loudly instead of writing a wrong file.
+- `statistics-export` job kind (`internal/platform/jobs`): args `{State, From, To, Actor}`; the
+  worker validates its preconditions and hands the I/O to the role, like the other export kinds.
+- The worker role groups the period's confirmed bookings by purpose, renders them with the
+  state's format and stores the file at `statistics/<state>-<from>-<to>.csv`;
+  `GET /api/artefacts/statistics/<name>` serves it (role `kasse`).
+- ADR-0012 (per-state statistics formats as data) and docs/27.
+
+### Changed
+- The `statistics` interface (IR-4) is `implemented` in the registry. Its layouts are
+  **project-defined placeholders** (`default`, `bw`, `by`), marked as such — the offices' real
+  layouts are not published (open-questions Q8) and replace a placeholder without a code change.
+- `jobs.safeName` became `jobs.plainFileName` and its messages no longer name SEPA: both export
+  kinds share the outbox rule, so the rule and its wording now live in one place.
+
 ## [0.61.0] - 2026-11-02
 
 Artefacts: reports, ledger and SEPA exports are fetchable too.

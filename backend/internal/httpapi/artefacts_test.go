@@ -26,6 +26,7 @@ func TestArtefactRoute(t *testing.T) {
 	write("ledger/postings.csv", "date,amount\n2026-11-02,125\n")
 	write("sepa/run-1.xml", "<Document/>")
 	write("dunning/9.pdf", "%PDF-1.7 notice")
+	write("statistics/bw-20261101-20261130.csv", "Zweck;Einnahmen\nMensa;10.00\n")
 
 	cases := []struct {
 		url, contentType, body string
@@ -34,6 +35,7 @@ func TestArtefactRoute(t *testing.T) {
 		{"/api/artefacts/ledger/postings.csv", "text/csv", "date,amount"},
 		{"/api/artefacts/sepa/run-1.xml", "application/xml", "<Document/>"},
 		{"/api/artefacts/dunning/9.pdf", "application/pdf", "%PDF-1.7"},
+		{"/api/artefacts/statistics/bw-20261101-20261130.csv", "text/csv", "Zweck;Einnahmen"},
 	}
 	for _, c := range cases {
 		resp := doJSON(t, http.MethodGet, srv.URL+c.url, "carol", "")

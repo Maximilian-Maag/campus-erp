@@ -142,7 +142,7 @@ enqueues an `etl` job and waits for it to complete.
 
 ## 8. Interface artefacts - what each planned interface still needs
 
-The registry (§4) marks nine interfaces `planned`. None is blocked on code: each is
+The registry (§4) marks eight interfaces `planned`. None is blocked on code: each is
 blocked on an external artefact. This is the ledger, so the block is explicit rather
 than implicit.
 
@@ -151,7 +151,7 @@ than implicit.
 | Bank - EBICS channel | an EBICS contract, the agreed protocol version and a sandbox endpoint |
 | State pay office (LBV) | the per-Bundesland file/communication specification and a test connection |
 | ELSTER / ERiC | the ERiC library plus a test certificate and account |
-| Statistics offices | the per-state export format (each office differs) |
+| Statistics offices | the offices' real per-state layouts (a project-defined placeholder ships — docs/27) |
 | Document store (DMS) | the target DMS API definition and credentials |
 | ERP SOAP services | a service catalogue / WSDL snapshot and a test instance |
 | Student-loan portal | the loan service WSDL and test access |
@@ -167,8 +167,8 @@ status then stays `planned` on purpose.
   record the tenant; wiring the tenant into audit events is a small follow-up.
 - Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the SOAP
   client and the rest remain `planned`.
-- Five job kinds are wired: `etl`, `statement-import`, `ledger-export`, `sepa-export` and
-  `report-render`. Only `statistics-export` remains, and it waits on the per-state format
-  specifications (`docs/17` §8) rather than on code.
+- Six job kinds are wired: `etl`, `statement-import`, `ledger-export`, `sepa-export`,
+  `report-render` and `statistics-export`. What remains for statistics is the offices' real
+  per-state layouts, which are project-defined placeholders today (docs/27).
 - The worker's ledger hand-over is a directory (`ERP_LEDGER_OUTBOX_DIR`); object
   storage or SFTP replaces that function without touching the job kind.

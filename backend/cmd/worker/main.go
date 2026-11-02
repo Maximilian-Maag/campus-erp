@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/statistics"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
@@ -143,7 +144,40 @@ func main() {
 		}
 		return name, content, nil
 	}
-	client, err := jobs.New(pool, registry, importer, exporter, sepaExporter, reportRenderer)
+	statsRegistry := statistics.Standard()
+	statisticsExporter := func(ctx context.Context, state string, from, to time.Time, _ string) (string, string, error) {
+		format, ok := statsRegistry.Get(state)
+		if !ok {
+			return "", "", fmt.Errorf("worker: unknown statistics state %q (have %s)",
+				state, strings.Join(statsRegistry.States(), ", "))
+		}
+		bookings, err := ledgerRepo.ListBookingsForExport(ctx, from, to)
+		if err != nil {
+			return "", "", err
+		}
+		entries := make([]statistics.Entry, 0, len(bookings))
+		for _, b := range bookings {
+			kind, err := statisticsKind(b.Kind)
+			if err != nil {
+				return "", "", err
+			}
+			entries = append(entries, statistics.Entry{Key: b.Purpose, Kind: kind, AmountCents: b.AmountCents})
+		}
+		records, err := statistics.Group(entries)
+		if err != nil {
+			return "", "", err
+		}
+		content, err := statistics.Render(format, records)
+		if err != nil {
+			return "", "", err
+		}
+		name := fmt.Sprintf("%s-%s-%s.csv", state, from.Format("20060102"), to.Format("20060102"))
+		if err := artefacts.Save(ctx, "statistics/"+name, []byte(content)); err != nil {
+			return "", "", err
+		}
+		return name, content, nil
+	}
+	client, err := jobs.New(pool, registry, importer, exporter, sepaExporter, reportRenderer, statisticsExporter)
 	if err != nil {
 		log.Fatalf("jobs: %v", err)
 	}
@@ -165,4 +199,16 @@ func main() {
 func writeOutbox(ctx context.Context, store storage.Store, content string) error {
 	name := fmt.Sprintf("ledger/ledger-postings-%s.csv", time.Now().UTC().Format("20060102T150405"))
 	return store.Save(ctx, name, []byte(content))
+}
+
+// statisticsKind maps a cash-booking kind onto the statistics export's entry kind.
+func statisticsKind(k kasse.BookingKind) (statistics.Kind, error) {
+	switch k {
+	case kasse.Income:
+		return statistics.Income, nil
+	case kasse.Expense:
+		return statistics.Expense, nil
+	default:
+		return "", fmt.Errorf("worker: unknown booking kind %q", k)
+	}
 }

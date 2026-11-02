@@ -41,5 +41,6 @@ converts it through the document service (ADR-0009) and stores the PDF under
 
 ## Not yet done
 
-- More reports: the print/centre views and the statistics exports need their own
-  definitions and data builders.
+- More reports: the print/centre views need their own definitions and data builders.
+- The statistics exports are their own mechanism (a per-state layout over aggregated figures),
+  not a report definition — see docs/27 and ADR-0012.
