@@ -2,6 +2,7 @@ package camt053
 
 import (
 	"errors"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/golden"
 	"os"
 	"path/filepath"
 	"testing"
@@ -136,4 +137,12 @@ func TestParseEntryWithoutDetails(t *testing.T) {
 	if len(stmts[0].Lines) != 1 || stmts[0].Lines[0].AmountCents != 1000 {
 		t.Fatalf("line = %+v", stmts[0].Lines)
 	}
+}
+
+// TestGoldenValidatesAgainstVendorXSD validates the golden camt.053.001.02/.08 file against the
+// vendor schema when ERP_XSD_CAMT053 points at it. The schema is proprietary and is not
+// committed, so the check skips when the variable is unset (CI stays green); set it
+// to the extracted XSD to actually validate.
+func TestGoldenValidatesAgainstVendorXSD(t *testing.T) {
+	golden.ValidateXSD(t, "", "ERP_XSD_CAMT053", filepath.Join("testdata", "camt053_sample.xml"))
 }

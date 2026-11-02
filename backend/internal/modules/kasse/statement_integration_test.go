@@ -246,7 +246,7 @@ func TestStatementImportCAMT053(t *testing.T) {
 		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>` +
 		`<BookgDt><Dt>2026-10-01</Dt></BookgDt><ValDt><Dt>2026-10-01</Dt></ValDt>` +
 		`<NtryDtls><TxDtls><Refs><EndToEndId>` + order.Reference + `</EndToEndId></Refs>` +
-		`<RltdPties><Dbtr><Nm>Stadtwerke</Nm></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
+		`<RltdPties><Dbtr><Pty><Nm>Stadtwerke</Nm></Pty></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
 		`</Stmt></BkToCstmrStmt></Document>`
 
 	stmts, err := stmtSvc.Import(ctx, account.ID, doc, "carol")
@@ -288,7 +288,7 @@ func TestStatementImportCAMT054(t *testing.T) {
 		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>` +
 		`<BookgDt><Dt>2026-10-28</Dt></BookgDt><ValDt><Dt>2026-10-28</Dt></ValDt>` +
 		`<NtryDtls><TxDtls><Refs><EndToEndId>` + order.Reference + `</EndToEndId></Refs>` +
-		`<RltdPties><Dbtr><Nm>Stadtwerke</Nm></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
+		`<RltdPties><Dbtr><Pty><Nm>Stadtwerke</Nm></Pty></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
 		`</Ntfctn></BkToCstmrDbtCdtNtfctn></Document>`
 
 	stmts, err := stmtSvc.Import(ctx, account.ID, doc, "carol")
@@ -340,7 +340,7 @@ func TestStatementImportCAMT052(t *testing.T) {
 		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>` +
 		`<BookgDt><Dt>2026-10-28</Dt></BookgDt><ValDt><Dt>2026-10-28</Dt></ValDt>` +
 		`<NtryDtls><TxDtls><Refs><EndToEndId>` + order.Reference + `</EndToEndId></Refs>` +
-		`<RltdPties><Dbtr><Nm>Stadtwerke</Nm></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
+		`<RltdPties><Dbtr><Pty><Nm>Stadtwerke</Nm></Pty></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
 		`</Rpt></BkToCstmrAcctRpt></Document>`
 
 	stmts, err := stmtSvc.Import(ctx, account.ID, doc, "carol")

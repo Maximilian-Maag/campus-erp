@@ -42,6 +42,7 @@ func fixedDirectDebit() DirectDebit {
 				MandateDate: time.Date(2024, 9, 1, 0, 0, 0, 0, time.UTC),
 				DebtorName:  "Erika Musterfrau",
 				DebtorIBAN:  "GB29NWBK60161331926819",
+				DebtorBIC:   "NWBKGB2L",
 				Purpose:     "Bibliotheksgebuehr",
 			},
 		},
@@ -85,7 +86,7 @@ func TestMarshal008Structure(t *testing.T) {
 		"<NbOfTxs>2</NbOfTxs>",
 		"<CtrlSum>55.00</CtrlSum>",
 		"<PmtMtd>DD</PmtMtd>",
-		"<Cd>SEPA</Cd>",
+		"<Prtry>SEPA</Prtry>",
 		"<Cd>CORE</Cd>",
 		"<SeqTp>RCUR</SeqTp>",
 		"<ReqdColltnDt>2026-10-28</ReqdColltnDt>",
@@ -103,9 +104,9 @@ func TestMarshal008Structure(t *testing.T) {
 			t.Errorf("output missing %q", want)
 		}
 	}
-	// The second transaction has no debtor BIC, so there is exactly one DbtrAgt.
-	if n := strings.Count(xml, "<DbtrAgt>"); n != 1 {
-		t.Errorf("DbtrAgt blocks = %d, want 1", n)
+	// DbtrAgt is mandatory in pain.008: one block per transaction, before Dbtr.
+	if n := strings.Count(xml, "<DbtrAgt>"); n != 2 {
+		t.Errorf("DbtrAgt blocks = %d, want 2", n)
 	}
 	if n := strings.Count(xml, "<DrctDbtTxInf>"); n != 2 {
 		t.Errorf("DrctDbtTxInf blocks = %d, want 2", n)
@@ -193,6 +194,8 @@ func TestMarshal008Validation(t *testing.T) {
 		{"empty debtor name", func(d *DirectDebit) { d.Transactions[0].DebtorName = "" }, ErrDebtorNameRequired},
 		{"bad debtor iban", func(d *DirectDebit) { d.Transactions[0].DebtorIBAN = "XX" }, ErrDebtorIBANInvalid},
 		{"bad debtor bic", func(d *DirectDebit) { d.Transactions[0].DebtorBIC = "12345678" }, ErrDebtorBICInvalid},
+		{"missing debtor bic", func(d *DirectDebit) { d.Transactions[0].DebtorBIC = "" }, ErrDebtorAgentRequired},
+		{"blank debtor bic", func(d *DirectDebit) { d.Transactions[0].DebtorBIC = "  " }, ErrDebtorAgentRequired},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -229,4 +232,12 @@ func TestValidLocalInstrument(t *testing.T) {
 			t.Errorf("validLocalInstrument(%q) = true", in)
 		}
 	}
+}
+
+// TestGoldenValidatesAgainstVendorXSD validates the golden pain.008.001.08 (GBIC) file against the
+// vendor schema when ERP_XSD_PAIN008 points at it. The schema is proprietary and is not
+// committed, so the check skips when the variable is unset (CI stays green); set it
+// to the extracted XSD to actually validate.
+func TestPain008ValidatesAgainstVendorXSD(t *testing.T) {
+	golden.ValidateXSD(t, "", "ERP_XSD_PAIN008", filepath.Join("testdata", "golden_pain008.xml"))
 }
