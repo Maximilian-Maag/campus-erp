@@ -38,9 +38,17 @@ expense debits it; the accounts come from `LedgerAccounts` (defaults 1200 / 8400
 refused rather than silently producing an empty file, and every run is recorded on the
 audit stream.
 
+## Handing the file over
+
+The `ledger-export` worker kind (`jobs.LedgerExportArgs{From, To, Actor}`) runs the
+export and writes the file through a `LedgerExportFunc`. The worker role's default
+implementation drops it into `ERP_LEDGER_OUTBOX_DIR`; object storage or SFTP replaces
+that one function without touching the kind. The service refuses an export that does
+not balance against its bookings, so an unbalanced file is never handed over.
+
 ## Not yet done
 
-- The endpoint/run that hands the rendered file to the ledger side (issue #42,
-  increment 3).
+- Replace the outbox directory with the real transport (object storage or SFTP) and
+  the tie-back reconciliation report to the ledger side.
 - The tie-back reconciliation: assert every exported posting maps to exactly one
   booking, and surface bookings that did not export.
