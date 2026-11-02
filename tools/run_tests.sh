@@ -126,7 +126,14 @@ if [[ -d $ROOT/backend ]]; then
       if grep -q "No results to report" <<<"$out"; then
         say "FAIL  mutation/go $pkg produced no mutants (vacuous run)"; fail=1
       elif (( rc != 0 )); then
-        say "FAIL  mutation/go $pkg below floor"; fail=1
+        say "FAIL  mutation/go $pkg below floor"
+        # A non-zero exit is not always a score: it can be a build error, a
+        # coverage-gathering failure or a full disk. Surface the reason, or the gate
+        # reports "below floor" for a mechanical failure and sends you hunting a
+        # regression that does not exist.
+        grep -E "Killed:|Test efficacy|failed to|fatal|error|no such|cannot|quota" <<<"$out" \
+          | tail -4 | sed 's/^/        /'
+        fail=1
       else
         say "PASS  mutation/go $pkg"
       fi
