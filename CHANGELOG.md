@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.54.0] - 2026-11-02
+
+Reports: the model and the first report (part of #38).
+
+### Added
+- `internal/core/report`: a report is a `Definition` (id, title, ordered columns with key,
+  heading and alignment) plus rows of strings. `Validate` refuses an incomplete definition,
+  duplicate keys and rows that do not match the columns; `MarshalCSV` and `MarshalHTML`
+  render it, with everything escaped by `html/template`. Mutation target.
+- `kasse.DailyCloseReport` + `DailyCloseDefinition`: the cash book's daily-close report —
+  one row per booking and a closing row with income, expense and the net.
+- **ADR-0010** (a report is a definition plus rows, and why not a template per report) and
+  `docs/25-reports.md`.
+
 ## [0.53.0] - 2026-11-02
 
 Worker: the sepa-export job kind (part of #38).
