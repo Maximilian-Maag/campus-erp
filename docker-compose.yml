@@ -97,6 +97,9 @@ services:
 
   # ── ADR-0007 infrastructure (dev / single-host parity with the chart) ─────────
   minio:
+    # Opt-in: the default artefact store is a directory (docs/26). Start it with
+    # `docker compose --profile s3 up` when you want the S3 path.
+    profiles: ["s3"]
     image: minio/minio:latest
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
