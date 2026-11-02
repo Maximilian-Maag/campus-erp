@@ -16,6 +16,7 @@ var (
 	ErrLedgerPeriodInvalid      = errors.New("kasse: ledger period end precedes its start")
 	ErrLedgerAccountsIncomplete = errors.New("kasse: ledger accounts must all be set")
 	ErrNoBookings               = errors.New("kasse: no confirmed bookings in the period")
+	ErrLedgerUnbalanced         = errors.New("kasse: the ledger export does not balance against its bookings")
 )
 
 // LedgerAccounts are the accounts a posting export posts against.
@@ -92,6 +93,12 @@ func (s *LedgerExportService) Export(ctx context.Context, from, to time.Time, by
 		refs = append(refs, b.Reference)
 	}
 	rec := ledger.Reconcile(refs, exp.Postings)
+	if !rec.Balanced() {
+		// Unreachable while postings are built one-for-one from the rows, which is the
+		// point: it is an invariant, and an export that does not account for its
+		// bookings must never leave the service.
+		return ledger.Export{}, fmt.Errorf("%w: missing=%v extra=%v", ErrLedgerUnbalanced, rec.Missing, rec.Extra)
+	}
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
 		Action:  "ledger.export",

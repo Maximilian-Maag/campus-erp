@@ -4,10 +4,14 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -75,7 +79,20 @@ func main() {
 		statements, err := statementSvc.Import(ctx, accountID, content, by)
 		return len(statements), err
 	}
-	client, err := jobs.New(pool, registry, importer)
+	ledgerSvc := kasse.NewLedgerExportService(kasse.NewLedgerRepo(pool),
+		audit.NewStore(pool), kasse.DefaultLedgerAccounts())
+	exporter := func(ctx context.Context, from, to time.Time, by string) (int, error) {
+		exp, err := ledgerSvc.Export(ctx, from, to, by)
+		if err != nil {
+			return 0, err
+		}
+		content, err := exp.Marshal()
+		if err != nil {
+			return 0, err
+		}
+		return len(exp.Postings), writeOutbox(content)
+	}
+	client, err := jobs.New(pool, registry, importer, exporter)
 	if err != nil {
 		log.Fatalf("jobs: %v", err)
 	}
@@ -91,4 +108,16 @@ func main() {
 	if err := client.Stop(stopCtx); err != nil {
 		log.Printf("jobs: stop: %v", err)
 	}
+}
+
+// writeOutbox drops a ledger export into the configured outbox directory. The
+// directory is the seam to the ledger side: object storage or SFTP replaces this
+// function without touching the job kind.
+func writeOutbox(content string) error {
+	dir := strings.TrimSpace(os.Getenv("ERP_LEDGER_OUTBOX_DIR"))
+	if dir == "" {
+		return errors.New("worker: ERP_LEDGER_OUTBOX_DIR is not set")
+	}
+	name := fmt.Sprintf("ledger-postings-%s.csv", time.Now().UTC().Format("20060102T150405"))
+	return os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600)
 }

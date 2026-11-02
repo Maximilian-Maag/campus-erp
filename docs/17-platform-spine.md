@@ -103,13 +103,22 @@ on Postgres (ADR-0007) — no extra broker. The runtime is `internal/platform/jo
 - `Migrate(ctx, pool)` applies River's schema — idempotent, called on every start.
   River owns its own tables, so they are not part of the app migrations and not in
   the ER model.
-- `New(pool, datasets)` builds a client with the standard workers registered;
-  `StandardWorkers` currently registers one kind, `etl`.
+- `New(pool, datasets, importStatement, exportLedger)` builds a client with the
+  standard workers registered; `StandardWorkers` registers three kinds: `etl`,
+  `statement-import` and `ledger-export`.
 - The `etl` kind (`EtlArgs{Dataset, Actor}`) runs a named dataset through the
   registry of §Platform-ETL (`docs/19`) and records the run on the audit stream,
   exactly as the API endpoint does. A dataset failure is returned so River retries.
-- `EnqueueEtl(ctx, client, dataset, actor)` is the enqueue seam the API role can use
-  to hand an ETL run to the worker instead of running it inline.
+- The `statement-import` kind (`StatementImportArgs{AccountID, Content, Actor}`)
+  imports one bank-statement file; the file content travels with the job so a retry
+  re-imports the same bytes. `StatementImportFunc` keeps the package free of a
+  dependency on the cash-book module, as `DatasetRunner` does for ETL.
+- The `ledger-export` kind (`LedgerExportArgs{From, To, Actor}`) renders a period's
+  `cash-postings/v1` export (`docs/23`) and hands it over via `LedgerExportFunc`. The
+  service refuses an export that does not balance against its bookings
+  (`ErrLedgerUnbalanced`), so the job never delivers an unbalanced file.
+- `EnqueueEtl` / `EnqueueStatementImport` / `EnqueueLedgerExport` are the enqueue
+  seams the API role can use to hand work to the worker instead of running it inline.
 - `cmd/worker` is the wiring: it opens the pool, migrates, builds the registry
   (legacy source pool when `ERP_LEGACY_DATABASE_URL` is set), starts the client and
   blocks until SIGINT/SIGTERM, then drains with a bounded stop.
@@ -149,6 +158,8 @@ status then stays `planned` on purpose.
   record the tenant; wiring the tenant into audit events is a small follow-up.
 - Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the SOAP
   client and the rest remain `planned`.
-- Only the `etl` job kind is wired. The other kinds the worker role is meant to run
-  (imports, exports, statistics, report rendering — `report-render`) are not
+- Three job kinds are wired: `etl`, `statement-import` and `ledger-export`. The
+  remaining kinds (`sepa-export`, `statistics-export`, `report-render`) are not
   registered yet; each is a `JobArgs` + worker plus its enqueue call site.
+- The worker's ledger hand-over is a directory (`ERP_LEDGER_OUTBOX_DIR`); object
+  storage or SFTP replaces that function without touching the job kind.

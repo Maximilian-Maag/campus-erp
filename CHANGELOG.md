@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.51.0] - 2026-11-02
+
+Ledger export: the worker job kind and the hand-over seam (increment 3 of #42).
+
+### Added
+- `jobs.KindLedgerExport` with `LedgerExportArgs{From, To, Actor}` and
+  `LedgerExportWorker`: renders a period's export and hands it over via
+  `LedgerExportFunc`; refuses a missing actor or a malformed period and returns a
+  failure so River retries it. `EnqueueLedgerExport` is the API-side entry point.
+- `LedgerExportService.Export` now enforces the tie-back invariant: an export that
+  does not balance against its bookings is refused (`ErrLedgerUnbalanced`) and never
+  handed over.
+- The worker role builds the exporter from the cash-book ledger service and writes the
+  file to `ERP_LEDGER_OUTBOX_DIR` (the seam object storage or SFTP replaces).
+- Registered in `StandardWorkers`; tests for the kind, the happy path, every refusal,
+  the logger and the invariant.
+
 ## [0.50.0] - 2026-11-02
 
 Ledger export: tie-back reconciliation (increment 3 of #42, first half).
