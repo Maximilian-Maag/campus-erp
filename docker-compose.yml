@@ -96,20 +96,22 @@ services:
 
 
   # ── ADR-0007 infrastructure (dev / single-host parity with the chart) ─────────
-  minio:
-    # Opt-in: the default artefact store is a directory (docs/26). Start it with
-    # `docker compose --profile s3 up` when you want the S3 path.
+  rustfs:
+    # Opt-in: the default artefact store is a directory (docs/26). RustFS is the
+    # S3-compatible endpoint for the S3 path:
+    #   docker compose --profile s3 up rustfs
+    # It is the endpoint the S3 store is verified against (docs/26).
     profiles: ["s3"]
-    image: minio/minio:latest
-    command: ["server", "/data", "--console-address", ":9001"]
+    image: rustfs/rustfs:latest
+    command: ["/data"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-erp}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-erp-erp-erp}
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-erp}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-erp-erp-erp}
     ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
     volumes:
-      - miniodata:/data
+      - rustfsdata:/data
     restart: unless-stopped
 
   redis:
@@ -120,4 +122,4 @@ services:
 
 volumes:
   pgdata:
-  miniodata:
+  rustfsdata:
