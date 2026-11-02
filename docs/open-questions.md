@@ -62,8 +62,8 @@ change. The offices' actual layouts are still outstanding.
 
 ## Q9 — Repository name & visibility?
 
-Currently `campus-erp` (private). Rename if Q1 changes the
-target.
+Settled: the name is `campus-erp` and it is **public, Apache-2.0** (`LICENSE`). The legacy
+dump and personal/financial data are never committed (`AGENTS.md` rules 1–2).
 
 ## Q10 — Compliance?
 
