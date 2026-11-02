@@ -16,7 +16,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CI="${CI:-}"
-GO_IMAGE="${GO_IMAGE:-golang:1.25-alpine}"
+GO_IMAGE="${GO_IMAGE:-golang:1.26-alpine}"
 MUTATION_THRESHOLD="${MUTATION_THRESHOLD:-85}"
 # Step groups. `fast` runs the code checks (Go, Angular, tooling, contract);
 # `mutation` runs the mutation gates (gremlins per package + Stryker). A full run is
