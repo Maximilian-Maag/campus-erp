@@ -3,7 +3,7 @@
 // reviewable: every interface has a direction, a format and a status, and the
 // registry is validated, so a new interface cannot be added without declaring
 // what it is and where it stands. The bundle analysed in docs/14 is the source
-// for the vendor's own interfaces (bank, KfW, chip terminal, WDK SOAP).
+// for the vendor's own interfaces (bank, KfW, chip terminal, SOAP services).
 package interfaces
 
 import (
@@ -62,9 +62,9 @@ func Standard() *Registry {
 		{Key: "elster-eric", Requirement: "IR-3", Name: "Finanzamt — ELSTER/ERiC", Direction: Out, Format: "ERiC", Status: Planned, Reference: "requirements §5"},
 		{Key: "statistics", Requirement: "IR-4", Name: "Statistics offices", Direction: Out, Format: "per-state formats", Status: Planned, Reference: "requirements §5"},
 		{Key: "dms", Requirement: "IR-6", Name: "DMS / document store", Direction: Both, Format: "own store + connector", Status: Planned, Reference: "requirements §5"},
-		{Key: "hisinone-wdk", Requirement: "IR-7", Name: "HISinOne — WDK SOAP services", Direction: Both, Format: "SOAP (79 services)", Status: Planned, Reference: "docs/14 §3"},
+		{Key: "erp-soap", Requirement: "IR-7", Name: "ERP SOAP services", Direction: Both, Format: "SOAP (79 services)", Status: Planned, Reference: "docs/14 §3"},
 		{Key: "kfw-loan", Requirement: "IR-7", Name: "KfW — student loan SOAP", Direction: Out, Format: "SOAP (SBwsService)", Status: Planned, Reference: "docs/14 §4.2"},
-		{Key: "bsos-terminal", Requirement: "IR-7", Name: "Chip-card / cash terminal (BSOS)", Direction: Both, Format: "BSOS (TCP bridge)", Status: Planned, Reference: "docs/14 §4.1"},
+		{Key: "card-terminal", Requirement: "IR-7", Name: "Chip-card / cash terminal (BSOS)", Direction: Both, Format: "BSOS (TCP bridge)", Status: Planned, Reference: "docs/14 §4.1"},
 		{Key: "hochschulstart", Requirement: "IR-8", Name: "hochschulstart.de / DoSV", Direction: Both, Format: "DoSV", Status: Planned, Reference: "requirements §5"},
 	})
 	if err != nil {

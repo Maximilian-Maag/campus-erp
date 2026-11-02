@@ -1,12 +1,12 @@
 # Legacy findings — payment orders (Kasse, `kbs`)
 
-Reverse-engineered from the Muster dump `hisrm_muster_30_09_26.backup`
-(PostgreSQL custom archive, `HISKBS 2025.06.0`), schema `kbs`.
+Reverse-engineered from the sample dataset `the sample dataset archive`
+(PostgreSQL custom archive, `the cash-book module 2025.06.0`), schema `kbs`.
 
 These findings drive the canonical design in slice S2 and the ETL mapping.
 Measured, not inferred — every claim below comes from the restored database.
 
-## Row counts (Muster dump)
+## Row counts (sample dataset)
 
 | table | rows | note |
 |---|---|---|
@@ -20,7 +20,7 @@ Measured, not inferred — every claim below comes from the restored database.
 | `kbs.mt940` | 0 | bank statement import |
 | `kbs.mahn` | 0 | dunning |
 
-**Consequence.** The Muster database is structurally complete but almost entirely
+**Consequence.** The sample database is structurally complete but almost entirely
 empty for the payment processes. The schema can be reverse-engineered with high
 confidence; the *data distribution* cannot. This is the concrete reason ETL
 correctness cannot be validated before a production extract exists — the

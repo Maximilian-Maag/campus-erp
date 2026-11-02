@@ -82,7 +82,7 @@ source text, **[i]** inferred from convention, **[?]** uncertain.
 | Finanzamt | tax office **[c]** |
 | Kassenbuchungssystem | cash-book system **[c]** |
 
-## Campus (HISinOne — not in this dump)
+## Campus (the reference implementation — not in this dump)
 
 | Term | Meaning |
 |---|---|

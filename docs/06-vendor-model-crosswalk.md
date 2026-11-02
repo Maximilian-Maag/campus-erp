@@ -1,22 +1,22 @@
-# 06 — Vendor model cross-walk (productive HISinOne ↔ legacy ↔ our canonical)
+# 06 — Vendor model cross-walk (productive the reference implementation ↔ legacy ↔ our canonical)
 
-The productive HISinOne schema is the vendor's **own successor** to the legacy
-Hochschul-ERP we replace. It is not our target, but it is the strongest available
+The productive the reference implementation schema is the vendor's **own successor** to the legacy
+the legacy university ERP we replace. It is not our target, but it is the strongest available
 reference for how these domains are modelled *correctly*, and it carries declared
 FKs and German column comments the legacy dump lacks (`docs/05` §8). This note
 records where our canonical schema already agrees with the vendor, and where the
 vendor's model suggests a refinement.
 
-Evidence: `cs.sys.dbschema.hisinone.jar` →
-`conf/dbconv/conf/sch/ddl.hisinone/experimental/dbmodel.ddl` (1486 tables, with
-`COMMENT ON`) and `sch.hisinone/stable/*.fk` (1286 declared FKs). All columns/FKs
+Evidence: `the reference schema jar` →
+`conf/dbconv/conf/sch/the reference DDL/experimental/dbmodel.ddl` (1486 tables, with
+`COMMENT ON`) and `the reference tables/*.fk` (1286 declared FKs). All columns/FKs
 below are quoted from those files.
 
 ## 1. Headline: the names already agree
 
 For the Kasse domain our canonical table names match the vendor's almost exactly:
 
-| our canonical (this repo) | productive HISinOne | legacy `kbs` |
+| our canonical (this repo) | productive the reference implementation | legacy `kbs` |
 |---|---|---|
 | `payment_order` | `payment_order` | `ao` (god table) |
 | `payment_run` | `payment_file` | `zawe` |

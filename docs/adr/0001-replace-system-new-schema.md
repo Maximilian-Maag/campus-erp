@@ -1,13 +1,13 @@
-# ADR-0001 — Replace the HIS-ERP applications; migrate to a new canonical schema
+# ADR-0001 — Replace the legacy university ERP applications; migrate to a new canonical schema
 
 - Status: Accepted
 - Date: 2026-10-20
 
 ## Context
 
-The goal is a drop-in replacement for all HIS-ERP modules (HISSVA, HISMBS/HISFSV,
-HISCOB, HISKBS) and eventually the HISinOne campus modules. The provided dump is
-the Hochschul-ERP Muster database: 1,536 tables across four module schemas, with
+The goal is a drop-in replacement for all legacy university ERP modules (the HR module, the finance module/the finance module,
+the cost-accounting module, the cash-book module) and eventually campus management modules. The provided dump is
+the legacy sample database: 1,536 tables across four module schemas, with
 **no foreign keys** and application-enforced integrity, plus 374 views, 1,117
 sequences, 3,601 functions and 1,439 triggers.
 
@@ -21,7 +21,7 @@ quality goals are "easy to understand, very performant, simple to deploy".
 
 ## Decision
 
-Adopt **(B): a new canonical schema**, with the legacy HIS database demoted to a
+Adopt **(B): a new canonical schema**, with the legacy database demoted to a
 migration source and a parallel-run fallback. "Reuse the existing databases" means
 reuse the **data**, not the schema.
 

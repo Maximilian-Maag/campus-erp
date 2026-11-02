@@ -1,6 +1,6 @@
 # Phase 1 — Kasse (`kbs`) pilot
 
-The first vertical slice: replace the HISKBS cash-book module end to end. Its
+The first vertical slice: replace the cash-book module cash-book module end to end. Its
 purpose is to **prove the platform** (tenancy, audit, ETL, interfaces, CI) on the
 smallest, most self-contained legacy module before touching HR or the ledger.
 

@@ -20,7 +20,7 @@ states what is *measured* versus *inferred*.
 
 ---
 
-## 1. `sva4` — Personal- und Stellenverwaltung (module `HISSVA-GX`)
+## 1. `sva4` — Personal- und Stellenverwaltung (module `the HR module-GX`)
 
 636 tables, 224 with data. Domain clusters (framework excluded):
 
@@ -40,7 +40,7 @@ states what is *measured* versus *inferred*.
 
 Person master table is likely `meta_person` / `pgd` (inferred, not confirmed).
 
-## 2. `mbs` — Finanz- und Sachmittelverfahren (modules `HISMBS-UNIX` / `HISFSV-GX`)
+## 2. `mbs` — Finanz- und Sachmittelverfahren (modules `the finance module-UNIX` / `the finance module-GX`)
 
 556 tables, 199 with data. The largest, most heterogeneous module — it is the
 finance/resource core. Clusters:
@@ -61,7 +61,7 @@ finance/resource core. Clusters:
 | Master/templates | `vstamm` `pstamm` `astamm` `stamm` | Base templates per object type |
 | Misc | `nutzer` `nutzer_fsv` `mahn` `tel` `schaden` `versorg` `veranst` | Users, dunning, damage, pension, events |
 
-## 3. `cob` — Kosten- und Leistungsrechnung (module `HISCOB-GX`)
+## 3. `cob` — Kosten- und Leistungsrechnung (module `the cost-accounting module-GX`)
 
 244 tables, 99 with data. Cost & activity accounting.
 
@@ -76,7 +76,7 @@ finance/resource core. Clusters:
 | Ansatz | `ansc` `ansc_to_inst` | Budget target (Ansatz) |
 | Evaluation & tooling | `eval` `eval_kpum_zuord` `reporttypen` `tabkey` `tabkeyecht` `trees` `tree_cfg` `felder_to_p_select` | Evaluations, report types, UI trees |
 
-## 4. `kbs` — Kassenbuchungssystem (module `HISKBS`)
+## 4. `kbs` — Kassenbuchungssystem (module `the cash-book module`)
 
 94 tables, 18 with data. Cash book / cashier system.
 

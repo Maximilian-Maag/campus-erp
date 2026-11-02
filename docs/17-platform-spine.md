@@ -58,7 +58,7 @@ reachable, so a load balancer stops routing to a process that cannot serve
 The external interfaces are now data, not prose. `Standard()` seeds the registry
 from requirements §5 and the bundle analysed in `docs/14`: the bank interfaces
 (pain.001/008, MT940, CAMT.053, EBICS), e-invoicing (XRechnung in/out), the IdP
-(OIDC), LBV, ELSTER/ERiC, statistics, DMS, the HISinOne **WDK SOAP** surface,
+(OIDC), LBV, ELSTER/ERiC, statistics, DMS, **SOAP service** surface,
 the KfW loan SOAP client and the BSOS chip-card terminal. Each entry has a
 direction, a format, a requirement id and a status (`implemented` / `planned`).
 `New` validates the set; `Render` produces a stable table pinned by a golden
@@ -126,7 +126,7 @@ enqueues an `etl` job and waits for it to complete.
 
 - The tenant is resolved and used for the pool, but the audit `actor` does not yet
   record the tenant; wiring the tenant into audit events is a small follow-up.
-- Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the WDK SOAP
+- Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the SOAP
   client and the rest remain `planned`.
 - Only the `etl` job kind is wired. The other kinds the worker role is meant to run
   (imports, exports, statistics, report rendering — `report-render`) are not

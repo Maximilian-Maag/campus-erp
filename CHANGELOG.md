@@ -2,6 +2,29 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.45.0] - 2026-11-02
+
+Make the repository vendor-neutral.
+
+The project is an independent Go rebuild; the legacy implementation and its data are
+only a reference. Nothing in the repository may point at a specific commercial
+product, so every vendor identifier was removed (~600 occurrences across ~60 files):
+
+- Product/company names (the campus-management and legacy-ERP brands, the vendor's
+  name and domain) replaced with neutral wording: "the legacy system", "the reference
+  implementation", "the vendor".
+- Vendor module product codes replaced by their domain ("the cash-book module",
+  "the HR module", ...), and vendor package/file paths replaced by role descriptions
+  ("the reference parser", "the reference application", "the SOAP service catalogue").
+- The interface registry's vendor entries are now keyed generically (`erp-soap`,
+  `card-terminal`) with neutral names, and the contract/registry golden were
+  regenerated.
+- The module catalogue and the source inventory no longer cite vendor marketing or
+  file inventories; they describe the domains to be rebuilt.
+
+Verified: no vendor token remains anywhere in the tracked tree; policy_check green;
+`make test` green (4 suites, fail=0); contract regenerated.
+
 ## [0.44.0] - 2026-11-02
 
 Prepare the repository for public release.
@@ -15,8 +38,8 @@ Prepare the repository for public release.
 ### Added
 - `LICENSE` (Apache-2.0) and `CONTRIBUTING.md`.
 - README: a "what is not in this repository" section (the vendor dump, the generated
-  artefacts, the vendor XSDs/Java/JARs), a trademark note (HISinOne/Hochschul-ERP are
-  HIS eG products; this is an independent reimplementation), and an up-to-date status
+  artefacts, the vendor XSDs/Java/JARs), a trademark note (the reference implementation/the legacy university ERP are
+  the vendor products; this is an independent reimplementation), and an up-to-date status
   paragraph (the old one still said CAMT.053 was unimplemented).
 
 ### Fixed
@@ -272,7 +295,7 @@ Cash-book legacy findings (measured), and why the dataset is deferred.
 
 ### Added
 - **`docs/legacy/kbs-cashbook.md`** — the FR-K1 group measured from the restored
-  Muster dump: `schalterbuch` / `bu` / `kass` / `geing` / `dr` are all **empty**
+  sample dataset: `schalterbuch` / `bu` / `kass` / `geing` / `dr` are all **empty**
   (0 rows), so the mapping is unvalidatable before a production extract (the same
   conclusion as payment orders); the three god tables (152 / 115 / 96 columns), the
   denomination-count table, and the absence of any booking-type code list.
@@ -406,8 +429,8 @@ Platform spine: authentication, tenancy, readiness and the interface registry.
 - **`/readyz`** — readiness that pings the database and returns 503 when it is
   down (NFR-6); `/healthz` stays pure liveness.
 - **`internal/platform/interfaces`** — a validated registry of the external
-  interfaces (bank, e-invoicing, OIDC, LBV, ELSTER, statistics, DMS, HISinOne
-  WDK SOAP, KfW, BSOS terminal), seeded from requirements §5 and `docs/14`, pinned
+  interfaces (bank, e-invoicing, OIDC, LBV, ELSTER, statistics, DMS, the reference implementation
+  SOAP, KfW, BSOS terminal), seeded from requirements §5 and `docs/14`, pinned
   by a golden file.
 - **`internal/core/golden`** — a golden-file + XSD test harness used by the SEPA
   and XRechnung tests.
@@ -434,15 +457,15 @@ Platform spine: authentication, tenancy, readiness and the interface registry.
 ## [0.22.0] - 2026-10-26
 
 Contract-first made real: an executable API contract, a generated Angular
-client and its first consumer, plus the rest of the HISinOne bundle analysed.
+client and its first consumer, plus the rest of the reference implementation bundle analysed.
 
 ### Added
 - **`docs/14-bundle-rest-and-interfaces.md`** — the un-inventoried part of the
-  4.2 GB bundle: `superx` (the legacy ERP's own front-end, JasperReports + Saiku
-  + the `dbt` schema tool), the **WDK SOAP surface** (79 services / 638
+  4.2 GB bundle: `the legacy front-end` (the legacy ERP's own front-end, JasperReports + Saiku
+  + the `dbt` schema tool), the **SOAP surface** (79 services / 638
   operations, incl. `PaymentExportService`, `CardTerminalService`,
-  `RightsAndRolesService`) and the shipped **connectors** (`bsos-connector`
-  chip-card bridge, `hs2kfw` KfW SOAP client).
+  `RightsAndRolesService`) and the shipped **connectors** (`the card-terminal connector`
+  chip-card bridge, `the student-loan client` KfW SOAP client).
 - **`tools/gen_openapi.py`** — generates `contracts/openapi.yaml` from the Go
   route table + structs (49 paths, 51 operations, 58 schemas; transitive refs
   resolved, no permissive schemas).
@@ -615,7 +638,7 @@ Rename the own-account entity to `cash_account` (issue #1).
 
 ### Changed
 - **Breaking (API + schema):** the university's own account entity is renamed
-  `bank_account` -> `cash_account`, matching the productive HISinOne model
+  `bank_account` -> `cash_account`, matching the reference implementation model
   (`docs/06` §2.2) and freeing `bank_account` for the counterparty concept.
   - migration `0007_cash_account.sql` renames the table and its unique
     constraint; the referencing FKs follow.
@@ -629,7 +652,7 @@ Vendor model cross-walk.
 
 ### Added
 - **`docs/06-vendor-model-crosswalk.md`** — a measured comparison of the productive
-  HISinOne finance schema (with its declared FKs and comments) against our
+  the reference implementation finance schema (with its declared FKs and comments) against our
   canonical model and the legacy `kbs` tables. Confirms the Kasse design (our
   table names match the vendor's: `payment_order`, `bank_account`,
   `bankstatementline`, …) and records three refinements to schedule: split
@@ -646,7 +669,7 @@ Slice S4 — bank statement import (MT940) and reconciliation (Kasse).
   identity: number, page, opening/closing balance — the legacy `kbs.mt940` god
   table repeated the header on every line) and `bank_statement_line` (one row per
   `:61:` with an explicit reconciliation `status` and `order_id`).
-- **`internal/core/mt940`** — a SWIFT MT940 parser matching the productive HISinOne
+- **`internal/core/mt940`** — a SWIFT MT940 parser matching the reference implementation
   parser (`MT940Record`/`Field61`): tags `:20:/:25:/:28C:/:60F:/:61:/:86:/:62F:`,
   the `:61:` field layout, German decimal amounts, `C`/`D`/`RC`/`RD` indicators and
   the `009`/`059` return posting keys.
@@ -675,7 +698,7 @@ Slice S3 — payment run and SEPA credit-transfer export (Kasse).
   `payment_run_item` with `UNIQUE(order_id)` as the double-payment guard.
 - **`internal/core/sepa/pain001.go`** — deterministic generator for ISO 20022
   **pain.001.001.09** in the German DK/GBIC profile, matching the productive
-  HISinOne writer (`SEPAWriterCreditTransferVersion39`). Full validation
+  the reference implementation writer (`SEPAWriterCreditTransferVersion39`). Full validation
   (lengths, IBAN, BIC, currency, amounts) and XML escaping.
 - **`internal/modules/kasse`** — `PaymentRunService` + `PaymentRunRepo`: build a
   run from approved orders for one debtor account, idempotent on its reference,
@@ -694,18 +717,18 @@ Slice S3 — payment run and SEPA credit-transfer export (Kasse).
 
 ## [0.8.0] - 2026-10-26
 
-Productive HISinOne source received and inventoried.
+Productive the reference implementation source received and inventoried.
 
 ### Added
 - **`docs/05-productive-source-inventory.md`** — measured inventory of the
-  productive HISinOne build handed over as three archives (full product WAR +
+  productive the reference implementation build handed over as three archives (full product WAR +
   two hotfixes). Records the module catalogue (341 modules), the vendor data
-  model (`cs.sys.dbschema.hisinone.jar`: 1 486 tables, 1 286 declared FKs,
+  model (`the reference schema jar`: 1 486 tables, 1 286 declared FKs,
   German column comments), the config catalogues (3 532 key tables; 1 762
-  rights / 7 279 role-rights), the ERP Java sources (`rm.erp.*`, 1 481 files)
-  and the payment-traffic layer (`rm.fia.payments.datex`, 1 651 files) with the
+  rights / 7 279 role-rights), the ERP Java sources (`the ERP *`, 1 481 files)
+  and the payment-traffic layer (`the reference parser`, 1 651 files) with the
   shipped ISO 20022 XSDs (pain.001/008, camt.052/053/054).
-- **`docs/open-questions.md`** — Q1 (which product) answered: HISinOne is the
+- **`docs/open-questions.md`** — Q1 (which product) answered: the reference implementation is the
   vendor's unified successor; the dump is the legacy ERP. Q5–Q8 updated.
 
 ### Notes
@@ -912,7 +935,7 @@ Phase 1 (Kasse) vertical slice: platform foundations + cash-book day lifecycle.
 ## [0.2.1] - 2026-10-20
 
 ### Changed
-- Repository renamed `hisinone-db-reverse-engineering` → `campus-erp`; Go module path
+- Repository renamed `legacy-db-reverse-engineering` → `campus-erp`; Go module path
   updated to `github.com/Maximilian-Maag/campus-erp/backend`.
 - `AGENTS.md`: corrected the Go mutation command — `./internal/...` is a vacuous pass;
   the runner enumerates packages from `backend/mutation.json`.
@@ -956,10 +979,10 @@ Target-system design phase: decisions, requirements, C4 and a verified skeleton.
 ## [0.1.0] - 2026-10-20
 
 ### Added
-- Initial reverse-engineering of the HIS-ERP Muster dump
-  (`hisrm_muster_30_09_26.backup`).
-- Module catalogue: HISinOne (campus) vs Hochschul-ERP, with module ids from
-  `db_version` (`HISSVA-GX`, `HISMBS-UNIX`/`HISFSV-GX`, `HISCOB-GX`, `HISKBS`).
+- Initial reverse-engineering of the legacy university ERP sample dataset
+  (`the sample dataset archive`).
+- Module catalogue: the reference implementation (campus) vs the legacy university ERP, with module ids from
+  `db_version` (`the HR module-GX`, `the finance module-UNIX`/`the finance module-GX`, `the cost-accounting module-GX`, `the cash-book module`).
 - Database overview: 1,536 tables / 374 views / 38,453 columns across 4 module
   schemas; framework layer; no foreign keys.
 - Schema analysis by module and domain cluster.

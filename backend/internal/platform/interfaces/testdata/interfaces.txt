@@ -6,12 +6,12 @@ bank-ebics | IR-2 | both | planned | Bank — EBICS channel | EBICS
 bank-mt940 | IR-2 | in | implemented | Bank — statement import (MT940) | SWIFT MT940
 bank-sepa-sct | IR-2 | out | implemented | Bank — SEPA credit transfer | pain.001.001.09 (GBIC/DK)
 bank-sepa-sdd | IR-2 | out | implemented | Bank — SEPA direct debit | pain.008.001.08
-bsos-terminal | IR-7 | both | planned | Chip-card / cash terminal (BSOS) | BSOS (TCP bridge)
+card-terminal | IR-7 | both | planned | Chip-card / cash terminal (BSOS) | BSOS (TCP bridge)
 dms | IR-6 | both | planned | DMS / document store | own store + connector
 einvoice-in | IR-7 | in | implemented | E-invoice — inbound XRechnung | XRechnung 3.0 (UBL 2.1)
 einvoice-out | IR-7 | out | implemented | E-invoice — outbound XRechnung | XRechnung 3.0 (UBL 2.1)
 elster-eric | IR-3 | out | planned | Finanzamt — ELSTER/ERiC | ERiC
-hisinone-wdk | IR-7 | both | planned | HISinOne — WDK SOAP services | SOAP (79 services)
+erp-soap | IR-7 | both | planned | ERP SOAP services | SOAP (79 services)
 hochschulstart | IR-8 | both | planned | hochschulstart.de / DoSV | DoSV
 idp-oidc | IR-5 | in | implemented | Identity provider — OIDC | OIDC (JWT/JWKS)
 kfw-loan | IR-7 | out | planned | KfW — student loan SOAP | SOAP (SBwsService)

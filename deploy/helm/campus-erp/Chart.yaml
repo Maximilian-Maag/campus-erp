@@ -1,7 +1,7 @@
 apiVersion: v2
 name: campus-erp
 description: |
-  campus-erp — open-source, multi-tenant HIS-ERP replacement. Deploys the Go
+  campus-erp — open-source, multi-tenant university-ERP replacement. Deploys the Go
   backend (api / worker / connectors, one image) and the Angular web tier.
 type: application
 version: 0.1.0

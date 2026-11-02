@@ -1,4 +1,4 @@
--- Rename the own-account entity to match the productive HISinOne model
+-- Rename the own-account entity to match the reference implementation model
 -- (docs/06-vendor-model-crosswalk.md §2.2): the vendor calls the university's own
 -- account `cash_account` and reserves `bank_account` for a counterparty account.
 --

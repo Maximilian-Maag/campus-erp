@@ -1,4 +1,4 @@
-workspace "HIS-ERP replacement" "As-is (legacy HIS eG Hochschul-ERP) and target architecture for an open-source, multi-tenant replacement." {
+workspace "university-ERP replacement" "As-is (legacy university ERP) and target architecture for an open-source, multi-tenant replacement." {
 
     model {
 
@@ -18,31 +18,31 @@ workspace "HIS-ERP replacement" "As-is (legacy HIS eG Hochschul-ERP) and target 
         statistik = softwareSystem "Statistik / Landesamt" "Statistics offices (per state)" "External"
         idp       = softwareSystem "Identity Provider" "Shibboleth / OIDC (DFN-AAI)" "External"
         dms       = softwareSystem "DMS" "Document management system" "External"
-        hisinone  = softwareSystem "HISinOne Campus" "Campus management (APP/STU/EXA/DOC)" "External"
+        the reference source  = softwareSystem "the reference implementation Campus" "Campus management (APP/STU/EXA/DOC)" "External"
         qis       = softwareSystem "QIS" "External campus/exam system" "External"
         saphcm    = softwareSystem "SAP HCM" "External HR system" "External"
 
         // ══ AS-IS ═════════════════════════════════════════════════════════════
-        legacy = softwareSystem "HIS-ERP (legacy)" "HIS eG Hochschul-ERP: HISSVA, HISMBS/HISFSV, HISCOB, HISKBS. Replaced by the target system." {
+        legacy = softwareSystem "legacy university ERP (legacy)" "legacy university ERP: the HR module, the finance module/the finance module, the cost-accounting module, the cash-book module. Replaced by the target system." {
 
             legacy_web = container "Web-Oberfläche / Portal" "Role-specific web UI" "Java/Web"
-            legacy_sva = container "HISSVA application" "Personal- und Stellenverwaltung" "Java" {
+            legacy_sva = container "the HR module application" "Personal- und Stellenverwaltung" "Java" {
                 fw_vorgang = component "Vorgangssteuerung" "sv_vorgang*"
                 fw_workflow = component "Workflow" "wof"
                 fw_rechte = component "Rechte & Rollen" "sv_rechte_sachb"
                 fw_katalog = component "Katalogverwaltung" "k_*"
                 fw_meta = component "Metadata / UI" "db_tabellen, db_spalten, db_graph_*"
             }
-            legacy_mbs = container "HISMBS / HISFSV application" "Finanz- und Sachmittelverfahren" "Java"
-            legacy_cob = container "HISCOB application" "Kosten- und Leistungsrechnung" "Java"
-            legacy_kbs = container "HISKBS application" "Kassenbuchungssystem" "Java"
+            legacy_mbs = container "the finance module / the finance module application" "Finanz- und Sachmittelverfahren" "Java"
+            legacy_cob = container "the cost-accounting module application" "Kosten- und Leistungsrechnung" "Java"
+            legacy_kbs = container "the cash-book module application" "Kassenbuchungssystem" "Java"
             legacy_db  = container "PostgreSQL" "One DB, four module schemas, no foreign keys" "PostgreSQL 17" "Database"
             legacy_batch = container "Batch / Schnittstellen" "File/DB interfaces" "Batch"
             legacy_docs = container "Dokumentenablage" "DB / filesystem / DMS" "Storage"
         }
 
         // ══ TARGET ════════════════════════════════════════════════════════════
-        target = softwareSystem "HIS-ERP Replacement" "New open-source, multi-tenant platform (Go + Angular, k8s)." {
+        target = softwareSystem "University ERP Replacement" "New open-source, multi-tenant platform (Go + Angular, k8s)." {
 
             target_web = container "Web UI" "Angular SPA (standalone + signals, Material/CDK)" "TypeScript"
             target_api = container "API" "Modular monolith: REST/JSON + OpenAPI" "Go" {
@@ -95,7 +95,7 @@ workspace "HIS-ERP replacement" "As-is (legacy HIS eG Hochschul-ERP) and target 
         legacy_batch -> elster "Umsatzsteuer (ERiC)"
         legacy_batch -> statistik "Personal-/Finanzstatistik (file)"
         legacy_web -> idp "authentication (Shibboleth)"
-        legacy -> hisinone "Stammdaten / Kostenstellen"
+        legacy -> the reference source "Stammdaten / Kostenstellen"
         legacy -> qis "Personendaten-Transfer"
         legacy -> saphcm "HR master data"
         legacy -> dms "documents"
@@ -131,7 +131,7 @@ workspace "HIS-ERP replacement" "As-is (legacy HIS eG Hochschul-ERP) and target 
         target_worker -> statistik "Statistik (file)"
         target_api -> target_obs "telemetry"
         target_worker -> target_obs "telemetry"
-        target_api -> hisinone "data exchange (optional connector)"
+        target_api -> the reference source "data exchange (optional connector)"
         target_api -> qis "data exchange (optional connector)"
         target_api -> saphcm "data exchange (optional connector)"
         target_worker -> dms "optional DMS connector"
@@ -143,7 +143,7 @@ workspace "HIS-ERP replacement" "As-is (legacy HIS eG Hochschul-ERP) and target 
 
     views {
 
-        systemContext legacy "AsIs-Context" "As-is system context (legacy HIS-ERP)." {
+        systemContext legacy "AsIs-Context" "As-is system context (legacy legacy university ERP)." {
             include *
             autoLayout
         }

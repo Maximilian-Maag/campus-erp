@@ -15,8 +15,8 @@
 -- so an approved order can be paid at most once.
 --
 -- Format: SEPA credit transfer, ISO 20022 pain.001.001.09 (DK/GBIC-compatible),
--- matching the productive HISinOne writer
--- (rm.fia.payments.datex.parser.sepa.SEPAWriterCreditTransferVersion39). The
+-- matching the reference implementation writer
+-- (the reference parser.parser.sepa.SEPAWriterCreditTransferVersion39). The
 -- format is legally binding (ADR-0001 interface parity, IR-2).
 
 -- The university's own bank accounts (the debtor side of an export).

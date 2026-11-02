@@ -1,7 +1,7 @@
 # Legacy findings — SEPA credit-transfer export (Kasse, `kbs`)
 
-Reverse-engineered from the Muster dump `hisrm_muster_30_09_26.backup` (schema
-`kbs`) **and** the productive HISinOne source (see `docs/05`). These findings
+Reverse-engineered from the sample dataset `the sample dataset archive` (schema
+`kbs`) **and** the reference implementation source (see `docs/05`). These findings
 drive slice S3 and the ETL/interface mapping. Measured, not inferred.
 
 ## Legacy `kbs.zawe` — payment instruction / run
@@ -21,8 +21,8 @@ Three structural facts matter for a replacement:
 
 ## The format the vendor actually produces
 
-The productive HISinOne writes SEPA credit transfers in
-`rm.fia.payments.datex.parser.sepa.SEPAWriterCreditTransferVersion39`, as
+The productive the reference implementation writes SEPA credit transfers in
+`the reference parser.parser.sepa.SEPAWriterCreditTransferVersion39`, as
 **ISO 20022 pain.001.001.09** in the German DK/GBIC profile. The relevant facts,
 read from that source and the shipped XSD
 `pain.001.001.09_GBIC_5.xsd`:
@@ -84,5 +84,5 @@ ADR-0008).
 
 Statement import — MT940 and CAMT.053 — is not done. The vendor's parser and the
 camt.053.001.02/.08 and camt.054 XSDs are in the productive source
-(`rm.fia.payments.datex.mt940`, `…sepa.camt*`), so S4 is unblocked on the format
+(`the reference parser.mt940`, `…sepa.camt*`), so S4 is unblocked on the format
 in the same way S3 was.

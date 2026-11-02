@@ -8,7 +8,7 @@ Two families of databases exist in this project and both are modelled here:
     FOREIGN KEY constraints, so the ER model is read *directly* from the DDL
     (no guessing). One database per tenant (ADR-0002).
 
-  * legacy  — the reverse-engineered HIS-ERP schemas (sva4, mbs, cob, kbs).
+  * legacy  — the reverse-engineered legacy university ERP schemas (sva4, mbs, cob, kbs).
     These have **zero declared foreign keys** (see docs/02-database-overview.md),
     so the model is reconstructed from measured metadata (PKs, column lists in
     schema/*.tsv) plus the naming conventions documented in
@@ -261,7 +261,7 @@ def target_puml(tables: list[Table]) -> str:
 # unknown names are skipped with a warning so the file never breaks the build.
 LEGACY_SPEC: dict[str, dict] = {
     "sva4": {
-        "module": "HISSVA-GX",
+        "module": "the HR module-GX",
         "title": "sva4 — Personal- und Stellenverwaltung",
         "colour": "#E8F6EF",
         "groups": {
@@ -275,7 +275,7 @@ LEGACY_SPEC: dict[str, dict] = {
         "extra_edges": [("gvp", "pbv"), ("gvp", "sgd"), ("sem", "pgd"), ("pgd", "bgr")],
     },
     "mbs": {
-        "module": "HISMBS-UNIX / HISFSV-GX",
+        "module": "the finance module-UNIX / the finance module-GX",
         "title": "mbs — Finanz- und Sachmittelverfahren",
         "colour": "#FDF3E3",
         "groups": {
@@ -289,7 +289,7 @@ LEGACY_SPEC: dict[str, dict] = {
         "extra_edges": [],
     },
     "cob": {
-        "module": "HISCOB-GX",
+        "module": "the cost-accounting module-GX",
         "title": "cob — Kosten- und Leistungsrechnung",
         "colour": "#F4ECF7",
         "groups": {
@@ -302,7 +302,7 @@ LEGACY_SPEC: dict[str, dict] = {
         "extra_edges": [],
     },
     "kbs": {
-        "module": "HISKBS",
+        "module": "the cash-book module",
         "title": "kbs — Kassenbuchungssystem",
         "colour": "#FDEDEC",
         "groups": {

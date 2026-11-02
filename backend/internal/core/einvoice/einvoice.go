@@ -1,6 +1,6 @@
 // Package einvoice models an EN16931 e-invoice and emits XRechnung 3.0 (UBL 2.1).
 //
-// The model mirrors the EN16931 business groups the productive HISinOne uses
+// The model mirrors the EN16931 business groups the reference implementation uses
 // (docs/08-reuse-inventory.md §4); the emitted document is the format a German
 // public body must accept. Amounts are integer cents, VAT rates are basis points
 // and quantities are milli-units (repo conventions, ADR-0001).

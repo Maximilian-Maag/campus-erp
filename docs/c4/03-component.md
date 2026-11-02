@@ -8,7 +8,7 @@ grouping is **inferred** from table naming.
 
 ```mermaid
 C4Component
-    title Components — shared HIS runtime framework (per module schema)
+    title Components — shared shared runtime framework (per module schema)
 
     Component(vorgang, "Vorgangssteuerung", "sv_vorgang*", "Case/transaction engine: Vorgang, Teilvorgang, name")
     Component(workflow, "Workflow", "wof, __wof, workflow_*", "Workflow definitions, responsible persons, authorisations")
@@ -21,7 +21,7 @@ C4Component
     Component(integration, "Schnittstellen", "imp_*, out_*, sv_integration", "Import staging and exports")
 ```
 
-## HISSVA (`sva4`) — Personal- und Stellenverwaltung
+## the HR module (`sva4`) — Personal- und Stellenverwaltung
 
 | Component | Tables (representative) |
 |---|---|
@@ -37,7 +37,7 @@ C4Component
 | Payments | `import_payment*`, `calc_transaction`, `entry_transaction` |
 | External integration | `qis_*`, `person_taa_config` |
 
-## HISMBS / HISFSV (`mbs`) — Finanz- und Sachmittelverfahren
+## the finance module / the finance module (`mbs`) — Finanz- und Sachmittelverfahren
 
 | Component | Tables |
 |---|---|
@@ -51,7 +51,7 @@ C4Component
 | Projects / funding | `prg*`, `proaus`, `rpplan`, `rpvor`, `rna*` |
 | Personnel cost | `pers`, `ein_personal`, `lohn_to_koa` |
 
-## HISCOB (`cob`) — Kosten- und Leistungsrechnung
+## the cost-accounting module (`cob`) — Kosten- und Leistungsrechnung
 
 | Component | Tables |
 |---|---|
@@ -64,7 +64,7 @@ C4Component
 | Budget target (Ansatz) | `ansc`, `ansc_to_inst` |
 | Evaluation / tooling | `eval*`, `reporttypen`, `tabkey*`, `trees`, `tree_cfg` |
 
-## HISKBS (`kbs`) — Kassenbuchungssystem
+## the cash-book module (`kbs`) — Kassenbuchungssystem
 
 | Component | Tables |
 |---|---|

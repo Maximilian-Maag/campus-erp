@@ -1,7 +1,7 @@
 # Legacy findings — bank statement import (Kasse, `kbs`)
 
-Reverse-engineered from the Muster dump `hisrm_muster_30_09_26.backup` (schema
-`kbs`) **and** the productive HISinOne source (see `docs/05`). These findings
+Reverse-engineered from the sample dataset `the sample dataset archive` (schema
+`kbs`) **and** the reference implementation source (see `docs/05`). These findings
 drive slice S4 and the ETL/interface mapping. Measured, not inferred.
 
 ## Legacy `kbs.mt940` — a 97-column god table
@@ -27,8 +27,8 @@ Two structural facts matter for a replacement:
 
 ## The format the vendor actually reads
 
-The productive HISinOne parses MT940 in
-`rm.fia.payments.datex.mt940` (`MT940Record` / `Field61` / `Field86`). The
+The productive the reference implementation parses MT940 in
+`the reference parser.mt940` (`MT940Record` / `Field61` / `Field86`). The
 relevant facts, read from that source:
 
 - Tags: `:20:` reference, `:25:` account, `:28C:` number/page, `:60F:`/`:60M:`
@@ -85,7 +85,7 @@ ISO 20022 **CAMT.053** import is implemented (`internal/core/camt053`); both
 formats now feed one reconciliation path via the shared parsed-statement shape
 (`internal/core/bankstmt`), and `StatementService.Import` detects the format (an
 XML document is CAMT, anything else is MT940). The mapping follows the
-productive parser (`rm.fia.payments.datex.sepa.camt053v02/v08`): `Stmt` →
+productive parser (`the reference parser.sepa.camt053v02/v08`): `Stmt` →
 statement, `Bal` `OPBD`/`CLBD` → opening/closing balance, `Ntry` → line, with
 `TxDtls/Refs/EndToEndId`, `RltdPties` (`Cdtr`/`Dbtr`) and `RmtInf/Ustrd`.
 
@@ -97,7 +97,7 @@ type carries **no balance**, so the parsed statements hold lines only (both
 balances zero). `StatementService.Import` routes an XML document by its container
 element — `BkToCstmrDbtCdtNtfctn` → CAMT.054, otherwise CAMT.053 — and reconciles
 the entries exactly as CAMT.053. Field mapping follows the productive parser
-(`rm.fia.payments.datex.sepa.camt054v02/v08`): `Ntfctn` → statement, `Ntry` → line.
+(`the reference parser.sepa.camt054v02/v08`): `Ntfctn` → statement, `Ntry` → line.
 
 ## CAMT.052 (added)
 
@@ -107,7 +107,7 @@ document by container: `BkToCstmrAcctRpt` → CAMT.052, `BkToCstmrDbtCdtNtfctn` 
 CAMT.054, otherwise CAMT.053. Unlike a notification, a report *may* carry balances:
 `Bal` `OPBD`/`CLBD` are mapped when present and left zero otherwise. Entries
 reconcile exactly as the other formats. Field mapping follows the productive parser
-(`rm.fia.payments.datex.sepa.camt052v02/v08`): `Rpt` → statement, `Ntry` → line.
+(`the reference parser.sepa.camt052v02/v08`): `Rpt` → statement, `Ntry` → line.
 
 All three CAMT parsers read the ISO 20022 `TransactionParties` shape: a party's name
 sits under `Pty` (`RltdPties/Dbtr/Pty/Nm`), and the account is a sibling element

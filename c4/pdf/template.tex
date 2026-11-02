@@ -45,7 +45,7 @@
 
 \title{\vspace{-1.6cm}\textbf{campus-erp}\\[0.35em]
        \large Architecture report — C4 model and database ER models\vspace{-0.4em}}
-\author{HIS-ERP replacement — as-is (legacy) and target architecture}
+\author{university-ERP replacement — as-is (legacy) and target architecture}
 \date{\today}
 
 \begin{document}
@@ -61,7 +61,7 @@ both: the diagrams below are rendered views, never hand-drawn. When a diagram an
 its source disagree, the source wins.
 
 \begin{itemize}\setlength{\itemsep}{0.2em}
-  \item \textbf{Part I — C4 architecture model.} As-is (legacy HIS-ERP) and the
+  \item \textbf{Part I — C4 architecture model.} As-is (legacy legacy university ERP) and the
         target platform, at Context / Container / Component level.
   \item \textbf{Part II — Database ER models.} The target canonical schema
         (read directly from the migrations, with real foreign keys) plus the
@@ -87,7 +87,7 @@ a diagram.
 \begin{itemize}\setlength{\itemsep}{0.15em}
   \item As-is — System Context (level 1)
   \item As-is — Containers (level 2)
-  \item As-is — HISSVA Components (level 3)
+  \item As-is — the HR module Components (level 3)
   \item Target — System Context (level 1)
   \item Target — Containers (level 2)
   \item Target — API Components (level 3)
@@ -109,7 +109,7 @@ directly from the DDL — every crow's-foot is a declared constraint. One databa
 per tenant (ADR-0002), hence no \texttt{tenant\_id} columns.
 
 \subsection*{Legacy module schemas}
-The reverse-engineered HIS-ERP schemas (\texttt{sva4}, \texttt{mbs}, \texttt{cob},
+The reverse-engineered legacy university ERP schemas (\texttt{sva4}, \texttt{mbs}, \texttt{cob},
 \texttt{kbs}) declare \textbf{zero} foreign keys — referential integrity is
 enforced in the application layer. Their diagrams are reconstructed from measured
 metadata (primary keys, column lists in \texttt{schema/*.tsv}) and the naming

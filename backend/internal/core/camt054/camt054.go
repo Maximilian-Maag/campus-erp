@@ -3,8 +3,8 @@
 // A camt.054 carries the same entry set as the matching statement, but the message
 // type has no opening/closing balance, so the parsed statements carry lines only.
 // It produces the shared bankstmt shape, so CAMT.054 feeds the same reconciliation
-// as MT940 and CAMT.053. The field mapping follows the productive HISinOne parser
-// (rm.fia.payments.datex.sepa.camt054v02/v08).
+// as MT940 and CAMT.053. The field mapping follows the reference implementation parser
+// (the reference parser.sepa.camt054v02/v08).
 package camt054
 
 import (

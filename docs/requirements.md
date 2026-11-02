@@ -1,4 +1,4 @@
-# Requirements — Target system (HIS-ERP replacement)
+# Requirements — Target system (university-ERP replacement)
 
 Status: **Accepted baseline** (2026-10-20). Supersedes the earlier context-gathering
 baseline. Living document; changes require an ADR or a dated revision note.
@@ -8,9 +8,9 @@ interface, `CR` compliance, `NFR` non-functional, `TR` tenancy, `MR` migration.
 
 ## 1. Purpose
 
-Build an **open-source, drop-in replacement** for the HIS eG Hochschul-ERP
+Build an **open-source, drop-in replacement** for the legacy university ERP
 (Personal, Finanzen/Sachmittel, Kasse, Kosten-/Leistungsrechnung) and, in a later
-phase, the HISinOne campus modules. The product serves **1..N universities**, reuses
+phase, campus management modules. The product serves **1..N universities**, reuses
 the existing **data** (not the schema), and targets "easy to understand, very
 performant, simple to deploy".
 
@@ -18,8 +18,8 @@ performant, simple to deploy".
 
 In scope: all four ERP modules; the interfaces in §4; multi-tenant operation;
 migration of legacy data.
-Deferred: HISinOne campus modules (APP/STU/EXA/DOC) — same platform, later phase.
-Out of scope: modifying or extending the HIS software; cloud-managed services.
+Deferred: campus management modules (APP/STU/EXA/DOC) — same platform, later phase.
+Out of scope: modifying or extending the legacy software; cloud-managed services.
 
 ## 3. Stakeholders
 
@@ -38,7 +38,7 @@ The replacement MUST cover the processes of each legacy module. (Process invento
 derived from the reverse-engineering; each item is verified against a real
 university during rollout.)
 
-### 4.1 Personal (`sva4`, HISSVA)
+### 4.1 Personal (`sva4`, the HR module)
 
 | ID | Requirement |
 |---|---|
@@ -52,7 +52,7 @@ university during rollout.)
 | FR-P8 | Social-insurance reporting (Sozialversicherung, `sas*`, `shv`). |
 | FR-P9 | Statistics delivery (Personalstatistik), per state. |
 
-### 4.2 Finanzen / Sachmittel (`mbs`, HISMBS/HISFSV)
+### 4.2 Finanzen / Sachmittel (`mbs`, the finance module/the finance module)
 
 | ID | Requirement |
 |---|---|
@@ -66,7 +66,7 @@ university during rollout.)
 | FR-F8 | SEPA payment generation and statement import (see IR-2). |
 | FR-F9 | Third-party funded projects and plans. |
 
-### 4.3 Kasse (`kbs`, HISKBS)
+### 4.3 Kasse (`kbs`, the cash-book module)
 
 | ID | Requirement |
 |---|---|
@@ -78,7 +78,7 @@ university during rollout.)
 | FR-K6 | Foundation cash books (Stiftungen). |
 | FR-K7 | Tax-office data and VAT types. |
 
-### 4.4 KLR (`cob`, HISCOB)
+### 4.4 KLR (`cob`, the cost-accounting module)
 
 | ID | Requirement |
 |---|---|
@@ -112,7 +112,7 @@ invent new APIs. See `../c4` for the context diagram.
 | IR-4 | Statistics offices (Personal/Finanzstatistik) | out | per-state formats |
 | IR-5 | Identity provider (Shibboleth/OIDC) | in | OIDC/SAML RP |
 | IR-6 | DMS / document storage | both | own store + optional connector |
-| IR-7 | HISinOne campus / QIS / SAP HCM | both/out | optional connectors |
+| IR-7 | the reference implementation campus / QIS / SAP HCM | both/out | optional connectors |
 | IR-8 | hochschulstart.de / DoSV | both | campus phase |
 
 Every interface MUST have: a versioned format contract, golden-file tests, and an
@@ -169,7 +169,7 @@ idempotent, re-runnable processing path.
 
 ## 10. Constraints & assumptions
 
-- No production data extract is available; the Muster dump is largely empty.
+- No production data extract is available; the sample dataset is largely empty.
 - The legacy DB has no foreign keys; integrity must be reconstructed.
 - Certification is required — compliance work is not optional scope.
 - Maintained by the project owner as an open-source project.

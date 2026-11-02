@@ -1,7 +1,7 @@
 # C4 model — Structurizr
 
 `workspace.dsl` is the **authoritative** C4 model. It contains both the **as-is**
-(legacy HIS-ERP) and the **target** (new platform), so the strangler path is visible
+(legacy legacy university ERP) and the **target** (new platform), so the strangler path is visible
 as a delta.
 
 The Markdown files in `../docs/c4/` are narrative companions (rationale, evidence);

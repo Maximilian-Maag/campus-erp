@@ -7,15 +7,15 @@ database only). The database container is **measured**.
 
 ```mermaid
 C4Container
-    title Container — Hochschul-ERP
+    title Container — the legacy university ERP
 
     Person(user, "Sachbearbeiter:in", "HR / finance / cashier staff")
 
     Container(web, "Web-Oberfläche / Portal", "Browser app", "Role-specific UI; metadata-driven forms from db_tabellen/db_spalten (inferred)")
-    Container(app_pers, "HISSVA application", "App server", "Personal- und Stellenverwaltung (inferred)")
-    Container(app_fin, "HISMBS / HISFSV application", "App server", "Finanz- und Sachmittelverfahren (inferred)")
-    Container(app_cob, "HISCOB application", "App server", "Kosten- und Leistungsrechnung (inferred)")
-    Container(app_kbs, "HISKBS application", "App server", "Kassenbuchungssystem (inferred)")
+    Container(app_pers, "the HR module application", "App server", "Personal- und Stellenverwaltung (inferred)")
+    Container(app_fin, "the finance module / the finance module application", "App server", "Finanz- und Sachmittelverfahren (inferred)")
+    Container(app_cob, "the cost-accounting module application", "App server", "Kosten- und Leistungsrechnung (inferred)")
+    Container(app_kbs, "the cash-book module application", "App server", "Kassenbuchungssystem (inferred)")
     Container(workflow, "Workflow- & Rechte-Engine", "In-app framework", "sv_* / wof: Vorgänge, Aufgaben, Rechte, Kataloge (inferred)")
     ContainerDb(db, "PostgreSQL database", "PostgreSQL 17", "One database, four module schemas + framework copies. 1,536 tables, 0 FKs")
     Container(batch, "Batch / Schnittstellen", "File & DB jobs", "SEPA, MT940, LBV, ELSTER, statistics exports (imp_*/out_*)")
@@ -43,15 +43,15 @@ C4Container
 
 | Container | Evidence / basis |
 |---|---|
-| Web-Oberfläche / Portal | HIS product material ("webbasiert", "Portal", "responsive") — **[c]** |
-| HISSVA app | `sva4.db_version` = `HISSVA-GX` — **[c]** |
-| HISMBS / HISFSV app | `mbs.db_version` = `HISMBS-UNIX` / `HISFSV-GX` — **[c]** |
-| HISCOB app | `cob.db_version` = `HISCOB-GX` — **[c]** |
-| HISKBS app | `kbs.db_version` = `HISKBS` — **[c]** |
+| Web-Oberfläche / Portal | product material ("webbasiert", "Portal", "responsive") — **[c]** |
+| the HR module app | `sva4.db_version` = `the HR module-GX` — **[c]** |
+| the finance module / the finance module app | `mbs.db_version` = `the finance module-UNIX` / `the finance module-GX` — **[c]** |
+| the cost-accounting module app | `cob.db_version` = `the cost-accounting module-GX` — **[c]** |
+| the cash-book module app | `kbs.db_version` = `the cash-book module` — **[c]** |
 | Workflow & Rechte engine | framework tables `sv_*`, `wof` — **[c]** (existence), **[i]** (that it is a shared in-app engine) |
 | PostgreSQL database | measured — **[c]** |
 | Batch / interfaces | `imp_*`/`out_*`, SEPA/MT940/LBV tables — **[c]** |
-| Document storage | `dokumente`, `k_dokumente_*`; HIS material names DB/filesystem/DMS options — **[c]** |
+| Document storage | `dokumente`, `k_dokumente_*`; product material names DB/filesystem/DMS options — **[c]** |
 
 ## Container-level observations
 

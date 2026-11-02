@@ -6,7 +6,7 @@ the productive source on the strength of `docs/08-reuse-inventory.md` §4.
 
 ## Why this shape
 
-The productive HISinOne models an e-invoice as the **EN16931 business groups**
+The productive the reference implementation models an e-invoice as the **EN16931 business groups**
 (`einvoice_metadata`, `einvoice_seller` (BG-4), `einvoice_buyer` (BG-7),
 `einvoice_line` (BG-25), `einvoice_vat_breakdown` (BG-23), …) and ships the full
 XRechnung 3.0 UBL schema plus a worked example. We keep the same shape with our

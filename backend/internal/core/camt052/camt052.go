@@ -4,7 +4,7 @@
 // It produces the shared parsed-statement shape (bankstmt), so CAMT and MT940
 // feed the same reconciliation. A report may carry balances; OPBD/CLBD are mapped
 // when present and left zero otherwise. The field mapping follows the productive
-// HISinOne camt.052 parser (rm.fia.payments.datex.sepa.camt052v02/v08).
+// the reference implementation camt.052 parser (the reference parser.sepa.camt052v02/v08).
 package camt052
 
 import (

@@ -2,7 +2,7 @@
 //
 // It produces the shared parsed-statement shape (bankstmt), so CAMT and MT940
 // feed the same reconciliation. The field mapping follows the productive
-// HISinOne camt.053 parser (rm.fia.payments.datex.sepa.camt053v02/v08).
+// the reference implementation camt.053 parser (the reference parser.sepa.camt053v02/v08).
 package camt053
 
 import (

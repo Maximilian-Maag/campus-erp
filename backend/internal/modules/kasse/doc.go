@@ -1,4 +1,4 @@
-// Package kasse is the Kassenbuchung module (legacy kbs / HISKBS).
+// Package kasse is the Kassenbuchung module (legacy cash-book schema).
 //
 // Implemented: the cash-book day lifecycle, payment orders with four-eyes release,
 // the payment run and SEPA credit-transfer export (pain.001), direct-debit mandates

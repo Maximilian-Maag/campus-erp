@@ -1,7 +1,7 @@
-# Reuse inventory — what in the HISinOne sources is usable for campus-erp
+# Reuse inventory — what in the reference implementation sources is usable for campus-erp
 
 This is the "everything we can mine" pass over the three archives in
-`~/Downloads` (productive HISinOne source + the legacy ERP dump). It indexes the
+`~/Downloads` (productive the reference implementation source + the legacy ERP dump). It indexes the
 reusable assets and what each is good for. Companion docs: `docs/05` (source
 inventory), `docs/06` (vendor ↔ canonical cross-walk), `docs/07` (dump data +
 generated layer), `docs/03` (legacy schema).
@@ -10,17 +10,17 @@ Extracted trees (proprietary — kept out of this repo, per `AGENTS.md`):
 
 | tree | size | contents |
 |---|---|---|
-| `~/Work/hisinone/src/dbschema` | 39 MB | the vendor **model** (`sch.hisinone/*.tab\|.fk\|.idx`, `view.hisinone`, `scr.hisinone`, `ddl.hisinone`) |
-| `~/Work/hisinone/src/h1/2026-08-23` | 168 MB | qisserver source, **17,571 .java** |
-| `~/Work/hisinone/src/hotfix1006` | 350 MB | the ERP/e-invoicing jars + webapp + `keytables.xml` |
-| dump `hisrm_muster_30_09_26.backup` | 15 MB | legacy ERP DB (restored on `:55433`) |
+| `the reference schema` | 39 MB | the vendor **model** (`sch.the reference source/*.tab\|.fk\|.idx`, `view.the reference source`, `scr.the reference source`, `the reference DDL`) |
+| `the reference source (build y)` | 168 MB | the reference application source, **17,571 .java** |
+| `the reference source (build x)` | 350 MB | the ERP/e-invoicing jars + webapp + `keytables.xml` |
+| dump `the sample dataset archive` | 15 MB | legacy ERP DB (restored on `:55433`) |
 
 ## 1. The vendor model is machine-readable — this is the single best asset
 
 The vendor ships its whole relational model as text, *with German comments*:
 
 ```
-…/dbschema/META-INF/resources/conf/dbconv/conf/sch/sch.hisinone/stable/
+…/dbschema/META-INF/resources/conf/dbconv/conf/sch/the reference tables/
   1458 × *.tab   CREATE TABLE, per-column {German comment}
   1286 × *.fk    ALTER TABLE … FOREIGN KEY   (2943 FKs in total)
   1447 × *.idx   CREATE INDEX / CREATE UNIQUE INDEX
@@ -34,12 +34,12 @@ Also present:
 
 | artifact | what it is |
 |---|---|
-| `sch.hisinone/experimental/` | same 1458 tables (the working set) |
-| `sch.hisinone/extensions/` (29) | customer/extension tables |
-| `sch.hisinone/audit/` (11) | the audit/history model (`audit_object`, `audit_link`, `audit_activity`, …) |
-| `view.hisinone/stable/*.view` (≈40) | the app's named **joins/denormalisations** in full SQL |
-| `scr.hisinone/stable/script.xml` (1.2 MB) | the script/action catalogue (migrations, jobs) |
-| `hotfix1006/…/hisDefault/keytables.xml` (82,619 lines) | the **enumerated value catalogue**: 3,532 key tables with their values |
+| `sch.the reference source/experimental/` | same 1458 tables (the working set) |
+| `sch.the reference source/extensions/` (29) | customer/extension tables |
+| `sch.the reference source/audit/` (11) | the audit/history model (`audit_object`, `audit_link`, `audit_activity`, …) |
+| `the reference views/*.view` (≈40) | the app's named **joins/denormalisations** in full SQL |
+| `scr.the reference source/stable/script.xml` (1.2 MB) | the script/action catalogue (migrations, jobs) |
+| `hotfix1006/…/default/keytables.xml` (82,619 lines) | the **enumerated value catalogue**: 3,532 key tables with their values |
 
 ## 2. Domain map (prefix → table count, of 1458)
 
@@ -124,15 +124,15 @@ The code lists it depends on are standard (from `keytables.xml`):
 | `k_einvoice_electronic_address_scheme` | CEF **EAS** |
 | `k_einvoice_vat_profile` | maps E-invoice VAT onto the MBS VAT logic |
 
-The `rm.erp.xrechnung.jar` (1,456 classes) implements **both syntaxes**: UBL
-(XRechnung) and UN/CEFACT CII (ZUGFeRD) — `rm.erp.xrechnung` +
+The `the ERP xrechnung.jar` (1,456 classes) implements **both syntaxes**: UBL
+(XRechnung) and UN/CEFACT CII (ZUGFeRD) — `the ERP xrechnung` +
 `un.unece.uncefact.data.standard.crossindustryinvoice._100`. German public bodies
 must accept XRechnung, so this is a **must-have** capability with a ready
 reference implementation and schema.
 
 ## 5. Enumerated value catalogue — 3,532 key tables with values
 
-`hotfix1006/WEB-INF/conf/hisinone/confPackages/hisDefault/keytables.xml` holds
+`hotfix1006/WEB-INF/conf/the reference source/confPackages/default/keytables.xml` holds
 every coded value set with short/long text, language, sort order and a stable
 `HiskeyId`. Notable sizes (from the header): `StatusValue` 218,
 `PortalMessageText` 328, `PortalMessageCategory` 177, `FinancialDocumentTypeValue`
@@ -144,11 +144,11 @@ of hand-maintaining catalogues.
 
 ## 6. The app's joins and scripts
 
-- `view.hisinone/stable/*.view` — named views in full SQL, e.g.
+- `the reference views/*.view` — named views in full SQL, e.g.
   `person_complete_name` (the title/degree/salutation composition logic incl.
   female/diverse variants and i18n via `foreigntext`), `orgunits_flat`,
   `stu_join_studierendenstammdaten`. These are the semantics behind the model.
-- `scr.hisinone/stable/script.xml` — the migration/job action catalogue.
+- `scr.the reference source/stable/script.xml` — the migration/job action catalogue.
 - The legacy `_sbid` views (`docs/07`) are the same idea on the legacy side.
 
 ## 7. Legacy reference data (already in `docs/07`)
@@ -163,20 +163,20 @@ interest rates since 2002), `kbs.mwst_art` (32 VAT types).
 
 From `docs/05` plus this pass:
 
-- **Payment traffic** (`rm.fia.payments.datex`, 1,651 sources): ISO 20022
+- **Payment traffic** (`the reference parser`, 1,651 sources): ISO 20022
   pain.001.001.03/**09 (GBIC 4/5)**, pain.008.001.02/**.08**, camt.052/053/054
   .02/**.08**, MT940, DTAUS, CSV (LKB), MACH, SAP, EBICS — with the shipped XSDs.
-- **E-invoicing**: `rm.erp.xrechnung.jar` (UBL + CII, KoSIT validation helpers).
-- **Legacy bridge**: `rm.erp.legacy.jar` (81 classes,
-  `de.his.legacy.persistence.dao.impl.rm.erp.*`) issues the generated
+- **E-invoicing**: `the ERP xrechnung.jar` (UBL + CII, KoSIT validation helpers).
+- **Legacy bridge**: `the ERP legacy.jar` (81 classes,
+  `de.his.legacy.persistence.dao.impl.the ERP *`) issues the generated
   `<table><suffix>` DB calls (`docs/07` §2) — the place to read a legacy
   read/write path exactly.
-- **Backend**: `rm.erp.backend.jar` (1,593 classes) — procurement, invoicing,
+- **Backend**: `the ERP backend.jar` (1,593 classes) — procurement, invoicing,
   ServiceBW.
 
 ## 9. What to use, in priority order
 
-1. **Port the canonical schema from `sch.hisinone/stable/*.tab|.fk`** — it has the
+1. **Port the canonical schema from `the reference tables/*.tab|.fk`** — it has the
    comments and the FKs the legacy dump lacked; table-for-table, ERP domains
    first. (`docs/06` already did the cash/bank cross-walk.)
 2. **Seed the lookup tables from `keytables.xml`** — replaces hand-maintained
@@ -188,7 +188,7 @@ From `docs/05` plus this pass:
    chart of accounts, base interest rates).
 5. **Model budget / cost accounting / overhead / allocation** from the vendor
    tables when the pilot moves past Kasse (Phase 2+).
-6. **Adopt the audit model** (`sch.hisinone/audit/`, 11 tables) and the `_sbid`
+6. **Adopt the audit model** (`sch.the reference source/audit/`, 11 tables) and the `_sbid`
    authorisation semantics.
 
 ## 10. Caveats

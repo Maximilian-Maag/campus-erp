@@ -106,7 +106,7 @@ source is the canonical pool (dev / seed, where the synthetic source tables live
   `kbs.finanzamt` and `LegacyFoundationSource` reads `kbs.stift`; the sinks load
   them into `tax_office` and `foundation`. These cover the two remaining shapes —
   an integer year (validated 1900..2999) and a carry-over flag. *(inferred)*: the
-  legacy `kz_uebern char(1)` encoding is unverified (the Muster dump is empty), so
+  legacy `kz_uebern char(1)` encoding is unverified (the sample dataset is empty), so
   `J`/`Y`/`1`/`T` mean yes and anything else (including empty) means no.
 
 Each dataset's integration test builds a synthetic legacy table in an isolated

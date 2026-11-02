@@ -1,5 +1,5 @@
 -- Split the physical import file (bank_file) from the statements it contains
--- (docs/06-vendor-model-crosswalk.md §2.1). Matches the productive HISinOne
+-- (docs/06-vendor-model-crosswalk.md §2.1). Matches the reference implementation
 -- model (bankfile -> bankstatement) and the legacy split (datmt940 recorded the
 -- file, mt940 the lines).
 --

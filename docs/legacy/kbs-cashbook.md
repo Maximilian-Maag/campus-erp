@@ -1,7 +1,7 @@
 # Legacy findings — cash book (Kasse, `kbs`)
 
-Reverse-engineered from the Muster dump `hisrm_muster_30_09_26.backup`
-(PostgreSQL custom archive, `HISKBS 2025.06.0`), schema `kbs`. Row counts are
+Reverse-engineered from the sample dataset `the sample dataset archive`
+(PostgreSQL custom archive, `the cash-book module 2025.06.0`), schema `kbs`. Row counts are
 **measured** (the dump was restored); column detail is from the measured DDL, which
 `scripts/analyze.sh` generates locally into the git-ignored `schema/` directory.
 Inference is marked *(inferred)*.
@@ -9,7 +9,7 @@ Inference is marked *(inferred)*.
 This closes the FR-K1 group of `kbs-pilot.md` (§S1) with measured numbers, the way
 `kbs-payment-orders.md` closed S2.
 
-## Row counts (Muster dump)
+## Row counts (sample dataset)
 
 | table | rows | note |
 |---|---|---|

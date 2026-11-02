@@ -1,4 +1,4 @@
-// Package klr is the Kosten- und Leistungsrechnung module (legacy cob / HISCOB).
+// Package klr is the Kosten- und Leistungsrechnung module (legacy cost-accounting schema).
 //
 // Implemented: cost centres, cost units and accounting records (cost/revenue) with
 // a per-cost-centre report.

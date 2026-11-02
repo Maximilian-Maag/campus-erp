@@ -1,6 +1,6 @@
 # Database overview
 
-Reverse-engineered from `hisrm_muster_30_09_26.backup`. All numbers below were
+Reverse-engineered from `the sample dataset archive`. All numbers below were
 measured on a restored copy (PostgreSQL 16 sandbox; dump produced by 17.9).
 Regenerate with `scripts/analyze.sh`.
 
@@ -48,7 +48,7 @@ rows in this Muster (seed) dataset; the remainder are empty. Largest tables:
 ## 2. Schema = module, and each module is self-contained
 
 Each module schema is effectively its own application database. It carries **its
-own copy** of the HIS runtime framework, not a shared central one. So
+own copy** of the shared runtime framework, not a shared central one. So
 `sv_vorgangname` exists separately in `sva4`, `mbs` and `cob`; `inst` exists in
 four schemas; `db_version` exists in all four. Cross-schema tables are
 duplicated structures, not views onto one shared table.
@@ -114,14 +114,14 @@ Implication: history and audit data is spread across per-table trigger logic and
 
 ## 5. Version / module identification
 
-Each module schema has a `db_version` table listing the HIS system id and
+Each module schema has a `db_version` table listing the system id and
 version. This is the authoritative way to identify which product module a schema
 belongs to. Example:
 
 ```
 $ select * from kbs.db_version;
  hiskey_id | his_system | version   | kern_system
-        36 | HISKBS     | 2025.06.0 | 1
+        36 | the cash-book module     | 2025.06.0 | 1
 ```
 
 See `01-module-catalogue.md` for the full mapping.

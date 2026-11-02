@@ -130,7 +130,7 @@ func vatKindFromLegacy(flag string) VATKind {
 }
 
 // boolFromLegacyFlag interprets a legacy 1-char carry-over flag. The legacy column
-// is an unconstrained char(1) and the Muster dump is empty, so the exact encoding
+// is an unconstrained char(1) and the sample dataset is empty, so the exact encoding
 // is unverified. *(inferred)*: the common German flags "J"/"Y"/"1"/"T" mean yes;
 // anything else (including empty) means no.
 func boolFromLegacyFlag(flag string) bool {

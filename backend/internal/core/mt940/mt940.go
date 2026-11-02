@@ -1,7 +1,7 @@
 // Package mt940 parses SWIFT MT940 bank statements (Kontoauszüge).
 //
-// The layout and the field semantics follow the productive HISinOne parser
-// (rm.fia.payments.datex.mt940.Field61 / MT940Record): value date YYMMDD, an
+// The layout and the field semantics follow the reference implementation parser
+// (the reference parser.mt940.Field61 / MT940Record): value date YYMMDD, an
 // optional MMDD booking date, a debit/credit indicator (C/D, or the reversal
 // forms RC/RD), an optional currency, the amount, an "N" separator, the
 // three-character posting key, the client reference and an optional bank

@@ -1,6 +1,6 @@
 # Legacy findings — tax-office data and foundations (Kasse, `kbs`)
 
-Reverse-engineered from `hisrm_muster_30_09_26.backup` (`HISKBS 2025.06.0`),
+Reverse-engineered from `the sample dataset archive` (`the cash-book module 2025.06.0`),
 schema `kbs`.
 
 ## Row counts

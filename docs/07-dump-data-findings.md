@@ -7,7 +7,7 @@ views, and the reference data the ERP actually ships.
 
 ## Method
 
-The dump (`hisrm_muster_30_09_26.backup`, PostgreSQL **custom** format, PG 17.9,
+The dump (`the sample dataset archive`, PostgreSQL **custom** format, PG 17.9,
 21,537 TOC entries) was restored into a throwaway `postgres:17` container and
 queried through the catalog and the data.
 
@@ -15,7 +15,7 @@ queried through the catalog and the data.
 docker run -d --name hisdump-pg -e POSTGRES_PASSWORD=his \
   -e POSTGRES_DB=hisrm_muster -p 55433:5432 postgres:17-alpine
 pg_restore -h localhost -p 55433 -U postgres -d hisrm_muster \
-  --no-owner --no-privileges --exit-on-error hisrm_muster_30_09_26.backup
+  --no-owner --no-privileges --exit-on-error the sample dataset archive
 ```
 
 ## 1. The dump is far more than tables
@@ -116,12 +116,12 @@ modules it under-weighted:
 
 | jar | classes | note |
 |---|---|---|
-| `rm.erp.backend.jar` | 1,593 | procurement, invoicing, e-invoicing |
-| `rm.erp.xrechnung.jar` | **1,456** | the XRechnung/ZUGFeRD e-invoicing engine (previously seen only as grep hits) |
-| `rm.erp.legacy.jar` | 81 | the legacy DAO bridge |
-| `rm.erp.frontend.jar` | 0 | resources only |
+| `the ERP backend.jar` | 1,593 | procurement, invoicing, e-invoicing |
+| `the ERP xrechnung.jar` | **1,456** | the XRechnung/ZUGFeRD e-invoicing engine (previously seen only as grep hits) |
+| `the ERP legacy.jar` | 81 | the legacy DAO bridge |
+| `the ERP frontend.jar` | 0 | resources only |
 
-`rm.erp.legacy.jar` (`de.his.legacy.persistence.dao.impl.rm.erp.*`) is the layer
+`the ERP legacy.jar` (`de.his.legacy.persistence.dao.impl.the ERP *`) is the layer
 that issues the generated `<table><suffix>` function calls from §2 — it is the
 bridge between the Java domain and the legacy database, and is the place to read
 when reproducing a legacy read/write path exactly.

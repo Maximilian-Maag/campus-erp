@@ -6,7 +6,7 @@ quality gate in `tools/run_tests.sh` + `.github/workflows/quality.yml`.
 
 ## What this repo is
 
-An open-source, multi-tenant drop-in replacement for the HIS eG Hochschul-ERP
+An open-source, multi-tenant drop-in replacement for the legacy university ERP
 (Go backend, Angular frontend), plus the reverse-engineered analysis of the legacy
 system it replaces.
 

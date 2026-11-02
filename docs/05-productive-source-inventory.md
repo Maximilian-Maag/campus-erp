@@ -1,12 +1,12 @@
-# 05 — Productive-source inventory (HISinOne)
+# 05 — Productive-source inventory (the reference implementation)
 
 What the three archives handed over in `~/Downloads` actually contain, how they
 were inspected, and what they unlock for this project.
 
-**Provenance & handling.** The archives are the **productive HISinOne** build
+**Provenance & handling.** The archives are the **productive the reference implementation** build
 (release `2026.06`, build `2026.06.13034`, HISINONE hotfix 1, QIS hotfix 1). They
 are **proprietary and are never committed** (AGENTS.md rule 1/2). They were
-extracted outside the repository to `~/Work/hisinone/src/` and are cited below by
+extracted outside the repository to `the reference source/` and are cited below by
 their in-archive path. Everything here is *measured* on those files unless marked
 *(inferred)*.
 
@@ -14,7 +14,7 @@ their in-archive path. Everything here is *measured* on those files unless marke
 
 | Archive (in `~/Downloads`) | Size | Content |
 |---|---|---|
-| `H1-CS-CM-RM.zip` | 4.2 GB | Exploded WAR of the whole product (`webapps/qisserver`, `ROOT`, `superx`); all module jars, all Java sources (`WEB-INF/src/java`, 21 138 files), config, UI pages |
+| `H1-CS-CM-RM.zip` | 4.2 GB | Exploded WAR of the whole product (`webapps/the reference application`, `ROOT`, `the legacy front-end`); all module jars, all Java sources (`WEB-INF/src/java`, 21 138 files), config, UI pages |
 | `hotfix_…2026-10-1…AFCTS.zip` | 327 MB | The RM/ERP extension jars + `WEB-INF/conf` (key tables, roles, i18n) |
 | `hotfix_…2026-10-6…se4F1.zip` | 328 MB | Same, one week newer (used as the reference here) |
 
@@ -31,23 +31,23 @@ their in-archive path. Everything here is *measured* on those files unless marke
 | `cm.*` | Campus Management | `cm.app.*`, `cm.exa.*` (exams), `cm.stu.*` (students, doccand, epay) |
 | `cs.*` | Core system | `cs.sys.*` (base, audit, portal, rest, dbschema), `cs.psv.*` (persons), `cs.bia.*` |
 | `fs.*` | Research / third-party funds | `fs.doc.*`, `fs.res.*` |
-| `rm.erp.*` | **ERP** (the module this project targets) | `rm.erp.backend`, `.frontend`, `.legacy`, `.xrechnung`, `.servicebw.sgw` |
-| `rm.fia.*` | **Finanzabteilung** (finance) | `rm.fia.export.mapping` |
+| `the ERP *` | **ERP** (the module this project targets) | `the ERP backend`, `.frontend`, `.legacy`, `.xrechnung`, `.servicebw.sgw` |
+| the finance packages | **Finanzabteilung** (finance) | the finance export mapping |
 
 ## 3. The vendor data model — authoritative, with FKs and comments
 
-`cs.sys.dbschema.hisinone.jar` (296 MB) carries the full schema in
+`the reference schema jar` (296 MB) carries the full schema in
 `META-INF/resources/conf/dbconv/conf/sch/`:
 
 | Path | What |
 |---|---|
-| `ddl.hisinone/experimental/dbmodel.ddl` | **1 486 `CREATE TABLE`** + `COMMENT ON TABLE/COLUMN` (German), PostgreSQL |
-| `ddl.hisinone/experimental/dbmodel_fixed.ddl` | Same, framework-corrected (`obj_guid`, `lock_version` added) |
-| `sch.hisinone/stable/*.tab` | 1 458 tables, DDL with **inline `{German comments}`** per column |
-| `sch.hisinone/stable/*.fk` | **1 286 declared `FOREIGN KEY` constraints** |
-| `sch.hisinone/stable/*.idx` | 1 447 indexes |
-| `view.hisinone/stable/*.view` | 18 views |
-| `scr.hisinone/stable/script.xml` | 1.25 MB schema-conversion script |
+| `the reference DDL/experimental/dbmodel.ddl` | **1 486 `CREATE TABLE`** + `COMMENT ON TABLE/COLUMN` (German), PostgreSQL |
+| `the reference DDL/experimental/dbmodel_fixed.ddl` | Same, framework-corrected (`obj_guid`, `lock_version` added) |
+| `the reference tables/*.tab` | 1 458 tables, DDL with **inline `{German comments}`** per column |
+| `the reference tables/*.fk` | **1 286 declared `FOREIGN KEY` constraints** |
+| `the reference tables/*.idx` | 1 447 indexes |
+| `the reference views/*.view` | 18 views |
+| `scr.the reference source/stable/script.xml` | 1.25 MB schema-conversion script |
 
 This is the decisive contrast with the legacy dump we reverse-engineered
 (`docs/02`): the dump has **1 536 tables, 0 FKs, no comments**; the productive
@@ -60,17 +60,17 @@ legacy system.
 | File (`WEB-INF/conf/…`) | Content |
 |---|---|
 | `modules.xml` | 341 modules + rights |
-| `hisinone/confPackages/hisDefault/keytables.xml` | **3 532 key-table records** (`Schlüsseltabellen`) |
-| `hisinone/confPackages/hisDefault/keytablesOwnedByHIS.xml` | 2.3 MB, HIS-owned key tables |
-| `hisinone/confPackages/hisDefault/role.xml` | **1 762 `RightsDefinition`, 7 279 `RightsInRole`, 126 org roles** — the permission model |
-| `hisinone/confPackages/hisDefault/job.xml` | 14 MB job catalogue |
-| `hisinone/confPackages/hisDefault/reportingCenter.xml` | 1.6 MB report catalogue |
-| `languages/hisDefault/i18n.rm.erp_{de,en}.txt` | ERP field labels (semantics) |
-| `hisinone/hisinone-import-conf.xml` | 1.5 MB import configuration |
+| `the reference source/confPackages/default/keytables.xml` | **3 532 key-table records** (`Schlüsseltabellen`) |
+| `the reference source/confPackages/default/keytablesOwnedByHIS.xml` | 2.3 MB, vendor-owned key tables |
+| `the reference source/confPackages/default/role.xml` | **1 762 `RightsDefinition`, 7 279 `RightsInRole`, 126 org roles** — the permission model |
+| `the reference source/confPackages/default/job.xml` | 14 MB job catalogue |
+| `the reference source/confPackages/default/the reporting centre.xml` | 1.6 MB report catalogue |
+| `languages/default/i18n.rm.erp_{de,en}.txt` | ERP field labels (semantics) |
+| `the import configuration file` | 1.5 MB import configuration |
 
 ## 5. The ERP (RM) source
 
-`rm.erp.backend.jar` contains **1 481 Java sources** under `de/his/`:
+`the ERP backend.jar` contains **1 481 Java sources** under `de/his/`:
 
 - `de/his/erp/financialmanagement/einvoice` — e-invoicing (XRechnung/ZUGFeRD, KoSIT validation)
 - `de/his/erp/rechnung` — invoicing (`ubl`, `cii`, `servicebw`, `servicesn`)
@@ -79,19 +79,19 @@ legacy system.
 - `de/his/erp/travelmanagement`, `absencemanagement`, `timemanagement`, `jobapplication`, `inventory`, `mbsprotocol`, `processcancellation`
 - `de/his/appserver/{model,dto,service,persistence,reporting}/rm/**` — Hibernate entities and DAOs
 
-`rm.erp.xrechnung.jar` carries the XRechnung/ZUGFeRD rendering and KoSIT
-runtime validation; `rm.erp.legacy.jar`, `rm.erp.base.jar`,
-`rm.erp.servicebw.sgw.jar`, `rm.fia.export.mapping.jar` are the seams.
+`the ERP xrechnung.jar` carries the XRechnung/ZUGFeRD rendering and KoSIT
+runtime validation; `the ERP legacy.jar`, `the ERP base.jar`,
+the ERP service jar, the finance export-mapping jar are the seams.
 
-## 6. Payment traffic — the interface layer (`rm.fia.payments.datex`)
+## 6. Payment traffic — the interface layer (`the reference parser`)
 
 **1 651 sources.** The vendor's whole bank-file layer:
 
 | Format | Where |
 |---|---|
-| SEPA credit transfer | `…/datex/sepa/pain001V00103`, `pain001V00109`, `pain001V00109GBIC5` |
-| SEPA direct debit | `…/datex/sepa/pain008V00102`, `pain008V00108`, `pain008V00108GBIC5`, `mandate` |
-| Bank statements | `…/datex/mt940`, `…/datex/sepa/camt053v02/v08`, `camt054v02/v08` |
+| SEPA credit transfer | `…/the reference/sepa/pain001V00103`, `pain001V00109`, `pain001V00109GBIC5` |
+| SEPA direct debit | `…/the reference/sepa/pain008V00102`, `pain008V00108`, `pain008V00108GBIC5`, `mandate` |
+| Bank statements | `…/the reference/mt940`, `…/the reference/sepa/camt053v02/v08`, `camt054v02/v08` |
 | Legacy / other | `dtaus`, `csv` (LKB), `mach`, `sap`, `sapFRMA`, `mbs`, `kabu`, `mapping` |
 
 **ISO 20022 XSDs shipped** (authoritative, no guessing needed):
@@ -112,14 +112,14 @@ runtime validation; `rm.erp.legacy.jar`, `rm.erp.base.jar`,
 
 ## 8. Impact on `docs/open-questions.md`
 
-- **Q1 (which product)** — the productive target is **HISinOne** (unified schema,
-  English table names); the dump is the **legacy Hochschul-ERP** (module schemas
+- **Q1 (which product)** — the productive target is **the reference implementation** (unified schema,
+  English table names); the dump is the **legacy the legacy university ERP** (module schemas
   `sva4/mbs/cob/kbs`, German abbreviations). Two generations of the same vendor
-  line; they share no tables. *Evidence: `ddl.hisinone/experimental/dbmodel.ddl`
+  line; they share no tables. *Evidence: `the reference DDL/experimental/dbmodel.ddl`
   vs the generated table list (`scripts/analyze.sh`).*
 - **Q5 (column semantics)** — available for the **productive** product
   (`COMMENT ON`, `{…}` in `.tab`, i18n); the legacy dump still has none.
-- **Q6 (authoritative tables)** — `sch.hisinone/stable` is the vendor's live set.
+- **Q6 (authoritative tables)** — `the reference tables` is the vendor's live set.
 - **Q7 (relationships)** — 1 286 declared FKs in `*.fk` (productive); the legacy
   dump stays 0-FK.
 - **Q8 (interface contracts)** — SEPA/CAMT/MT940/XRechnung now available as XSDs
@@ -128,8 +128,8 @@ runtime validation; `rm.erp.legacy.jar`, `rm.erp.base.jar`,
 ## 9. Reproducing the extraction
 
 ```bash
-mkdir -p ~/Work/hisinone/src && cd ~/Work/hisinone/src
+mkdir -p the reference source && cd the reference source
 unzip -q ~/Downloads/hotfix_…2026-10-6….zip -d hotfix1006      # ERP jars + conf
 unzip -q ~/Downloads/H1-CS-CM-RM.zip '…/WEB-INF/src/java/*' -d h1   # full Java source
-unzip -q … cs.sys.dbschema.hisinone.jar '…/conf/dbconv/conf/sch/ddl.hisinone/*' …
+unzip -q … the reference schema jar '…/conf/dbconv/conf/sch/the reference DDL/*' …
 ```

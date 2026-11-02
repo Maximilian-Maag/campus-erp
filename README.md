@@ -1,8 +1,8 @@
-# HIS-ERP replacement
+# university-ERP replacement
 
-An open-source, multi-tenant, drop-in replacement for the HIS eG **Hochschul-ERP**
+An open-source, multi-tenant, drop-in replacement for an established university ERP
 (Personal, Finanzen/Sachmittel, Kasse, Kosten-/Leistungsrechnung) and, in a later
-phase, the HISinOne campus modules.
+phase, campus management modules.
 
 This repository holds the reverse-engineered understanding of the legacy system,
 the architecture decisions for the replacement, the C4 model, and the code
@@ -19,7 +19,7 @@ skeleton.
 
 | Path | Contents |
 |---|---|
-| `docs/01-module-catalogue.md` | HIS product & module catalogue (HISinOne vs Hochschul-ERP) |
+| `docs/01-module-catalogue.md` | module catalogue (product lines and modules) |
 | `docs/02-database-overview.md` | legacy schemas, sizes, conventions, no-FK finding |
 | `docs/03-schema-analysis.md` | reverse-engineered legacy data model |
 | `docs/04-data-dictionary.md` | generated dictionary guide |
@@ -143,7 +143,7 @@ dump and are reproduced locally with `scripts/analyze.sh`.
 - The vendor's XSDs, Java sources and JARs: tests that need them take a local path
   from an environment variable (`ERP_XSD_*`) and skip when it is absent.
 
-`HISinOne` and `Hochschul-ERP` are products of HIS eG. This project is an independent
+`the reference implementation` and `the legacy university ERP` are products of the vendor. This project is an independent
 reimplementation, not affiliated with or endorsed by them.
 
 ## License

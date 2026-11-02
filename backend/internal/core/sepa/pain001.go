@@ -8,8 +8,8 @@ import (
 )
 
 // This file generates a SEPA credit-transfer initiation, ISO 20022
-// pain.001.001.09, in the DK/GBIC-compatible shape the productive HISinOne
-// writer produces (rm.fia.payments.datex.parser.sepa.SEPAWriterCreditTransferVersion39).
+// pain.001.001.09, in the DK/GBIC-compatible shape the reference implementation
+// writer produces (the reference parser.parser.sepa.SEPAWriterCreditTransferVersion39).
 //
 // The element order follows the XSD sequences exactly:
 //   GroupHeader85:      MsgId, CreDtTm, NbOfTxs, CtrlSum, InitgPty

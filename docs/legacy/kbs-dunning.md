@@ -1,6 +1,6 @@
 # Legacy findings — dunning (Kasse, `kbs`)
 
-Reverse-engineered from `hisrm_muster_30_09_26.backup` (`HISKBS 2025.06.0`),
+Reverse-engineered from `the sample dataset archive` (`the cash-book module 2025.06.0`),
 schema `kbs`. Measured against the restored database.
 
 ## Row counts
@@ -12,7 +12,7 @@ schema `kbs`. Measured against the restored database.
 | `kbs.feao` | 0 | dunning-related order flag |
 | `kbs.abrn` | 0 | settlement run |
 
-As with payment orders, the Muster dump carries the structure but no rows.
+As with payment orders, the sample dataset carries the structure but no rows.
 
 ## `kbs.mahn` — five bands flattened into the row
 

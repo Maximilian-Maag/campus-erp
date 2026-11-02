@@ -1,15 +1,14 @@
 # C4 — Level 1: System Context
 
-Scope: the **Hochschul-ERP** system (the product family the seed dump belongs
-to). Everything here is reconstructed from the dump plus HIS's public product
-material; the application tier is **inferred** from the database, since only the
+Scope: the **legacy university ERP** family the sample dataset belongs to.
+Everything here is reconstructed from that dataset plus public product material; the application tier is **inferred** from the database, since only the
 database was provided. Inference is marked *(inferred)*.
 
 ## Diagram
 
 ```mermaid
 C4Context
-    title System Context — Hochschul-ERP (HIS eG)
+    title System Context — the legacy system
 
     Person(sachb_pers, "Personalsachbearbeiter", "HR administration staff")
     Person(sachb_fin, "Finanzsachbearbeiter", "Finance administration staff")
@@ -17,19 +16,19 @@ C4Context
     Person(leitung, "Hochschulleitung", "Management / controlling")
     Person(pruefer, "Revision / Prüfung", "Audit / internal revision")
 
-    System(erp, "Hochschul-ERP", "Personal, Finanzen, Sachmittel, Kasse, Kosten-/Leistungsrechnung (modules HISSVA, HISMBS/HISFSV, HISCOB, HISKBS)")
+    System(erp, "the legacy university ERP", "Personal, Finanzen, Sachmittel, Kasse, Kosten-/Leistungsrechnung (modules the HR module, the finance module/the finance module, the cost-accounting module, the cash-book module)")
 
-    System_Ext(hisinone, "HISinOne", "Campus management (APP/STU/EXA/DOC)")
+    System_Ext(the reference source, "the reference implementation", "Campus management (APP/STU/EXA/DOC)")
     System_Ext(lbv, "LBV / Bezügestelle", "State payroll office (Besoldung/Bezüge)")
     System_Ext(bank, "Banken / SEPA", "Bank & payment traffic (SEPA, MT940)")
     System_Ext(finanzamt, "Finanzamt / ELSTER", "Tax office / e-tax filing")
     System_Ext(dms, "DMS", "Document management system")
     System_Ext(statistik, "Statistik / Landesamt", "Statistics offices")
     System_Ext(qis, "QIS / SAP HCM", "External campus & HR systems")
-    System_Ext(bi, "Business Intelligence", "HISinOne-BI / reporting")
+    System_Ext(bi, "Business Intelligence", "BI/reporting / reporting")
     System_Ext(idp, "IdP (Shibboleth/OIDC)", "Identity provider (IR-5)")
-    System_Ext(kfw, "KfW Studentendarlehen", "Loan SOAP portal (hs2kfw, docs/14 §4.2)")
-    System_Ext(bsos, "Chipkarte / Kassenautomat", "BSOS terminal (bsos-connector, docs/14 §4.1)")
+    System_Ext(kfw, "KfW Studentendarlehen", "Loan SOAP portal (the student-loan client, docs/14 §4.2)")
+    System_Ext(the card terminal, "Chipkarte / Kassenautomat", "BSOS terminal (the card-terminal connector, docs/14 §4.1)")
     System_Ext(hss, "hochschulstart.de / DoSV", "Admission portal (IR-8)")
 
     Rel(sachb_pers, erp, "verwaltet Personal, Stellen, Reisen")
@@ -38,7 +37,7 @@ C4Context
     Rel(leitung, erp, "Controlling, Auswertungen")
     Rel(pruefer, erp, "Revision, Protokolle")
 
-    Rel(erp, hisinone, "Stammdaten / Kostenstellen / Studierende", "Schnittstelle (inferred)")
+    Rel(erp, the reference source, "Stammdaten / Kostenstellen / Studierende", "Schnittstelle (inferred)")
     Rel(erp, lbv, "Bezüge-/Besoldungsmeldungen", "File/Datenlieferung (bw_lbv_*, nrw_*)")
     Rel(erp, bank, "SEPA-Zahlungen, MT940-Auszüge", "Datei/Bank (bic_sepa_*, mt940)")
     Rel(erp, finanzamt, "Umsatzsteuer-Meldungen", "ELSTER (elster_webserver)")
@@ -48,7 +47,7 @@ C4Context
     Rel(erp, bi, "Auswertungen/Kennzahlen", "Datenbank-Views")
     Rel(erp, idp, "Login / Rechte", "OIDC/SAML (IR-5)")
     Rel(erp, kfw, "Studienkredit-Anträge", "SOAP SBwsService (docs/14 §4.2)")
-    Rel(erp, bsos, "Karten-/Kassenautomat", "TCP-Bridge (BSOS, docs/14 §4.1)")
+    Rel(erp, the card terminal, "Karten-/Kassenautomat", "TCP-Bridge (BSOS, docs/14 §4.1)")
     Rel(erp, hss, "Bewerbung / DoSV", "IR-8")
 ```
 
@@ -76,15 +75,15 @@ C4Context
 | SAP HCM | `sva4.h1_sva_transfer`, `h1_sva_attribute_mapping` |
 | DMS | `dokumente`, `__dokumente*`, `k_dokumente_*` across schemas |
 | Statistics offices | `sva4.k_referenz_personalstatistik`, `out_*` exports |
-| HISinOne campus | inferred; not present as tables in this dump |
+| the reference implementation campus | inferred; not present as tables in this dump |
 | Identity provider (Shibboleth/OIDC) | `docs/14` (bundle ships an IdM connector: `UniBielefeldIdmConnectorService`) |
-| KfW student loan | `sonst/hs2kfw` — a shipped Axis2 SOAP client for the KfW portal (`docs/14` §4.2) |
-| Chip-card / cash terminal (BSOS) | `sonst/bsos-connector` (TCP bridge to `bsos.exe`, `docs/14` §4.1) |
+| KfW student loan | `the student-loan client` — a shipped Axis2 SOAP client for the KfW portal (`docs/14` §4.2) |
+| Chip-card / cash terminal (BSOS) | `the card-terminal connector` (TCP bridge to `the card terminal.exe`, `docs/14` §4.1) |
 | hochschulstart.de / DoSV | requirement IR-8 (admission); no tables in this dump |
 | Bank (EBICS channel) | `docs/14` §4.3 — the SEPA file layer plus an EBICS transport, beyond the file tables above |
 
 ## Key open point
 
-Whether the project's "system of interest" is this **Hochschul-ERP** or the
-separate **HISinOne campus** product is unresolved (see `open-questions.md` Q1).
+Whether the project's "system of interest" is this **the legacy university ERP** or the
+separate **the reference implementation campus** product is unresolved (see `open-questions.md` Q1).
 This context diagram documents the ERP, which is what the dump contains.

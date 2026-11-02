@@ -547,7 +547,7 @@ def build_document(res: Resolver) -> dict:
             "title": "campus-erp API",
             "version": "0.22.0",
             "description": (
-                "Contract-first API for the HISinOne/legacy ERP replacement (ADR-0003). "
+                "Contract-first API for university-ERP replacement (ADR-0003). "
                 "Generated from tools/gen_openapi.py (route table + Go structs); the Angular "
                 "client is generated from this document by tools/api_contract.py. Tenant "
                 "resolution is hostname-based (ADR-0002), never a path segment."

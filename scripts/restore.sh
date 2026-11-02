@@ -1,8 +1,8 @@
 #!/bin/bash
-# Restore the HIS-ERP dump into a disposable Postgres sandbox and (optionally)
+# Restore the legacy university ERP dump into a disposable Postgres sandbox and (optionally)
 # regenerate the schema artefacts. Reproduces every file under schema/.
 #
-# Usage: scripts/restore.sh /path/to/hisrm_muster_30_09_26.backup [--analyze]
+# Usage: scripts/restore.sh /path/to/the sample dataset archive [--analyze]
 #
 # Notes
 #  - The dump is PostgreSQL custom-archive format v1.16 (pg_dump 17.x). The

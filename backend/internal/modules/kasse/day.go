@@ -1,5 +1,5 @@
 // Package kasse implements the Kassenbuchung (cash book) module — legacy `kbs`,
-// HISKBS. Slice S1 of the pilot (docs/plan/kbs-pilot.md).
+// the cash-book module. Slice S1 of the pilot (docs/plan/kbs-pilot.md).
 package kasse
 
 import (

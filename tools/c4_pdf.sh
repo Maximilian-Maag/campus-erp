@@ -97,7 +97,7 @@ nice_title() {
   case "$1" in
     AsIs-Context)          echo "As-is — System Context (level 1)";;
     AsIs-Containers)       echo "As-is — Containers (level 2)";;
-    AsIs-SvaComponents)    echo "As-is — HISSVA Components (level 3)";;
+    AsIs-SvaComponents)    echo "As-is — the HR module Components (level 3)";;
     Target-Context)        echo "Target — System Context (level 1)";;
     Target-Containers)     echo "Target — Containers (level 2)";;
     Target-ApiComponents)  echo "Target — API Components (level 3)";;

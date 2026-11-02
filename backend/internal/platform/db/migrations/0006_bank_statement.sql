@@ -14,8 +14,8 @@
 -- The canonical model separates the statement header from its lines and records
 -- the reconciliation outcome explicitly.
 --
--- Format: SWIFT MT940. The field semantics follow the productive HISinOne parser
--- (rm.fia.payments.datex.mt940.Field61 / MT940Record).
+-- Format: SWIFT MT940. The field semantics follow the reference implementation parser
+-- (the reference parser.mt940.Field61 / MT940Record).
 
 -- One imported statement (one account, one statement number/page).
 CREATE TABLE IF NOT EXISTS bank_statement (
