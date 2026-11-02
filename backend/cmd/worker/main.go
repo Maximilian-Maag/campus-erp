@@ -4,8 +4,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/documents"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/storage"
 	"log"
 	"os"
@@ -77,6 +79,40 @@ func main() {
 	if err != nil {
 		log.Fatalf("worker: artefact store: %v", err)
 	}
+	var docRenderer documents.Renderer
+	if url := strings.TrimSpace(os.Getenv("ERP_DOCUMENTS_URL")); url != "" {
+		r, err := documents.NewHTTPRenderer(url, nil)
+		if err != nil {
+			log.Fatalf("worker: documents: %v", err)
+		}
+		docRenderer = r
+	}
+	ledgerRepo := kasse.NewLedgerRepo(pool)
+	reportRenderer := func(ctx context.Context, reportID string, from, to time.Time, by string) (string, error) {
+		if reportID != kasse.DailyCloseDefinition.ID {
+			return "", fmt.Errorf("worker: unknown report %q", reportID)
+		}
+		if docRenderer == nil {
+			return "", errors.New("worker: ERP_DOCUMENTS_URL is not set")
+		}
+		bookings, err := ledgerRepo.ListBookingsForExport(ctx, from, to)
+		if err != nil {
+			return "", err
+		}
+		html, err := kasse.DailyCloseReport(time.Now().UTC(), bookings).MarshalHTML()
+		if err != nil {
+			return "", err
+		}
+		pdf, err := docRenderer.Render(ctx, html)
+		if err != nil {
+			return "", err
+		}
+		key := fmt.Sprintf("reports/%s-%s-%s.pdf", reportID, from.Format("20060102"), to.Format("20060102"))
+		if err := artefacts.Save(ctx, key, pdf); err != nil {
+			return "", err
+		}
+		return key, nil
+	}
 	statementSvc := kasse.NewStatementService(kasse.NewStatementRepo(pool), audit.NewStore(pool))
 	importer := func(ctx context.Context, accountID int64, content, by string) (int, error) {
 		statements, err := statementSvc.Import(ctx, accountID, content, by)
@@ -107,7 +143,7 @@ func main() {
 		}
 		return name, content, nil
 	}
-	client, err := jobs.New(pool, registry, importer, exporter, sepaExporter)
+	client, err := jobs.New(pool, registry, importer, exporter, sepaExporter, reportRenderer)
 	if err != nil {
 		log.Fatalf("jobs: %v", err)
 	}

@@ -121,8 +121,13 @@ on Postgres (ADR-0007) — no extra broker. The runtime is `internal/platform/jo
   already-rendered pain.001 file to the bank channel. `SepaExportFunc` returns the file
   name and bytes; a name that is empty, nested or escaping is refused, so the outbox
   cannot be written outside.
-- `EnqueueEtl` / `EnqueueStatementImport` / `EnqueueLedgerExport` are the enqueue
-  seams the API role can use to hand work to the worker instead of running it inline.
+- The `report-render` kind (`ReportRenderArgs{ReportID, From, To, Actor}`) builds a report
+  by id over a period and stores its artefact. `ReportRenderFunc` keeps the package free of
+  the domains that own the reports; the worker role knows `kasse-daily-close` and renders it
+  through the document service (`docs/25`).
+- `EnqueueEtl` / `EnqueueStatementImport` / `EnqueueLedgerExport` / `EnqueueReportRender`
+  are the enqueue seams the API role can use to hand work to the worker instead of running
+  it inline.
 - `cmd/worker` is the wiring: it opens the pool, migrates, builds the registry
   (legacy source pool when `ERP_LEGACY_DATABASE_URL` is set), starts the client and
   blocks until SIGINT/SIGTERM, then drains with a bounded stop.
@@ -162,9 +167,8 @@ status then stays `planned` on purpose.
   record the tenant; wiring the tenant into audit events is a small follow-up.
 - Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the SOAP
   client and the rest remain `planned`.
-- Four job kinds are wired: `etl`, `statement-import`, `ledger-export` and
-  `sepa-export`. The remaining kinds (`statistics-export`, `report-render`) are not
-  registered yet; `report-render` can build on the document service (docs/24), while
-  `statistics-export` waits on the per-state format specs.
+- Five job kinds are wired: `etl`, `statement-import`, `ledger-export`, `sepa-export` and
+  `report-render`. Only `statistics-export` remains, and it waits on the per-state format
+  specifications (`docs/17` §8) rather than on code.
 - The worker's ledger hand-over is a directory (`ERP_LEDGER_OUTBOX_DIR`); object
   storage or SFTP replaces that function without touching the job kind.

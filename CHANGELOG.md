@@ -2,6 +2,21 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.57.0] - 2026-11-02
+
+Worker: the report-render job kind (closes the code work on #38).
+
+### Added
+- `jobs.KindReportRender` with `ReportRenderArgs{ReportID, From, To, Actor}` and
+  `ReportRenderWorker`: builds a report by id over a period through `ReportRenderFunc`,
+  refuses a missing id, a malformed period and a render that stored nothing, and returns
+  failures so River retries. `EnqueueReportRender` is the API-side seam.
+- Registered in `StandardWorkers`; the worker role knows `kasse-daily-close`, collects the
+  period's bookings, renders the report and stores the PDF through the document service and
+  the artefact store.
+- Tests: the kind, the happy path, every refusal, the logger. Docs: `docs/17` §7 and
+  `docs/25`.
+
 ## [0.56.0] - 2026-11-02
 
 Storage: the S3 path is verified.
