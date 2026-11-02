@@ -42,7 +42,7 @@ c4/          Structurizr workspace.dsl (as-is + target) + PDF template
 deploy/      Helm chart (deploy/helm/campus-erp)                — ADR-0007
 docker-compose.yml   local single-host stack
 docs/        requirements, ADRs, legacy analysis
-schema/      generated artefacts from the legacy dump
+schema/      generated locally by scripts/analyze.sh (git-ignored)
 scripts/     reproduce the legacy analysis
 tools/       policy checker, quality runner, C4→PDF
 ```
@@ -125,7 +125,32 @@ C4), and the first vertical slice is implemented and tested:
 - quality: Go unit + Postgres integration + HTTP e2e tests, mutation 100% on every
   Go target package, policy-as-code green
 
-Not yet implemented: CAMT.053 import, foundations, and every other
-module. The
-legacy analysis under `schema/` and `docs/01..04` remains valid and is the ETL
-input (ADR-0001).
+Shipped so far: the platform spine (auth, tenancy, readiness, interface registry,
+async jobs), the Kasse pilot (cash book, payment orders + runs, SEPA credit transfer
+and direct debit, MT940/CAMT.052/053/054 import, dunning, foundations, ETL), lookups,
+budget, procurement, e-invoicing and KLR. To come: the Personal, Finanzen and Campus
+phases, and the interfaces blocked on external specifications (EBICS, ELSTER, LBV,
+statistics, DMS) - see `docs/plan/roadmap.md`.
+
+The legacy analysis in `docs/` is the ETL input (ADR-0001). Its **generated**
+artefacts are not committed: they are derived from a proprietary third-party database
+dump and are reproduced locally with `scripts/analyze.sh`.
+
+## What is not in this repository
+
+- The third-party database dump the analysis is based on, and the artefacts generated
+  from it (`schema/`, reproduced locally by `scripts/analyze.sh`).
+- The vendor's XSDs, Java sources and JARs: tests that need them take a local path
+  from an environment variable (`ERP_XSD_*`) and skip when it is absent.
+
+`HISinOne` and `Hochschul-ERP` are products of HIS eG. This project is an independent
+reimplementation, not affiliated with or endorsed by them.
+
+## License
+
+Apache License 2.0 - see [LICENSE](LICENSE).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+

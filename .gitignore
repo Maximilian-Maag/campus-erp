@@ -3,6 +3,10 @@
 *.dump
 *.sql.gz
 
+# schema/ is generated from that dump by scripts/analyze.sh - same reason, and it
+# is reproducible, so it is not committed either.
+/schema/
+
 # python
 __pycache__/
 *.pyc

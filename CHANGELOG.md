@@ -2,6 +2,32 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.44.0] - 2026-11-02
+
+Prepare the repository for public release.
+
+### Removed
+- `schema/` - a `pg_dump --schema-only` of the proprietary third-party database plus
+  its derived TSVs (~7.6 MB). It is generated from that dump by `scripts/analyze.sh`,
+  so it is now git-ignored and reproducible locally instead of committed. The docs
+  that quoted measurements from it still do, and now say how to regenerate it.
+
+### Added
+- `LICENSE` (Apache-2.0) and `CONTRIBUTING.md`.
+- README: a "what is not in this repository" section (the vendor dump, the generated
+  artefacts, the vendor XSDs/Java/JARs), a trademark note (HISinOne/Hochschul-ERP are
+  HIS eG products; this is an independent reimplementation), and an up-to-date status
+  paragraph (the old one still said CAMT.053 was unimplemented).
+
+### Fixed
+- `tools/gen_erm.py` / `tools/test_erm.py`: the legacy ER models are generated from
+  `schema/`, so the generator and its self-test now degrade gracefully when that
+  directory is absent (target model only, legacy checks skipped) instead of failing.
+
+### Changed
+- `.github/workflows/rerun-flaky.yml` renamed to `rerun-on-runner-shutdown.yml` to
+  match what the changelog and the workflow's own name say.
+
 ## [0.43.0] - 2026-11-02
 
 CI: retry runs killed by a runner preemption, and only those (#41).

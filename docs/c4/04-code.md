@@ -1,9 +1,11 @@
 # C4 — Level 4: Code (schema)
 
-At C4 level 4 the "code" is the database schema. The full DDL is
-`schema/schema_full.sql` (~196k lines). This page shows representative tables to
-convey the house style; the complete model is in `03-schema-analysis.md` and the
-generated `schema/*.tsv`.
+At C4 level 4 the "code" is the database schema. The full DDL is a `pg_dump
+--schema-only` of the legacy system (~196k lines), reproduced locally by
+`scripts/analyze.sh` into the git-ignored `schema/` directory (it is derived from a
+proprietary third-party dump, so it is not committed). This page shows representative
+tables to convey the house style; the complete model is in `03-schema-analysis.md`
+and the generated `schema/*.tsv`.
 
 ## House style (observed in every module)
 
@@ -94,7 +96,7 @@ directly as columns.
 
 ## Where to go for the rest
 
-| Need | Artefact |
+| Need | Artefact (generated locally, not committed) |
 |---|---|
 | All columns | `schema/columns.tsv` |
 | Keys | `schema/pks.tsv` |

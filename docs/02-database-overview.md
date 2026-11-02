@@ -128,6 +128,11 @@ See `01-module-catalogue.md` for the full mapping.
 
 ## 6. How to read the artefacts
 
+These files are **generated**, not committed: they are derived from a proprietary
+third-party database dump, so `scripts/analyze.sh` reproduces them locally into the
+git-ignored `schema/` directory. They are listed here so the measurements quoted in
+these docs can be reproduced.
+
 | File | Contents |
 |---|---|
 | `schema/schema_full.sql` | full `pg_dump --schema-only` DDL (~196k lines) |

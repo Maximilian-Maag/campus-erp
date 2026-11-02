@@ -116,7 +116,7 @@ runtime validation; `rm.erp.legacy.jar`, `rm.erp.base.jar`,
   English table names); the dump is the **legacy Hochschul-ERP** (module schemas
   `sva4/mbs/cob/kbs`, German abbreviations). Two generations of the same vendor
   line; they share no tables. *Evidence: `ddl.hisinone/experimental/dbmodel.ddl`
-  vs `schema/tables_*.txt`.*
+  vs the generated table list (`scripts/analyze.sh`).*
 - **Q5 (column semantics)** — available for the **productive** product
   (`COMMENT ON`, `{…}` in `.tab`, i18n); the legacy dump still has none.
 - **Q6 (authoritative tables)** — `sch.hisinone/stable` is the vendor's live set.

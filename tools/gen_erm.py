@@ -328,6 +328,10 @@ class LegacyData:
 
 def load_legacy(schema_dir: Path) -> dict[str, LegacyData]:
     out: dict[str, LegacyData] = {}
+    if not schema_dir.is_dir():
+        # schema/ is generated from a proprietary dump (not committed); the target
+        # model is still produced without it.
+        return out
     for schema in LEGACY_SPEC:
         tfile = schema_dir / f"tables_{schema}.txt"
         if not tfile.exists():
@@ -335,13 +339,15 @@ def load_legacy(schema_dir: Path) -> dict[str, LegacyData]:
         tables = {ln.strip() for ln in tfile.read_text().splitlines() if ln.strip()}
 
         pk: dict[str, list[str]] = {}
-        for ln in (schema_dir / "pks.tsv").read_text().splitlines():
+        pk_file = schema_dir / "pks.tsv"
+        for ln in (pk_file.read_text().splitlines() if pk_file.exists() else []):
             parts = ln.split("\t")
             if len(parts) == 3 and parts[0] == schema:
                 pk[parts[1]] = [c.strip() for c in parts[2].split(",") if c.strip()]
 
         columns: dict[str, list[tuple[str, str]]] = {}
-        for ln in (schema_dir / "columns.tsv").read_text().splitlines():
+        col_file = schema_dir / "columns.tsv"
+        for ln in (col_file.read_text().splitlines() if col_file.exists() else []):
             parts = ln.split("\t")
             if len(parts) >= 5 and parts[0] == schema:
                 columns.setdefault(parts[1], []).append((parts[3], parts[4]))
@@ -478,8 +484,15 @@ def main() -> int:
     else:
         print(f"warn: no migrations dir at {mig}", file=sys.stderr)
 
-    # 2. legacy schemas
+    # 2. legacy schemas (skipped when schema/ is absent - it is generated locally
+    #    from a proprietary dump by scripts/analyze.sh and is not committed)
     schema_dir = root / "schema"
+    if not schema_dir.is_dir():
+        print(
+            "note: schema/ not present - legacy ER models skipped "
+            "(run scripts/analyze.sh against a restored dump)",
+            file=sys.stderr,
+        )
     legacy = load_legacy(schema_dir)
     for schema in LEGACY_SPEC:
         if schema not in legacy:

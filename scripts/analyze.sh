@@ -1,5 +1,8 @@
 #!/bin/bash
 # Regenerate every artefact under schema/ from the restored sandbox database.
+#
+# schema/ is git-ignored on purpose: these artefacts are derived from a proprietary
+# third-party database dump, so they are produced locally and never committed.
 # Requires the sandbox from scripts/restore.sh to be running.
 #
 # All outputs are written atomically (temp file + rename) so a failed command

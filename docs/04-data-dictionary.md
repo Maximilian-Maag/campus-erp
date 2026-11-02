@@ -15,6 +15,10 @@ how to query them.
 | `tables_<schema>.txt` | one table name per line | per-schema table list |
 | `schema_full.sql` | DDL | full `pg_dump --schema-only` |
 
+All of the above are **generated** by `scripts/analyze.sh` from a proprietary
+third-party database dump and live in the git-ignored `schema/` directory - they are
+not part of this repository.
+
 ## Comment coverage is near-zero
 
 The dump contains only **6** column comments and **0** table comments. Any

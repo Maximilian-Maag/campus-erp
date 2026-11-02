@@ -19,13 +19,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 GEN = ROOT / "tools" / "gen_erm.py"
 
-EXPECTED = {
-    "target_canonical",
-    "legacy_sva4",
-    "legacy_mbs",
-    "legacy_cob",
-    "legacy_kbs",
-}
+# The legacy ER models are generated from schema/, whose contents are derived from a
+# proprietary third-party database dump: scripts/analyze.sh reproduces them locally
+# and they are not committed. Without them the generator still emits the target model
+# and the legacy checks are skipped.
+LEGACY_SCHEMAS = ("sva4", "mbs", "cob", "kbs")
+LEGACY_AVAILABLE = (ROOT / "schema" / "tables_kbs.txt").is_file()
+
+EXPECTED = {"target_canonical"}
+if LEGACY_AVAILABLE:
+    EXPECTED |= {f"legacy_{s}" for s in LEGACY_SCHEMAS}
 
 failures: list[str] = []
 
@@ -52,8 +55,11 @@ def main() -> int:
 
         produced = {p.stem for p in out.glob("*.puml")}
         check("target_canonical" in produced, "target ER model is produced")
-        for schema in ("sva4", "mbs", "cob", "kbs"):
-            check(f"legacy_{schema}" in produced, f"legacy {schema} ER model is produced")
+        if LEGACY_AVAILABLE:
+            for schema in LEGACY_SCHEMAS:
+                check(f"legacy_{schema}" in produced, f"legacy {schema} ER model is produced")
+        else:
+            print("SKIP  legacy ER models (schema/ not present - run scripts/analyze.sh)")
         check(produced == EXPECTED, "exactly the expected ER models are produced")
 
         target = (out / "target_canonical.puml").read_text()
@@ -64,7 +70,7 @@ def main() -> int:
         check(len(fk_edges) >= 4, f"target ER has declared FK edges (got {len(fk_edges)})")
         check("[FK]" in target, "target ER marks foreign-key columns")
 
-        for schema in ("sva4", "mbs", "cob", "kbs"):
+        for schema in LEGACY_SCHEMAS if LEGACY_AVAILABLE else ():
             txt = (out / f"legacy_{schema}.puml").read_text()
             check(
                 "INFERRED" in txt.upper(),

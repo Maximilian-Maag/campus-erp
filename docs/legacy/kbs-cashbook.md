@@ -2,8 +2,9 @@
 
 Reverse-engineered from the Muster dump `hisrm_muster_30_09_26.backup`
 (PostgreSQL custom archive, `HISKBS 2025.06.0`), schema `kbs`. Row counts are
-**measured** (the dump was restored); column detail is from the measured DDL
-(`schema/schema_full.sql`). Inference is marked *(inferred)*.
+**measured** (the dump was restored); column detail is from the measured DDL, which
+`scripts/analyze.sh` generates locally into the git-ignored `schema/` directory.
+Inference is marked *(inferred)*.
 
 This closes the FR-K1 group of `kbs-pilot.md` (§S1) with measured numbers, the way
 `kbs-payment-orders.md` closed S2.
