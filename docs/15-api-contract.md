@@ -40,7 +40,7 @@ Two tools, two responsibilities:
 - **`tools/gen_openapi.py`** — the *authoring* generator. It holds the explicit
   **contract table** (path → method → operationId → request/response type) and
   reads the Go structs (with their `json` tags) to emit a complete OpenAPI 3.1
-  document: 49 paths, 51 operations, 58 schemas. Structs referenced transitively
+  document (49 paths, 51 operations, 58 schemas when this slice landed; more now). Structs referenced transitively
   are followed, so nothing dangles; qualified Go types (`kasse.Day`) become
   components with disambiguated names. It needs PyYAML, so it is a dev tool.
 - **`tools/api_contract.py`** — the *gate*. Stdlib-only (no YAML package, no JVM,

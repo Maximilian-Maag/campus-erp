@@ -231,6 +231,10 @@ export class CampusErpApi {
     return this.http.post<m.Order>(this.base + `/api/purchase-orders/${id}/receive`, null);
   }
 
+  requestStatisticsExport(body: m.StatisticsExportRequest): Observable<m.StatisticsExportResponse> {
+    return this.http.post<m.StatisticsExportResponse>(this.base + `/api/statistics/exports`, body);
+  }
+
   createTaxOffice(body: m.TaxOfficeRequest): Observable<m.TaxOffice> {
     return this.http.post<m.TaxOffice>(this.base + `/api/tax-offices`, body);
   }

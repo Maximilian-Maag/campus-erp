@@ -112,6 +112,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/artefacts/{kind}/{name}": {
         "get": ("getArtefact", "kasse", "Download a stored artefact (notice PDF, report, ledger/SEPA export)", None, None, 200, "artefact"),
     },
+    "/api/statistics/exports": {
+        "post": ("requestStatisticsExport", "kasse", "Queue a per-state statistics export (renders on the worker role)", "httpapi.statisticsExportRequest", "httpapi.statisticsExportResponse", 202, "json"),
+    },
     "/api/dunning/levels": {
         "post": ("createDunningLevel", "kasse", "Create a dunning level", "httpapi.createLevelRequest", "kasse.DunningLevel", 201, "json"),
     },

@@ -73,8 +73,8 @@ field that can be absent-as-null.
 
 ## Not yet done
 
-- Auth is still the `X-Actor` header; OIDC + role mapping (ADR-0003) is the next
-  cross-cutting slice, and the correlation id is the natural place to carry the
-  authenticated subject into the audit event.
+- ~~Auth is still the `X-Actor` header~~ — done since: OIDC + the coarse role model
+  (ADR-0003) shipped (docs/17), and the authenticated subject is the audit `actor`,
+  qualified with the resolved tenant.
 - The error envelope has no stable machine `code` yet; the contract reserves the
   field, and populating it from domain errors is a follow-up.

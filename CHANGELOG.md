@@ -2,6 +2,31 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.64.0] - 2026-11-02
+
+The API can queue a statistics export — the first export kind reachable from a client.
+
+### Added
+- `POST /api/statistics/exports` (role `kasse`): body `{state, from, to}`, answers `202`
+  with the job id. The work runs on the worker role; the file lands in the artefact store and
+  is then reachable through `GET /api/artefacts/statistics/<name>`.
+- `jobs.NewEnqueuer` / `jobs.Exports`: an **insert-only** River client (no queues, no workers)
+  and the plain-argument seam the HTTP layer hands work through, so `httpapi` does not import
+  River. `cmd/api` builds it per tenant and applies River's schema before inserting.
+- `jobs.PeriodLayout` is exported (was the package-private `ledgerDate`), so the API validates
+  a period with the same layout the job carries.
+
+### Changed
+- The route is validated at the edge (state required, dates parsed) and answers `503` when no
+  export queue is configured, rather than accepting a request it cannot fulfil.
+- Docs: docs/27 gains the API-trigger section, docs/17 §7 says which enqueue seams are wired,
+  and two stale claims are corrected (docs/16's "auth is still X-Actor", docs/15's route counts).
+
+### Tests
+- The route: the happy path (args passed through, `202` + job id), every refusal, a queue
+  failure, and the no-queue case. Plus an integration test that proves the whole hand-over —
+  an insert-only client queues, a separately-started worker client works the job.
+
 ## [0.63.0] - 2026-11-02
 
 Audit events now record the tenant, and two stale doc claims are corrected.

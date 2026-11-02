@@ -32,8 +32,8 @@ func TestStatisticsExportWorkerRuns(t *testing.T) {
 	if gotState != "bw" || gotActor != "alice" {
 		t.Fatalf("exporter called with state=%q actor=%q", gotState, gotActor)
 	}
-	if gotFrom.Format(ledgerDate) != "2026-11-01" || gotTo.Format(ledgerDate) != "2026-11-30" {
-		t.Fatalf("period = %s..%s", gotFrom.Format(ledgerDate), gotTo.Format(ledgerDate))
+	if gotFrom.Format(PeriodLayout) != "2026-11-01" || gotTo.Format(PeriodLayout) != "2026-11-30" {
+		t.Fatalf("period = %s..%s", gotFrom.Format(PeriodLayout), gotTo.Format(PeriodLayout))
 	}
 }
 

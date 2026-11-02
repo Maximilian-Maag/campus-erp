@@ -27,6 +27,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/etl"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/jobs"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/tenant"
 )
 
@@ -69,6 +70,15 @@ func main() {
 		if storeErr != nil {
 			log.Fatalf("api: artefact store: %v", storeErr)
 		}
+		// The API role queues work for the worker role; it never works a job itself
+		// (docs/17, docs/27). River owns its own schema, so apply it before inserting.
+		if err := jobs.Migrate(ctx, pool); err != nil {
+			log.Fatalf("api: jobs: %v", err)
+		}
+		enqueuer, err := jobs.NewEnqueuer(pool)
+		if err != nil {
+			log.Fatalf("api: job enqueuer: %v", err)
+		}
 		deps := httpapi.Deps{
 			Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
 			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
@@ -88,6 +98,7 @@ func main() {
 			ETL:             etlRegistry,
 			Audit:           store,
 			Health:          pool,
+			Exports:         jobs.NewExports(enqueuer),
 		}
 		if cfg.OIDCJWKSURL != "" {
 			deps.Auth = &auth.JWKVerifier{
