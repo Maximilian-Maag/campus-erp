@@ -1740,6 +1740,12 @@ paths:
       - procurement
       operationId: listPurchaseOrders
       summary: List purchase orders, optionally narrowed to one status
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Success

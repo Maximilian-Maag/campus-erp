@@ -79,6 +79,9 @@ Three things the generator gets right that used to bite:
   it lives.
 - A route with a **raw body** (the received XRechnung) takes a `body: string` argument. It used
   to fall back to a `null` body, which made the route unreachable through the client.
+- A route's **query parameters** are declared in the contract row as `(name, type, required)`
+  triples; the client takes them as optional arguments and renders them through one `_query`
+  helper. An omitted filter is not sent at all, rather than sent empty.
 
 ## The consumers
 
@@ -95,8 +98,8 @@ Mittelüberwachung actually applies instead of recomputing the rule.
 
 `frontend/src/app/procurement/orders.component.ts` — *Beschaffung: Bestellungen* (route
 `/procurement/bestellungen`) — lists the orders and approves a draft, the step that commits
-budget. Its status filter is a view over what was loaded, because the generated client cannot
-send query parameters yet (see below).
+budget. Its status filter is the **server's own**: choosing a status asks the API for it
+(`?status=`), so the screen never has to hold the whole list to narrow it.
 
 `frontend/src/app/einvoice/invoices.component.ts` — *E-Rechnung: Eingangsrechnungen* (route
 `/einvoice/rechnungen`) — reads a received XRechnung in, lists the invoices and matches one to
@@ -133,7 +136,5 @@ gate (`npx stryker run`, break 85) covers them too.
 
 - Two of the domains have a screen; the rest get theirs as their phases land, each one
   starting from the read routes it needs (module list endpoints, `GET /api/reports`).
-- **The generated client cannot send query parameters.** The generator emits path parameters
-  only, so a route's `?status=` filter is reachable by a hand-written call but not through
-  `CampusErpApi` — which is why the orders screen filters what it has. Lists big enough to need
-  paging need this first.
+- **No paging yet.** Every list route returns everything; a list big enough to need paging
+  needs a page parameter on the route and on the screens that read it.

@@ -57,27 +57,31 @@ describe('PurchaseOrdersComponent', () => {
     expect(html.querySelector('[data-testid="status-PO-2"]')?.textContent).toContain('Genehmigt');
   });
 
-  it('filters to one status without asking the API again', () => {
+  it('asks the API for the chosen status instead of sifting what it has', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
     http.expectOne('/api/purchase-orders').flush([draft, approved]);
     fixture.detectChanges();
     const component = fixture.componentInstance;
 
-    component.status.set('approved');
+    component.filterTo('approved');
+
+    // The filter travels to the server, so the screen works on a list it never holds in full.
+    const filtered = http.expectOne('/api/purchase-orders?status=approved');
+    expect(filtered.request.method).toBe('GET');
+    filtered.flush([approved]);
     fixture.detectChanges();
 
-    expect(component.visible().map((o) => o.Number)).toEqual(['PO-2']);
+    expect(component.status()).toBe('approved');
     const html = fixture.nativeElement as HTMLElement;
     expect(html.querySelector('[data-testid="order-PO-2"]')).toBeTruthy();
     expect(html.querySelector('[data-testid="order-PO-1"]')).toBeNull();
-    // Still one request in total: the filter is a view over what was loaded.
-    http.expectNone('/api/purchase-orders');
 
-    // And back to everything.
-    component.status.set('');
+    // Back to everything: no filter parameter at all.
+    component.filterTo('');
+    http.expectOne('/api/purchase-orders').flush([draft, approved]);
     fixture.detectChanges();
-    expect(component.visible().length).toBe(2);
+    expect(component.orders().length).toBe(2);
   });
 
   it('says so when there are no orders, and when the chosen status has none', () => {
@@ -91,7 +95,8 @@ describe('PurchaseOrdersComponent', () => {
     expect(html.querySelector('[role="status"]')?.textContent).toContain('keine Bestellungen angelegt');
 
     // With a status chosen and nothing loaded, the message names the status.
-    fixture.componentInstance.status.set('cancelled');
+    fixture.componentInstance.filterTo('cancelled');
+    http.expectOne('/api/purchase-orders?status=cancelled').flush([]);
     fixture.detectChanges();
     expect(html.querySelector('[role="status"]')?.textContent).toContain('Keine Bestellung in diesem Status');
   });
@@ -175,7 +180,6 @@ describe('PurchaseOrdersComponent', () => {
     fixture.detectChanges();
 
     expect(component.orders()).toEqual([]);
-    expect(component.visible()).toEqual([]);
     expect(component.loadError()).toBeNull();
     expect(component.loading()).toBeFalse();
   });

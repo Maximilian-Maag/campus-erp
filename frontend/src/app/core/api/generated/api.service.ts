@@ -239,8 +239,8 @@ export class CampusErpApi {
     return this.http.get<string>(this.base + `/api/payment-runs/${id}/file`);
   }
 
-  listPurchaseOrders(): Observable<m.OrderSummary[]> {
-    return this.http.get<m.OrderSummary[]>(this.base + `/api/purchase-orders`);
+  listPurchaseOrders(status?: string): Observable<m.OrderSummary[]> {
+    return this.http.get<m.OrderSummary[]>(this.base + `/api/purchase-orders${this._query({ status })}`);
   }
 
   createPurchaseOrder(body: m.CreatePurchaseOrderRequest): Observable<m.Order> {
@@ -293,6 +293,14 @@ export class CampusErpApi {
 
   getReady(): Observable<string> {
     return this.http.get<string>(this.base + `/readyz`);
+  }
+
+  /** Renders the query string for the parameters that were given. */
+  private _query(params: Record<string, string | number | undefined>): string {
+    const parts = Object.entries(params)
+      .filter(([, value]) => value !== undefined && value !== '')
+      .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`);
+    return parts.length > 0 ? '?' + parts.join('&') : '';
   }
 
 }
