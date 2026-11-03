@@ -3,6 +3,7 @@ import { BudgetPositionsComponent } from './budget/positions.component';
 import { CashbookDayComponent } from './kasse/cashbook-day.component';
 import { EInvoicesComponent } from './einvoice/invoices.component';
 import { KlrAllocationComponent } from './klr/allocation.component';
+import { PaymentOrdersComponent } from './kasse/payment-orders.component';
 import { PurchaseOrdersComponent } from './procurement/orders.component';
 
 export const routes: Routes = [
@@ -11,4 +12,5 @@ export const routes: Routes = [
   { path: 'procurement/bestellungen', component: PurchaseOrdersComponent },
   { path: 'einvoice/rechnungen', component: EInvoicesComponent },
   { path: 'klr/umlage', component: KlrAllocationComponent },
+  { path: 'kasse/anordnungen', component: PaymentOrdersComponent },
 ];

@@ -210,6 +210,14 @@ type fakeOrderRepo struct {
 	recipient   Recipient
 	budget      BudgetPosition
 	createCalls int
+	summaries   []OrderSummary
+	lastStatus  OrderStatus
+}
+
+// ListOrders records the status it was asked for, so the service's pass-through is observable.
+func (f *fakeOrderRepo) ListOrders(_ context.Context, status OrderStatus) ([]OrderSummary, error) {
+	f.lastStatus = status
+	return f.summaries, f.getErr
 }
 
 func (f *fakeOrderRepo) CreateRecipient(context.Context, Recipient) (Recipient, error) {
@@ -419,5 +427,29 @@ func TestOrderServiceRejectAndCancel(t *testing.T) {
 	}
 	if got.ID != 2 {
 		t.Fatalf("got id %d", got.ID)
+	}
+}
+
+// TestOrdersPassesTheStatusThrough: the service adds nothing to the read, and the filter the
+// caller named is the one the store is asked for.
+func TestOrdersPassesTheStatusThrough(t *testing.T) {
+	ctx := context.Background()
+	repo := &fakeOrderRepo{summaries: []OrderSummary{{ID: 1, Reference: "AO-1", Status: OrderDraft}}}
+	svc := NewOrderService(repo, nil, &fakeAudit{})
+
+	got, err := svc.Orders(ctx, OrderSubmitted)
+	if err != nil {
+		t.Fatalf("Orders: %v", err)
+	}
+	if len(got) != 1 || got[0].Reference != "AO-1" {
+		t.Fatalf("orders = %+v", got)
+	}
+	if repo.lastStatus != OrderSubmitted {
+		t.Fatalf("the store was asked for %q", repo.lastStatus)
+	}
+
+	boom := errors.New("boom")
+	if _, err := NewOrderService(&fakeOrderRepo{getErr: boom}, nil, &fakeAudit{}).Orders(ctx, ""); !errors.Is(err, boom) {
+		t.Fatalf("store error = %v, want boom", err)
 	}
 }

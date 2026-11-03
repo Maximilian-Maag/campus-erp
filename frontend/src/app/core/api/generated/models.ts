@@ -385,6 +385,17 @@ export interface IssueNoticeRequest {
   outstanding_cents: number;
 }
 
+export interface KasseOrderSummary {
+  ID: number;
+  Reference: string;
+  AmountCents: number;
+  Currency: string;
+  BudgetPositionID: number;
+  Purpose: string;
+  DueDate: string;
+  Status: string;
+}
+
 export interface KlrNamedRequest {
   number: string;
   name: string;
@@ -453,18 +464,6 @@ export interface Order {
   GrossCents: number;
   Status: string;
   CreatedBy: string;
-}
-
-export interface OrderSummary {
-  ID: number;
-  Number: string;
-  Supplier: string;
-  BudgetPositionID: number;
-  Currency: string;
-  NetCents: number;
-  VatCents: number;
-  GrossCents: number;
-  Status: string;
 }
 
 export interface Party {
@@ -541,6 +540,18 @@ export interface ProcurementLine {
   NetCents: number;
   VatCategory: string;
   VatRateBP: number;
+}
+
+export interface ProcurementOrderSummary {
+  ID: number;
+  Number: string;
+  Supplier: string;
+  BudgetPositionID: number;
+  Currency: string;
+  NetCents: number;
+  VatCents: number;
+  GrossCents: number;
+  Status: string;
 }
 
 export interface PurchaseOrderLineRequest {

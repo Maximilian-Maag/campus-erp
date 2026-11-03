@@ -107,6 +107,19 @@ its order. Amounts and dates come from `core/format.ts` rather than from `Intl`:
 `toLocaleDateString('de-DE')` renders "01.04.2026" in one browser and "1.4.2026" in another,
 and a screen has to show the same figures wherever it runs.
 
+`frontend/src/app/klr/allocation.component.ts` — *KLR: Umlage* (route `/klr/umlage`) — picks a
+cost centre, shows its distribution keys, defines one and runs a period. The share is typed as
+a percentage and stored as basis points, converted on the string rather than through a float so
+0,01 % is exactly one basis point. The rule that a centre's shares must add up to 100 % stays
+with the API.
+
+`frontend/src/app/kasse/payment-orders.component.ts` — *Kasse: Zahlungsanordnungen* (route
+`/kasse/anordnungen`) — lists the payment orders soonest due first and drives their workflow:
+submit a draft, approve, reject (with a reason, entered as a second step) or cancel. The
+workflow's rules stay with the API — the screen offers what a state allows and reports a refusal
+as it comes back, so a four-eyes rejection reads as the refusal it is rather than being
+pre-empted in TypeScript.
+
 These are covered twice: a Karma spec drives the component against a mocked HTTP backend
 (request, render, empty, failure, formatting, reload, and the action's own success and failure
 paths), and a Playwright test drives the real browser against a stubbed API and runs **axe**
@@ -134,7 +147,10 @@ gate (`npx stryker run`, break 85) covers them too.
 
 ## Not yet done
 
-- Two of the domains have a screen; the rest get theirs as their phases land, each one
-  starting from the read routes it needs (module list endpoints, `GET /api/reports`).
+- Six screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`), Budget,
+  Beschaffung, E-Rechnung and KLR. The rest get theirs as their phases land, each one starting
+  from the read routes it needs — and the kasse/payments domain is where that bites: it has 32
+  operations and, before this slice, exactly one list route, so nearly every remaining screen
+  there needs its `GET` built first.
 - **No paging yet.** Every list route returns everything; a list big enough to need paging
   needs a page parameter on the route and on the screens that read it.

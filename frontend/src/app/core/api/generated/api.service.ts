@@ -215,6 +215,10 @@ export class CampusErpApi {
     return this.http.get<m.Value>(this.base + `/api/lookups/${namespace}/${code}`);
   }
 
+  listPaymentOrders(status?: string): Observable<m.KasseOrderSummary[]> {
+    return this.http.get<m.KasseOrderSummary[]>(this.base + `/api/payment-orders${this._query({ status })}`);
+  }
+
   createPaymentOrder(body: m.CreateOrderRequest): Observable<m.PaymentOrder> {
     return this.http.post<m.PaymentOrder>(this.base + `/api/payment-orders`, body);
   }
@@ -255,8 +259,8 @@ export class CampusErpApi {
     return this.http.get<string>(this.base + `/api/payment-runs/${id}/file`);
   }
 
-  listPurchaseOrders(status?: string): Observable<m.OrderSummary[]> {
-    return this.http.get<m.OrderSummary[]>(this.base + `/api/purchase-orders${this._query({ status })}`);
+  listPurchaseOrders(status?: string): Observable<m.ProcurementOrderSummary[]> {
+    return this.http.get<m.ProcurementOrderSummary[]>(this.base + `/api/purchase-orders${this._query({ status })}`);
   }
 
   createPurchaseOrder(body: m.CreatePurchaseOrderRequest): Observable<m.Order> {
