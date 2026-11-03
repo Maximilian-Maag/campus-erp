@@ -2,6 +2,25 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.72.0] - 2026-11-03
+
+Two-way matching: an inbound e-invoice is matched to its purchase order and the commitment
+becomes an actual.
+
+### Added
+- `procurement.OrderService.MatchReceipt(orderNumber, grossCents, reference, by)` — finds the
+  order by number, requires it approved and its gross to equal the invoice's, then releases the
+  commitment and posts the actual in one step (so the conversion does not double-count), and
+  marks the order `received`.
+- `OrderRepository.GetByNumber`, and `einvoice.InvoiceService.Match`, which keys on the buyer
+  reference (BT-10) the document carries and audits `einvoice.match`.
+- `POST /api/e-invoices/{id}/match` (role `finanzen`). A mismatch is `422`, a wrong order state
+  `409`, an unknown order `404`.
+
+### Notes
+- The match is guarded by the order's state and the amount, not by the invoice's direction:
+  nothing marks a stored invoice as inbound or outbound yet (docs/09).
+
 ## [0.71.0] - 2026-11-03
 
 CI: the Go module cache actually restores, and a proxy blip no longer reddens a shard.

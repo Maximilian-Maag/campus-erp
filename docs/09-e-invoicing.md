@@ -21,7 +21,7 @@ FKs, enum checks) — `migrations/0011_e_invoice.sql`.
 | model + rules | `internal/core/einvoice` (`Validate`, `ComputeTotals`, `VATGroups`) |
 | generator | `internal/core/einvoice.GenerateXRechnung` → UBL 2.1 XML |
 | persistence + service | `internal/modules/einvoice` (atomic insert, audited) |
-| HTTP | `POST /api/e-invoices`, `GET /api/e-invoices/{id}`, `GET /api/e-invoices/{id}/xrechnung` |
+| HTTP | `POST /api/e-invoices`, `GET /api/e-invoices/{id}`, `GET /api/e-invoices/{id}/xrechnung`, `POST /api/e-invoices/{id}/match` |
 
 The generator is deterministic and is pinned by a golden file
 (`internal/core/einvoice/testdata/golden_invoice.xml`) that **validates against
@@ -48,8 +48,19 @@ into the same model and runs the same `Validate`, so a document we accept is hel
 to the rules we emit. `InvoiceService.ImportReceived` stores it (audited,
 `einvoice.receive`) and `POST /api/e-invoices/received` takes the raw XML.
 
+## Matching to the purchase order
+
+`InvoiceService.Match` runs the two-way match (`POST /api/e-invoices/{id}/match`): the
+order is looked up by the **buyer reference** the document carries — BT-10 is what a public
+buyer puts on the order and the supplier echoes back — its gross must equal the order's, and
+the match converts that order's commitment into an actual (`docs/12-procurement.md`). The key
+is deliberate: an invoice without a buyer reference cannot name an order and is refused
+(`core.ErrBuyerReference`) rather than guessed at.
+
 ## Not yet done
 
 - ZUGFeRD/CII syntax (the vendor ships it too; UBL is the public-sector format).
 - The full KoSIT Schematron ruleset (we enforce the subset we can satisfy).
-- Matching an inbound invoice to a purchase order / budget position.
+- **No direction on a stored invoice.** `Match` is meaningful for a received (inbound)
+  document, but nothing marks a row as inbound or outbound, so the guard is the order's own
+  state and the amount check rather than the invoice's kind.

@@ -70,6 +70,48 @@ func (s *OrderService) Receive(ctx context.Context, id int64, by string) (Order,
 	return s.transition(ctx, id, by, StatusApproved, StatusReceived, "purchase_order.receive", nil)
 }
 
+// MatchReceipt is the two-way match: it finds the order an inbound invoice names (its buyer
+// reference is the order number), requires that order to be approved and to amount to the same
+// gross, then turns the commitment into an actual and marks the order received.
+//
+// The commitment is released and the actual posted in one step, so the position's available
+// Mittel are unchanged by the conversion rather than being counted twice (docs/10). A mismatch
+// or a wrong state leaves the order and the budget untouched.
+func (s *OrderService) MatchReceipt(ctx context.Context, orderNumber string, grossCents int64, reference, by string) (Order, error) {
+	if strings.TrimSpace(by) == "" {
+		return Order{}, ErrActorRequired
+	}
+	order, err := s.repo.GetByNumber(ctx, strings.TrimSpace(orderNumber))
+	if err != nil {
+		return Order{}, err
+	}
+	if order.Status != StatusApproved {
+		return Order{}, fmt.Errorf("%w: order %s is %s", ErrBadTransition, order.Number, order.Status)
+	}
+	if grossCents != order.GrossCents {
+		return Order{}, fmt.Errorf("%w: order=%d invoice=%d", ErrMatchAmountMismatch, order.GrossCents, grossCents)
+	}
+	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Release, order.GrossCents, reference+":release", by); err != nil {
+		return Order{}, err
+	}
+	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Actual, order.GrossCents, reference, by); err != nil {
+		return Order{}, err
+	}
+	saved, err := s.repo.SetStatus(ctx, order.ID, StatusReceived, by)
+	if err != nil {
+		return Order{}, err
+	}
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "purchase_order.match",
+		Subject: orderSubject(order.ID),
+		After:   fmt.Sprintf("number=%s gross_cents=%d invoice=%s status=%s", saved.Number, saved.GrossCents, reference, saved.Status),
+	}); err != nil {
+		return Order{}, err
+	}
+	return saved, nil
+}
+
 // Cancel abandons an order; an approved order's commitment is released.
 func (s *OrderService) Cancel(ctx context.Context, id int64, by string) (Order, error) {
 	if strings.TrimSpace(by) == "" {

@@ -16,6 +16,9 @@ const uniqueViolation = "23505"
 type OrderRepository interface {
 	Insert(ctx context.Context, o Order) (Order, error)
 	Get(ctx context.Context, id int64) (Order, error)
+	// GetByNumber is how an inbound invoice finds its order: the buyer reference the document
+	// carries is the order number (BT-10).
+	GetByNumber(ctx context.Context, number string) (Order, error)
 	SetStatus(ctx context.Context, id int64, status Status, by string) (Order, error)
 }
 
@@ -70,6 +73,20 @@ func (r *OrderRepo) Insert(ctx context.Context, o Order) (Order, error) {
 	}
 	o.ID = id
 	return o, nil
+}
+
+// GetByNumber loads an order by its number. It resolves the id and reuses Get, so the line
+// loading exists once.
+func (r *OrderRepo) GetByNumber(ctx context.Context, number string) (Order, error) {
+	var id int64
+	err := r.pool.QueryRow(ctx, `SELECT id FROM purchase_order WHERE number = $1`, number).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Order{}, fmt.Errorf("procurement: order %q: %w", number, ErrOrderNotFound)
+	}
+	if err != nil {
+		return Order{}, fmt.Errorf("procurement: get order by number: %w", err)
+	}
+	return r.Get(ctx, id)
 }
 
 // Get loads an order with its lines.

@@ -34,6 +34,23 @@ Every transition is guarded: only `draft→approved`, `approved→received` and
 So a purchase order reserves budget before any invoice arrives, and the
 commitment is visible on the budget position's balance.
 
+## Two-way matching
+
+`MatchReceipt(ctx, orderNumber, grossCents, reference, by)` is the receipt an inbound
+invoice triggers (the route lives on the invoice side, `POST /api/e-invoices/{id}/match`,
+`docs/09-e-invoicing.md`). It finds the order **by number** — the buyer reference (BT-10)
+the supplier echoes back is the order number — and requires:
+
+- the order to be **approved** (a draft never committed anything, a received one is already
+  matched, a cancelled one is no longer a liability) — anything else is `ErrBadTransition`;
+- the invoice's gross to equal the order's (`ErrMatchAmountMismatch` otherwise).
+
+When both hold it converts the commitment into an actual: a `release` of the commitment
+plus an `actual` of the same amount, in one step, so the position's available Mittel are
+**unchanged by the conversion** instead of being counted twice. Only then does the order
+become `received` (`purchase_order.match` on the audit stream). A refusal leaves the order
+and the budget exactly as they were.
+
 ## API
 
 | method | path |
@@ -46,6 +63,5 @@ commitment is visible on the budget position's balance.
 
 ## Not yet done
 
-- 2-way matching: match an inbound e-invoice (`docs/09-e-invoicing.md`) to its
-  purchase order and turn the commitment into an actual.
-- Goods-receipt lines (partial receipts).
+- Goods-receipt lines (partial receipts). Matching covers the invoice in full; a partial
+  receipt would need per-line matching.

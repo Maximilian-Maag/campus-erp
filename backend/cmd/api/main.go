@@ -79,6 +79,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("api: job enqueuer: %v", err)
 		}
+		// The e-invoice service matches an inbound invoice to a purchase order, so it needs the
+		// procurement service (which owns the order and the budget conversion).
+		procurementSvc := procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store)
 		deps := httpapi.Deps{
 			Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
 			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetSvc, store),
@@ -88,10 +91,10 @@ func main() {
 			Runs:            kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
 			Statements:      kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
 			FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
-			EInvoices:       einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store),
+			EInvoices:       einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), procurementSvc, store),
 			Budget:          budgetSvc,
 			Lookups:         lookupSvc,
-			Procurement:     procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store),
+			Procurement:     procurementSvc,
 			KLR:             klr.NewService(klr.NewRepo(pool), store),
 			Mandates:        kasse.NewMandateService(kasse.NewMandateRepo(pool), store),
 			CollectionRuns:  kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), store),

@@ -23,6 +23,9 @@ var (
 	ErrOrderExists            = errors.New("procurement: an order with that number already exists")
 	ErrOrderNotFound          = errors.New("procurement: purchase order not found")
 	ErrBadTransition          = errors.New("procurement: the order is not in a state that allows this step")
+	// ErrMatchAmountMismatch is returned when an inbound invoice's gross differs from its
+	// order's: the two-way match the receipt is built on.
+	ErrMatchAmountMismatch = errors.New("procurement: the invoice does not match the order's amount")
 )
 
 // Status is the order's lifecycle state.
