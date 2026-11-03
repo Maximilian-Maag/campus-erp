@@ -3,6 +3,7 @@ package klr
 import (
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestNewCostCenterAndUnit(t *testing.T) {
@@ -41,26 +42,33 @@ func TestNewCostCenterAndUnit(t *testing.T) {
 
 func TestNewRecord(t *testing.T) {
 	cu := int64(5)
-	rec, err := NewRecord(7, &cu, Cost, 1000, " RE-1 ")
+	rec, err := NewRecord(7, &cu, Cost, 1000, day(2026, 4, 30), " RE-1 ")
 	if err != nil {
 		t.Fatalf("NewRecord: %v", err)
 	}
 	if rec.CostCenterID != 7 || rec.CostUnitID == nil || *rec.CostUnitID != 5 || rec.Kind != Cost || rec.AmountCents != 1000 || rec.Reference != "RE-1" {
 		t.Fatalf("record = %+v", rec)
 	}
+	if !rec.BusinessDate.Equal(day(2026, 4, 30)) {
+		t.Fatalf("business date = %v", rec.BusinessDate)
+	}
 	// A record without a cost unit is fine.
-	if _, err := NewRecord(7, nil, Revenue, 1, ""); err != nil {
+	if _, err := NewRecord(7, nil, Revenue, 1, day(2026, 4, 30), ""); err != nil {
 		t.Fatalf("no unit: %v", err)
 	}
 
-	if _, err := NewRecord(0, nil, Cost, 1, ""); !errors.Is(err, ErrCostCenterNotFound) {
+	if _, err := NewRecord(0, nil, Cost, 1, day(2026, 4, 30), ""); !errors.Is(err, ErrCostCenterNotFound) {
 		t.Fatalf("no centre: %v", err)
 	}
-	if _, err := NewRecord(1, nil, "gift", 1, ""); !errors.Is(err, ErrUnknownKind) {
+	if _, err := NewRecord(1, nil, "gift", 1, day(2026, 4, 30), ""); !errors.Is(err, ErrUnknownKind) {
 		t.Fatalf("bad kind: %v", err)
 	}
-	if _, err := NewRecord(1, nil, Cost, 0, ""); !errors.Is(err, ErrAmountNotPositive) {
+	if _, err := NewRecord(1, nil, Cost, 0, day(2026, 4, 30), ""); !errors.Is(err, ErrAmountNotPositive) {
 		t.Fatalf("zero: %v", err)
+	}
+	// A record has to belong to a period: "whenever it was typed in" is not one.
+	if _, err := NewRecord(1, nil, Cost, 1, time.Time{}, ""); !errors.Is(err, ErrBusinessDateRequired) {
+		t.Fatalf("no business date: %v", err)
 	}
 }
 

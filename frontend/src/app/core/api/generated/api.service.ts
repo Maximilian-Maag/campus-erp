@@ -167,6 +167,18 @@ export class CampusErpApi {
     return this.http.post<m.CostCenter>(this.base + `/api/klr/cost-centers`, body);
   }
 
+  listAllocations(id: number | string): Observable<m.Allocation[]> {
+    return this.http.get<m.Allocation[]>(this.base + `/api/klr/cost-centers/${id}/allocations`);
+  }
+
+  defineAllocation(id: number | string, body: m.DefineAllocationRequest): Observable<m.Allocation> {
+    return this.http.post<m.Allocation>(this.base + `/api/klr/cost-centers/${id}/allocations`, body);
+  }
+
+  runAllocation(id: number | string, body: m.RunAllocationRequest): Observable<m.Run> {
+    return this.http.post<m.Run>(this.base + `/api/klr/cost-centers/${id}/allocations/run`, body);
+  }
+
   postAccountingRecord(id: number | string, body: m.KlrRecordRequest): Observable<m.Record> {
     return this.http.post<m.Record>(this.base + `/api/klr/cost-centers/${id}/records`, body);
   }

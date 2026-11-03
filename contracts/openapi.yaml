@@ -2077,6 +2077,121 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/klr/cost-centers/{id}/allocations:
+    post:
+      tags:
+      - klr
+      operationId: defineAllocation
+      summary: Define a distribution key
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefineAllocationRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Allocation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - klr
+      operationId: listAllocations
+      summary: List a cost centre's distribution keys
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Allocation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/klr/cost-centers/{id}/allocations/run:
+    post:
+      tags:
+      - klr
+      operationId: runAllocation
+      summary: Distribute a period's costs over the keys
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunAllocationRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/vat-types:
     post:
       tags:
@@ -2753,6 +2868,97 @@ components:
       - description
       - rate_basis_points
       - kind
+    Run:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        SourceCenterID:
+          type: integer
+          format: int64
+        PeriodFrom:
+          type: string
+          format: date-time
+        PeriodTo:
+          type: string
+          format: date-time
+        AllocatedCents:
+          type: integer
+          format: int64
+        Receivers:
+          type: integer
+          format: int64
+        RunBy:
+          type: string
+      required:
+      - ID
+      - SourceCenterID
+      - PeriodFrom
+      - PeriodTo
+      - AllocatedCents
+      - Receivers
+      - RunBy
+    RunAllocationRequest:
+      type: object
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+      required:
+      - from
+      - to
+    Allocation:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        SourceCenterID:
+          type: integer
+          format: int64
+        TargetCenterID:
+          type: integer
+          format: int64
+        ShareBP:
+          type: integer
+          format: int64
+        ValidFrom:
+          type: string
+          format: date-time
+        ValidTo:
+          type: string
+          format: date-time
+          x-nullable: true
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - SourceCenterID
+      - TargetCenterID
+      - ShareBP
+      - ValidFrom
+      - ValidTo
+      - CreatedBy
+    DefineAllocationRequest:
+      type: object
+      properties:
+        target_center_id:
+          type: integer
+          format: int64
+        share_bp:
+          type: integer
+          format: int64
+        valid_from:
+          type: string
+        valid_to:
+          type: string
+      required:
+      - target_center_id
+      - share_bp
+      - valid_from
+      - valid_to
     KlrReport:
       type: object
       properties:
@@ -2787,6 +2993,9 @@ components:
         AmountCents:
           type: integer
           format: int64
+        BusinessDate:
+          type: string
+          format: date-time
         Reference:
           type: string
         BookedBy:
@@ -2797,6 +3006,7 @@ components:
       - CostUnitID
       - Kind
       - AmountCents
+      - BusinessDate
       - Reference
       - BookedBy
     KlrRecordRequest:
@@ -2808,6 +3018,8 @@ components:
           x-nullable: true
         kind:
           type: string
+        business_date:
+          type: string
         amount_cents:
           type: integer
           format: int64
@@ -2816,6 +3028,7 @@ components:
       required:
       - cost_unit_id
       - kind
+      - business_date
       - amount_cents
       - reference
     CostUnit:

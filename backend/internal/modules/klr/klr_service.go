@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 )
@@ -74,12 +75,12 @@ func (s *Service) CreateCostUnit(ctx context.Context, number, name, by string) (
 	return saved, nil
 }
 
-// Post appends a KLR posting.
-func (s *Service) Post(ctx context.Context, costCenterID int64, costUnitID *int64, kind Kind, amountCents int64, reference, by string) (Record, error) {
+// Post appends a KLR posting for a business date — the period the record belongs to.
+func (s *Service) Post(ctx context.Context, costCenterID int64, costUnitID *int64, kind Kind, amountCents int64, businessDate time.Time, reference, by string) (Record, error) {
 	if strings.TrimSpace(by) == "" {
 		return Record{}, ErrActorRequired
 	}
-	rec, err := NewRecord(costCenterID, costUnitID, kind, amountCents, reference)
+	rec, err := NewRecord(costCenterID, costUnitID, kind, amountCents, businessDate, reference)
 	if err != nil {
 		return Record{}, err
 	}
@@ -92,7 +93,7 @@ func (s *Service) Post(ctx context.Context, costCenterID int64, costUnitID *int6
 		Actor:   by,
 		Action:  "accounting_record.create",
 		Subject: costCenterSubject(costCenterID),
-		After:   fmt.Sprintf("kind=%s amount_cents=%d", saved.Kind, saved.AmountCents),
+		After:   fmt.Sprintf("kind=%s amount_cents=%d business_date=%s", saved.Kind, saved.AmountCents, saved.BusinessDate.Format("2006-01-02")),
 	}); err != nil {
 		return Record{}, err
 	}

@@ -211,6 +211,13 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/klr/cost-centers/{id}/report": {
         "get": ("getKLRReport", "klr", "Read the cost-centre report", None, "klr.Report", 200, "json"),
     },
+    "/api/klr/cost-centers/{id}/allocations": {
+        "post": ("defineAllocation", "klr", "Define a distribution key", "httpapi.defineAllocationRequest", "klr.Allocation", 201, "json"),
+        "get": ("listAllocations", "klr", "List a cost centre's distribution keys", None, "[]klr.Allocation", 200, "json"),
+    },
+    "/api/klr/cost-centers/{id}/allocations/run": {
+        "post": ("runAllocation", "klr", "Distribute a period's costs over the keys", "httpapi.runAllocationRequest", "klr.Run", 201, "json"),
+    },
     # ── Tax / foundations ────────────────────────────────────────────────────
     "/api/vat-types": {
         "post": ("createVATType", "kasse", "Create a VAT type", "httpapi.vatTypeRequest", "kasse.VATType", 201, "json"),

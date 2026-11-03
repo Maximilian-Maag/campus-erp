@@ -2,6 +2,42 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.80.0] - 2026-11-03
+
+The KLR distributes: a cost centre's costs reach its receivers by keys, exactly and once.
+
+### Added
+- The KLR distribution engine (migration 0022, `internal/modules/klr/allocation.go`): a cost
+  centre's period costs are handed to its receivers in the shares its keys give, and the source
+  is relieved by the same amount through a `revenue`. `POST /api/klr/cost-centers/{id}/allocations`
+  defines a key, `GET …/allocations` lists them, `POST …/allocations/run` distributes a period.
+- A distribution key is **data** — source centre, receiving centre, share in basis points,
+  validity — because the vendor's `overhead_calc*`/`allocation*` shape is not published
+  (`docs/13`), the same reasoning as the per-state statistics layouts (ADR-0012).
+- `allocation_run` records each run, and the records it wrote carry its reference (`UML:<run>`),
+  so a distributed cost is traceable in the report.
+- `Run` and `Allocation` on the API; audit events `allocation.define` and `allocation.run`.
+
+### Changed
+- KLR records carry a **business date** (migration 0023): the period a record belongs to, which
+  is not the day it was entered — the month's costs are booked after it ends, and that is the
+  period they must be distributed over. `POST …/records` accepts an optional `business_date`
+  and defaults to today.
+
+### Notes
+- The split is exact: each receiver gets its share rounded down and the last takes the
+  remainder, so no cent is created or lost, and a share that rounds to nothing books nothing
+  (a record's amount is always positive).
+- One run per centre and period, enforced by an **exclusion constraint over the period**: an
+  overlapping window is refused, not merely an identical one, because two runs over the same
+  days would hand out the same costs twice. The run and its records are written in one
+  transaction, and a refused run leaves the books untouched.
+- The sum of balances across the centres is unchanged by a run — it moves cost, it neither
+  creates nor destroys any. The cost *volume* does rise by the allocated amount, since the
+  receivers' records are new and the source's are not removed: records are append-only.
+- Receivers are cost centres. Distributing onto a cost *unit* (Kostenträger) is a separate step
+  and no column for it was added; `docs/13` says why.
+
 ## [0.79.0] - 2026-11-03
 
 A stored invoice knows which way it goes.
