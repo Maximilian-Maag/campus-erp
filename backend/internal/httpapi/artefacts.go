@@ -64,12 +64,12 @@ func artefactContentType(key string) string {
 func (s *Server) getArtefact(w http.ResponseWriter, r *http.Request) {
 	key, err := artefactKey(r.PathValue("kind"), r.PathValue("name"))
 	if err != nil {
-		writeProblem(w, http.StatusBadRequest, err.Error())
+		writeProblemCode(w, http.StatusBadRequest, "invalid_artefact", err.Error())
 		return
 	}
 	content, err := s.artefacts.Get(r.Context(), key)
 	if err != nil {
-		writeProblem(w, http.StatusNotFound, "no such artefact")
+		writeProblemCode(w, http.StatusNotFound, "artefact_not_found", "no such artefact")
 		return
 	}
 	w.Header().Set("Content-Type", artefactContentType(key))

@@ -48,14 +48,23 @@ write the shared JSON envelope defined in the contract
 (`components/schemas/Problem`):
 
 ```json
-{ "error": "kasse: day is closed" }
+{ "error": "kasse: day is closed", "code": "unprocessable", "request_id": "a1b2…" }
 ```
 
 `writeProblem(w, status, msg)` is the single writer; the per-module
 `statusFor…` mappers still decide the status code (they encode the domain
 meaning), but the *body* is uniform, so the generated client and every future
-consumer can parse errors the same way. The `X-Request-ID` response header ties
-an error report to a log line.
+consumer can parse errors the same way.
+
+- **`code`** is a stable machine code derived from the status (`not_found`,
+  `unprocessable`, …), so a client branches on it instead of matching the message text.
+  Where a client should branch on something the status cannot express, the handler passes
+  an explicit code through `writeProblemCode` (e.g. `invalid_artefact`,
+  `artefact_not_found`, `state_required`, `export_queue_unconfigured`).
+- **`request_id`** is the same correlation id the response carries in `X-Request-ID`, so an
+  error report maps to a log line and an audit event (NFR-5). It rides on the response
+  writer the middleware installs, which is why no handler has to thread the request
+  through to write an error.
 
 ## 4. What this changes in the contract
 
@@ -76,5 +85,7 @@ field that can be absent-as-null.
 - ~~Auth is still the `X-Actor` header~~ — done since: OIDC + the coarse role model
   (ADR-0003) shipped (docs/17), and the authenticated subject is the audit `actor`,
   qualified with the resolved tenant.
-- The error envelope has no stable machine `code` yet; the contract reserves the
-  field, and populating it from domain errors is a follow-up.
+- ~~The error envelope has no stable machine `code`~~ — done since: the envelope carries a
+  status-derived code, and `writeProblemCode` sets a domain code where a client branches on
+  it. What remains is a *systematic* mapping from domain errors to codes rather than the
+  per-call-site ones.

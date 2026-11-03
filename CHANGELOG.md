@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.66.0] - 2026-11-02
+
+The error envelope is the one the contract documents.
+
+### Changed
+- `writeProblem` now writes the documented `Problem` shape — `{error, code, request_id}` —
+  instead of only `{error}`. The contract had reserved `code` and `request_id` since the
+  transport slice and the server never sent them, so a client reading the spec got fields
+  that were never there.
+- `code` is a stable machine code derived from the status (`not_found`, `unprocessable`, …).
+  `writeProblemCode` passes an explicit code where a client should branch on something the
+  status cannot express: `invalid_artefact` / `artefact_not_found` on the artefact route, and
+  `state_required` / `report_id_required` / `invalid_period` / `export_queue_unconfigured` on
+  the export routes.
+- `request_id` is the same correlation id the response carries in `X-Request-ID`; it rides on
+  the response writer the middleware already installs, so no handler changed its signature.
+
+### Tests
+- The envelope through the middleware (code, message, request_id equal to the header), the
+  explicit-code path written with no wrapper, every entry of the status→code mapping, and the
+  codes pinned on the artefact and export refusals.
+
 ## [0.65.0] - 2026-11-02
 
 The remaining export/render kinds are queueable from the API too.
