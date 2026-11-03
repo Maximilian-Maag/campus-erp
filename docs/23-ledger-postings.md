@@ -41,17 +41,21 @@ audit stream.
 ## Handing the file over
 
 The `ledger-export` worker kind (`jobs.LedgerExportArgs{From, To, Actor}`) runs the
-export and writes the file through a `LedgerExportFunc`. The worker role's default
-implementation drops it into `ERP_LEDGER_OUTBOX_DIR`; object storage or SFTP replaces
-that one function without touching the kind. The service refuses an export that does
-not balance against its bookings, so an unbalanced file is never handed over.
+export and writes the file through a `LedgerExportFunc`. The worker role's implementation
+stores it through the **artefact store** (ADR-0011, docs/26) under
+`ledger/ledger-postings-<timestamp>.csv` — so a local directory and an S3 bucket behave
+alike, and handing the file to the bank channel over SFTP replaces that one function
+without touching the kind. The service refuses an export that does not balance against its
+bookings, so an unbalanced file is never handed over.
 
 `POST /api/ledger/exports` (role `kasse`) queues one for a period: `{from, to}` -> `202`
 with the job id (docs/27 describes the queueing seam).
 
 ## Not yet done
 
-- Replace the outbox directory with the real transport (object storage or SFTP) and
-  the tie-back reconciliation report to the ledger side.
-- The tie-back reconciliation: assert every exported posting maps to exactly one
-  booking, and surface bookings that did not export.
+- Hand the file to the ledger/bank channel over SFTP (the artefact store is the swap point:
+  the file is already written through it, so only the *delivery* is missing).
+- ~~The tie-back reconciliation~~ — done since: `ledger.Reconcile` runs on every export, the
+  service **refuses** an export that does not balance its bookings, and the audit detail
+  records `matched`/`missing`/`extra`/`balanced`, so a booking that did not export is visible
+  rather than silent.

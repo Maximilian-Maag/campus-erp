@@ -2,6 +2,21 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.68.0] - 2026-11-02
+
+Documentation: three claims the code had outgrown.
+
+### Fixed
+- docs/23 (and docs/17) said the ledger export "drops it into `ERP_LEDGER_OUTBOX_DIR`". There
+  is no such variable: the worker stores the file through the **artefact store**
+  (`ERP_OUTBOX_DIR`; `ERP_S3_ENDPOINT` selects an S3 bucket) under
+  `ledger/ledger-postings-<timestamp>.csv` (ADR-0011, docs/26), so a directory and an S3
+  bucket behave alike.
+- docs/23 listed the tie-back reconciliation as not done. It runs on every export: the service
+  refuses an export that does not balance against its bookings, and the audit detail records
+  `matched`/`missing`/`extra`/`balanced`.
+- docs/21 still said "no collection run yet" (docs/20 and docs/22 document one).
+
 ## [0.67.0] - 2026-11-02
 
 The ETL run history is queryable.
