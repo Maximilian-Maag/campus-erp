@@ -14,6 +14,7 @@ type budgetService interface {
 	CreatePosition(ctx context.Context, year int, chapter, title, description string, allocatedCents int64, by string) (budget.Position, error)
 	Post(ctx context.Context, positionID int64, kind budget.PostingKind, amountCents int64, reference, by string) (budget.Posting, error)
 	GetPosition(ctx context.Context, id int64) (budget.Position, error)
+	Positions(ctx context.Context) ([]budget.Position, error)
 	Balance(ctx context.Context, id int64) (budget.Balance, error)
 }
 
@@ -59,9 +60,13 @@ func (s *Server) createBudgetPosition(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, pos)
 }
 
+// budgetPositionResponse is a position with its balance and the amount still free. The
+// available amount is derived here, from the same balance the Mittelüberwachung guard uses, so
+// a client shows what the budget will allow without re-implementing the rule.
 type budgetPositionResponse struct {
-	Position budget.Position `json:"position"`
-	Balance  budget.Balance  `json:"balance"`
+	Position       budget.Position `json:"position"`
+	Balance        budget.Balance  `json:"balance"`
+	AvailableCents int64           `json:"available_cents"`
 }
 
 func (s *Server) getBudgetPosition(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +85,29 @@ func (s *Server) getBudgetPosition(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, statusForBudget(err), err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, budgetPositionResponse{Position: pos, Balance: bal})
+	writeJSON(w, http.StatusOK, budgetPositionResponse{Position: pos, Balance: bal, AvailableCents: bal.AvailableCents()})
+}
+
+// listBudgetPositions returns every position with its balance: the Mittelübersicht a client
+// shows without having to ask position by position. It reads each balance separately, so a
+// budget with many positions costs many reads; an aggregate query is the follow-up when it
+// matters.
+func (s *Server) listBudgetPositions(w http.ResponseWriter, r *http.Request) {
+	positions, err := s.budget.Positions(r.Context())
+	if err != nil {
+		writeProblem(w, statusForBudget(err), err.Error())
+		return
+	}
+	out := make([]budgetPositionResponse, 0, len(positions))
+	for _, pos := range positions {
+		bal, err := s.budget.Balance(r.Context(), pos.ID)
+		if err != nil {
+			writeProblem(w, statusForBudget(err), err.Error())
+			return
+		}
+		out = append(out, budgetPositionResponse{Position: pos, Balance: bal, AvailableCents: bal.AvailableCents()})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 type budgetPostingRequest struct {

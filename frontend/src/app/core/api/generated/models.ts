@@ -37,8 +37,9 @@ export interface Booking {
 }
 
 export interface BudgetPositionResponse {
-  position: string;
-  balance: string;
+  position: Position;
+  balance: Balance;
+  available_cents: number;
 }
 
 export interface BudgetPostingRequest {

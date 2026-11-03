@@ -1,9 +1,15 @@
 package httpapi_test
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 )
 
 type budgetPositionJSON struct {
@@ -20,6 +26,7 @@ type budgetPositionJSON struct {
 		CommittedCents int64
 		ActualCents    int64
 	}
+	AvailableCents int64 `json:"available_cents"`
 }
 
 func TestHTTPBudgetFlow(t *testing.T) {
@@ -56,6 +63,10 @@ func TestHTTPBudgetFlow(t *testing.T) {
 	if view.Balance.AllocatedCents != 100000 || view.Balance.CommittedCents != 30000 {
 		t.Fatalf("balance = %+v", view.Balance)
 	}
+	// The API states what is still free, so a client does not re-implement the guard's rule.
+	if view.AvailableCents != 70000 {
+		t.Fatalf("available = %d, want the position less the commitment", view.AvailableCents)
+	}
 
 	// Over-spend -> 409.
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/budget/positions/"+itoa(pos.ID)+"/postings", "alice",
@@ -66,6 +77,61 @@ func TestHTTPBudgetFlow(t *testing.T) {
 	// Balance endpoint.
 	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/budget/positions/"+itoa(pos.ID)+"/balance", "alice", ""); resp.StatusCode != http.StatusOK {
 		t.Fatalf("balance = %d", resp.StatusCode)
+	}
+
+	// The list is what a client's Mittelübersicht shows: every position, each with its balance
+	// already read, so the screen does not have to ask position by position.
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/budget/positions", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list positions = %d", resp.StatusCode)
+	}
+	var list []budgetPositionJSON
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	var found bool
+	for _, p := range list {
+		if p.Position.ID == pos.ID {
+			found = true
+			if p.Balance.AllocatedCents != 100000 || p.Balance.CommittedCents != 30000 {
+				t.Fatalf("listed balance = %+v", p.Balance)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("the created position is not in the list of %d", len(list))
+	}
+}
+
+// stubBudgetBalanceFails lists positions but cannot read a balance: the list must fail rather
+// than render a budget with a missing figure.
+type stubBudgetBalanceFails struct{ stubBudget }
+
+func (s stubBudgetBalanceFails) Positions(context.Context) ([]budget.Position, error) {
+	return []budget.Position{{ID: 1, Year: 2026, Chapter: "1", Title: "2"}}, nil
+}
+
+// TestListBudgetPositionsFailurePaths: neither a position list that cannot be read nor a
+// balance that cannot be read may produce a half-rendered budget.
+func TestListBudgetPositionsFailurePaths(t *testing.T) {
+	boom := errors.New("boom")
+
+	cases := []struct {
+		name string
+		deps httpapi.Deps
+	}{
+		{"positions fail", httpapi.Deps{Budget: stubBudget{err: boom}}},
+		{"balance fails", httpapi.Deps{Budget: stubBudgetBalanceFails{stubBudget{err: boom}}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			srv := httptest.NewServer(httpapi.New(c.deps).Routes())
+			t.Cleanup(srv.Close)
+
+			if resp := doJSON(t, http.MethodGet, srv.URL+"/api/budget/positions", "alice", ""); resp.StatusCode != http.StatusInternalServerError {
+				t.Fatalf("status = %d, want 500", resp.StatusCode)
+			}
+		})
 	}
 }
 

@@ -2,6 +2,24 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.75.0] - 2026-11-03
+
+The budget screen, and the read route behind it.
+
+### Added
+- `GET /api/budget/positions` (role `finanzen`): every position with its balance and
+  `available_cents` — the derived figure the Mittelüberwachung applies, stated by the API so a
+  client does not re-implement the rule.
+- `frontend`: *Budget — Mittelübersicht* (`/budget/haushaltsstellen`) — the second screen and
+  the first read screen. Loading, empty and failed states are distinct (a failed load no
+  longer also claims the budget is empty). Karma spec, Playwright run with axe, and the
+  frontend mutation gate all cover it.
+
+### Fixed
+- The OpenAPI generator resolved only *unqualified* field types: a field typed `budget.Position`
+  fell through to `string`, so `BudgetPositionResponse.position`/`balance` reached the client as
+  strings instead of objects. A qualified name is now resolved in the package it names.
+
 ## [0.74.0] - 2026-11-03
 
 Reports: a shared catalogue, and the budget's Mittelübersicht.

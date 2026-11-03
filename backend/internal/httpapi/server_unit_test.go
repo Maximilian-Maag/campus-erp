@@ -224,6 +224,10 @@ func (s stubBudget) GetPosition(context.Context, int64) (budget.Position, error)
 	return budget.Position{}, s.err
 }
 
+func (s stubBudget) Positions(context.Context) ([]budget.Position, error) {
+	return nil, s.err
+}
+
 func (s stubBudget) Balance(context.Context, int64) (budget.Balance, error) {
 	return budget.Balance{}, s.err
 }
