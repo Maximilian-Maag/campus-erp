@@ -205,6 +205,10 @@ func (s stubEInvoices) Render(context.Context, int64) (string, error) {
 	return "", s.err
 }
 
+func (s stubEInvoices) Match(context.Context, int64, string) (core.Invoice, error) {
+	return core.Invoice{}, s.err
+}
+
 // stubBudget satisfies the budget interface with a fixed result.
 type stubBudget struct{ err error }
 

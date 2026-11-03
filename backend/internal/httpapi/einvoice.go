@@ -10,6 +10,7 @@ import (
 
 	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
 )
 
 // einvoiceService is the e-invoicing surface the HTTP layer needs.
@@ -18,14 +19,17 @@ type einvoiceService interface {
 	ImportReceived(ctx context.Context, doc, by string) (core.Invoice, error)
 	Get(ctx context.Context, id int64) (core.Invoice, error)
 	Render(ctx context.Context, id int64) (string, error)
+	Match(ctx context.Context, id int64, by string) (core.Invoice, error)
 }
 
 // statusForEInvoice maps an e-invoice error to an HTTP status.
 func statusForEInvoice(err error) int {
 	switch {
-	case errors.Is(err, einvoice.ErrNotFound):
+	case errors.Is(err, einvoice.ErrNotFound), errors.Is(err, procurement.ErrOrderNotFound):
 		return http.StatusNotFound
 	case errors.Is(err, einvoice.ErrNumberExists):
+		return http.StatusConflict
+	case errors.Is(err, procurement.ErrBadTransition):
 		return http.StatusConflict
 	case errors.Is(err, einvoice.ErrActorRequired),
 		errors.Is(err, core.ErrNumberRequired),
@@ -49,6 +53,7 @@ func statusForEInvoice(err error) int {
 		errors.Is(err, core.ErrVATCategoryRequired),
 		errors.Is(err, core.ErrLineNetMismatch),
 		errors.Is(err, core.ErrMalformed),
+		errors.Is(err, procurement.ErrMatchAmountMismatch),
 		errors.Is(err, core.ErrBadValue):
 		return http.StatusUnprocessableEntity
 	default:
@@ -146,6 +151,23 @@ func (s *Server) receiveEInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
+}
+
+// matchEInvoice runs the two-way match for an inbound invoice: it finds the purchase order the
+// invoice's buyer reference names, checks the amounts agree, and converts that order's
+// commitment into an actual (docs/09, docs/12).
+func (s *Server) matchEInvoice(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	inv, err := s.einvoices.Match(r.Context(), id, actor(r))
+	if err != nil {
+		writeProblem(w, statusForEInvoice(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, inv)
 }
 
 func (s *Server) getEInvoice(w http.ResponseWriter, r *http.Request) {

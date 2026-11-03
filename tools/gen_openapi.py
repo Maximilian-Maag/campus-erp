@@ -149,6 +149,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/e-invoices/{id}/xrechnung": {
         "get": ("getEInvoiceXML", "einvoice", "Download the UBL 2.1 XML of an e-invoice", None, None, 200, "file"),
     },
+    "/api/e-invoices/{id}/match": {
+        "post": ("matchEInvoice", "einvoice", "Match an inbound e-invoice to the purchase order its buyer reference names and convert the commitment", None, "einvoice.Invoice", 200, "json"),
+    },
     # ── Budget ───────────────────────────────────────────────────────────────
     "/api/budget/positions": {
         "post": ("createBudgetPosition", "budget", "Create a budget position", "httpapi.createBudgetPositionRequest", "budget.Position", 201, "json"),

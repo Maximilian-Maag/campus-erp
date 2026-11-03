@@ -31,7 +31,7 @@ func uniqueSuffix(t *testing.T) string {
 func newService(t *testing.T) *einvoice.InvoiceService {
 	t.Helper()
 	pool := testPool(t)
-	return einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), audit.NewStore(pool))
+	return einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), nil, audit.NewStore(pool))
 }
 
 func sampleInvoice(t *testing.T) core.Invoice {
@@ -168,7 +168,7 @@ func TestInvoiceAuditChain(t *testing.T) {
 	ctx := context.Background()
 	pool := testPool(t)
 	store := audit.NewStore(pool)
-	svc := einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), store)
+	svc := einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), nil, store)
 
 	if _, err := svc.Create(ctx, sampleInvoice(t), "alice"); err != nil {
 		t.Fatalf("Create: %v", err)

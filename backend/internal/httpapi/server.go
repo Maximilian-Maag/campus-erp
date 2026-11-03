@@ -182,6 +182,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/e-invoices/received", s.authorize(s.receiveEInvoice, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/e-invoices/{id}", s.authorizeRead(s.getEInvoice, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/e-invoices/{id}/xrechnung", s.authorizeRead(s.getEInvoiceXML, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/e-invoices/{id}/match", s.authorize(s.matchEInvoice, auth.RoleFinanzen))
 
 	mux.HandleFunc("POST /api/budget/positions", s.authorize(s.createBudgetPosition, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/budget/positions/{id}", s.authorizeRead(s.getBudgetPosition, auth.RoleFinanzen))

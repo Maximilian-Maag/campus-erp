@@ -183,3 +183,85 @@ func TestProcurementTransitionsAndErrors(t *testing.T) {
 		t.Fatalf("cancel unknown: %v", err)
 	}
 }
+
+// TestProcurementMatchReceipt: the two-way match finds the order by number, checks the invoice's
+// gross against the order's, and converts the commitment into an actual rather than counting it
+// twice. Every refusal leaves the order and the budget as they were.
+func TestProcurementMatchReceipt(t *testing.T) {
+	ctx := context.Background()
+	procSvc, budgetSvc := setup(t)
+
+	pos, err := budgetSvc.CreatePosition(ctx, 2026, "05", "M-"+suffix(t), "Beschaffung", 100000, "alice")
+	if err != nil {
+		t.Fatalf("CreatePosition: %v", err)
+	}
+
+	// A matched order: commitment out, actual in, available unchanged by the conversion.
+	order, err := procSvc.Create(ctx, "PO-M-"+suffix(t), "Lieferant GmbH", pos.ID, "EUR", oneLine(10000, 1900), "alice")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := procSvc.Approve(ctx, order.ID, "dave"); err != nil {
+		t.Fatalf("Approve: %v", err)
+	}
+	matched, err := procSvc.MatchReceipt(ctx, order.Number, 11900, "RE:1", "carol")
+	if err != nil {
+		t.Fatalf("MatchReceipt: %v", err)
+	}
+	if matched.Status != procurement.StatusReceived {
+		t.Fatalf("status = %s, want received", matched.Status)
+	}
+	bal, err := budgetSvc.Balance(ctx, pos.ID)
+	if err != nil {
+		t.Fatalf("Balance: %v", err)
+	}
+	if bal.CommittedCents != 0 || bal.ActualCents != 11900 {
+		t.Fatalf("balance = committed %d / actual %d, want 0 / 11900", bal.CommittedCents, bal.ActualCents)
+	}
+	if bal.AvailableCents() != 100000-11900 {
+		t.Fatalf("available = %d, want the position less the actual", bal.AvailableCents())
+	}
+
+	// An invoice that does not add up to the order is refused, and nothing moves.
+	other, err := procSvc.Create(ctx, "PO-MM-"+suffix(t), "Lieferant GmbH", pos.ID, "EUR", oneLine(5000, 1900), "alice")
+	if err != nil {
+		t.Fatalf("Create other: %v", err)
+	}
+	if _, err := procSvc.Approve(ctx, other.ID, "dave"); err != nil {
+		t.Fatalf("Approve other: %v", err)
+	}
+	before, _ := budgetSvc.Balance(ctx, pos.ID)
+	if _, err := procSvc.MatchReceipt(ctx, other.Number, 5951, "RE:2", "carol"); !errors.Is(err, procurement.ErrMatchAmountMismatch) {
+		t.Fatalf("mismatch = %v, want ErrMatchAmountMismatch", err)
+	}
+	still, err := procSvc.Get(ctx, other.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if still.Status != procurement.StatusApproved {
+		t.Fatalf("status after mismatch = %s, want approved", still.Status)
+	}
+	if after, _ := budgetSvc.Balance(ctx, pos.ID); after.CommittedCents != before.CommittedCents {
+		t.Fatalf("committed moved on a refused match: %d -> %d", before.CommittedCents, after.CommittedCents)
+	}
+
+	// A draft cannot be matched (it never committed anything).
+	draft, err := procSvc.Create(ctx, "PO-D-"+suffix(t), "Lieferant GmbH", pos.ID, "EUR", oneLine(100, 1900), "alice")
+	if err != nil {
+		t.Fatalf("Create draft: %v", err)
+	}
+	if _, err := procSvc.MatchReceipt(ctx, draft.Number, 119, "RE:3", "carol"); !errors.Is(err, procurement.ErrBadTransition) {
+		t.Fatalf("match draft = %v, want ErrBadTransition", err)
+	}
+	// An unknown order number, and a blank actor.
+	if _, err := procSvc.MatchReceipt(ctx, "PO-nope-"+suffix(t), 119, "RE:4", "carol"); !errors.Is(err, procurement.ErrOrderNotFound) {
+		t.Fatalf("unknown order = %v, want ErrOrderNotFound", err)
+	}
+	if _, err := procSvc.MatchReceipt(ctx, order.Number, 11900, "RE:5", "  "); !errors.Is(err, procurement.ErrActorRequired) {
+		t.Fatalf("blank actor = %v, want ErrActorRequired", err)
+	}
+
+	if err := audit.NewStore(testPool(t)).Verify(ctx); err != nil {
+		t.Fatalf("audit verify: %v", err)
+	}
+}

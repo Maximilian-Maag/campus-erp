@@ -115,6 +115,10 @@ export class CampusErpApi {
     return this.http.get<m.Invoice>(this.base + `/api/e-invoices/${id}`);
   }
 
+  matchEInvoice(id: number | string): Observable<m.Invoice> {
+    return this.http.post<m.Invoice>(this.base + `/api/e-invoices/${id}/match`, null);
+  }
+
   getEInvoiceXML(id: number | string): Observable<string> {
     return this.http.get<string>(this.base + `/api/e-invoices/${id}/xrechnung`);
   }
