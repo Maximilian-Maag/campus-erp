@@ -2,6 +2,19 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.71.0] - 2026-11-03
+
+CI: the Go module cache actually restores, and a proxy blip no longer reddens a shard.
+
+### Fixed
+- `actions/setup-go` looked for the dependency file at the repository root, but the module
+  files live under `backend/`: the cache restore failed every run ("Dependencies file is not
+  found") and each of the ~25 mutation shards re-downloaded the whole module set. Pointed at
+  `backend/go.sum`, so the cache key matches and the set is fetched once per run.
+- A transient `proxy.golang.org` failure (`stream error ... INTERNAL_ERROR; received from
+  peer`) failed a shard whose package was nowhere near the change — it happened three times.
+  The module download and the gremlins install now retry before failing.
+
 ## [0.70.0] - 2026-11-02
 
 Approving a payment order binds budget — and cannot exceed it.
