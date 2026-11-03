@@ -157,6 +157,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     # ── Budget ───────────────────────────────────────────────────────────────
     "/api/budget/positions": {
+        "get": ("listBudgetPositions", "budget", "List every budget position with its balance", None, "[]httpapi.budgetPositionResponse", 200, "json"),
         "post": ("createBudgetPosition", "budget", "Create a budget position", "httpapi.createBudgetPositionRequest", "budget.Position", 201, "json"),
     },
     "/api/budget/positions/{id}": {
@@ -472,6 +473,16 @@ def _go_type_schema_inner(t: str, res: Resolver, pkg: str) -> dict:
     # then a named scalar type in the same package, else a plain string.
     if t in res.pkgs.get(pkg, {}):
         return {"$ref": f"#/components/schemas/{pkg}.{t}"}
+    if "." in t:
+        # A qualified name ("budget.Position") names its package, so resolve it there instead
+        # of falling through to a plain string (which is how a response body's nested object
+        # used to reach the client as `string`).
+        qual, name = t.split(".", 1)
+        if name in res.pkgs.get(qual, {}):
+            return res.ref_for(t)
+        if name in res.named.get(qual, {}):
+            return _scalar(res.named[qual][name])
+        return {"type": "string"}
     if len(res.names.get(t, [])) == 1:
         return {"$ref": f"#/components/schemas/{res.names[t][0]}.{t}"}
     if t in res.named.get(pkg, {}):

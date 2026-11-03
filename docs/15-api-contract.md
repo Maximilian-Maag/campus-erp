@@ -69,14 +69,28 @@ importBankStatement(body: m.ImportStatementRequest): Observable<m.Statement[]> {
 Bodies and responses are typed from the Go structs; path parameters are typed;
 `POST`s without a body pass `null` (Angular requires the argument).
 
-## The first consumer
+A **qualified** field type (`budget.Position`) is resolved in the package it names. It used to
+fall through to `string`, so a response body's nested object reached the client as
+`position: string` — the budget position response was the one that showed it.
 
-`frontend/src/app/kasse/cashbook-day.component.ts` — *Kasse: open a cash-book
-day* — is the first screen of the rebuild and the proof the pipeline works: it
-imports `CampusErpApi` from the generated client, builds the request through the
-generated `OpenDayRequest` type, and renders the returned `Day`. It is covered by
-a Karma spec (POSTs to `/api/cashbook/days`, renders the day, shows an error on
-failure) and is reachable at route `/kasse/tag`.
+## The consumers
+
+`frontend/src/app/kasse/cashbook-day.component.ts` — *Kasse: open a cash-book day* (route
+`/kasse/tag`) — was the first screen of the rebuild and the proof the pipeline works: it
+imports `CampusErpApi` from the generated client, builds the request through the generated
+`OpenDayRequest` type, and renders the returned `Day`.
+
+`frontend/src/app/budget/positions.component.ts` — *Budget: Mittelübersicht* (route
+`/budget/haushaltsstellen`) — is the first read screen: it renders every position with Ansatz,
+Verpflichtet, Ist and Verfügbar, and shows the loading, empty and failed states separately.
+The available amount is the API's (`available_cents`), so the screen shows the figure the
+Mittelüberwachung actually applies instead of recomputing the rule.
+
+Both are covered twice: a Karma spec drives the component against a mocked HTTP backend
+(request, render, empty, failure, formatting), and a Playwright test drives the real browser
+against a stubbed API and runs **axe** over the result — no violations, which is what
+CR-7/BITV 2.0 requires. The frontend mutation gate (`npx stryker run`, break 85) covers them
+too.
 
 ## How it is enforced
 
@@ -99,9 +113,5 @@ failure) and is reachable at route `/kasse/tag`.
 
 ## Not yet done
 
-- The client is generated but only one screen consumes it; the rest of the
-  domains get screens as their phases land.
-- Error responses are the shared `Problem` envelope, written by one function
-  (`writeProblem`) with a machine `code` and the request id (docs/16 §3). The
-  per-module `statusFor…` mappers still choose the status — that is where the domain
-  meaning lives — but the body no longer varies by module.
+- Two of the domains have a screen; the rest get theirs as their phases land, each one
+  starting from the read routes it needs (module list endpoints, `GET /api/reports`).

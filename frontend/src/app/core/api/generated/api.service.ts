@@ -35,6 +35,10 @@ export class CampusErpApi {
     return this.http.get<m.Statement>(this.base + `/api/bank-statements/${id}`);
   }
 
+  listBudgetPositions(): Observable<m.BudgetPositionResponse[]> {
+    return this.http.get<m.BudgetPositionResponse[]>(this.base + `/api/budget/positions`);
+  }
+
   createBudgetPosition(body: m.CreateBudgetPositionRequest): Observable<m.Position> {
     return this.http.post<m.Position>(this.base + `/api/budget/positions`, body);
   }

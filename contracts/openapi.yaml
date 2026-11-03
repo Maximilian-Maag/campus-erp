@@ -1398,6 +1398,34 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
   /api/budget/positions:
+    get:
+      tags:
+      - budget
+      operationId: listBudgetPositions
+      summary: List every budget position with its balance
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetPositionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
     post:
       tags:
       - budget
@@ -3013,12 +3041,16 @@ components:
       type: object
       properties:
         position:
-          type: string
+          $ref: '#/components/schemas/Position'
         balance:
-          type: string
+          $ref: '#/components/schemas/Balance'
+        available_cents:
+          type: integer
+          format: int64
       required:
       - position
       - balance
+      - available_cents
     Position:
       type: object
       properties:
