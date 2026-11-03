@@ -25,6 +25,7 @@ func newApprovedOrder(t *testing.T, svc *kasse.OrderService, amountCents int64) 
 	}
 	pos, err := svc.CreateBudgetPosition(ctx, kasse.BudgetPosition{
 		Year: 2026, Chapter: "0710", Title: "6810", CostCentre: "KST-" + uniqueSuffix(t), CostCarrier: "KT",
+		AllocatedCents: 2 * amountCents,
 	})
 	if err != nil {
 		t.Fatalf("CreateBudgetPosition: %v", err)
@@ -53,7 +54,7 @@ func newRunService(t *testing.T) (*kasse.PaymentRunService, *kasse.OrderService)
 	pool := testPool(t)
 	store := audit.NewStore(pool)
 	return kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
-		kasse.NewOrderService(kasse.NewOrderRepo(pool), store)
+		kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetService(pool), store)
 }
 
 func TestPaymentRunProducesSEPAFile(t *testing.T) {
@@ -133,7 +134,7 @@ func TestPaymentRunRejectsUnapprovedOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRecipient: %v", err)
 	}
-	pos, err := orderSvc.CreateBudgetPosition(ctx, kasse.BudgetPosition{Year: 2026, Chapter: "1", Title: "2", CostCentre: uniqueSuffix(t), CostCarrier: "k"})
+	pos, err := orderSvc.CreateBudgetPosition(ctx, kasse.BudgetPosition{Year: 2026, Chapter: "1", Title: "2", CostCentre: uniqueSuffix(t), CostCarrier: "k", AllocatedCents: 10000})
 	if err != nil {
 		t.Fatalf("CreateBudgetPosition: %v", err)
 	}
@@ -240,7 +241,7 @@ func TestPaymentRunRejectsInvalidCreditorBIC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRecipient: %v", err)
 	}
-	pos, err := orderSvc.CreateBudgetPosition(ctx, kasse.BudgetPosition{Year: 2026, Chapter: "1", Title: "2", CostCentre: uniqueSuffix(t), CostCarrier: "k"})
+	pos, err := orderSvc.CreateBudgetPosition(ctx, kasse.BudgetPosition{Year: 2026, Chapter: "1", Title: "2", CostCentre: uniqueSuffix(t), CostCarrier: "k", AllocatedCents: 10000})
 	if err != nil {
 		t.Fatalf("CreateBudgetPosition: %v", err)
 	}

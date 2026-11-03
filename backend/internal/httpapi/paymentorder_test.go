@@ -13,7 +13,7 @@ func orderPayload(reference, dueDate string) string {
 		`"currency":"EUR","purpose":"Stromabschlag","due_date":"` + dueDate + `",` +
 		`"recipient":{"name":"Stadtwerke","account_holder":"Stadtwerke","iban":"DE02120300000000202051",` +
 		`"bic":"BYLADEM1001","bank_name":"Musterbank"},` +
-		`"budget_position":{"year":2026,"chapter":"0710","title":"6810","cost_centre":"KST-1","cost_carrier":"KT-1"}}`
+		`"budget_position":{"year":2026,"chapter":"0710","title":"6810","cost_centre":"KST-1","cost_carrier":"KT-1","allocated_cents":500000}}`
 }
 
 type orderJSON struct {

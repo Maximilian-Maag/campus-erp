@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
+
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 )
 
@@ -45,6 +47,8 @@ func statusForOrder(err error) int {
 		errors.Is(err, kasse.ErrBudgetPositionRequired),
 		errors.Is(err, kasse.ErrDueDateRequired),
 		errors.Is(err, kasse.ErrReasonRequired),
+		errors.Is(err, kasse.ErrAllocationNegative),
+		errors.Is(err, budget.ErrBudgetExceeded),
 		errors.Is(err, kasse.ErrActorRequired):
 		return http.StatusUnprocessableEntity
 	default:
@@ -67,11 +71,12 @@ type createOrderRequest struct {
 		BankName      string `json:"bank_name"`
 	} `json:"recipient"`
 	BudgetPosition struct {
-		Year        int    `json:"year"`
-		Chapter     string `json:"chapter"`
-		Title       string `json:"title"`
-		CostCentre  string `json:"cost_centre"`
-		CostCarrier string `json:"cost_carrier"`
+		Year           int    `json:"year"`
+		Chapter        string `json:"chapter"`
+		Title          string `json:"title"`
+		CostCentre     string `json:"cost_centre"`
+		CostCarrier    string `json:"cost_carrier"`
+		AllocatedCents int64  `json:"allocated_cents"`
 	} `json:"budget_position"`
 }
 
@@ -100,11 +105,12 @@ func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	position, err := s.orders.CreateBudgetPosition(r.Context(), kasse.BudgetPosition{
-		Year:        req.BudgetPosition.Year,
-		Chapter:     req.BudgetPosition.Chapter,
-		Title:       req.BudgetPosition.Title,
-		CostCentre:  req.BudgetPosition.CostCentre,
-		CostCarrier: req.BudgetPosition.CostCarrier,
+		Year:           req.BudgetPosition.Year,
+		Chapter:        req.BudgetPosition.Chapter,
+		Title:          req.BudgetPosition.Title,
+		CostCentre:     req.BudgetPosition.CostCentre,
+		CostCarrier:    req.BudgetPosition.CostCarrier,
+		AllocatedCents: req.BudgetPosition.AllocatedCents,
 	})
 	if err != nil {
 		writeProblem(w, http.StatusInternalServerError, err.Error())

@@ -64,6 +64,9 @@ func TestStatusForOrder(t *testing.T) {
 		{"budget position required", kasse.ErrBudgetPositionRequired, http.StatusUnprocessableEntity},
 		{"due date required", kasse.ErrDueDateRequired, http.StatusUnprocessableEntity},
 		{"reason required", kasse.ErrReasonRequired, http.StatusUnprocessableEntity},
+		{"allocation negative", kasse.ErrAllocationNegative, http.StatusUnprocessableEntity},
+		{"over budget", budget.ErrBudgetExceeded, http.StatusUnprocessableEntity},
+		{"wrapped over budget", fmt.Errorf("approve: %w", budget.ErrBudgetExceeded), http.StatusUnprocessableEntity},
 		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
 		{"anything else", errors.New("boom"), http.StatusInternalServerError},
 	}

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 )
 
 type orderArgs struct {
@@ -256,7 +258,8 @@ func TestOrderServiceWorkflow(t *testing.T) {
 	ctx := context.Background()
 	repo := &fakeOrderRepo{}
 	sink := &fakeAudit{}
-	svc := NewOrderService(repo, sink)
+	budget := &fakeBudget{}
+	svc := NewOrderService(repo, budget, sink)
 
 	order, err := validArgs().build()
 	if err != nil {
@@ -293,12 +296,67 @@ func TestOrderServiceWorkflow(t *testing.T) {
 	if sink.events[0].Action != "payment_order.create" || sink.events[2].Action != "payment_order.approve" {
 		t.Fatalf("audit actions = %v", sink.events)
 	}
+
+	// The approval binds the amount on the order's budget position, named by the order.
+	if len(budget.posted) != 1 {
+		t.Fatalf("budget postings = %v, want the approval's binding", budget.posted)
+	}
+	got := budget.posted[0]
+	if got.kind != "commitment" || got.amountCents != 125000 || got.reference != "ANORD:AO-2026-0001" {
+		t.Fatalf("binding = %+v, want a commitment of 125000 named after the order", got)
+	}
+}
+
+// TestOrderServiceApprovalBindsBudget: an approval that cannot bind budget is refused, and
+// the order is not left approved.
+func TestOrderServiceApprovalBindsBudget(t *testing.T) {
+	ctx := context.Background()
+
+	// No committer wired: approving would release money against no Mittel.
+	repo := &fakeOrderRepo{order: PaymentOrder{ID: 7, Status: OrderSubmitted, CreatedBy: "alice", SubmittedBy: "alice"}}
+	if _, err := NewOrderService(repo, nil, &fakeAudit{}).Approve(ctx, 7, "bob"); !errors.Is(err, ErrNoBudgetCommitter) {
+		t.Fatalf("no committer: got %v, want ErrNoBudgetCommitter", err)
+	}
+	if len(repo.decisions) != 0 {
+		t.Fatalf("a refused approval must not be recorded: %v", repo.decisions)
+	}
+
+	// The budget refuses the binding (over the position's Mittel): the approval fails too.
+	repo = &fakeOrderRepo{order: PaymentOrder{ID: 7, Status: OrderSubmitted, CreatedBy: "alice", SubmittedBy: "alice", AmountCents: 999}}
+	refusing := &fakeBudget{err: errors.New("budget: insufficient")}
+	if _, err := NewOrderService(repo, refusing, &fakeAudit{}).Approve(ctx, 7, "bob"); err == nil {
+		t.Fatal("an un-bindable approval must fail")
+	}
+	if len(repo.decisions) != 0 {
+		t.Fatalf("a failed binding must not record an approval: %v", repo.decisions)
+	}
+}
+
+// fakeBudget records the bindings a service posts.
+type fakeBudget struct {
+	posted []budgetPosting
+	err    error
+}
+
+type budgetPosting struct {
+	positionID  int64
+	kind        string
+	amountCents int64
+	reference   string
+}
+
+func (f *fakeBudget) Post(_ context.Context, positionID int64, kind budget.PostingKind, amountCents int64, reference, _ string) (budget.Posting, error) {
+	if f.err != nil {
+		return budget.Posting{}, f.err
+	}
+	f.posted = append(f.posted, budgetPosting{positionID: positionID, kind: string(kind), amountCents: amountCents, reference: reference})
+	return budget.Posting{}, nil
 }
 
 func TestOrderServiceBlocksFourEyes(t *testing.T) {
 	ctx := context.Background()
 	repo := &fakeOrderRepo{order: PaymentOrder{ID: 7, Status: OrderSubmitted, CreatedBy: "alice", SubmittedBy: "alice"}}
-	svc := NewOrderService(repo, &fakeAudit{})
+	svc := NewOrderService(repo, &fakeBudget{}, &fakeAudit{})
 
 	if _, err := svc.Approve(ctx, 7, "alice"); !errors.Is(err, ErrFourEyes) {
 		t.Fatalf("want ErrFourEyes, got %v", err)
@@ -312,22 +370,22 @@ func TestOrderServicePropagatesRepositoryErrors(t *testing.T) {
 	ctx := context.Background()
 	boom := errors.New("boom")
 
-	if _, err := NewOrderService(&fakeOrderRepo{insertErr: boom}, &fakeAudit{}).Create(ctx, PaymentOrder{}); !errors.Is(err, boom) {
+	if _, err := NewOrderService(&fakeOrderRepo{insertErr: boom}, &fakeBudget{}, &fakeAudit{}).Create(ctx, PaymentOrder{}); !errors.Is(err, boom) {
 		t.Fatalf("Create: want boom, got %v", err)
 	}
-	if _, err := NewOrderService(&fakeOrderRepo{getErr: boom}, &fakeAudit{}).Submit(ctx, 1, "a"); !errors.Is(err, boom) {
+	if _, err := NewOrderService(&fakeOrderRepo{getErr: boom}, &fakeBudget{}, &fakeAudit{}).Submit(ctx, 1, "a"); !errors.Is(err, boom) {
 		t.Fatalf("Submit: want boom, got %v", err)
 	}
-	if _, err := NewOrderService(&fakeOrderRepo{order: PaymentOrder{ID: 1, Status: OrderDraft}, saveErr: boom}, &fakeAudit{}).Submit(ctx, 1, "a"); !errors.Is(err, boom) {
+	if _, err := NewOrderService(&fakeOrderRepo{order: PaymentOrder{ID: 1, Status: OrderDraft}, saveErr: boom}, &fakeBudget{}, &fakeAudit{}).Submit(ctx, 1, "a"); !errors.Is(err, boom) {
 		t.Fatalf("Submit save: want boom, got %v", err)
 	}
-	if _, err := NewOrderService(&fakeOrderRepo{order: PaymentOrder{ID: 1, Status: OrderDraft}, recordErr: boom}, &fakeAudit{}).Submit(ctx, 1, "a"); !errors.Is(err, boom) {
+	if _, err := NewOrderService(&fakeOrderRepo{order: PaymentOrder{ID: 1, Status: OrderDraft}, recordErr: boom}, &fakeBudget{}, &fakeAudit{}).Submit(ctx, 1, "a"); !errors.Is(err, boom) {
 		t.Fatalf("Submit record: want boom, got %v", err)
 	}
 
 	// An audit failure after a successful transition must surface.
 	repo := &fakeOrderRepo{order: PaymentOrder{ID: 1, Status: OrderDraft, CreatedBy: "alice"}}
-	svc := NewOrderService(repo, failingAudit{err: boom})
+	svc := NewOrderService(repo, &fakeBudget{}, failingAudit{err: boom})
 	if _, err := svc.Submit(ctx, 1, "alice"); !errors.Is(err, boom) {
 		t.Fatalf("Submit audit: want boom, got %v", err)
 	}
@@ -336,7 +394,7 @@ func TestOrderServicePropagatesRepositoryErrors(t *testing.T) {
 func TestOrderServiceRejectAndCancel(t *testing.T) {
 	ctx := context.Background()
 	repo := &fakeOrderRepo{order: PaymentOrder{ID: 1, Status: OrderSubmitted, CreatedBy: "alice", SubmittedBy: "alice"}}
-	svc := NewOrderService(repo, &fakeAudit{})
+	svc := NewOrderService(repo, &fakeBudget{}, &fakeAudit{})
 
 	rejected, err := svc.Reject(ctx, 1, "bob", "kein Budget")
 	if err != nil {

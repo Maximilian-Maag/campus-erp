@@ -34,7 +34,7 @@ func createApprovedOrder(t *testing.T, srv string, amountCents int64) runOrderJS
 	body := `{"reference":"AO-` + uniqueSuffix(t) + `","business_year":2026,"amount_cents":` + itoa(amountCents) + `,
 		"currency":"EUR","purpose":"Stromabschlag","due_date":"2026-04-01",
 		"recipient":{"name":"Empfänger","account_holder":"Empfänger GmbH","iban":"DE89370400440532013000","bic":"COBADEFFXXX","bank_name":"Commerzbank"},
-		"budget_position":{"year":2026,"chapter":"0710","title":"6810","cost_centre":"KST-` + uniqueSuffix(t) + `","cost_carrier":"KT"}}`
+		"budget_position":{"year":2026,"chapter":"0710","title":"6810","cost_centre":"KST-` + uniqueSuffix(t) + `","cost_carrier":"KT","allocated_cents":1000000}}`
 	resp := doJSON(t, http.MethodPost, srv+"/api/payment-orders", "alice", body)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create order = %d", resp.StatusCode)

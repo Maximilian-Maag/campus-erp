@@ -81,7 +81,7 @@ func main() {
 		}
 		deps := httpapi.Deps{
 			Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
-			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), store),
+			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetSvc, store),
 			Dunning:         dunningSvc,
 			Artefacts:       artefactStore,
 			Tax:             kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
