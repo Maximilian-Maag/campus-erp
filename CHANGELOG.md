@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.67.0] - 2026-11-02
+
+The ETL run history is queryable.
+
+### Added
+- `GET /api/etl/runs?dataset=…&limit=…` (role `admin`): the recent runs, newest first, as
+  `{ "runs": [{ "at", "actor", "summary" }] }`. An empty `dataset` matches every dataset. The
+  runs are the audit stream read back, so there is no second store (docs/19).
+- `audit.Store.Events(ctx, action, subject, limit)`: the read side of the stream `Append`
+  writes — newest first, optionable by subject, with the limit clamped (default 20, max 200)
+  so a read cannot pull the whole stream by accident.
+
+### Fixed
+- The `etl.run` audit event carried **no timestamp** (`At` was never set), so a run's
+  recorded time was the year zero. It records the run's own time now, which is what the
+  history reports.
+
+### Tests
+- The store read against a real database (order, subject filter, limit, an action nobody
+  wrote), the limit clamp as a table test, and the handler (dataset and limit reach the seam,
+  a non-positive or non-numeric limit is refused as `invalid_limit`, a store failure is 500).
+
 ## [0.66.0] - 2026-11-02
 
 The error envelope is the one the contract documents.

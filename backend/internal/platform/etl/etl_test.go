@@ -22,6 +22,91 @@ func (c *capturedAudit) Append(_ context.Context, e audit.Event) (audit.Event, e
 	return e, nil
 }
 
+// Events mimics the store's read: the action's events, newest first, optionally narrowed to
+// one subject, up to limit.
+func (c *capturedAudit) Events(_ context.Context, action, subject string, limit int) ([]audit.Event, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	out := []audit.Event{}
+	for i := len(c.events) - 1; i >= 0; i-- {
+		e := c.events[i]
+		if e.Action != action || (subject != "" && e.Subject != subject) {
+			continue
+		}
+		out = append(out, e)
+		if limit > 0 && len(out) == limit {
+			break
+		}
+	}
+	return out, nil
+}
+
+// runOnce runs a minimal dataset under name, so a test can build up run history.
+func runOnce(t *testing.T, r *Runner, name string) {
+	t.Helper()
+	ds := Dataset{
+		Name:   name,
+		Source: SourceFunc(func(context.Context) ([]Record, error) { return records(), nil }),
+		Sink:   SinkFunc(func(_ context.Context, recs []Record, _ string) (int, error) { return len(recs), nil }),
+	}
+	if _, err := r.Run(context.Background(), ds, "alice"); err != nil {
+		t.Fatalf("run %s: %v", name, err)
+	}
+}
+
+// TestRunnerHistoryReadsTheAuditStream: the run history is the audit record read back —
+// newest first, filterable by dataset, and stamped with the run's own time.
+func TestRunnerHistoryReadsTheAuditStream(t *testing.T) {
+	ca := &capturedAudit{}
+	r := NewRunner(ca)
+	r.now = fixedNow
+
+	runOnce(t, r, "lookup")
+	runOnce(t, r, "lookup")
+	runOnce(t, r, "other")
+
+	runs, err := r.History(context.Background(), "lookup", 0)
+	if err != nil {
+		t.Fatalf("History: %v", err)
+	}
+	if len(runs) != 2 {
+		t.Fatalf("lookup history = %d runs, want 2", len(runs))
+	}
+	if runs[0].At.IsZero() || !runs[0].At.Equal(fixedNow()) {
+		t.Fatalf("run time = %v, want the run's own time (the audit event was unset)", runs[0].At)
+	}
+	if runs[0].Actor != "alice" || runs[0].Summary == "" {
+		t.Fatalf("run = %+v, want the actor and the recorded summary", runs[0])
+	}
+	if runs[0].Summary != runs[1].Summary {
+		t.Logf("note: summaries differ (%q vs %q)", runs[0].Summary, runs[1].Summary)
+	}
+
+	// An empty dataset matches every dataset; the limit is honoured.
+	all, err := r.History(context.Background(), "", 0)
+	if err != nil || len(all) != 3 {
+		t.Fatalf("all history = %d runs, %v; want 3", len(all), err)
+	}
+	if limited, err := r.History(context.Background(), "", 1); err != nil || len(limited) != 1 {
+		t.Fatalf("limited history = %d runs, %v; want 1", len(limited), err)
+	}
+
+	// A dataset that never ran has no history, and is not an error.
+	if none, err := r.History(context.Background(), "never-ran", 0); err != nil || len(none) != 0 {
+		t.Fatalf("unknown dataset history = %d runs, %v; want none and no error", len(none), err)
+	}
+}
+
+// TestRunnerHistoryPropagatesStoreFailure: a read that cannot reach the stream is an error,
+// not an empty history (which would read as "it never ran").
+func TestRunnerHistoryPropagatesStoreFailure(t *testing.T) {
+	r := NewRunner(&capturedAudit{err: errors.New("stream down")})
+	if _, err := r.History(context.Background(), "lookup", 5); err == nil {
+		t.Fatal("History = nil error, want the store failure")
+	}
+}
+
 func records() []Record {
 	return []Record{
 		{Key: "ns/A", Fields: map[string]string{"namespace": "ns", "code": "A", "short_text": "alpha"}},

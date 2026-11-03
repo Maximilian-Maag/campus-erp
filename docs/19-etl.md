@@ -71,11 +71,19 @@ tests):
 | method | path |
 |---|---|
 | `GET` | `/api/etl/datasets` — the registered dataset names |
+| `GET` | `/api/etl/runs?dataset=…&limit=…` — the recent runs, newest first |
 | `POST` | `/api/etl/runs` `{ "dataset": "..." }` — run one, returns the `etl.Report` |
 
-Both are behind `erp-admin` (an import changes canonical data). An unknown dataset
+All three are behind `erp-admin` (an import changes canonical data). An unknown dataset
 name is a `404`. The runner's audit sink and ledger are the canonical store, so a
 run continues the hash-chained audit stream and drift detection works as in a test.
+
+`GET /api/etl/runs` is that stream **read back**: `audit.Store.Events(action, subject, limit)`
+selects a dataset's runs (or, with no `dataset`, every dataset's), and the handler returns
+`{ "runs": [{ "at", "actor", "summary" }] }`. The summary is the detail the run recorded
+(`source=… loaded=… checksum=…`, plus `previous`/`drift` when a ledger was attached), so a
+run's history needs no second store. `limit` must be a positive integer when given; the store
+bounds it (default 20, max 200).
 
 The datasets read from the **legacy** database; the sink writes the canonical one.
 Set `ERP_LEGACY_DATABASE_URL` to point the source at the legacy DSN — when unset the
@@ -128,5 +136,5 @@ belongs to the ledger (Phase 4, `mbs`).
 - The **parallel run**: extract from a real legacy database, reconcile against it
   (row counts + checksums + domain invariants such as bookings-per-day), and
   rehearse the reversible cutover. Blocked on a production extract (ADR-0001).
-- A queryable history of runs beyond "the last one" (the audit stream holds every
-  run, but there is no read API that lists them by dataset yet).
+- ~~A queryable history of runs beyond "the last one"~~ — done since:
+  `GET /api/etl/runs` reads the audit stream back, per dataset or across datasets.

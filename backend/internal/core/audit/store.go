@@ -84,6 +84,57 @@ func (s *Store) LastEvent(ctx context.Context, action, subject string) (Event, b
 	return e, true, nil
 }
 
+// Bounds on a read of the audit stream, so a caller cannot ask for the whole stream by
+// accident (or by passing a silly limit).
+const (
+	defaultEventLimit = 20
+	maxEventLimit     = 200
+)
+
+// Events returns the most recent persisted events for an action, newest first. An empty
+// subject matches every subject of that action, so a caller can read one subject's history
+// or the action's across subjects. limit is clamped into [1, maxEventLimit].
+//
+// This is the read side of the same stream Append writes: what a run recorded is already
+// audited, so reading it back needs no second store.
+func (s *Store) Events(ctx context.Context, action, subject string, limit int) ([]Event, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT seq, at, actor, action, subject, before, after, prev_hash, hash
+		 FROM audit_event WHERE action = $1 AND ($2 = '' OR subject = $2)
+		 ORDER BY seq DESC LIMIT $3`, action, subject, clampLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("audit: events: %w", err)
+	}
+	defer rows.Close()
+
+	out := []Event{}
+	for rows.Next() {
+		var e Event
+		if err := rows.Scan(&e.Seq, &e.At, &e.Actor, &e.Action, &e.Subject,
+			&e.Before, &e.After, &e.PrevHash, &e.Hash); err != nil {
+			return nil, fmt.Errorf("audit: scan: %w", err)
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("audit: events: %w", err)
+	}
+	return out, nil
+}
+
+// clampLimit bounds a caller's limit into [1, maxEventLimit], defaulting a non-positive
+// one, so a read cannot pull the whole stream by accident.
+func clampLimit(limit int) int {
+	switch {
+	case limit <= 0:
+		return defaultEventLimit
+	case limit > maxEventLimit:
+		return maxEventLimit
+	default:
+		return limit
+	}
+}
+
 // Verify recomputes the persisted chain and reports the first inconsistency.
 func (s *Store) Verify(ctx context.Context) error {
 	rows, err := s.pool.Query(ctx,
