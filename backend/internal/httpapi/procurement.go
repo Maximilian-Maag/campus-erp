@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
@@ -17,6 +18,28 @@ type procurementService interface {
 	Receive(ctx context.Context, id int64, by string) (procurement.Order, error)
 	Cancel(ctx context.Context, id int64, by string) (procurement.Order, error)
 	Get(ctx context.Context, id int64) (procurement.Order, error)
+	Orders(ctx context.Context, status procurement.Status) ([]procurement.OrderSummary, error)
+}
+
+// listPurchaseOrders returns the order summaries, optionally narrowed to one status. An
+// unknown status is refused rather than quietly listing every order, and an empty status
+// lists them all.
+func (s *Server) listPurchaseOrders(w http.ResponseWriter, r *http.Request) {
+	var status procurement.Status
+	if raw := strings.TrimSpace(r.URL.Query().Get("status")); raw != "" {
+		parsed, err := procurement.ParseStatus(raw)
+		if err != nil {
+			writeProblemCode(w, http.StatusUnprocessableEntity, "unknown_status", err.Error())
+			return
+		}
+		status = parsed
+	}
+	orders, err := s.procurement.Orders(r.Context(), status)
+	if err != nil {
+		writeProblem(w, statusForProcurement(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, orders)
 }
 
 // statusForProcurement maps a procurement error to an HTTP status.

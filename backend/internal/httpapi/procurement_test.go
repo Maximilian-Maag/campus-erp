@@ -2,8 +2,12 @@ package httpapi_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
 )
 
 func newBudgetPosition(t *testing.T, srv string) int64 {
@@ -72,6 +76,98 @@ func TestHTTPProcurementFlow(t *testing.T) {
 	}
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/purchase-orders/"+itoa(order.ID)+"/receive", "alice", ""); resp.StatusCode != http.StatusOK {
 		t.Fatalf("receive = %d", resp.StatusCode)
+	}
+}
+
+// TestHTTPProcurementList: the list a screen reads — every order as a summary, and a status
+// filter that refuses a status outside the lifecycle instead of quietly listing everything.
+func TestHTTPProcurementList(t *testing.T) {
+	srv, _ := newTestServer(t)
+	posID := newBudgetPosition(t, srv.URL)
+
+	draftNumber := "PO-L1-" + uniqueSuffix(t)
+	approvedNumber := "PO-L2-" + uniqueSuffix(t)
+	var draft, approved struct {
+		ID         int64
+		GrossCents int64
+		Status     string
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/purchase-orders", "alice", poBody(draftNumber, posID)); resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create draft = %d", resp.StatusCode)
+	} else if err := json.NewDecoder(resp.Body).Decode(&draft); err != nil {
+		t.Fatalf("decode draft: %v", err)
+	}
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/purchase-orders", "alice", poBody(approvedNumber, posID))
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create second = %d", resp.StatusCode)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&approved); err != nil {
+		t.Fatalf("decode approved: %v", err)
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/purchase-orders/"+itoa(approved.ID)+"/approve", "alice", ""); resp.StatusCode != http.StatusOK {
+		t.Fatalf("approve = %d", resp.StatusCode)
+	}
+
+	type summary struct {
+		ID         int64
+		Number     string
+		Supplier   string
+		GrossCents int64
+		Status     string
+	}
+	list := func(query string) []summary {
+		t.Helper()
+		resp := doJSON(t, http.MethodGet, srv.URL+"/api/purchase-orders"+query, "alice", "")
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("list%s = %d", query, resp.StatusCode)
+		}
+		var out []summary
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatalf("decode list: %v", err)
+		}
+		return out
+	}
+
+	all := list("")
+	byID := map[int64]summary{}
+	for _, s := range all {
+		byID[s.ID] = s
+	}
+	got, ok := byID[draft.ID]
+	if !ok {
+		t.Fatalf("draft %d missing from %d summaries", draft.ID, len(all))
+	}
+	if got.Number != draftNumber || got.Supplier != "Lieferant GmbH" || got.Status != "draft" || got.GrossCents != 11900 {
+		t.Fatalf("summary = %+v", got)
+	}
+
+	onlyApproved := list("?status=approved")
+	if len(onlyApproved) == 0 {
+		t.Fatal("the approved order is missing from the filtered list")
+	}
+	for _, s := range onlyApproved {
+		if s.Status != "approved" {
+			t.Fatalf("filter returned a %s order", s.Status)
+		}
+		if s.ID == draft.ID {
+			t.Fatal("the draft appeared in the approved filter")
+		}
+	}
+
+	// An unknown status is refused, not ignored.
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/purchase-orders?status=nope", "alice", ""); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("unknown status = %d, want 422", resp.StatusCode)
+	}
+}
+
+// TestProcurementListFailure: a list that cannot be read is a 500, not an empty list that looks
+// like "there are no orders".
+func TestProcurementListFailure(t *testing.T) {
+	srv := httptest.NewServer(httpapi.New(httpapi.Deps{Procurement: stubProcurement{err: errors.New("boom")}}).Routes())
+	t.Cleanup(srv.Close)
+
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/purchase-orders", "alice", ""); resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", resp.StatusCode)
 	}
 }
 

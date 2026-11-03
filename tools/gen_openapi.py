@@ -182,6 +182,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     # ── Procurement ──────────────────────────────────────────────────────────
     "/api/purchase-orders": {
+        "get": ("listPurchaseOrders", "procurement", "List purchase orders, optionally narrowed to one status", None, "[]procurement.OrderSummary", 200, "json"),
         "post": ("createPurchaseOrder", "procurement", "Create a purchase order", "httpapi.createPurchaseOrderRequest", "procurement.Order", 201, "json"),
     },
     "/api/purchase-orders/{id}": {

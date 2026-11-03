@@ -30,6 +30,28 @@ func TestLineNetAndTotals(t *testing.T) {
 	}
 }
 
+// TestParseStatus: the API's status filter comes from this, so anything outside the lifecycle
+// has to be refused rather than treated as "every status".
+func TestParseStatus(t *testing.T) {
+	for _, known := range Statuses() {
+		got, err := ParseStatus(string(known))
+		if err != nil || got != known {
+			t.Fatalf("ParseStatus(%q) = %q, %v", known, got, err)
+		}
+	}
+	if got, err := ParseStatus("  approved  "); err != nil || got != StatusApproved {
+		t.Fatalf("ParseStatus did not ignore surrounding space: %q, %v", got, err)
+	}
+	for _, bad := range []string{"", "nope", "DRAFT", "open"} {
+		if _, err := ParseStatus(bad); !errors.Is(err, ErrUnknownStatus) {
+			t.Fatalf("ParseStatus(%q) = %v, want ErrUnknownStatus", bad, err)
+		}
+	}
+	if len(Statuses()) != 4 || Statuses()[0] != StatusDraft {
+		t.Fatalf("Statuses = %v", Statuses())
+	}
+}
+
 func TestNewOrder(t *testing.T) {
 	o, err := NewOrder(" PO-1 ", " Lieferant ", 7, "EUR", lines())
 	if err != nil {

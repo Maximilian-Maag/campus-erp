@@ -1707,6 +1707,34 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
   /api/purchase-orders:
+    get:
+      tags:
+      - procurement
+      operationId: listPurchaseOrders
+      summary: List purchase orders, optionally narrowed to one status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
     post:
       tags:
       - procurement
@@ -2926,6 +2954,42 @@ components:
       - net_cents
       - vat_category
       - vat_rate_bp
+    OrderSummary:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Number:
+          type: string
+        Supplier:
+          type: string
+        BudgetPositionID:
+          type: integer
+          format: int64
+        Currency:
+          type: string
+        NetCents:
+          type: integer
+          format: int64
+        VatCents:
+          type: integer
+          format: int64
+        GrossCents:
+          type: integer
+          format: int64
+        Status:
+          type: string
+      required:
+      - ID
+      - Number
+      - Supplier
+      - BudgetPositionID
+      - Currency
+      - NetCents
+      - VatCents
+      - GrossCents
+      - Status
     Value:
       type: object
       properties:

@@ -2,6 +2,26 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.76.0] - 2026-11-03
+
+The procurement screen, and the order list behind it.
+
+### Added
+- `GET /api/purchase-orders` (role `finanzen`), optionally narrowed with `?status=`. The
+  statuses come from the domain (`procurement.Statuses`), and an unknown one is a 422 rather
+  than a silent "list everything". The rows are `OrderSummary` — the header without its lines,
+  which is what a list shows.
+- `OrderRepository.List` / `OrderService.Orders`, plus `procurement.ParseStatus`.
+- `frontend`: *Beschaffung — Bestellungen* (`/procurement/bestellungen`) — lists the orders,
+  names the statuses in words, and approves a draft (the step that commits budget). A failed
+  approval keeps the list and names the order; a failed load does not pretend to be an empty
+  list. Karma spec, Playwright run with axe, mutation gate.
+
+### Notes
+- The orders screen filters what it loaded: the generated client emits path parameters only, so
+  no route's `?query=` filter is reachable through `CampusErpApi` yet (docs/15). Lists that need
+  paging need that first.
+
 ## [0.75.0] - 2026-11-03
 
 The budget screen, and the read route behind it.

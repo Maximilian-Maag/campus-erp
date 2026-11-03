@@ -70,6 +70,12 @@ func (s *OrderService) Receive(ctx context.Context, id int64, by string) (Order,
 	return s.transition(ctx, id, by, StatusApproved, StatusReceived, "purchase_order.receive", nil)
 }
 
+// Orders returns the order summaries, optionally narrowed to one status ("" for every status).
+// It is read-only, so it is not audited.
+func (s *OrderService) Orders(ctx context.Context, status Status) ([]OrderSummary, error) {
+	return s.repo.List(ctx, status)
+}
+
 // MatchReceipt is the two-way match: it finds the order an inbound invoice names (its buyer
 // reference is the order number), requires that order to be approved and to amount to the same
 // gross, then turns the commitment into an actual and marks the order received.
