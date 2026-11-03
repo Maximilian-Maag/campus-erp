@@ -175,5 +175,6 @@ status then stays `planned` on purpose.
 - Six job kinds are wired: `etl`, `statement-import`, `ledger-export`, `sepa-export`,
   `report-render` and `statistics-export`. What remains for statistics is the offices' real
   per-state layouts, which are project-defined placeholders today (docs/27).
-- The worker's ledger hand-over is a directory (`ERP_LEDGER_OUTBOX_DIR`); object
-  storage or SFTP replaces that function without touching the job kind.
+- The worker's artefact hand-over goes through the **artefact store** (`ERP_OUTBOX_DIR`;
+  `ERP_S3_ENDPOINT` selects an S3 bucket), so a directory and object storage need no change to
+  a job kind (ADR-0011, docs/26). What remains is SFTP/bank-channel *delivery*.

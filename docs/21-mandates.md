@@ -41,10 +41,10 @@ Kasse), `ErrDebtorBICInvalid` (ISO 9362, shared with `core/sepa`), and
 
 ## Not yet done
 
-- **No collection run yet.** The mandate and the pain.008 generator exist, but the
-  entity that gathers claims, sets the sequence type per mandate and calls the
-  generator (mirroring the payment run of `docs/legacy/kbs-sepa-export.md`) is a
-  separate slice.
+- ~~No collection run yet~~ — done since: the collection run exists
+  (`internal/modules/kasse/collectionrun*.go`, docs/22); it gathers mandates into a pain.008
+  for one collection date and sequence type. What is still open there is selecting items from
+  outstanding receivables automatically, and EBICS transport.
 - No ETL dataset: the legacy mandate table (`kbs.mandat`) is empty in the Muster
   (`docs/legacy/kbs-payment-orders.md`), so the mapping cannot be validated.
 - No UI; the generated Angular client already exposes the two operations.
