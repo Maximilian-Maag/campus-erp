@@ -185,6 +185,7 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("POST /api/e-invoices", s.authorize(s.createEInvoice, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/e-invoices/received", s.authorize(s.receiveEInvoice, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/e-invoices", s.authorizeRead(s.listEInvoices, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/e-invoices/{id}", s.authorizeRead(s.getEInvoice, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/e-invoices/{id}/xrechnung", s.authorizeRead(s.getEInvoiceXML, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/e-invoices/{id}/match", s.authorize(s.matchEInvoice, auth.RoleFinanzen))

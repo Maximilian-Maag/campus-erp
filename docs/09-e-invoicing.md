@@ -60,6 +60,11 @@ the match converts that order's commitment into an actual (`docs/12-procurement.
 is deliberate: an invoice without a buyer reference cannot name an order and is refused
 (`core.ErrBuyerReference`) rather than guessed at.
 
+A matched invoice **records the order it was bound to** (`e_invoice.matched_order_id`), so
+`GET /api/e-invoices` can say which invoices are still open. The audit stream alone would not
+do: that is the trail, not state a screen can read. A second match is refused
+(`ErrAlreadyMatched`) — the invoice, not the order's state, is the first thing that stops it.
+
 ## Not yet done
 
 - ZUGFeRD/CII syntax (the vendor ships it too; UBL is the public-sector format).

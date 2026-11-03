@@ -14,6 +14,8 @@ import (
 type fakeRepo struct {
 	inv core.Invoice
 	err error
+
+	matchedCalls int
 }
 
 func (f *fakeRepo) Insert(context.Context, core.Invoice) (core.Invoice, error) {
@@ -22,6 +24,15 @@ func (f *fakeRepo) Insert(context.Context, core.Invoice) (core.Invoice, error) {
 
 func (f *fakeRepo) Get(context.Context, int64) (core.Invoice, error) {
 	return f.inv, f.err
+}
+
+func (f *fakeRepo) MarkMatched(context.Context, int64, int64) error {
+	f.matchedCalls++
+	return f.err
+}
+
+func (f *fakeRepo) List(context.Context) ([]InvoiceSummary, error) {
+	return nil, f.err
 }
 
 type fakeMatcher struct {

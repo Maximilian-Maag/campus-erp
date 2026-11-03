@@ -1226,6 +1226,34 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
   /api/e-invoices:
+    get:
+      tags:
+      - einvoice
+      operationId: listEInvoices
+      summary: List e-invoices, matched or not
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvoiceSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
     post:
       tags:
       - einvoice
@@ -3200,6 +3228,9 @@ components:
         CreatedAt:
           type: string
           format: date-time
+        MatchedOrderID:
+          type: integer
+          format: int64
       required:
       - ID
       - Number
@@ -3215,6 +3246,7 @@ components:
       - Lines
       - CreatedBy
       - CreatedAt
+      - MatchedOrderID
     EinvoiceLine:
       type: object
       properties:
@@ -3382,6 +3414,38 @@ components:
       - endpoint_id
       - endpoint_scheme
       - email
+    InvoiceSummary:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Number:
+          type: string
+        IssueDate:
+          type: string
+          format: date-time
+        TypeCode:
+          type: string
+        Currency:
+          type: string
+        BuyerReference:
+          type: string
+        GrossCents:
+          type: integer
+          format: int64
+        MatchedOrderID:
+          type: integer
+          format: int64
+      required:
+      - ID
+      - Number
+      - IssueDate
+      - TypeCode
+      - Currency
+      - BuyerReference
+      - GrossCents
+      - MatchedOrderID
     DunningNotice:
       type: object
       properties:

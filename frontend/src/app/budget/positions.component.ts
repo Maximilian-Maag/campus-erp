@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { BudgetPositionResponse, CampusErpApi } from '../core/api/generated';
+import { formatCents } from '../core/format';
 
 /**
  * Budget — Mittelübersicht.
@@ -89,11 +90,6 @@ export class BudgetPositionsComponent implements OnInit {
     });
   }
 
-  /** Minor units as a decimal amount ("125000" -> "1.250,00"). */
-  euro(cents: number): string {
-    return (cents / 100).toLocaleString('de-DE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  }
+  /** Amounts are rendered by the shared formatter, not by each screen's own. */
+  readonly euro = formatCents;
 }

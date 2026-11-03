@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -20,10 +21,29 @@ var ErrNotFound = errors.New("einvoice: invoice not found")
 // ErrNumberExists is returned when the invoice number is taken.
 var ErrNumberExists = errors.New("einvoice: an invoice with that number already exists")
 
+// ErrAlreadyMatched is returned when an invoice is matched twice. A second match would bind the
+// same invoice to another order, or to the same one twice.
+var ErrAlreadyMatched = errors.New("einvoice: the invoice is already matched to a purchase order")
+
 // InvoiceRepository is the persistence port for e-invoices.
 type InvoiceRepository interface {
 	Insert(ctx context.Context, inv core.Invoice) (core.Invoice, error)
 	Get(ctx context.Context, id int64) (core.Invoice, error)
+	MarkMatched(ctx context.Context, id, orderID int64) error
+	List(ctx context.Context) ([]InvoiceSummary, error)
+}
+
+// InvoiceSummary is an invoice as a list shows it: the header, without parties or lines.
+type InvoiceSummary struct {
+	ID             int64
+	Number         string
+	IssueDate      time.Time
+	TypeCode       string
+	Currency       string
+	BuyerReference string
+	GrossCents     int64
+	// MatchedOrderID is 0 while the invoice is unmatched.
+	MatchedOrderID int64
 }
 
 // InvoiceRepo is the PostgreSQL implementation.
@@ -34,7 +54,7 @@ func NewInvoiceRepo(pool *pgxpool.Pool) *InvoiceRepo { return &InvoiceRepo{pool:
 
 const invoiceColumns = `id, number, issue_date, type_code, currency, buyer_reference,
 	payment_means_code, payee_iban, payment_terms, net_cents, vat_cents, gross_cents,
-	created_by, created_at`
+	created_by, created_at, matched_order_id`
 
 // Insert stores an invoice with its parties, lines and VAT breakdown atomically.
 func (r *InvoiceRepo) Insert(ctx context.Context, inv core.Invoice) (core.Invoice, error) {
@@ -105,19 +125,69 @@ func (r *InvoiceRepo) Insert(ctx context.Context, inv core.Invoice) (core.Invoic
 	return inv, nil
 }
 
+// List returns the invoices as summaries, ordered by number.
+func (r *InvoiceRepo) List(ctx context.Context) ([]InvoiceSummary, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, number, issue_date, type_code, currency, buyer_reference, gross_cents, matched_order_id
+		   FROM e_invoice ORDER BY number`)
+	if err != nil {
+		return nil, fmt.Errorf("einvoice: list invoices: %w", err)
+	}
+	defer rows.Close()
+	out := []InvoiceSummary{}
+	for rows.Next() {
+		var s InvoiceSummary
+		var matched *int64
+		if err := rows.Scan(&s.ID, &s.Number, &s.IssueDate, &s.TypeCode, &s.Currency,
+			&s.BuyerReference, &s.GrossCents, &matched); err != nil {
+			return nil, fmt.Errorf("einvoice: scan invoice summary: %w", err)
+		}
+		if matched != nil {
+			s.MatchedOrderID = *matched
+		}
+		out = append(out, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("einvoice: list invoices: %w", err)
+	}
+	return out, nil
+}
+
+// MarkMatched records the purchase order this invoice was matched to. The order is the
+// authority on the match; this is what the invoice side keeps, so a screen can tell a matched
+// invoice from an unmatched one.
+func (r *InvoiceRepo) MarkMatched(ctx context.Context, id, orderID int64) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE e_invoice SET matched_order_id = $2 WHERE id = $1 AND matched_order_id IS NULL`,
+		id, orderID)
+	if err != nil {
+		return fmt.Errorf("einvoice: mark matched: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		// Either the invoice does not exist, or it is already matched: both are refusals, and
+		// the caller distinguishes them by loading the invoice.
+		return fmt.Errorf("einvoice: invoice %d: %w", id, ErrAlreadyMatched)
+	}
+	return nil
+}
+
 // Get loads an invoice with its parties and lines.
 func (r *InvoiceRepo) Get(ctx context.Context, id int64) (core.Invoice, error) {
 	var inv core.Invoice
 	var net, vat, gross int64
+	var matched *int64
 	err := r.pool.QueryRow(ctx, `SELECT `+invoiceColumns+` FROM e_invoice WHERE id = $1`, id).
 		Scan(&inv.ID, &inv.Number, &inv.IssueDate, &inv.TypeCode, &inv.Currency, &inv.BuyerReference,
 			&inv.PaymentMeansCode, &inv.PayeeIBAN, &inv.PaymentTerms, &net, &vat, &gross,
-			&inv.CreatedBy, &inv.CreatedAt)
+			&inv.CreatedBy, &inv.CreatedAt, &matched)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return core.Invoice{}, fmt.Errorf("einvoice: invoice %d: %w", id, ErrNotFound)
 	}
 	if err != nil {
 		return core.Invoice{}, fmt.Errorf("einvoice: get invoice: %w", err)
+	}
+	if matched != nil {
+		inv.MatchedOrderID = *matched
 	}
 
 	parties, err := r.pool.Query(ctx,

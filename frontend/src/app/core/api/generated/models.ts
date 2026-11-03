@@ -345,6 +345,18 @@ export interface Invoice {
   Lines: EinvoiceLine[];
   CreatedBy: string;
   CreatedAt: string;
+  MatchedOrderID: number;
+}
+
+export interface InvoiceSummary {
+  ID: number;
+  Number: string;
+  IssueDate: string;
+  TypeCode: string;
+  Currency: string;
+  BuyerReference: string;
+  GrossCents: number;
+  MatchedOrderID: number;
 }
 
 export interface IssueNoticeRequest {

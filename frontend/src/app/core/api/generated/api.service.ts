@@ -107,12 +107,16 @@ export class CampusErpApi {
     return this.http.get<string>(this.base + `/api/dunning/notices/${id}/document`);
   }
 
+  listEInvoices(): Observable<m.InvoiceSummary[]> {
+    return this.http.get<m.InvoiceSummary[]>(this.base + `/api/e-invoices`);
+  }
+
   createEInvoice(body: m.CreateEInvoiceRequest): Observable<m.Invoice> {
     return this.http.post<m.Invoice>(this.base + `/api/e-invoices`, body);
   }
 
-  receiveEInvoice(): Observable<m.Invoice> {
-    return this.http.post<m.Invoice>(this.base + `/api/e-invoices/received`, null);
+  receiveEInvoice(body: string): Observable<m.Invoice> {
+    return this.http.post<m.Invoice>(this.base + `/api/e-invoices/received`, body, { headers: { 'Content-Type': 'application/xml' } });
   }
 
   getEInvoice(id: number | string): Observable<m.Invoice> {

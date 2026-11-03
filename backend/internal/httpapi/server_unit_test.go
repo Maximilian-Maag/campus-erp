@@ -11,6 +11,7 @@ import (
 	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/klr"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
@@ -207,6 +208,10 @@ func (s stubEInvoices) Render(context.Context, int64) (string, error) {
 
 func (s stubEInvoices) Match(context.Context, int64, string) (core.Invoice, error) {
 	return core.Invoice{}, s.err
+}
+
+func (s stubEInvoices) Invoices(context.Context) ([]einvoice.InvoiceSummary, error) {
+	return nil, s.err
 }
 
 // stubBudget satisfies the budget interface with a fixed result.
