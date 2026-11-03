@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 )
 
 // createCenter makes a cost centre over the API and returns its id.
@@ -203,5 +204,27 @@ func TestHTTPRecordBusinessDate(t *testing.T) {
 	if resp := doJSON(t, http.MethodPost, path, "alice",
 		`{"kind":"cost","amount_cents":100,"business_date":"30.04.2026"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("bad business date = %d, want 422", resp.StatusCode)
+	}
+
+	// Leaving the date out means today, and "today" is the day itself: the stored period carries
+	// no time of day.
+	resp = doJSON(t, http.MethodPost, path, "alice", `{"kind":"cost","amount_cents":100}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("post without a date = %d", resp.StatusCode)
+	}
+	var today struct{ BusinessDate string }
+	if err := json.NewDecoder(resp.Body).Decode(&today); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	parsed, err := time.Parse(time.RFC3339, today.BusinessDate)
+	if err != nil {
+		t.Fatalf("business date %q is not a timestamp: %v", today.BusinessDate, err)
+	}
+	want := time.Now().UTC().Truncate(24 * time.Hour)
+	if !parsed.Equal(want) {
+		t.Fatalf("business date = %s, want the start of today (%s)", parsed, want)
+	}
+	if parsed.Format(time.DateOnly) != want.Format(time.DateOnly) {
+		t.Fatalf("business date = %s, which is not today", parsed.Format(time.DateOnly))
 	}
 }

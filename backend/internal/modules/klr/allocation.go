@@ -21,7 +21,7 @@ func plan(sourceCenterID, amountCents int64, keys []Allocation, businessDate tim
 	if err != nil {
 		return nil, err
 	}
-	records := make([]Record, 0, len(shares)+1)
+	records := make([]Record, 0, len(shares))
 	var moved int64
 	for _, share := range shares {
 		if share.Cents == 0 {
@@ -122,9 +122,8 @@ func (s *Service) Allocate(ctx context.Context, sourceCenterID int64, from, to t
 	if err != nil {
 		return Run{}, err
 	}
-	if amount <= 0 {
-		return Run{}, ErrNothingToAllocate
-	}
+	// A period with no costs in it is refused by the split itself (ErrNothingToAllocate) rather
+	// than by a second check here, so the rule lives in one place.
 
 	// The records a run writes belong to the period it distributed, not to the day it ran.
 	records, err := plan(sourceCenterID, amount, eligible, to, by)

@@ -12,6 +12,7 @@ import (
 // read without a database.
 type fakeRepo struct {
 	center      CostCenter
+	centers     []CostCenter
 	record      Record
 	allocation  Allocation
 	allocations []Allocation
@@ -24,6 +25,9 @@ func (f *fakeRepo) CreateCostCenter(context.Context, CostCenter) (CostCenter, er
 }
 func (f *fakeRepo) GetCostCenter(context.Context, int64) (CostCenter, error) {
 	return f.center, f.err
+}
+func (f *fakeRepo) CostCenters(context.Context) ([]CostCenter, error) {
+	return f.centers, f.err
 }
 func (f *fakeRepo) CreateCostUnit(context.Context, CostUnit) (CostUnit, error) {
 	return CostUnit{}, f.err

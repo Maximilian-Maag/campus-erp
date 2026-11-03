@@ -163,6 +163,10 @@ export class CampusErpApi {
     return this.http.post<m.Foundation>(this.base + `/api/foundations`, body);
   }
 
+  listCostCenters(): Observable<m.CostCenter[]> {
+    return this.http.get<m.CostCenter[]>(this.base + `/api/klr/cost-centers`);
+  }
+
   createCostCenter(body: m.KlrNamedRequest): Observable<m.CostCenter> {
     return this.http.post<m.CostCenter>(this.base + `/api/klr/cost-centers`, body);
   }

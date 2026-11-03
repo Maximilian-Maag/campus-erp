@@ -294,6 +294,10 @@ func (s stubKLR) CreateCostCenter(context.Context, string, string, string) (klr.
 	return klr.CostCenter{}, s.err
 }
 
+func (s stubKLR) CostCenters(context.Context) ([]klr.CostCenter, error) {
+	return nil, s.err
+}
+
 func (s stubKLR) CreateCostUnit(context.Context, string, string, string) (klr.CostUnit, error) {
 	return klr.CostUnit{}, s.err
 }

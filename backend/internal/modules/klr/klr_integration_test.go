@@ -121,3 +121,44 @@ func TestKLRValidation(t *testing.T) {
 		t.Fatalf("report unknown: %v", err)
 	}
 }
+
+// TestCostCentersAreListedByNumber: a screen offering a cost centre to choose needs the list,
+// and it reads in the order the numbers do.
+func TestCostCentersAreListedByNumber(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+	mark := suffix(t)
+
+	// "K-99-…" must come back after "K-10-…", which sorts the other way as text.
+	late, err := svc.CreateCostCenter(ctx, "K-99-"+mark, "Werkstatt", "alice")
+	if err != nil {
+		t.Fatalf("CreateCostCenter: %v", err)
+	}
+	early, err := svc.CreateCostCenter(ctx, "K-10-"+mark, "Bibliothek", "alice")
+	if err != nil {
+		t.Fatalf("CreateCostCenter: %v", err)
+	}
+
+	centers, err := svc.CostCenters(ctx)
+	if err != nil {
+		t.Fatalf("CostCenters: %v", err)
+	}
+	posEarly, posLate := -1, -1
+	for i, c := range centers {
+		switch c.ID {
+		case early.ID:
+			posEarly = i
+			if c.Number != "K-10-"+mark || c.Name != "Bibliothek" || c.CreatedBy != "alice" {
+				t.Fatalf("centre = %+v", c)
+			}
+		case late.ID:
+			posLate = i
+		}
+	}
+	if posEarly < 0 || posLate < 0 {
+		t.Fatalf("both centres should be listed, got %d entries", len(centers))
+	}
+	if posEarly > posLate {
+		t.Fatalf("K-10 (%d) is listed after K-99 (%d)", posEarly, posLate)
+	}
+}
