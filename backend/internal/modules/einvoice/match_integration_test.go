@@ -218,9 +218,18 @@ func TestMatchIsRecordedOnTheAuditChain(t *testing.T) {
 	if _, err := inSvc.Match(ctx, saved.ID, "carol"); err != nil {
 		t.Fatalf("Match: %v", err)
 	}
-	// A second match cannot succeed: the order left the approved state.
-	if _, err := inSvc.Match(ctx, saved.ID, "carol"); !errors.Is(err, procurement.ErrBadTransition) {
-		t.Fatalf("second match = %v, want ErrBadTransition", err)
+	// A second match cannot succeed: the invoice records its order now, so the invoice itself
+	// refuses before anything else is touched.
+	if _, err := inSvc.Match(ctx, saved.ID, "carol"); !errors.Is(err, einvoice.ErrAlreadyMatched) {
+		t.Fatalf("second match = %v, want ErrAlreadyMatched", err)
+	}
+	// And the invoice remembers the order it was bound to.
+	again, err := inSvc.Get(ctx, saved.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if again.MatchedOrderID != order.ID {
+		t.Fatalf("matched order = %d, want %d", again.MatchedOrderID, order.ID)
 	}
 	if err := store.Verify(ctx); err != nil {
 		t.Fatalf("audit verify: %v", err)

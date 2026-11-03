@@ -141,6 +141,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     # ── E-invoicing ──────────────────────────────────────────────────────────
     "/api/e-invoices": {
+        "get": ("listEInvoices", "einvoice", "List e-invoices, matched or not", None, "[]einvoice.InvoiceSummary", 200, "json"),
         "post": ("createEInvoice", "einvoice", "Generate an outgoing XRechnung 3.0 invoice", "httpapi.createEInvoiceRequest", "einvoice.Invoice", 201, "json"),
     },
     "/api/e-invoices/received": {
@@ -255,19 +256,22 @@ SCALAR_OVERRIDES = {
     "time.Duration": ("integer", "int64"),
 }
 
+# One package name may be split across directories: `einvoice` is both the document model
+# (core/einvoice) and the module that serves it (modules/einvoice). Both are scanned into the
+# same name, so a type is found wherever it lives.
 PKG_DIRS = {
-    "httpapi": BACKEND / "httpapi",
-    "kasse": BACKEND / "modules" / "kasse",
-    "budget": BACKEND / "modules" / "budget",
-    "klr": BACKEND / "modules" / "klr",
-    "lookup": BACKEND / "modules" / "lookup",
-    "procurement": BACKEND / "modules" / "procurement",
-    "einvoice": BACKEND / "core" / "einvoice",
-    "sepa": BACKEND / "core" / "sepa",
-    "audit": BACKEND / "core" / "audit",
-    "report": BACKEND / "core" / "report",
-    "finance": BACKEND / "modules" / "finance",
-    "personal": BACKEND / "modules" / "personal",
+    "httpapi": [BACKEND / "httpapi"],
+    "kasse": [BACKEND / "modules" / "kasse"],
+    "budget": [BACKEND / "modules" / "budget"],
+    "klr": [BACKEND / "modules" / "klr"],
+    "lookup": [BACKEND / "modules" / "lookup"],
+    "procurement": [BACKEND / "modules" / "procurement"],
+    "einvoice": [BACKEND / "core" / "einvoice", BACKEND / "modules" / "einvoice"],
+    "sepa": [BACKEND / "core" / "sepa"],
+    "audit": [BACKEND / "core" / "audit"],
+    "report": [BACKEND / "core" / "report"],
+    "finance": [BACKEND / "modules" / "finance"],
+    "personal": [BACKEND / "modules" / "personal"],
 }
 
 TYPE_RE = re.compile(r"^type\s+([A-Za-z_][A-Za-z0-9_]*)\s+struct\s*\{\s*$")
@@ -365,10 +369,12 @@ def camel(name: str) -> str:
 class Resolver:
     def __init__(self) -> None:
         self.pkgs: dict[str, dict[str, dict]] = {
-            pkg: parse_package(d) for pkg, d in PKG_DIRS.items() if d.is_dir()
+            pkg: {name: struct for d in dirs if d.is_dir() for name, struct in parse_package(d).items()}
+            for pkg, dirs in PKG_DIRS.items()
         }
         self.named: dict[str, dict[str, str]] = {
-            pkg: parse_named(d) for pkg, d in PKG_DIRS.items() if d.is_dir()
+            pkg: {name: kind for d in dirs if d.is_dir() for name, kind in parse_named(d).items()}
+            for pkg, dirs in PKG_DIRS.items()
         }
         self.names: dict[str, list[str]] = {}
         for pkg, types in self.pkgs.items():

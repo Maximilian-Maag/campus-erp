@@ -164,6 +164,44 @@ func TestInvoiceImportReceived(t *testing.T) {
 	}
 }
 
+// TestInvoiceSummariesList: the list a screen reads — every invoice as a summary, ordered by
+// number, with the order it was matched to (none, here).
+func TestInvoiceSummariesList(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+
+	inv := sampleInvoice(t)
+	inv.Number = "RE-L-" + uniqueSuffix(t)
+	saved, err := svc.Create(ctx, inv, "alice")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	all, err := svc.Invoices(ctx)
+	if err != nil {
+		t.Fatalf("Invoices: %v", err)
+	}
+	var found bool
+	for _, s := range all {
+		if s.ID != saved.ID {
+			continue
+		}
+		found = true
+		if s.Number != inv.Number || s.GrossCents != 34005 || s.MatchedOrderID != 0 ||
+			s.BuyerReference != inv.BuyerReference || s.Currency != "EUR" || s.TypeCode != "380" {
+			t.Fatalf("summary = %+v", s)
+		}
+	}
+	if !found {
+		t.Fatalf("invoice %d is missing from %d summaries", saved.ID, len(all))
+	}
+	for i := 1; i < len(all); i++ {
+		if all[i-1].Number > all[i].Number {
+			t.Fatalf("summaries are not ordered by number: %q before %q", all[i-1].Number, all[i].Number)
+		}
+	}
+}
+
 func TestInvoiceAuditChain(t *testing.T) {
 	ctx := context.Background()
 	pool := testPool(t)

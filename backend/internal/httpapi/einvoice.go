@@ -18,6 +18,7 @@ type einvoiceService interface {
 	Create(ctx context.Context, inv core.Invoice, by string) (core.Invoice, error)
 	ImportReceived(ctx context.Context, doc, by string) (core.Invoice, error)
 	Get(ctx context.Context, id int64) (core.Invoice, error)
+	Invoices(ctx context.Context) ([]einvoice.InvoiceSummary, error)
 	Render(ctx context.Context, id int64) (string, error)
 	Match(ctx context.Context, id int64, by string) (core.Invoice, error)
 }
@@ -27,7 +28,7 @@ func statusForEInvoice(err error) int {
 	switch {
 	case errors.Is(err, einvoice.ErrNotFound), errors.Is(err, procurement.ErrOrderNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, einvoice.ErrNumberExists):
+	case errors.Is(err, einvoice.ErrNumberExists), errors.Is(err, einvoice.ErrAlreadyMatched):
 		return http.StatusConflict
 	case errors.Is(err, procurement.ErrBadTransition):
 		return http.StatusConflict
@@ -151,6 +152,17 @@ func (s *Server) receiveEInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
+}
+
+// listEInvoices returns the invoices as summaries, so a screen can show which are still
+// unmatched and match one without fetching each by id.
+func (s *Server) listEInvoices(w http.ResponseWriter, r *http.Request) {
+	invoices, err := s.einvoices.Invoices(r.Context())
+	if err != nil {
+		writeProblem(w, statusForEInvoice(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, invoices)
 }
 
 // matchEInvoice runs the two-way match for an inbound invoice: it finds the purchase order the

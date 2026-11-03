@@ -74,6 +74,11 @@ func (s *InvoiceService) Get(ctx context.Context, id int64) (core.Invoice, error
 	return s.repo.Get(ctx, id)
 }
 
+// Invoices returns the invoices as summaries, ordered by number. It is read-only.
+func (s *InvoiceService) Invoices(ctx context.Context) ([]InvoiceSummary, error) {
+	return s.repo.List(ctx)
+}
+
 // Match runs the two-way match for an inbound invoice (docs/09, docs/12): the order its buyer
 // reference names must exist, be approved and amount to the same gross, and the match converts
 // that order's commitment into an actual. The invoice records the match on the audit stream.
@@ -91,6 +96,9 @@ func (s *InvoiceService) Match(ctx context.Context, id int64, by string) (core.I
 	if err != nil {
 		return core.Invoice{}, err
 	}
+	if inv.MatchedOrderID != 0 {
+		return core.Invoice{}, ErrAlreadyMatched
+	}
 	reference := strings.TrimSpace(inv.BuyerReference)
 	if reference == "" {
 		return core.Invoice{}, core.ErrBuyerReference
@@ -98,6 +106,12 @@ func (s *InvoiceService) Match(ctx context.Context, id int64, by string) (core.I
 	_, _, gross, _ := core.ComputeTotals(inv)
 	order, err := s.orders.MatchReceipt(ctx, reference, gross, "RE:"+inv.Number, by)
 	if err != nil {
+		return core.Invoice{}, err
+	}
+	// The order is the authority and has already moved; recording it on the invoice is what lets
+	// a screen tell a matched invoice from an unmatched one. If this write fails the order stays
+	// matched and this call fails loudly rather than reporting a match that is not recorded.
+	if err := s.repo.MarkMatched(ctx, inv.ID, order.ID); err != nil {
 		return core.Invoice{}, err
 	}
 	if _, err := s.audit.Append(ctx, audit.Event{

@@ -364,12 +364,21 @@ def gen_service(doc: dict) -> str:
             for p in params:
                 args.append(f"{_ts_param(p)}: number | string")
             body_ref = _body_schema(op)
+            raw_body = body_ref is None and _has_raw_body(op)
             if body_ref:
                 args.append(f"body: m.{body_ref}")
+            elif raw_body:
+                # A route that takes a raw document (the received XRechnung, say) has no schema
+                # to type the argument with, but it still takes one: sending a null body would
+                # make the route unreachable through the client.
+                args.append("body: string")
             ret = _response_type(op)
             # turn {name} into ${name}
             url_expr = re.sub(r"\{([A-Za-z0-9_]+)\}", r"${\1}", path)
-            body_arg = ", body" if body_ref else (", null" if method in ("post", "put", "patch") else "")
+            if raw_body:
+                body_arg = ", body, { headers: { 'Content-Type': 'application/xml' } }"
+            else:
+                body_arg = ", body" if body_ref else (", null" if method in ("post", "put", "patch") else "")
             arg_list = (", ".join(args)) if args else ""
             lines.append(f"  {op_id}({arg_list}): Observable<{ret}> {{")
             lines.append(f"    return this.http.{method}<{ret}>(this.base + `{url_expr}`{body_arg});")
@@ -378,6 +387,18 @@ def gen_service(doc: dict) -> str:
     lines.append("}")
     lines.append("")
     return "\n".join(lines)
+
+
+def _has_raw_body(op: dict) -> bool:
+    """True when the operation takes a body that is not a JSON schema reference."""
+    rb = op.get("requestBody")
+    if not rb:
+        return False
+    for _mt, media in (rb.get("content") or {}).items():
+        schema = media.get("schema") or {}
+        if schema and not schema.get("$ref"):
+            return True
+    return False
 
 
 def _body_schema(op: dict) -> str | None:

@@ -69,9 +69,16 @@ importBankStatement(body: m.ImportStatementRequest): Observable<m.Statement[]> {
 Bodies and responses are typed from the Go structs; path parameters are typed;
 `POST`s without a body pass `null` (Angular requires the argument).
 
-A **qualified** field type (`budget.Position`) is resolved in the package it names. It used to
-fall through to `string`, so a response body's nested object reached the client as
-`position: string` — the budget position response was the one that showed it.
+Three things the generator gets right that used to bite:
+
+- A **qualified** field type (`budget.Position`) is resolved in the package it names. It used to
+  fall through to `string`, so a response body's nested object reached the client as
+  `position: string` — the budget position response was the one that showed it.
+- A package name may be **split across directories** (`einvoice` is both the document model and
+  the module that serves it), and both are scanned into that name, so a type is found wherever
+  it lives.
+- A route with a **raw body** (the received XRechnung) takes a `body: string` argument. It used
+  to fall back to a `null` body, which made the route unreachable through the client.
 
 ## The consumers
 
@@ -90,6 +97,12 @@ Mittelüberwachung actually applies instead of recomputing the rule.
 `/procurement/bestellungen`) — lists the orders and approves a draft, the step that commits
 budget. Its status filter is a view over what was loaded, because the generated client cannot
 send query parameters yet (see below).
+
+`frontend/src/app/einvoice/invoices.component.ts` — *E-Rechnung: Eingangsrechnungen* (route
+`/einvoice/rechnungen`) — reads a received XRechnung in, lists the invoices and matches one to
+its order. Amounts and dates come from `core/format.ts` rather than from `Intl`: the same
+`toLocaleDateString('de-DE')` renders "01.04.2026" in one browser and "1.4.2026" in another,
+and a screen has to show the same figures wherever it runs.
 
 These are covered twice: a Karma spec drives the component against a mocked HTTP backend
 (request, render, empty, failure, formatting, reload, and the action's own success and failure

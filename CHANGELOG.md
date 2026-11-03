@@ -2,6 +2,33 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.77.0] - 2026-11-03
+
+The e-invoice screen, the invoice list, and the match recorded on the invoice.
+
+### Added
+- `e_invoice.matched_order_id` (migration 0020) and `Invoice.MatchedOrderID`: a matched invoice
+  records the order it was bound to. The audit stream alone could not serve a screen — that is
+  the trail, not readable state — and a second match is now refused with `ErrAlreadyMatched`
+  (409) by the invoice rather than by the order's state.
+- `GET /api/e-invoices` (role `finanzen`) and `InvoiceSummary`; `InvoiceRepository.List` /
+  `InvoiceService.Invoices`.
+- `frontend`: *E-Rechnung — Eingangsrechnungen* (`/einvoice/rechnungen`) — reads a received
+  XRechnung in, lists the invoices with their match state, and matches one to its order.
+- `frontend/src/app/core/format.ts`: the shared, deterministic amount and date formatting the
+  screens use.
+
+### Fixed
+- The generated client could not drive a route with a **raw body**: it emitted a `null` body,
+  so `POST /api/e-invoices/received` was unreachable through `CampusErpApi`. Such a route now
+  takes a `body: string` argument.
+- The generator scanned one directory per package name, so a type living in `modules/einvoice`
+  (whose name is shared with `core/einvoice`) fell back to a free-form object. Both directories
+  are scanned into the name now.
+- The screens formatted amounts and dates with `Intl`, which is not stable across browsers: the
+  same `toLocaleDateString('de-DE')` gives "01.04.2026" here and "1.4.2026" there. Formatting
+  moved to one shared helper and a test caught it.
+
 ## [0.76.0] - 2026-11-03
 
 The procurement screen, and the order list behind it.

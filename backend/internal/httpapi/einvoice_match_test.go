@@ -67,6 +67,42 @@ func TestMatchEInvoiceRoute(t *testing.T) {
 		t.Fatal("imported invoice has no id")
 	}
 
+	// The list a screen reads shows the invoice as still unmatched.
+	type invoiceSummary struct {
+		ID             int64
+		Number         string
+		BuyerReference string
+		GrossCents     int64
+		MatchedOrderID int64
+	}
+	listInvoices := func() []invoiceSummary {
+		t.Helper()
+		resp := doJSON(t, http.MethodGet, srv.URL+"/api/e-invoices", "alice", "")
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("list invoices = %d", resp.StatusCode)
+		}
+		var out []invoiceSummary
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatalf("decode invoices: %v", err)
+		}
+		return out
+	}
+	find := func(id int64) (invoiceSummary, bool) {
+		for _, s := range listInvoices() {
+			if s.ID == id {
+				return s, true
+			}
+		}
+		return invoiceSummary{}, false
+	}
+	before, ok := find(received.ID)
+	if !ok {
+		t.Fatalf("invoice %d is missing from the list", received.ID)
+	}
+	if before.MatchedOrderID != 0 || before.BuyerReference != order.Number || before.GrossCents != 35700 {
+		t.Fatalf("unmatched summary = %+v", before)
+	}
+
 	// Match it.
 	url := fmt.Sprintf("%s/api/e-invoices/%d/match", srv.URL, received.ID)
 	if resp := doJSON(t, http.MethodPost, url, "alice", ""); resp.StatusCode != http.StatusOK {
@@ -87,7 +123,16 @@ func TestMatchEInvoiceRoute(t *testing.T) {
 		t.Fatalf("balance = committed %d / actual %d, want 0 / 35700", bal.CommittedCents, bal.ActualCents)
 	}
 
-	// Matching the same invoice again is a conflict: its order already left the approved state.
+	// The invoice now records the order it was bound to, which is what a screen shows.
+	after, ok := find(received.ID)
+	if !ok {
+		t.Fatalf("invoice %d disappeared from the list", received.ID)
+	}
+	if after.MatchedOrderID != order.ID {
+		t.Fatalf("matched order = %d, want %d", after.MatchedOrderID, order.ID)
+	}
+
+	// Matching the same invoice again is a conflict: the invoice is already matched.
 	if resp := doJSON(t, http.MethodPost, url, "alice", ""); resp.StatusCode != http.StatusConflict {
 		t.Fatalf("second match status = %d, want 409", resp.StatusCode)
 	}

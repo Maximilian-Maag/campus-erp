@@ -136,6 +136,9 @@ type Invoice struct {
 	Lines            []Line
 	CreatedBy        string
 	CreatedAt        time.Time
+	// MatchedOrderID is the purchase order this invoice's two-way match bound it to, or 0 while
+	// it is unmatched (docs/09, docs/12).
+	MatchedOrderID int64
 }
 
 // VATGroup is one VAT breakdown line (EN16931 BG-23).
