@@ -235,6 +235,10 @@ export class CampusErpApi {
     return this.http.get<string>(this.base + `/api/payment-runs/${id}/file`);
   }
 
+  listPurchaseOrders(): Observable<m.OrderSummary[]> {
+    return this.http.get<m.OrderSummary[]>(this.base + `/api/purchase-orders`);
+  }
+
   createPurchaseOrder(body: m.CreatePurchaseOrderRequest): Observable<m.Order> {
     return this.http.post<m.Order>(this.base + `/api/purchase-orders`, body);
   }

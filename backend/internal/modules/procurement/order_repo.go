@@ -19,6 +19,8 @@ type OrderRepository interface {
 	// GetByNumber is how an inbound invoice finds its order: the buyer reference the document
 	// carries is the order number (BT-10).
 	GetByNumber(ctx context.Context, number string) (Order, error)
+	// List returns the order summaries, optionally narrowed to one status ("" for every status).
+	List(ctx context.Context, status Status) ([]OrderSummary, error)
 	SetStatus(ctx context.Context, id int64, status Status, by string) (Order, error)
 }
 
@@ -73,6 +75,32 @@ func (r *OrderRepo) Insert(ctx context.Context, o Order) (Order, error) {
 	}
 	o.ID = id
 	return o, nil
+}
+
+// List returns the orders as summaries, ordered by number. An empty status lists every status.
+func (r *OrderRepo) List(ctx context.Context, status Status) ([]OrderSummary, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, number, supplier, budget_position_id, currency, net_cents, vat_cents, gross_cents, status
+		   FROM purchase_order
+		  WHERE ($1 = '' OR status = $1)
+		  ORDER BY number`, string(status))
+	if err != nil {
+		return nil, fmt.Errorf("procurement: list orders: %w", err)
+	}
+	defer rows.Close()
+	out := []OrderSummary{}
+	for rows.Next() {
+		var s OrderSummary
+		if err := rows.Scan(&s.ID, &s.Number, &s.Supplier, &s.BudgetPositionID, &s.Currency,
+			&s.NetCents, &s.VatCents, &s.GrossCents, &s.Status); err != nil {
+			return nil, fmt.Errorf("procurement: scan order summary: %w", err)
+		}
+		out = append(out, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("procurement: list orders: %w", err)
+	}
+	return out, nil
 }
 
 // GetByNumber loads an order by its number. It resolves the id and reuses Get, so the line

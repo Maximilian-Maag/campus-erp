@@ -423,6 +423,18 @@ export interface Order {
   CreatedBy: string;
 }
 
+export interface OrderSummary {
+  ID: number;
+  Number: string;
+  Supplier: string;
+  BudgetPositionID: number;
+  Currency: string;
+  NetCents: number;
+  VatCents: number;
+  GrossCents: number;
+  Status: string;
+}
+
 export interface Party {
   Name: string;
   Street: string;

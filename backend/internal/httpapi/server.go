@@ -203,6 +203,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/lookups/{namespace}", s.authorize(s.upsertLookups, auth.RoleAdmin))
 
 	mux.HandleFunc("POST /api/purchase-orders", s.authorize(s.createPurchaseOrder, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/purchase-orders", s.authorizeRead(s.listPurchaseOrders, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/purchase-orders/{id}", s.authorizeRead(s.getPurchaseOrder, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/purchase-orders/{id}/approve", s.authorize(s.approvePurchaseOrder, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/purchase-orders/{id}/receive", s.authorize(s.receivePurchaseOrder, auth.RoleFinanzen))

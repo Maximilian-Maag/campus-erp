@@ -184,6 +184,80 @@ func TestProcurementTransitionsAndErrors(t *testing.T) {
 	}
 }
 
+// TestOrderSummariesListAndFilter: the list a screen reads — every order as a summary, and
+// narrowed to one status on request.
+func TestOrderSummariesListAndFilter(t *testing.T) {
+	ctx := context.Background()
+	procSvc, budgetSvc := setup(t)
+
+	pos, err := budgetSvc.CreatePosition(ctx, 2026, "05", "L-"+suffix(t), "Beschaffung", 100000, "alice")
+	if err != nil {
+		t.Fatalf("CreatePosition: %v", err)
+	}
+	draft, err := procSvc.Create(ctx, "PO-L1-"+suffix(t), "Lieferant GmbH", pos.ID, "EUR", oneLine(1000, 1900), "alice")
+	if err != nil {
+		t.Fatalf("Create draft: %v", err)
+	}
+	approved, err := procSvc.Create(ctx, "PO-L2-"+suffix(t), "Lieferant GmbH", pos.ID, "EUR", oneLine(2000, 1900), "alice")
+	if err != nil {
+		t.Fatalf("Create second: %v", err)
+	}
+	if _, err := procSvc.Approve(ctx, approved.ID, "dave"); err != nil {
+		t.Fatalf("Approve: %v", err)
+	}
+
+	all, err := procSvc.Orders(ctx, "")
+	if err != nil {
+		t.Fatalf("Orders: %v", err)
+	}
+	byID := map[int64]procurement.OrderSummary{}
+	for _, s := range all {
+		byID[s.ID] = s
+	}
+	got, ok := byID[draft.ID]
+	if !ok {
+		t.Fatalf("the draft is missing from %d summaries", len(all))
+	}
+	// The summary carries the header the list shows, and no lines.
+	if got.Number != draft.Number || got.Supplier != "Lieferant GmbH" || got.GrossCents != 1190 ||
+		got.Status != procurement.StatusDraft || got.BudgetPositionID != pos.ID || got.Currency != "EUR" {
+		t.Fatalf("summary = %+v", got)
+	}
+	if o := byID[approved.ID]; o.Status != procurement.StatusApproved {
+		t.Fatalf("approved summary status = %s", o.Status)
+	}
+
+	// Filtered to one status.
+	onlyApproved, err := procSvc.Orders(ctx, procurement.StatusApproved)
+	if err != nil {
+		t.Fatalf("Orders(approved): %v", err)
+	}
+	for _, s := range onlyApproved {
+		if s.Status != procurement.StatusApproved {
+			t.Fatalf("filter returned a %s order", s.Status)
+		}
+	}
+	var sawApproved, sawDraft bool
+	for _, s := range onlyApproved {
+		switch s.ID {
+		case approved.ID:
+			sawApproved = true
+		case draft.ID:
+			sawDraft = true
+		}
+	}
+	if !sawApproved || sawDraft {
+		t.Fatalf("filtered list: approved=%t draft=%t", sawApproved, sawDraft)
+	}
+
+	// Ordered by number, which is what a list shows.
+	for i := 1; i < len(all); i++ {
+		if all[i-1].Number > all[i].Number {
+			t.Fatalf("summaries are not ordered by number: %q before %q", all[i-1].Number, all[i].Number)
+		}
+	}
+}
+
 // TestProcurementMatchReceipt: the two-way match finds the order by number, checks the invoice's
 // gross against the order's, and converts the commitment into an actual rather than counting it
 // twice. Every refusal leaves the order and the budget as they were.

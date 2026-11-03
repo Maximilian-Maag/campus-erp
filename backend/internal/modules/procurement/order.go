@@ -4,6 +4,7 @@ package procurement
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -26,6 +27,8 @@ var (
 	// ErrMatchAmountMismatch is returned when an inbound invoice's gross differs from its
 	// order's: the two-way match the receipt is built on.
 	ErrMatchAmountMismatch = errors.New("procurement: the invoice does not match the order's amount")
+	// ErrUnknownStatus is returned for a status that is not part of the lifecycle.
+	ErrUnknownStatus = errors.New("procurement: unknown order status")
 )
 
 // Status is the order's lifecycle state.
@@ -41,6 +44,37 @@ const (
 	// StatusCancelled is abandoned; its commitment is released.
 	StatusCancelled Status = "cancelled"
 )
+
+// Statuses returns the lifecycle states, in lifecycle order.
+func Statuses() []Status {
+	return []Status{StatusDraft, StatusApproved, StatusReceived, StatusCancelled}
+}
+
+// ParseStatus reads a status from an argument, rejecting anything outside the lifecycle rather
+// than silently listing everything.
+func ParseStatus(value string) (Status, error) {
+	s := Status(strings.TrimSpace(value))
+	for _, known := range Statuses() {
+		if s == known {
+			return s, nil
+		}
+	}
+	return "", fmt.Errorf("%w: %q", ErrUnknownStatus, value)
+}
+
+// OrderSummary is a purchase order as a list shows it: the header, without the lines. That is
+// what an overview of open orders needs, and it avoids loading lines the caller will not read.
+type OrderSummary struct {
+	ID               int64
+	Number           string
+	Supplier         string
+	BudgetPositionID int64
+	Currency         string
+	NetCents         int64
+	VatCents         int64
+	GrossCents       int64
+	Status           Status
+}
 
 // Line is one order line.
 type Line struct {

@@ -86,11 +86,16 @@ Verpflichtet, Ist and Verfügbar, and shows the loading, empty and failed states
 The available amount is the API's (`available_cents`), so the screen shows the figure the
 Mittelüberwachung actually applies instead of recomputing the rule.
 
-Both are covered twice: a Karma spec drives the component against a mocked HTTP backend
-(request, render, empty, failure, formatting), and a Playwright test drives the real browser
-against a stubbed API and runs **axe** over the result — no violations, which is what
-CR-7/BITV 2.0 requires. The frontend mutation gate (`npx stryker run`, break 85) covers them
-too.
+`frontend/src/app/procurement/orders.component.ts` — *Beschaffung: Bestellungen* (route
+`/procurement/bestellungen`) — lists the orders and approves a draft, the step that commits
+budget. Its status filter is a view over what was loaded, because the generated client cannot
+send query parameters yet (see below).
+
+These are covered twice: a Karma spec drives the component against a mocked HTTP backend
+(request, render, empty, failure, formatting, reload, and the action's own success and failure
+paths), and a Playwright test drives the real browser against a stubbed API and runs **axe**
+over the result — no violations, which is what CR-7/BITV 2.0 requires. The frontend mutation
+gate (`npx stryker run`, break 85) covers them too.
 
 ## How it is enforced
 
@@ -115,3 +120,7 @@ too.
 
 - Two of the domains have a screen; the rest get theirs as their phases land, each one
   starting from the read routes it needs (module list endpoints, `GET /api/reports`).
+- **The generated client cannot send query parameters.** The generator emits path parameters
+  only, so a route's `?status=` filter is reachable by a hand-written call but not through
+  `CampusErpApi` — which is why the orders screen filters what it has. Lists big enough to need
+  paging need this first.

@@ -55,6 +55,7 @@ and the budget exactly as they were.
 
 | method | path |
 |---|---|
+| `GET`  | `/api/purchase-orders` (optional `?status=`) |
 | `POST` | `/api/purchase-orders` |
 | `GET`  | `/api/purchase-orders/{id}` |
 | `POST` | `/api/purchase-orders/{id}/approve` |

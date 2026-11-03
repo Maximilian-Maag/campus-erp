@@ -278,6 +278,10 @@ func (s stubProcurement) Get(context.Context, int64) (procurement.Order, error) 
 	return procurement.Order{}, s.err
 }
 
+func (s stubProcurement) Orders(context.Context, procurement.Status) ([]procurement.OrderSummary, error) {
+	return nil, s.err
+}
+
 // stubKLR satisfies the KLR interface with a fixed result.
 type stubKLR struct{ err error }
 
