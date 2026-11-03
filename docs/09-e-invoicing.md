@@ -38,6 +38,9 @@ enforce the mandatory fields a German public-sector invoice needs:
   **BR-DE-7** seller contact e-mail;
 - seller and buyer postal address (name, city, post code, country);
 - a payment means code and, for a credit transfer, the payee IBAN;
+- the VAT category and the payment means code to be ones EN 16931 allows — validated against
+  the code lists in this package (UNTDID 5305 / 4461), which the lookup catalogue is seeded
+  from (`docs/11`), so an invoice that would not conform is refused rather than generated;
 - **BR-CO-10**: each line net = quantity × unit price (round half away from zero);
 - VAT breakdown derived per (category, rate) with the tax rounded half-up.
 

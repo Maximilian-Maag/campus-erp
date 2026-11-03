@@ -45,8 +45,21 @@ new table (the point of one catalogue keyed by `(namespace, code)`).
 
 Every write is audited (`lookup.upsert`, `lookup.upsert_many`, `lookup.seed`).
 
+## Code lists and the catalogue
+
+The `vat_category` (UNTDID 5305) and `payment_means` (UNTDID 4461) catalogues are
+**generated from the code lists `core/einvoice` validates against** (`VATCategories()`,
+`PaymentMeansCodes()`), including their labels. There were never inline enums in the
+generator to point at the catalogue — it accepted *any* non-blank code — so the gap was
+closed the other way round: the generator now rejects a VAT category or payment means that
+EN 16931 does not allow (`ErrVATCategoryUnknown`, `ErrPaymentMeansUnknown`), and the
+catalogue is seeded from that same list. One source of truth, pinned by a test that compares
+the seeded rows with the code lists in both name and label (`lookup`).
+
+The standard is the authority, not tenant data: the catalogue presents the codes to
+operators, but editing a catalogue row cannot make the generator accept a code EN 16931
+does not define.
+
 ## Not yet done
 
-- Point the existing enums (VAT types, payment means in the e-invoice generator)
-  at the catalogue instead of inline constants.
 - Import the full vendor `keytables.xml` where a catalogue is genuinely needed.

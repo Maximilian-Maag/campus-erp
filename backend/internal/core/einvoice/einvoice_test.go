@@ -140,6 +140,8 @@ func TestValidateErrors(t *testing.T) {
 		{"zero qty", mut(func(i *Invoice) { i.Lines[0].QuantityMilli = 0 }), ErrLineQuantity},
 		{"neg price", mut(func(i *Invoice) { i.Lines[0].UnitPriceCents = -1; i.Lines[0].NetCents = 0 }), ErrLineAmount},
 		{"no vat cat", mut(func(i *Invoice) { i.Lines[0].VatCategory = "" }), ErrVATCategoryRequired},
+		{"unknown vat cat", mut(func(i *Invoice) { i.Lines[0].VatCategory = "B" }), ErrVATCategoryUnknown},
+		{"unknown payment means", mut(func(i *Invoice) { i.PaymentMeansCode = "9999" }), ErrPaymentMeansUnknown},
 		{"net mismatch", mut(func(i *Invoice) { i.Lines[0].NetCents = 1 }), ErrLineNetMismatch},
 	}
 	for _, c := range cases {
@@ -151,6 +153,45 @@ func TestValidateErrors(t *testing.T) {
 				t.Fatalf("GenerateXRechnung = %v, want %v", err, c.want)
 			}
 		})
+	}
+}
+
+// TestCodeLists: the value-added tax categories and payment means are the codes EN 16931
+// allows, the accessors hand out copies (so a caller cannot edit the package's authority), and
+// a code surrounded by space is still recognised.
+func TestCodeLists(t *testing.T) {
+	for _, code := range []string{"S", "Z", "E", "AE", "K", "G", "O", "L", "M"} {
+		if !HasCode(VATCategories(), code) {
+			t.Fatalf("VAT category %q is missing", code)
+		}
+	}
+	// UNTDID 5305 has codes EN 16931 does not allow (B is the pre-2010 notification category).
+	if HasCode(VATCategories(), "B") || HasCode(VATCategories(), "") {
+		t.Fatal("VATCategories is not the EN 16931 subset")
+	}
+	if !HasCode(VATCategories(), " S ") {
+		t.Fatal("HasCode does not ignore surrounding space")
+	}
+	// The payment means code that every fixture uses must be there, and a nonsense one must not.
+	for _, code := range []string{"1", "10", "30", "48", "58", "59", "97"} {
+		if !HasCode(PaymentMeansCodes(), code) {
+			t.Fatalf("payment means %q is missing", code)
+		}
+	}
+	if HasCode(PaymentMeansCodes(), "9999") {
+		t.Fatal("PaymentMeansCodes accepts a code the standard does not define")
+	}
+
+	// Editing what an accessor returned must not change the list behind it.
+	vat := VATCategories()
+	vat[0].Code = "XX"
+	if !HasCode(VATCategories(), "S") {
+		t.Fatal("VATCategories handed out the package's own slice")
+	}
+	means := PaymentMeansCodes()
+	means[0].Code = "XX"
+	if !HasCode(PaymentMeansCodes(), "1") {
+		t.Fatal("PaymentMeansCodes handed out the package's own slice")
 	}
 }
 

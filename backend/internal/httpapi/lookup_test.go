@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+
+	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
 )
 
 func TestHTTPLookupFlow(t *testing.T) {
@@ -35,8 +37,8 @@ func TestHTTPLookupFlow(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&values); err != nil {
 		t.Fatalf("decode list: %v", err)
 	}
-	if len(values) != 7 {
-		t.Fatalf("values = %d, want 7", len(values))
+	if len(values) != len(core.VATCategories()) {
+		t.Fatalf("values = %d, want core's %d", len(values), len(core.VATCategories()))
 	}
 
 	// Get one.
