@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.79.0] - 2026-11-03
+
+A stored invoice knows which way it goes.
+
+### Added
+- `e_invoice.direction` (migration 0021) and `Invoice.Direction`: `inbound` for a received
+  Eingangsrechnung, `outbound` for one this system issued. `ImportReceived` stores the former,
+  `Create` the latter, and `GET /api/e-invoices` reports it.
+- `einvoice.ErrNotInbound` (422): only a received invoice can be matched to a purchase order.
+  The screen shows the direction and offers the match action only where one is possible.
+
+### Notes
+- The column arrived after the first invoices did, so the migration backfills it from the audit
+  stream — the rows whose trail shows `einvoice.receive` become `inbound` rather than being
+  guessed at, and everything else stays `outbound`.
+
 ## [0.78.0] - 2026-11-03
 
 Query parameters in the generated client, so a screen can use a route's filter.

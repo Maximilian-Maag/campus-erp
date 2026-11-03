@@ -3237,6 +3237,8 @@ components:
         MatchedOrderID:
           type: integer
           format: int64
+        Direction:
+          type: string
       required:
       - ID
       - Number
@@ -3253,6 +3255,7 @@ components:
       - CreatedBy
       - CreatedAt
       - MatchedOrderID
+      - Direction
     EinvoiceLine:
       type: object
       properties:
@@ -3440,6 +3443,8 @@ components:
         GrossCents:
           type: integer
           format: int64
+        Direction:
+          type: string
         MatchedOrderID:
           type: integer
           format: int64
@@ -3451,6 +3456,7 @@ components:
       - Currency
       - BuyerReference
       - GrossCents
+      - Direction
       - MatchedOrderID
     DunningNotice:
       type: object

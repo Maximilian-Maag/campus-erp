@@ -53,6 +53,7 @@ func (s *InvoiceService) Create(ctx context.Context, inv core.Invoice, by string
 		return core.Invoice{}, err
 	}
 	inv.CreatedBy = by
+	inv.Direction = core.Outbound
 	saved, err := s.repo.Insert(ctx, inv)
 	if err != nil {
 		return core.Invoice{}, err
@@ -96,6 +97,9 @@ func (s *InvoiceService) Match(ctx context.Context, id int64, by string) (core.I
 	if err != nil {
 		return core.Invoice{}, err
 	}
+	if inv.Direction != core.Inbound {
+		return core.Invoice{}, ErrNotInbound
+	}
 	if inv.MatchedOrderID != 0 {
 		return core.Invoice{}, ErrAlreadyMatched
 	}
@@ -135,6 +139,7 @@ func (s *InvoiceService) ImportReceived(ctx context.Context, doc, by string) (co
 		return core.Invoice{}, err
 	}
 	inv.CreatedBy = by
+	inv.Direction = core.Inbound
 	saved, err := s.repo.Insert(ctx, inv)
 	if err != nil {
 		return core.Invoice{}, err

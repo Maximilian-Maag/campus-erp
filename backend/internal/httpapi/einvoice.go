@@ -54,6 +54,7 @@ func statusForEInvoice(err error) int {
 		errors.Is(err, core.ErrVATCategoryRequired),
 		errors.Is(err, core.ErrLineNetMismatch),
 		errors.Is(err, core.ErrMalformed),
+		errors.Is(err, einvoice.ErrNotInbound),
 		errors.Is(err, procurement.ErrMatchAmountMismatch),
 		errors.Is(err, core.ErrBadValue):
 		return http.StatusUnprocessableEntity

@@ -65,10 +65,16 @@ A matched invoice **records the order it was bound to** (`e_invoice.matched_orde
 do: that is the trail, not state a screen can read. A second match is refused
 (`ErrAlreadyMatched`) — the invoice, not the order's state, is the first thing that stops it.
 
+A stored invoice also carries its **direction**: `inbound` for a received Eingangsrechnung,
+`outbound` for one this system issued. Only an inbound one can be matched — a purchase order's
+receipt answers a document coming in, not one going out — and the screen does not offer the
+action for the others. The column arrived after the first invoices did, so the migration
+backfills it from the audit stream: the rows whose trail shows `einvoice.receive` are corrected
+to `inbound`. That is what the trail is for.
+
 ## Not yet done
 
 - ZUGFeRD/CII syntax (the vendor ships it too; UBL is the public-sector format).
 - The full KoSIT Schematron ruleset (we enforce the subset we can satisfy).
-- **No direction on a stored invoice.** `Match` is meaningful for a received (inbound)
-  document, but nothing marks a row as inbound or outbound, so the guard is the order's own
-  state and the amount check rather than the invoice's kind.
+- **No KoSIT Schematron.** The rules enforced are the ones this package can satisfy (docs/09
+  above); the full ruleset is a separate body of work.

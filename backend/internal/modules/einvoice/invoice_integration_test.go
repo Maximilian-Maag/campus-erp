@@ -146,6 +146,11 @@ func TestInvoiceImportReceived(t *testing.T) {
 	if saved.ID == 0 || saved.Number != inv.Number {
 		t.Fatalf("saved = %+v", saved)
 	}
+	// A received document is inbound; one this system issues is outbound. Only the former can be
+	// matched to a purchase order.
+	if saved.Direction != core.Inbound {
+		t.Fatalf("imported direction = %q, want %q", saved.Direction, core.Inbound)
+	}
 	got, err := svc.Get(ctx, saved.ID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
@@ -188,7 +193,8 @@ func TestInvoiceSummariesList(t *testing.T) {
 		}
 		found = true
 		if s.Number != inv.Number || s.GrossCents != 34005 || s.MatchedOrderID != 0 ||
-			s.BuyerReference != inv.BuyerReference || s.Currency != "EUR" || s.TypeCode != "380" {
+			s.BuyerReference != inv.BuyerReference || s.Currency != "EUR" || s.TypeCode != "380" ||
+			s.Direction != core.Outbound {
 			t.Fatalf("summary = %+v", s)
 		}
 	}

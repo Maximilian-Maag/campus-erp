@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const summary = (ID: number, Number: string, matched: number) => ({
+const summary = (ID: number, Number: string, direction: string, matched: number) => ({
   ID,
   Number,
   IssueDate: '2026-04-01T00:00:00Z',
@@ -9,20 +9,28 @@ const summary = (ID: number, Number: string, matched: number) => ({
   Currency: 'EUR',
   BuyerReference: 'PO-2026-1',
   GrossCents: 35700,
+  Direction: direction,
   MatchedOrderID: matched,
 });
 
 test('Eingangsrechnungen lists the invoices, matches one and passes axe', async ({ page }) => {
-  let invoices = [summary(1, 'RE-1', 0), summary(2, 'RE-2', 7)];
+  let invoices = [
+    summary(1, 'RE-1', 'inbound', 0),
+    summary(2, 'RE-2', 'inbound', 7),
+    summary(3, 'RE-3', 'outbound', 0),
+  ];
   await page.route('**/api/e-invoices', (route) => route.fulfill({ json: invoices }));
   await page.route('**/api/e-invoices/1/match', (route) => {
-    invoices = [summary(1, 'RE-1', 7), invoices[1]];
+    invoices = [summary(1, 'RE-1', 'inbound', 7), ...invoices.slice(1)];
     return route.fulfill({ json: { Number: 'RE-1' } });
   });
 
   await page.goto('/einvoice/rechnungen');
   await expect(page.getByTestId('match-RE-1')).toContainText('offen');
   await expect(page.getByTestId('invoice-RE-2')).toContainText('Bestellung 7');
+  // An invoice this system issued carries no match action.
+  await expect(page.getByTestId('direction-RE-3')).toContainText('Ausgang');
+  await expect(page.getByTestId('invoice-RE-3').getByRole('button')).toHaveCount(0);
 
   // BITV 2.0 / WCAG is a legal requirement (ADR-0003, CR-7): no axe violations.
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -37,7 +45,7 @@ test('Eingangsrechnungen reads a document in and passes axe', async ({ page }) =
   let invoices: unknown[] = [];
   await page.route('**/api/e-invoices', (route) => route.fulfill({ json: invoices }));
   await page.route('**/api/e-invoices/received', (route) => {
-    invoices = [summary(1, 'RE-1', 0)];
+    invoices = [summary(1, 'RE-1', 'inbound', 0)];
     return route.fulfill({ status: 201, json: { Number: 'RE-1' } });
   });
 
