@@ -120,7 +120,17 @@ type Line struct {
 	VatRateBP      int64
 }
 
-// Invoice is an outbound e-invoice.
+// Direction says which way a stored invoice goes: one this system issued, or one it received.
+type Direction string
+
+const (
+	// Outbound is an invoice this system issued.
+	Outbound Direction = "outbound"
+	// Inbound is a received invoice (Eingangsrechnung).
+	Inbound Direction = "inbound"
+)
+
+// Invoice is an EN 16931 invoice together with the state this system keeps about it.
 type Invoice struct {
 	ID               int64
 	Number           string
@@ -139,6 +149,9 @@ type Invoice struct {
 	// MatchedOrderID is the purchase order this invoice's two-way match bound it to, or 0 while
 	// it is unmatched (docs/09, docs/12).
 	MatchedOrderID int64
+	// Direction is which way the invoice goes. Only an inbound one can be matched: an invoice we
+	// issued is not something a purchase order's receipt answers.
+	Direction Direction
 }
 
 // VATGroup is one VAT breakdown line (EN16931 BG-23).

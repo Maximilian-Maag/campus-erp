@@ -9,6 +9,9 @@ import { formatCents, formatDay } from '../core/format';
  * Reads a received XRechnung in, lists the invoices, and matches one to the purchase order its
  * buyer reference names (docs/09, docs/12). The match converts that order's commitment into an
  * actual, so it is the step that turns a document into a booking.
+ *
+ * Only an invoice this system *received* can be matched: one we issued is going out, and its
+ * row does not offer the action.
  */
 @Component({
   selector: 'app-e-invoices',
@@ -50,6 +53,7 @@ import { formatCents, formatDay } from '../core/format';
           <thead>
             <tr>
               <th scope="col">Nummer</th>
+              <th scope="col">Richtung</th>
               <th scope="col">Datum</th>
               <th scope="col">Referenz</th>
               <th scope="col" class="amount">Betrag</th>
@@ -61,14 +65,19 @@ import { formatCents, formatDay } from '../core/format';
             @for (invoice of invoices(); track invoice.ID) {
               <tr [attr.data-testid]="'invoice-' + invoice.Number">
                 <td>{{ invoice.Number }}</td>
+                <td [attr.data-testid]="'direction-' + invoice.Number">{{ direction(invoice.Direction) }}</td>
                 <td>{{ day(invoice.IssueDate) }}</td>
                 <td>{{ invoice.BuyerReference }}</td>
                 <td class="amount">{{ euro(invoice.GrossCents) }}</td>
                 <td [attr.data-testid]="'match-' + invoice.Number">
-                  {{ invoice.MatchedOrderID ? 'Bestellung ' + invoice.MatchedOrderID : 'offen' }}
+                  @if (invoice.Direction !== 'inbound') {
+                    —
+                  } @else {
+                    {{ invoice.MatchedOrderID ? 'Bestellung ' + invoice.MatchedOrderID : 'offen' }}
+                  }
                 </td>
                 <td>
-                  @if (!invoice.MatchedOrderID) {
+                  @if (invoice.Direction === 'inbound' && !invoice.MatchedOrderID) {
                     <button
                       type="button"
                       [disabled]="matching() !== null"
@@ -153,6 +162,18 @@ export class EInvoicesComponent implements OnInit {
         this.actionError.set('Konnte die Rechnung ' + invoice.Number + ' nicht zuordnen.');
       },
     });
+  }
+
+  /** Which way the invoice goes, in the words the screen uses. */
+  direction(direction: string): string {
+    switch (direction) {
+      case 'inbound':
+        return 'Eingang';
+      case 'outbound':
+        return 'Ausgang';
+      default:
+        return direction;
+    }
   }
 
   /** Dates and amounts come from the shared formatters, not from each screen's own. */

@@ -346,6 +346,7 @@ export interface Invoice {
   CreatedBy: string;
   CreatedAt: string;
   MatchedOrderID: number;
+  Direction: string;
 }
 
 export interface InvoiceSummary {
@@ -356,6 +357,7 @@ export interface InvoiceSummary {
   Currency: string;
   BuyerReference: string;
   GrossCents: number;
+  Direction: string;
   MatchedOrderID: number;
 }
 

@@ -66,7 +66,7 @@ func (f *fakeAudit) Append(_ context.Context, e audit.Event) (audit.Event, error
 
 func matchedInvoice() core.Invoice {
 	return core.Invoice{
-		ID: 7, Number: "RE-1", BuyerReference: "PO-2026-1",
+		ID: 7, Number: "RE-1", BuyerReference: "PO-2026-1", Direction: core.Inbound,
 		IssueDate: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
 		TypeCode:  "380", Currency: "EUR",
 		Lines: []core.Line{{LineNo: 1, Description: "D", QuantityMilli: 1000, UnitCode: "C62",
@@ -106,6 +106,9 @@ func TestMatchDelegatesWithTheBuyerReference(t *testing.T) {
 func TestMatchRefusals(t *testing.T) {
 	boom := errors.New("boom")
 
+	outbound := matchedInvoice()
+	outbound.Direction = core.Outbound
+
 	cases := []struct {
 		name    string
 		svc     *InvoiceService
@@ -115,6 +118,8 @@ func TestMatchRefusals(t *testing.T) {
 		{"no actor", NewInvoiceService(&fakeRepo{inv: matchedInvoice()}, &fakeMatcher{}, &fakeAudit{}), "  ", ErrActorRequired},
 		{"no matcher", NewInvoiceService(&fakeRepo{inv: matchedInvoice()}, nil, &fakeAudit{}), "carol", ErrNoOrderMatcher},
 		{"repo fails", NewInvoiceService(&fakeRepo{err: boom}, &fakeMatcher{}, &fakeAudit{}), "carol", boom},
+		// An invoice we issued is not answered by a purchase order's receipt.
+		{"not inbound", NewInvoiceService(&fakeRepo{inv: outbound}, &fakeMatcher{}, &fakeAudit{}), "carol", ErrNotInbound},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -227,6 +227,14 @@ func TestStatusForEInvoice(t *testing.T) {
 		{"line amount", core.ErrLineAmount, http.StatusUnprocessableEntity},
 		{"vat category", core.ErrVATCategoryRequired, http.StatusUnprocessableEntity},
 		{"line net mismatch", core.ErrLineNetMismatch, http.StatusUnprocessableEntity},
+		{"malformed document", core.ErrMalformed, http.StatusUnprocessableEntity},
+		{"bad value", core.ErrBadValue, http.StatusUnprocessableEntity},
+		{"already matched", einvoice.ErrAlreadyMatched, http.StatusConflict},
+		{"not inbound", einvoice.ErrNotInbound, http.StatusUnprocessableEntity},
+		{"no order matcher", einvoice.ErrNoOrderMatcher, http.StatusInternalServerError},
+		{"order not found", procurement.ErrOrderNotFound, http.StatusNotFound},
+		{"order state", procurement.ErrBadTransition, http.StatusConflict},
+		{"amount mismatch", procurement.ErrMatchAmountMismatch, http.StatusUnprocessableEntity},
 		{"anything else", errors.New("boom"), http.StatusInternalServerError},
 	}
 	for _, c := range cases {

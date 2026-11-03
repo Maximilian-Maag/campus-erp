@@ -25,6 +25,10 @@ var ErrNumberExists = errors.New("einvoice: an invoice with that number already 
 // same invoice to another order, or to the same one twice.
 var ErrAlreadyMatched = errors.New("einvoice: the invoice is already matched to a purchase order")
 
+// ErrNotInbound is returned when an invoice that this system issued is offered for matching. A
+// purchase order's receipt answers an invoice we received, not one we sent.
+var ErrNotInbound = errors.New("einvoice: only a received invoice can be matched to a purchase order")
+
 // InvoiceRepository is the persistence port for e-invoices.
 type InvoiceRepository interface {
 	Insert(ctx context.Context, inv core.Invoice) (core.Invoice, error)
@@ -42,6 +46,7 @@ type InvoiceSummary struct {
 	Currency       string
 	BuyerReference string
 	GrossCents     int64
+	Direction      core.Direction
 	// MatchedOrderID is 0 while the invoice is unmatched.
 	MatchedOrderID int64
 }
@@ -54,7 +59,7 @@ func NewInvoiceRepo(pool *pgxpool.Pool) *InvoiceRepo { return &InvoiceRepo{pool:
 
 const invoiceColumns = `id, number, issue_date, type_code, currency, buyer_reference,
 	payment_means_code, payee_iban, payment_terms, net_cents, vat_cents, gross_cents,
-	created_by, created_at, matched_order_id`
+	created_by, created_at, matched_order_id, direction`
 
 // Insert stores an invoice with its parties, lines and VAT breakdown atomically.
 func (r *InvoiceRepo) Insert(ctx context.Context, inv core.Invoice) (core.Invoice, error) {
@@ -69,11 +74,12 @@ func (r *InvoiceRepo) Insert(ctx context.Context, inv core.Invoice) (core.Invoic
 	err = tx.QueryRow(ctx,
 		`INSERT INTO e_invoice
 		   (number, issue_date, type_code, currency, buyer_reference, payment_means_code,
-		    payee_iban, payment_terms, net_cents, vat_cents, gross_cents, created_by)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		    payee_iban, payment_terms, net_cents, vat_cents, gross_cents, created_by, direction)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		 RETURNING id`,
 		inv.Number, inv.IssueDate, inv.TypeCode, inv.Currency, inv.BuyerReference,
-		inv.PaymentMeansCode, inv.PayeeIBAN, inv.PaymentTerms, net, vat, gross, inv.CreatedBy).Scan(&id)
+		inv.PaymentMeansCode, inv.PayeeIBAN, inv.PaymentTerms, net, vat, gross, inv.CreatedBy,
+		string(inv.Direction)).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
@@ -128,7 +134,8 @@ func (r *InvoiceRepo) Insert(ctx context.Context, inv core.Invoice) (core.Invoic
 // List returns the invoices as summaries, ordered by number.
 func (r *InvoiceRepo) List(ctx context.Context) ([]InvoiceSummary, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, number, issue_date, type_code, currency, buyer_reference, gross_cents, matched_order_id
+		`SELECT id, number, issue_date, type_code, currency, buyer_reference, gross_cents,
+		        matched_order_id, direction
 		   FROM e_invoice ORDER BY number`)
 	if err != nil {
 		return nil, fmt.Errorf("einvoice: list invoices: %w", err)
@@ -139,7 +146,7 @@ func (r *InvoiceRepo) List(ctx context.Context) ([]InvoiceSummary, error) {
 		var s InvoiceSummary
 		var matched *int64
 		if err := rows.Scan(&s.ID, &s.Number, &s.IssueDate, &s.TypeCode, &s.Currency,
-			&s.BuyerReference, &s.GrossCents, &matched); err != nil {
+			&s.BuyerReference, &s.GrossCents, &matched, &s.Direction); err != nil {
 			return nil, fmt.Errorf("einvoice: scan invoice summary: %w", err)
 		}
 		if matched != nil {
@@ -179,7 +186,7 @@ func (r *InvoiceRepo) Get(ctx context.Context, id int64) (core.Invoice, error) {
 	err := r.pool.QueryRow(ctx, `SELECT `+invoiceColumns+` FROM e_invoice WHERE id = $1`, id).
 		Scan(&inv.ID, &inv.Number, &inv.IssueDate, &inv.TypeCode, &inv.Currency, &inv.BuyerReference,
 			&inv.PaymentMeansCode, &inv.PayeeIBAN, &inv.PaymentTerms, &net, &vat, &gross,
-			&inv.CreatedBy, &inv.CreatedAt, &matched)
+			&inv.CreatedBy, &inv.CreatedAt, &matched, &inv.Direction)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return core.Invoice{}, fmt.Errorf("einvoice: invoice %d: %w", id, ErrNotFound)
 	}

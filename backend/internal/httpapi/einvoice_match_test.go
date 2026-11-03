@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,6 +137,26 @@ func TestMatchEInvoiceRoute(t *testing.T) {
 	if resp := doJSON(t, http.MethodPost, url, "alice", ""); resp.StatusCode != http.StatusConflict {
 		t.Fatalf("second match status = %d, want 409", resp.StatusCode)
 	}
+	// An invoice this system issued is not answered by a purchase order's receipt, even when it
+	// names the order: it is going out, not coming in.
+	outboundBody := strings.Replace(
+		einvoiceBody("RE-OUT-"+uniqueSuffix(t)),
+		`"buyer_reference":"04011000-12345-03"`,
+		`"buyer_reference":"`+order.Number+`"`,
+		1,
+	)
+	created := doJSON(t, http.MethodPost, srv.URL+"/api/e-invoices", "alice", outboundBody)
+	if created.StatusCode != http.StatusCreated {
+		t.Fatalf("create outbound = %d, want 201", created.StatusCode)
+	}
+	var outbound struct{ ID int64 }
+	if err := json.NewDecoder(created.Body).Decode(&outbound); err != nil {
+		t.Fatalf("decode outbound: %v", err)
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+fmt.Sprintf("/api/e-invoices/%d/match", outbound.ID), "alice", ""); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("match outbound = %d, want 422", resp.StatusCode)
+	}
+
 	// An invoice that does not exist.
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/e-invoices/9223372036854775807/match", "alice", ""); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown invoice status = %d, want 404", resp.StatusCode)

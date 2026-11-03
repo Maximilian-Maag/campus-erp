@@ -17,12 +17,13 @@ describe('EInvoicesComponent', () => {
 
   afterEach(() => http.verify());
 
-  const invoice = (ID: number, Number: string, matched: number): InvoiceSummary => ({
+  const invoice = (ID: number, Number: string, direction: string, matched: number): InvoiceSummary => ({
     ID, Number, IssueDate: '2026-04-01T00:00:00Z', TypeCode: '380', Currency: 'EUR',
-    BuyerReference: 'PO-2026-1', GrossCents: 35700, MatchedOrderID: matched,
+    BuyerReference: 'PO-2026-1', GrossCents: 35700, Direction: direction, MatchedOrderID: matched,
   });
-  const unmatched = invoice(1, 'RE-1', 0);
-  const matched = invoice(2, 'RE-2', 7);
+  const unmatched = invoice(1, 'RE-1', 'inbound', 0);
+  const matched = invoice(2, 'RE-2', 'inbound', 7);
+  const outbound = invoice(3, 'RE-3', 'outbound', 0);
 
   it('loads the invoices as soon as it is shown', () => {
     const fixture = TestBed.createComponent(EInvoicesComponent);
@@ -50,23 +51,29 @@ describe('EInvoicesComponent', () => {
     const html = fixture.nativeElement as HTMLElement;
     const cells = html.querySelectorAll('[data-testid="invoice-RE-1"] td');
     expect(cells[0].textContent).toContain('RE-1');
-    expect(cells[1].textContent).toContain('01.04.2026');
-    expect(cells[2].textContent).toContain('PO-2026-1');
-    expect(cells[3].textContent).toContain('357,00');
+    expect(cells[2].textContent).toContain('01.04.2026');
+    expect(cells[3].textContent).toContain('PO-2026-1');
+    expect(cells[4].textContent).toContain('357,00');
+    expect(html.querySelector('[data-testid="direction-RE-1"]')?.textContent).toContain('Eingang');
     expect(html.querySelector('[data-testid="match-RE-1"]')?.textContent).toContain('offen');
     expect(html.querySelector('[data-testid="match-RE-2"]')?.textContent).toContain('Bestellung 7');
   });
 
-  it('offers a match only for an unmatched invoice', () => {
+  it('offers a match only for a received invoice that is still open', () => {
     const fixture = TestBed.createComponent(EInvoicesComponent);
     fixture.detectChanges();
-    http.expectOne('/api/e-invoices').flush([unmatched, matched]);
+    http.expectOne('/api/e-invoices').flush([unmatched, matched, outbound]);
     fixture.detectChanges();
 
     const html = fixture.nativeElement as HTMLElement;
     const button = html.querySelector('[data-testid="invoice-RE-1"] button');
     expect(button?.getAttribute('aria-label')).toBe('Rechnung RE-1 der Bestellung zuordnen');
+    // Already matched: nothing left to do.
     expect(html.querySelector('[data-testid="invoice-RE-2"] button')).toBeNull();
+    // Issued by us: a purchase order's receipt does not answer it, so it is not offered.
+    expect(html.querySelector('[data-testid="invoice-RE-3"] button')).toBeNull();
+    expect(html.querySelector('[data-testid="direction-RE-3"]')?.textContent).toContain('Ausgang');
+    expect(html.querySelector('[data-testid="match-RE-3"]')?.textContent).toContain('—');
   });
 
   it('matches an invoice and reloads the list', () => {
@@ -198,6 +205,9 @@ describe('EInvoicesComponent', () => {
     fixture.detectChanges();
     http.expectOne('/api/e-invoices').flush([]);
 
+    expect(component.direction('inbound')).toBe('Eingang');
+    expect(component.direction('outbound')).toBe('Ausgang');
+    expect(component.direction('')).toBe('');
     expect(component.day('2026-04-01T00:00:00Z')).toBe('01.04.2026');
     // An unparseable date is shown as it came, rather than as "Invalid Date".
     expect(component.day('nonsense')).toBe('nonsense');
