@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -11,6 +12,10 @@ import (
 )
 
 const uniqueViolation = "23505"
+
+// exclusionViolation is PostgreSQL's SQLSTATE for an exclusion-constraint violation, which is
+// what the allocation run's period overlap is declared as.
+const exclusionViolation = "23P01"
 const foreignKeyViolation = "23503"
 
 // Repository is the persistence port for the KLR.
@@ -20,6 +25,11 @@ type Repository interface {
 	CreateCostUnit(ctx context.Context, u CostUnit) (CostUnit, error)
 	InsertRecord(ctx context.Context, r Record) (Record, error)
 	Report(ctx context.Context, costCenterID int64) (Report, error)
+
+	CreateAllocation(ctx context.Context, a Allocation) (Allocation, error)
+	Allocations(ctx context.Context, sourceCenterID int64) ([]Allocation, error)
+	CostsInPeriod(ctx context.Context, costCenterID int64, from, to time.Time) (int64, error)
+	RecordRun(ctx context.Context, run Run, records []Record) (Run, error)
 }
 
 // Repo is the PostgreSQL implementation.
@@ -79,9 +89,10 @@ func (r *Repo) CreateCostUnit(ctx context.Context, u CostUnit) (CostUnit, error)
 func (r *Repo) InsertRecord(ctx context.Context, rec Record) (Record, error) {
 	saved := rec
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO accounting_record (cost_center_id, cost_unit_id, kind, amount_cents, reference, booked_by)
-		 VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-		rec.CostCenterID, rec.CostUnitID, rec.Kind, rec.AmountCents, rec.Reference, rec.BookedBy).Scan(&saved.ID)
+		`INSERT INTO accounting_record (cost_center_id, cost_unit_id, kind, amount_cents, business_date, reference, booked_by)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+		rec.CostCenterID, rec.CostUnitID, rec.Kind, rec.AmountCents, rec.BusinessDate,
+		rec.Reference, rec.BookedBy).Scan(&saved.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation {

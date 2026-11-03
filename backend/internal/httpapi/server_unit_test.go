@@ -298,8 +298,20 @@ func (s stubKLR) CreateCostUnit(context.Context, string, string, string) (klr.Co
 	return klr.CostUnit{}, s.err
 }
 
-func (s stubKLR) Post(context.Context, int64, *int64, klr.Kind, int64, string, string) (klr.Record, error) {
+func (s stubKLR) Post(context.Context, int64, *int64, klr.Kind, int64, time.Time, string, string) (klr.Record, error) {
 	return klr.Record{}, s.err
+}
+
+func (s stubKLR) DefineAllocation(context.Context, int64, int64, int64, time.Time, *time.Time, string) (klr.Allocation, error) {
+	return klr.Allocation{}, s.err
+}
+
+func (s stubKLR) Allocations(context.Context, int64) ([]klr.Allocation, error) {
+	return nil, s.err
+}
+
+func (s stubKLR) Allocate(context.Context, int64, time.Time, time.Time, string) (klr.Run, error) {
+	return klr.Run{}, s.err
 }
 
 func (s stubKLR) Report(context.Context, int64) (klr.Report, error) {

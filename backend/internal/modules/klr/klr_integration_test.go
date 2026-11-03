@@ -52,13 +52,13 @@ func TestKLRReportAndIsolation(t *testing.T) {
 		t.Fatalf("CreateCostUnit: %v", err)
 	}
 
-	if _, err := svc.Post(ctx, a.ID, &unit.ID, klr.Cost, 30000, "RE-1", "alice"); err != nil {
+	if _, err := svc.Post(ctx, a.ID, &unit.ID, klr.Cost, 30000, klrDay(2026, 4, 30), "RE-1", "alice"); err != nil {
 		t.Fatalf("post cost: %v", err)
 	}
-	if _, err := svc.Post(ctx, a.ID, nil, klr.Revenue, 50000, "ER-1", "alice"); err != nil {
+	if _, err := svc.Post(ctx, a.ID, nil, klr.Revenue, 50000, klrDay(2026, 4, 30), "ER-1", "alice"); err != nil {
 		t.Fatalf("post revenue: %v", err)
 	}
-	if _, err := svc.Post(ctx, b.ID, nil, klr.Cost, 7000, "RE-2", "alice"); err != nil {
+	if _, err := svc.Post(ctx, b.ID, nil, klr.Cost, 7000, klrDay(2026, 4, 30), "RE-2", "alice"); err != nil {
 		t.Fatalf("post b cost: %v", err)
 	}
 
@@ -108,10 +108,10 @@ func TestKLRValidation(t *testing.T) {
 		t.Fatalf("duplicate unit: %v", err)
 	}
 	// Posting to an unknown cost centre.
-	if _, err := svc.Post(ctx, 9223372036854775807, nil, klr.Cost, 100, "r", "alice"); !errors.Is(err, klr.ErrCostCenterNotFound) {
+	if _, err := svc.Post(ctx, 9223372036854775807, nil, klr.Cost, 100, klrDay(2026, 4, 30), "r", "alice"); !errors.Is(err, klr.ErrCostCenterNotFound) {
 		t.Fatalf("unknown centre: %v", err)
 	}
-	if _, err := svc.Post(ctx, 1, nil, klr.Cost, 100, "r", "  "); !errors.Is(err, klr.ErrActorRequired) {
+	if _, err := svc.Post(ctx, 1, nil, klr.Cost, 100, klrDay(2026, 4, 30), "r", "  "); !errors.Is(err, klr.ErrActorRequired) {
 		t.Fatalf("post actor: %v", err)
 	}
 	if _, err := svc.GetCostCenter(ctx, 9223372036854775807); !errors.Is(err, klr.ErrCostCenterNotFound) {
