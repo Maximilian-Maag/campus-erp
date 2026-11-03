@@ -991,6 +991,35 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/reports:
+    get:
+      tags:
+      - kasse
+      operationId: listReports
+      summary: List the reports this system renders
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Definition'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/reports/renders:
     post:
       tags:
@@ -1943,7 +1972,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Report'
+                $ref: '#/components/schemas/KlrReport'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2297,7 +2326,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Report'
+                $ref: '#/components/schemas/EtlReport'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2329,22 +2358,9 @@ components:
           type: string
       required:
       - reason
-    Report:
+    EtlReport:
       type: object
-      properties:
-        CostCenterID:
-          type: integer
-          format: int64
-        CostsCents:
-          type: integer
-          format: int64
-        RevenuesCents:
-          type: integer
-          format: int64
-      required:
-      - CostCenterID
-      - CostsCents
-      - RevenuesCents
+      additionalProperties: true
     EtlRunRequest:
       type: object
       properties:
@@ -2647,6 +2663,22 @@ components:
       - description
       - rate_basis_points
       - kind
+    KlrReport:
+      type: object
+      properties:
+        CostCenterID:
+          type: integer
+          format: int64
+        CostsCents:
+          type: integer
+          format: int64
+        RevenuesCents:
+          type: integer
+          format: int64
+      required:
+      - CostCenterID
+      - CostsCents
+      - RevenuesCents
     Record:
       type: object
       properties:
@@ -3422,6 +3454,34 @@ components:
       - report_id
       - from
       - to
+    Definition:
+      type: object
+      properties:
+        ID:
+          type: string
+        Title:
+          type: string
+        Columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/Column'
+      required:
+      - ID
+      - Title
+      - Columns
+    Column:
+      type: object
+      properties:
+        Key:
+          type: string
+        Title:
+          type: string
+        Align:
+          type: string
+      required:
+      - Key
+      - Title
+      - Align
     LedgerExportRequest:
       type: object
       properties:

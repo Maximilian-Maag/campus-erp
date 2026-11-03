@@ -20,11 +20,13 @@ import (
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/statistics"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/etl"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/jobs"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/reports"
 )
 
 func main() {
@@ -89,18 +91,20 @@ func main() {
 		docRenderer = r
 	}
 	ledgerRepo := kasse.NewLedgerRepo(pool)
+	// The catalogue decides which reports exist (docs/25); the worker only renders them.
+	reportCatalogue := reports.NewCatalogue(reports.DataSources{
+		Bookings:  ledgerRepo,
+		Positions: budget.NewPositionService(budget.NewPositionRepo(pool), audit.NewStore(pool)),
+	})
 	reportRenderer := func(ctx context.Context, reportID string, from, to time.Time, by string) (string, error) {
-		if reportID != kasse.DailyCloseDefinition.ID {
-			return "", fmt.Errorf("worker: unknown report %q", reportID)
-		}
 		if docRenderer == nil {
 			return "", errors.New("worker: ERP_DOCUMENTS_URL is not set")
 		}
-		bookings, err := ledgerRepo.ListBookingsForExport(ctx, from, to)
+		built, err := reportCatalogue.Render(ctx, reportID, from, to)
 		if err != nil {
 			return "", err
 		}
-		html, err := kasse.DailyCloseReport(time.Now().UTC(), bookings).MarshalHTML()
+		html, err := built.MarshalHTML()
 		if err != nil {
 			return "", err
 		}

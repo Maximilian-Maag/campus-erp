@@ -25,13 +25,31 @@ report.Report{Definition: ..., Rows: [][]string{...}, GeneratedAt: ...}
 - **CSV** for import into a spreadsheet or the ledger side.
 - **HTML** for the document service (ADR-0009), which turns it into a PDF.
 
+## The catalogue
+
+`internal/platform/reports` holds the list of reports this system renders — the definition
+plus the collector that fills it — so the worker that renders a report and the API that offers
+it read **one** list and cannot disagree about what exists. `GET /api/reports` (role `kasse`)
+returns those definitions, columns included, so a client offers the reports that actually
+render instead of a hardcoded list.
+
+| id | what it is |
+|---|---|
+| `kasse-daily-close` | Kassenabschluss: a period's bookings, closing with income, expense and net |
+| `budget-position-overview` | Mittelübersicht: every position with Ansatz, Verpflichtet, Ist and Verfügbar, plus totals |
+
+The Mittelübersicht is a snapshot, so it takes no period: it reads every position and the
+balance booked against each. Its available column is derived per position from the same
+balance the guard uses, so the report cannot disagree with what the budget will allow.
+
 ## Rendering a report
 
-The `report-render` worker kind (`jobs.ReportRenderArgs{ReportID, From, To, Actor}`) picks a
-report by id, collects its data and stores the artefact. The worker role knows
-`kasse-daily-close`: it collects the period's bookings, builds the report, renders the HTML,
-converts it through the document service (ADR-0009) and stores the PDF under
-`reports/<report id>-<from>-<to>.pdf` (ADR-0011). An unknown report id is refused.
+The `report-render` worker kind (`jobs.ReportRenderArgs{ReportID, From, To, Actor}`) asks the
+catalogue for the report, renders the HTML, converts it through the document service
+(ADR-0009) and stores the PDF under `reports/<report id>-<from>-<to>.pdf` (ADR-0011). An
+unknown report id is refused — the catalogue is the authority on what exists — and so is a
+collector whose data source was not wired, rather than storing an empty report that looks
+like a real one.
 
 `POST /api/reports/renders` (role `kasse`) queues one: `{report_id, from, to}` -> `202`
 with the job id, and the PDF is then reachable through `GET /api/artefacts/reports/<name>`
@@ -41,10 +59,12 @@ with the job id, and the PDF is then reachable through `GET /api/artefacts/repor
 
 1. Define it: a `report.Definition` with a stable id (the job's argument) and its columns.
 2. Build it: a function in the owning domain turning its data into rows.
-3. Register it in the worker role's report renderer.
+3. Register it in `internal/platform/reports` — the one list — with the collector that reads
+   its data. The API then offers it and the worker renders it, without either being told twice.
 
 ## Not yet done
 
-- More reports: the print/centre views need their own definitions and data builders.
+- More of the print/centre views: the Mittelübersicht is the centre view; the per-centre
+  aggregation (KLR) and the print layouts the vendor ships are still to come.
 - The statistics exports are their own mechanism (a per-state layout over aggregated figures),
   not a report definition — see docs/27 and ADR-0012.

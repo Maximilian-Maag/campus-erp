@@ -131,8 +131,8 @@ export class CampusErpApi {
     return this.http.get<m.EtlRunsResponse>(this.base + `/api/etl/runs`);
   }
 
-  runETLDataset(body: m.EtlRunRequest): Observable<m.Report> {
-    return this.http.post<m.Report>(this.base + `/api/etl/runs`, body);
+  runETLDataset(body: m.EtlRunRequest): Observable<m.EtlReport> {
+    return this.http.post<m.EtlReport>(this.base + `/api/etl/runs`, body);
   }
 
   createFoundationBook(body: m.CreateFoundationBookRequest): Observable<m.FoundationBook> {
@@ -163,8 +163,8 @@ export class CampusErpApi {
     return this.http.post<m.Record>(this.base + `/api/klr/cost-centers/${id}/records`, body);
   }
 
-  getKLRReport(id: number | string): Observable<m.Report> {
-    return this.http.get<m.Report>(this.base + `/api/klr/cost-centers/${id}/report`);
+  getKLRReport(id: number | string): Observable<m.KlrReport> {
+    return this.http.get<m.KlrReport>(this.base + `/api/klr/cost-centers/${id}/report`);
   }
 
   createCostUnit(body: m.KlrNamedRequest): Observable<m.CostUnit> {
@@ -249,6 +249,10 @@ export class CampusErpApi {
 
   receivePurchaseOrder(id: number | string): Observable<m.Order> {
     return this.http.post<m.Order>(this.base + `/api/purchase-orders/${id}/receive`, null);
+  }
+
+  listReports(): Observable<m.Definition[]> {
+    return this.http.get<m.Definition[]>(this.base + `/api/reports`);
   }
 
   requestReportRender(body: m.ReportRenderRequest): Observable<m.ExportQueuedResponse> {
