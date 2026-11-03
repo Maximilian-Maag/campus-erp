@@ -2,6 +2,24 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.81.0] - 2026-11-03
+
+The Umlage screen, and the cost-centre list behind it.
+
+### Added
+- `GET /api/klr/cost-centers` (role `klr`): every cost centre by number. A screen that offers a
+  centre has to be able to read them; the KLR had only the create route.
+- `frontend`: *Umlage* (`/klr/umlage`) — pick a cost centre, see its distribution keys, define
+  one, and run a period's distribution. The share is typed as a percentage and stored as basis
+  points (`shareToBasisPoints` is exact, on the string, so 0,01 % is one basis point and not
+  something that rounds to it). The rule that a centre's shares must add up to 100 % stays with
+  the API: the screen does not re-derive a backend guard.
+
+### Notes
+- The screen reports a refused run as it is (`Konnte die Umlage nicht ausführen.`) and keeps the
+  keys visible — a run that was refused changed nothing, so hiding the list would suggest
+  otherwise.
+
 ## [0.80.0] - 2026-11-03
 
 The KLR distributes: a cost centre's costs reach its receivers by keys, exactly and once.

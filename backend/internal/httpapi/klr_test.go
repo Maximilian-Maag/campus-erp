@@ -23,6 +23,32 @@ func TestHTTPKLRFlow(t *testing.T) {
 		t.Fatal("no id")
 	}
 
+	// The list a screen reads before it can ask about a centre.
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centers", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list centres = %d", resp.StatusCode)
+	}
+	var centers []struct {
+		ID     int64
+		Number string
+		Name   string
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&centers); err != nil {
+		t.Fatalf("decode centres: %v", err)
+	}
+	found := false
+	for _, c := range centers {
+		if c.ID == center.ID {
+			found = true
+			if c.Name != "Bibliothek" {
+				t.Fatalf("listed centre = %+v", c)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("the centre just created is not in the list of %d", len(centers))
+	}
+
 	// Cost unit.
 	resp = doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-units", "alice",
 		`{"number":"CU-`+uniqueSuffix(t)+`","name":"Lehre"}`)

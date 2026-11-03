@@ -22,6 +22,7 @@ const foreignKeyViolation = "23503"
 type Repository interface {
 	CreateCostCenter(ctx context.Context, c CostCenter) (CostCenter, error)
 	GetCostCenter(ctx context.Context, id int64) (CostCenter, error)
+	CostCenters(ctx context.Context) ([]CostCenter, error)
 	CreateCostUnit(ctx context.Context, u CostUnit) (CostUnit, error)
 	InsertRecord(ctx context.Context, r Record) (Record, error)
 	Report(ctx context.Context, costCenterID int64) (Report, error)
@@ -67,6 +68,29 @@ func (r *Repo) GetCostCenter(ctx context.Context, id int64) (CostCenter, error) 
 		return CostCenter{}, fmt.Errorf("klr: get cost centre: %w", err)
 	}
 	return c, nil
+}
+
+// CostCenters lists every cost centre by number, which is the order an operator reads them in
+// and the order a screen shows them.
+func (r *Repo) CostCenters(ctx context.Context) ([]CostCenter, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, number, name, created_by FROM cost_center ORDER BY number`)
+	if err != nil {
+		return nil, fmt.Errorf("klr: list cost centres: %w", err)
+	}
+	defer rows.Close()
+	out := []CostCenter{}
+	for rows.Next() {
+		var c CostCenter
+		if err := rows.Scan(&c.ID, &c.Number, &c.Name, &c.CreatedBy); err != nil {
+			return nil, fmt.Errorf("klr: scan cost centre: %w", err)
+		}
+		out = append(out, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("klr: list cost centres: %w", err)
+	}
+	return out, nil
 }
 
 // CreateCostUnit stores a cost unit.

@@ -77,12 +77,18 @@ column for it was added here.
 | method | path |
 |---|---|
 | `POST` | `/api/klr/cost-centers` |
+| `GET`  | `/api/klr/cost-centers` |
 | `POST` | `/api/klr/cost-units` |
 | `POST` | `/api/klr/cost-centers/{id}/records` |
 | `GET`  | `/api/klr/cost-centers/{id}/report` |
 | `POST` | `/api/klr/cost-centers/{id}/allocations` |
 | `GET`  | `/api/klr/cost-centers/{id}/allocations` |
 | `POST` | `/api/klr/cost-centers/{id}/allocations/run` |
+
+The frontend has one screen for this, *Umlage* (`/klr/umlage`): it picks a cost centre, shows
+its keys, defines one (the share is typed as a percentage and stored as basis points), and runs
+a period. The rule that a centre's shares must add up to 100 % stays with the API — the screen
+does not re-derive it.
 
 A record's `business_date` may be left out, in which case the API takes today —
 the edge decides what "today" is, and the domain is always given a date. Every

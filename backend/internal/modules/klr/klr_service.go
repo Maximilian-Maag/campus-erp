@@ -100,6 +100,11 @@ func (s *Service) Post(ctx context.Context, costCenterID int64, costUnitID *int6
 	return saved, nil
 }
 
+// CostCenters lists every cost centre.
+func (s *Service) CostCenters(ctx context.Context) ([]CostCenter, error) {
+	return s.repo.CostCenters(ctx)
+}
+
 // Report returns a cost centre's report.
 func (s *Service) Report(ctx context.Context, costCenterID int64) (Report, error) {
 	return s.repo.Report(ctx, costCenterID)

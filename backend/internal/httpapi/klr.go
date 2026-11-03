@@ -14,6 +14,7 @@ import (
 // klrService is the KLR surface the HTTP layer needs.
 type klrService interface {
 	CreateCostCenter(ctx context.Context, number, name, by string) (klr.CostCenter, error)
+	CostCenters(ctx context.Context) ([]klr.CostCenter, error)
 	CreateCostUnit(ctx context.Context, number, name, by string) (klr.CostUnit, error)
 	Post(ctx context.Context, costCenterID int64, costUnitID *int64, kind klr.Kind, amountCents int64, businessDate time.Time, reference, by string) (klr.Record, error)
 	Report(ctx context.Context, costCenterID int64) (klr.Report, error)
@@ -67,6 +68,17 @@ func (s *Server) createCostCenter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, center)
+}
+
+// listCostCenters reads every cost centre, which is what a screen needs before it can ask about
+// one.
+func (s *Server) listCostCenters(w http.ResponseWriter, r *http.Request) {
+	centers, err := s.klr.CostCenters(r.Context())
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, centers)
 }
 
 func (s *Server) createCostUnit(w http.ResponseWriter, r *http.Request) {
