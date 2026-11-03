@@ -57,15 +57,18 @@ func (r *OrderRepo) CreateRecipient(ctx context.Context, rec Recipient) (Recipie
 
 // CreateBudgetPosition upserts a budget position and returns the stored row.
 func (r *OrderRepo) CreateBudgetPosition(ctx context.Context, b BudgetPosition) (BudgetPosition, error) {
+	// The allocation is written on insert only: the ON CONFLICT update deliberately leaves
+	// allocated_cents alone, so naming an existing position cannot rewrite its Ansatz.
 	row := r.pool.QueryRow(ctx,
-		`INSERT INTO budget_position (year, chapter, title, cost_centre, cost_carrier)
-		 VALUES ($1, $2, $3, $4, $5)
+		`INSERT INTO budget_position (year, chapter, title, cost_centre, cost_carrier, allocated_cents)
+		 VALUES ($1, $2, $3, $4, $5, $6)
 		 ON CONFLICT (year, chapter, title, cost_centre, cost_carrier) DO UPDATE
 		   SET year = EXCLUDED.year
-		 RETURNING id, year, chapter, title, cost_centre, cost_carrier`,
-		b.Year, b.Chapter, b.Title, b.CostCentre, b.CostCarrier)
+		 RETURNING id, year, chapter, title, cost_centre, cost_carrier, allocated_cents`,
+		b.Year, b.Chapter, b.Title, b.CostCentre, b.CostCarrier, b.AllocatedCents)
 	var out BudgetPosition
-	if err := row.Scan(&out.ID, &out.Year, &out.Chapter, &out.Title, &out.CostCentre, &out.CostCarrier); err != nil {
+	if err := row.Scan(&out.ID, &out.Year, &out.Chapter, &out.Title, &out.CostCentre, &out.CostCarrier,
+		&out.AllocatedCents); err != nil {
 		return BudgetPosition{}, fmt.Errorf("kasse: create budget position: %w", err)
 	}
 	return out, nil

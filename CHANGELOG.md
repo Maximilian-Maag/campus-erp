@@ -2,6 +2,37 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.70.0] - 2026-11-02
+
+Approving a payment order binds budget — and cannot exceed it.
+
+### Added
+- `kasse.OrderService.Approve` posts a `commitment` for the order's amount on the budget
+  position it names (`ANORD:<reference>`), so an approved order has Mittel bound to it
+  (docs/10). The binding is posted **before** the status change: a refused approval leaves the
+  order awaiting a decision rather than approved without budget.
+- The budget module's guard applies, so an order that would exceed its position's available
+  Mittel is refused with `ErrBudgetExceeded` (mapped to `422`), not approved.
+- `kasse.BudgetPosition.AllocatedCents`: the position is established with its Mittel, and the
+  order body's `budget_position` takes `allocated_cents`. It is written when the position is
+  first created; naming an existing position does not rewrite its Ansatz.
+
+### Notes
+- This exposed a dead end: an order always created its own position with zero Mittel, so
+  approval could never have bound anything. The allocation on the position is what makes the
+  binding meaningful — and the follow-up is referencing an existing budget position rather than
+  creating one inline.
+- `kasse.NewOrderService` now takes a `BudgetCommitter` (the budget `PositionService`), wired in
+  `cmd/api`; a service wired without one refuses an approval (`ErrNoBudgetCommitter`) rather
+  than approving money against no Mittel.
+
+### Tests
+- Unit: the approval binds the amount under the order's reference; no committer and an
+  over-budget binding both refuse and record no decision.
+- Integration: the binding is visible in the position's balance (committed/available), and a
+  second order that would exceed what is left is refused with `ErrBudgetExceeded` and stays
+  submitted.
+
 ## [0.69.0] - 2026-11-02
 
 Every job kind is now reachable from a route.

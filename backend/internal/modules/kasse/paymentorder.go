@@ -46,6 +46,12 @@ var (
 	ErrOrderConflict = errors.New("kasse: the order was modified concurrently")
 	// ErrReferenceExists is returned when the reference is already in use.
 	ErrReferenceExists = errors.New("kasse: an order with that reference already exists")
+	// ErrAllocationNegative is returned for a negative Mittel allocation.
+	ErrAllocationNegative = errors.New("kasse: a budget allocation cannot be negative")
+	// ErrNoBudgetCommitter is returned when an approval cannot bind budget because the
+	// service was wired without a committer. Approving without binding would approve money
+	// against no Mittel, so it is refused rather than skipped.
+	ErrNoBudgetCommitter = errors.New("kasse: no budget committer configured")
 )
 
 // PaymentOrder is a canonical payment order.
@@ -197,4 +203,8 @@ type BudgetPosition struct {
 	Title       string
 	CostCentre  string
 	CostCarrier string
+	// AllocatedCents is the Mittel (Soll) the position is established with. It applies when
+	// the position is first created; naming an existing position does not rewrite its Ansatz,
+	// because an order may not change the budget it draws on.
+	AllocatedCents int64
 }

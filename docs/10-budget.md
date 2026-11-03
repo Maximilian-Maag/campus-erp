@@ -42,5 +42,14 @@ Every write is audited (`budget_position.create`, `budget_posting.create`).
 ## Not yet done
 
 - `budget_source` / `budget_center` and the budget import from the vendor model.
-- Automatic commitment when a payment order is approved (the link already exists
-  in the schema via `payment_order.budget_position_id`).
+- ~~Automatic commitment when a payment order is approved~~ — done since: approving one binds
+  its amount on the position it names (`kasse.OrderService.Approve` posts a `commitment` named
+  `ANORD:<reference>`), and the binding is refused with `ErrBudgetExceeded` when it exceeds the
+  position's available Mittel, so an order cannot be approved beyond its budget. The binding is
+  posted **before** the status changes, so a refused approval leaves the order awaiting a
+  decision rather than approved without Mittel.
+- What follows from that: an order's position must carry Mittel. The order body's
+  `budget_position` now takes an `allocated_cents` (docs/15), written when the position is first
+  created — naming an existing position does not rewrite its Ansatz, because an order may not
+  change the budget it draws on. Referencing an existing position created through the budget
+  module (rather than creating one inline) is the follow-up.

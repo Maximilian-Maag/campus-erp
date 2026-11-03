@@ -3806,6 +3806,9 @@ components:
           type: string
         cost_carrier:
           type: string
+        allocated_cents:
+          type: integer
+          format: int64
       required:
       - reference
       - business_year
@@ -3823,6 +3826,7 @@ components:
       - title
       - cost_centre
       - cost_carrier
+      - allocated_cents
     CashAccount:
       type: object
       properties:

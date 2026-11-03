@@ -5,17 +5,25 @@ import (
 	"fmt"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 )
+
+// BudgetCommitter binds and releases Mittel on a budget position. The budget module's
+// PositionService satisfies it.
+type BudgetCommitter interface {
+	Post(ctx context.Context, positionID int64, kind budget.PostingKind, amountCents int64, reference, by string) (budget.Posting, error)
+}
 
 // OrderService implements the payment-order workflow (S2).
 type OrderService struct {
-	repo  OrderRepository
-	audit AuditSink
+	repo   OrderRepository
+	budget BudgetCommitter
+	audit  AuditSink
 }
 
 // NewOrderService wires the payment-order service.
-func NewOrderService(repo OrderRepository, sink AuditSink) *OrderService {
-	return &OrderService{repo: repo, audit: sink}
+func NewOrderService(repo OrderRepository, committer BudgetCommitter, sink AuditSink) *OrderService {
+	return &OrderService{repo: repo, budget: committer, audit: sink}
 }
 
 // CreateRecipient stores a payment recipient.
@@ -23,8 +31,11 @@ func (s *OrderService) CreateRecipient(ctx context.Context, r Recipient) (Recipi
 	return s.repo.CreateRecipient(ctx, r)
 }
 
-// CreateBudgetPosition stores an accounting dimension.
+// CreateBudgetPosition stores an accounting dimension with the Mittel it is established with.
 func (s *OrderService) CreateBudgetPosition(ctx context.Context, b BudgetPosition) (BudgetPosition, error) {
+	if b.AllocatedCents < 0 {
+		return BudgetPosition{}, ErrAllocationNegative
+	}
 	return s.repo.CreateBudgetPosition(ctx, b)
 }
 
@@ -57,12 +68,35 @@ func (s *OrderService) Submit(ctx context.Context, id int64, by string) (Payment
 	})
 }
 
-// Approve releases a submitted order under the four-eyes principle.
+// Approve releases a submitted order under the four-eyes principle and binds its amount on
+// the budget position it names (Mittelbindung): an approved order has committed budget.
+//
+// The commitment is posted BEFORE the order is saved, so an approval that cannot be bound
+// does not leave the order approved. The budget module refuses a binding that exceeds the
+// position's available Mittel (ErrBudgetExceeded), so an order cannot be approved beyond its
+// budget. There is no release path here because an approved order cannot be cancelled
+// (ErrNotCancellable): withdrawing one is a reversal, which is not modelled yet.
 func (s *OrderService) Approve(ctx context.Context, id int64, by string) (PaymentOrder, error) {
 	return s.apply(ctx, id, by, "payment_order.approve", func(o PaymentOrder) (PaymentOrder, error) {
-		return o.Approve(by)
+		approved, err := o.Approve(by)
+		if err != nil {
+			// Four-eyes and state errors come first: they are decided before anything is bound.
+			return PaymentOrder{}, err
+		}
+		if s.budget == nil {
+			return PaymentOrder{}, ErrNoBudgetCommitter
+		}
+		if _, err := s.budget.Post(ctx, approved.BudgetPositionID, budget.Commitment,
+			approved.AmountCents, orderCommitmentReference(approved.Reference), by); err != nil {
+			return PaymentOrder{}, err
+		}
+		return approved, nil
 	})
 }
+
+// orderCommitmentReference names the economic event a binding belongs to, so a position's
+// postings can be read back to the order that bound them.
+func orderCommitmentReference(reference string) string { return "ANORD:" + reference }
 
 // Reject returns a submitted order with a reason.
 func (s *OrderService) Reject(ctx context.Context, id int64, by, reason string) (PaymentOrder, error) {

@@ -163,6 +163,7 @@ export interface CreateOrderRequest {
   title: string;
   cost_centre: string;
   cost_carrier: string;
+  allocated_cents: number;
 }
 
 export interface CreatePurchaseOrderRequest {
