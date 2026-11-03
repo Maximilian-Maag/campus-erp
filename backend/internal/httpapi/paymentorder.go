@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
@@ -18,6 +19,7 @@ type orderService interface {
 	CreateBudgetPosition(ctx context.Context, b kasse.BudgetPosition) (kasse.BudgetPosition, error)
 	Create(ctx context.Context, o kasse.PaymentOrder) (kasse.PaymentOrder, error)
 	Order(ctx context.Context, id int64) (kasse.PaymentOrder, error)
+	Orders(ctx context.Context, status kasse.OrderStatus) ([]kasse.OrderSummary, error)
 	Submit(ctx context.Context, id int64, by string) (kasse.PaymentOrder, error)
 	Approve(ctx context.Context, id int64, by string) (kasse.PaymentOrder, error)
 	Reject(ctx context.Context, id int64, by, reason string) (kasse.PaymentOrder, error)
@@ -161,6 +163,17 @@ func (s *Server) cancelOrder(w http.ResponseWriter, r *http.Request) {
 	s.orderTransition(w, r, func(id int64, by string) (kasse.PaymentOrder, error) {
 		return s.orders.Cancel(r.Context(), id, by)
 	})
+}
+
+// listOrders reads the payment orders, optionally narrowed to one status. The filter is the
+// server's, so the screen never has to hold the whole list to work on part of it.
+func (s *Server) listOrders(w http.ResponseWriter, r *http.Request) {
+	orders, err := s.orders.Orders(r.Context(), kasse.OrderStatus(strings.TrimSpace(r.URL.Query().Get("status"))))
+	if err != nil {
+		writeProblem(w, statusForOrder(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, orders)
 }
 
 func (s *Server) rejectOrder(w http.ResponseWriter, r *http.Request) {

@@ -62,6 +62,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/payment-orders": {
         "post": ("createPaymentOrder", "kasse", "Create a payment order", "httpapi.createOrderRequest", "kasse.PaymentOrder", 201, "json"),
+        "get": ("listPaymentOrders", "kasse", "List payment orders, optionally narrowed to one status", None, "[]kasse.OrderSummary", 200, "json", [("status", "string", False)]),
     },
     "/api/payment-orders/{id}": {
         "get": ("getPaymentOrder", "kasse", "Read a payment order", None, "kasse.PaymentOrder", 200, "json"),

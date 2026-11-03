@@ -2,6 +2,26 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.82.0] - 2026-11-03
+
+Payment orders reach a screen, and the workflow they drive.
+
+### Added
+- `GET /api/payment-orders` (role `kasse`): the payment orders, soonest due first — the order an
+  operator works through them in — with the status filter as a query parameter, so the screen
+  never has to hold every order to work on part of them. `kasse.OrderSummary` +
+  `OrderRepo.ListOrders`.
+- `frontend`: *Kasse: Zahlungsanordnungen* (`/kasse/anordnungen`) — lists the orders and drives
+  the workflow: submit a draft, approve, reject (with a reason, entered as a second step) or
+  cancel. The screen offers what a state allows and reports a refusal as it comes back; the
+  workflow's rules (only a draft is submittable, approval is four-eyes) stay with the API.
+
+### Fixed
+- The generated client's `OrderSummary` collided once kasse gained one too, and the generator
+  disambiguates by package: procurement's became `ProcurementOrderSummary`. The procurement
+  screen and its spec were updated, which is the whole of the change — the generator picked the
+  name, so nothing hand-written decides it.
+
 ## [0.81.0] - 2026-11-03
 
 The Umlage screen, and the cost-centre list behind it.

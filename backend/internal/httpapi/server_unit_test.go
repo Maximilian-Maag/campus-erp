@@ -66,6 +66,10 @@ func (s stubOrders) Order(context.Context, int64) (kasse.PaymentOrder, error) {
 	return s.order, s.err
 }
 
+func (s stubOrders) Orders(context.Context, kasse.OrderStatus) ([]kasse.OrderSummary, error) {
+	return nil, s.err
+}
+
 func (s stubOrders) Submit(context.Context, int64, string) (kasse.PaymentOrder, error) {
 	return s.order, s.err
 }

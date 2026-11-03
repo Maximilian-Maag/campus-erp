@@ -57,6 +57,11 @@ func (s *OrderService) Create(ctx context.Context, o PaymentOrder) (PaymentOrder
 }
 
 // Order loads an order.
+// Orders lists payment orders, optionally narrowed to one status.
+func (s *OrderService) Orders(ctx context.Context, status OrderStatus) ([]OrderSummary, error) {
+	return s.repo.ListOrders(ctx, status)
+}
+
 func (s *OrderService) Order(ctx context.Context, id int64) (PaymentOrder, error) {
 	return s.repo.GetOrder(ctx, id)
 }

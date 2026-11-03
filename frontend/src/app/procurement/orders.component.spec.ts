@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PurchaseOrdersComponent } from './orders.component';
-import { OrderSummary } from '../core/api/generated';
+import { ProcurementOrderSummary } from '../core/api/generated';
 
 describe('PurchaseOrdersComponent', () => {
   let http: HttpTestingController;
@@ -17,7 +17,7 @@ describe('PurchaseOrdersComponent', () => {
 
   afterEach(() => http.verify());
 
-  const order = (ID: number, Number: string, Status: string, GrossCents: number): OrderSummary => ({
+  const order = (ID: number, Number: string, Status: string, GrossCents: number): ProcurementOrderSummary => ({
     ID, Number, Supplier: 'Lieferant GmbH', BudgetPositionID: 1, Currency: 'EUR',
     NetCents: GrossCents, VatCents: 0, GrossCents, Status,
   });

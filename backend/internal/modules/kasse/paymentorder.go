@@ -72,6 +72,19 @@ type PaymentOrder struct {
 	DecisionReason   string
 }
 
+// OrderSummary is a payment order as a list shows it: what it is for, how much, when it falls
+// due, and where it stands.
+type OrderSummary struct {
+	ID               int64
+	Reference        string
+	AmountCents      int64
+	Currency         string
+	BudgetPositionID int64
+	Purpose          string
+	DueDate          time.Time
+	Status           OrderStatus
+}
+
 // NewPaymentOrder validates and builds a draft payment order.
 func NewPaymentOrder(reference string, businessYear int, amountCents int64, currency string,
 	recipientID, budgetPositionID int64, purpose string, dueDate time.Time, createdBy string) (PaymentOrder, error) {

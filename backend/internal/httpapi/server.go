@@ -163,6 +163,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/cashbook/days/{id}/close", s.authorize(s.closeDay, auth.RoleKasse))
 
 	mux.HandleFunc("POST /api/payment-orders", s.authorize(s.createOrder, auth.RoleKasse))
+	mux.HandleFunc("GET /api/payment-orders", s.authorizeRead(s.listOrders, auth.RoleKasse))
 	mux.HandleFunc("GET /api/payment-orders/{id}", s.authorizeRead(s.getOrder, auth.RoleKasse))
 	mux.HandleFunc("POST /api/payment-orders/{id}/submit", s.authorize(s.submitOrder, auth.RoleKasse))
 	mux.HandleFunc("POST /api/payment-orders/{id}/approve", s.authorize(s.approveOrder, auth.RoleKasse))

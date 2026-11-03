@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CampusErpApi, OrderSummary } from '../core/api/generated';
+import { CampusErpApi, ProcurementOrderSummary } from '../core/api/generated';
 import { formatCents } from '../core/format';
 
 /**
@@ -84,7 +84,7 @@ import { formatCents } from '../core/format';
 export class PurchaseOrdersComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
 
-  readonly orders = signal<OrderSummary[]>([]);
+  readonly orders = signal<ProcurementOrderSummary[]>([]);
   readonly status = signal('');
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
@@ -119,7 +119,7 @@ export class PurchaseOrdersComponent implements OnInit {
     });
   }
 
-  approve(order: OrderSummary): void {
+  approve(order: ProcurementOrderSummary): void {
     this.approving.set(order.ID);
     this.actionError.set(null);
     this.api.approvePurchaseOrder(order.ID).subscribe({

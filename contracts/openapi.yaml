@@ -317,6 +317,40 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - kasse
+      operationId: listPaymentOrders
+      summary: List payment orders, optionally narrowed to one status
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KasseOrderSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/payment-orders/{id}:
     get:
       tags:
@@ -1754,7 +1788,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/OrderSummary'
+                  $ref: '#/components/schemas/ProcurementOrderSummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3229,7 +3263,7 @@ components:
       - net_cents
       - vat_category
       - vat_rate_bp
-    OrderSummary:
+    ProcurementOrderSummary:
       type: object
       properties:
         ID:
@@ -4275,6 +4309,38 @@ components:
       - SubmittedBy
       - DecidedBy
       - DecisionReason
+    KasseOrderSummary:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Reference:
+          type: string
+        AmountCents:
+          type: integer
+          format: int64
+        Currency:
+          type: string
+        BudgetPositionID:
+          type: integer
+          format: int64
+        Purpose:
+          type: string
+        DueDate:
+          type: string
+          format: date-time
+        Status:
+          type: string
+      required:
+      - ID
+      - Reference
+      - AmountCents
+      - Currency
+      - BudgetPositionID
+      - Purpose
+      - DueDate
+      - Status
     CreateOrderRequest:
       type: object
       properties:

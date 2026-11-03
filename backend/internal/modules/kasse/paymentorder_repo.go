@@ -18,6 +18,7 @@ type OrderRepository interface {
 	GetOrder(ctx context.Context, id int64) (PaymentOrder, error)
 	SaveOrderStatus(ctx context.Context, o PaymentOrder, from OrderStatus) (PaymentOrder, error)
 	RecordDecision(ctx context.Context, orderID int64, decision OrderStatus, actor, reason string) error
+	ListOrders(ctx context.Context, status OrderStatus) ([]OrderSummary, error)
 }
 
 // OrderRepo is the PostgreSQL implementation.
@@ -36,6 +37,33 @@ func scanOrder(row pgx.Row) (PaymentOrder, error) {
 		&o.RecipientID, &o.BudgetPositionID, &o.Purpose, &o.DueDate, &o.Status, &o.CreatedBy,
 		&o.SubmittedBy, &o.DecidedBy, &o.DecisionReason)
 	return o, err
+}
+
+// ListOrders lists payment orders, soonest due first — that is the order an operator works
+// through them in — with a status filter that is the server's own ("" for all).
+func (r *OrderRepo) ListOrders(ctx context.Context, status OrderStatus) ([]OrderSummary, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, reference, amount_cents, currency, budget_position_id, purpose, due_date, status
+		   FROM payment_order
+		  WHERE ($1 = '' OR status = $1)
+		  ORDER BY due_date, reference`, string(status))
+	if err != nil {
+		return nil, fmt.Errorf("kasse: list payment orders: %w", err)
+	}
+	defer rows.Close()
+	out := []OrderSummary{}
+	for rows.Next() {
+		var s OrderSummary
+		if err := rows.Scan(&s.ID, &s.Reference, &s.AmountCents, &s.Currency, &s.BudgetPositionID,
+			&s.Purpose, &s.DueDate, &s.Status); err != nil {
+			return nil, fmt.Errorf("kasse: scan payment order summary: %w", err)
+		}
+		out = append(out, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("kasse: list payment orders: %w", err)
+	}
+	return out, nil
 }
 
 // CreateRecipient upserts a recipient keyed by IBAN and returns the stored row.

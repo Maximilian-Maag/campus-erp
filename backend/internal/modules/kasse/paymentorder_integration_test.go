@@ -253,3 +253,108 @@ func TestPaymentOrderUnknownIsNotFound(t *testing.T) {
 		t.Fatalf("want ErrNotFound, got %v", err)
 	}
 }
+
+// TestPaymentOrderListOrdersByDueDate: the list an operator works through is soonest due first,
+// and the status filter narrows it without the caller having to sift.
+func TestPaymentOrderListOrdersByDueDate(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	svc := kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetService(pool), audit.NewStore(pool))
+
+	mark := fmt.Sprintf("%d", time.Now().UnixNano())
+	rec, err := svc.CreateRecipient(ctx, kasse.Recipient{
+		Name: "Stadtwerke " + mark, AccountHolder: "Stadtwerke", IBAN: "DE02120300000000202051",
+		BIC: "BYLADEM1001", BankName: "Musterbank",
+	})
+	if err != nil {
+		t.Fatalf("CreateRecipient: %v", err)
+	}
+	pos, err := svc.CreateBudgetPosition(ctx, kasse.BudgetPosition{
+		Year: 2026, Chapter: "0710", Title: "6810", CostCentre: "KST-L-" + mark, CostCarrier: "KT-1",
+		AllocatedCents: 900000,
+	})
+	if err != nil {
+		t.Fatalf("CreateBudgetPosition: %v", err)
+	}
+
+	// Deliberately created out of due-date order, so the list has to sort rather than echo.
+	dueDates := []string{"2026-05-03", "2026-05-01", "2026-05-02"}
+	refs := make([]string, 0, len(dueDates))
+	for i, d := range dueDates {
+		due, err := time.Parse(time.DateOnly, d)
+		if err != nil {
+			t.Fatalf("parse due date: %v", err)
+		}
+		ref := fmt.Sprintf("AO-L-%s-%d", mark, i)
+		order, err := kasse.NewPaymentOrder(ref, 2026, 1000+int64(i), "EUR", rec.ID, pos.ID,
+			"Stromabschlag", due, "alice")
+		if err != nil {
+			t.Fatalf("NewPaymentOrder: %v", err)
+		}
+		if _, err := svc.Create(ctx, order); err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+		refs = append(refs, ref)
+	}
+
+	all, err := svc.Orders(ctx, "")
+	if err != nil {
+		t.Fatalf("Orders: %v", err)
+	}
+	// Only my three matter here; other tests in this binary share the table.
+	positions := map[string]int{}
+	for i, s := range all {
+		positions[s.Reference] = i
+	}
+	// 2026-05-01 < 2026-05-02 < 2026-05-03, which is the order the references were made in
+	// reversed: index 1 is due first, then 2, then 0.
+	if positions[refs[1]] > positions[refs[2]] || positions[refs[2]] > positions[refs[0]] {
+		t.Fatalf("the list is not soonest-due-first: %v", positions)
+	}
+
+	// The summary carries what a list shows.
+	for _, s := range all {
+		if s.Reference != refs[1] {
+			continue
+		}
+		if s.AmountCents != 1001 || s.Currency != "EUR" || s.Purpose != "Stromabschlag" ||
+			s.Status != kasse.OrderDraft || s.BudgetPositionID != pos.ID {
+			t.Fatalf("summary = %+v", s)
+		}
+	}
+
+	// Submit one, then narrow to submitted: the others are not in that answer.
+	if _, err := svc.Submit(ctx, 0, "alice"); err == nil {
+		t.Fatal("submitting a non-existent order should fail")
+	}
+	var submitted kasse.PaymentOrder
+	for _, s := range all {
+		if s.Reference == refs[2] {
+			submitted, err = svc.Order(ctx, s.ID)
+			if err != nil {
+				t.Fatalf("Order: %v", err)
+			}
+		}
+	}
+	if _, err := svc.Submit(ctx, submitted.ID, "alice"); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+
+	narrowed, err := svc.Orders(ctx, kasse.OrderSubmitted)
+	if err != nil {
+		t.Fatalf("Orders(submitted): %v", err)
+	}
+	if len(narrowed) == 0 {
+		t.Fatal("the submitted order is not in the narrowed list")
+	}
+	for _, s := range narrowed {
+		if s.Status != kasse.OrderSubmitted {
+			t.Fatalf("narrowed list contains %+v", s)
+		}
+	}
+	for _, s := range narrowed {
+		if s.Reference == refs[0] || s.Reference == refs[1] {
+			t.Fatalf("a draft order (%s) came through the submitted filter", s.Reference)
+		}
+	}
+}
