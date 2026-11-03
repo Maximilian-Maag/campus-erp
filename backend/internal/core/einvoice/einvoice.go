@@ -34,9 +34,66 @@ var (
 	ErrLineQuantity         = errors.New("einvoice: a line quantity must be positive")
 	ErrLineAmount           = errors.New("einvoice: a line unit price must not be negative")
 	ErrVATCategoryRequired  = errors.New("einvoice: a line VAT category is required")
+	ErrVATCategoryUnknown   = errors.New("einvoice: the line VAT category is not a UNTDID 5305 code EN 16931 allows")
+	ErrPaymentMeansUnknown  = errors.New("einvoice: the payment means code is not a UNTDID 4461 code EN 16931 allows")
 	ErrLineNetMismatch      = errors.New("einvoice: the line net amount does not match quantity x unit price (BR-CO-10)")
 	ErrTotalsMismatch       = errors.New("einvoice: the invoice totals are inconsistent (BR-CO-13/14/15/16)")
 )
+
+// Code is one entry of a standard code list: the code plus the labels the standard gives it.
+type Code struct {
+	Code      string
+	ShortText string
+	LongText  string
+}
+
+// vatCategories is UNTDID 5305 restricted to the codes EN 16931 allows a line to carry. The
+// standard is the authority here, not tenant data: the catalogue (docs/11) presents the same
+// list to operators, and lookup's seed is generated from this one so the two cannot drift.
+var vatCategories = []Code{
+	{"S", "Regelsteuersatz", "Standard rate"},
+	{"Z", "Nullsatz", "Zero rated"},
+	{"E", "Steuerfrei", "Exempt from tax"},
+	{"AE", "Reverse charge", "VAT reverse charge"},
+	{"K", "Innergemeinschaftlich", "Intra-community supply"},
+	{"G", "Ausfuhr", "Free export item"},
+	{"O", "Nicht im Anwendungsbereich", "Services outside scope of tax"},
+	{"L", "Kannaren-Steuer", "IGIC (Canary Islands)"},
+	{"M", "IPSI", "IPSI (Ceuta and Melilla)"},
+}
+
+// paymentMeansCodes is UNTDID 4461 restricted to the codes EN 16931 allows.
+var paymentMeansCodes = []Code{
+	{"1", "Nicht definiert", "Instrument not defined"},
+	{"10", "Bar", "In cash"},
+	{"20", "Scheck", "Cheque"},
+	{"30", "Überweisung", "Credit transfer"},
+	{"42", "Überweisung auf Sammelkonto", "Payment to bank account"},
+	{"48", "Karte", "Bank card"},
+	{"49", "SEPA-Lastschrift", "Direct debit"},
+	{"57", "Überweisung auf Abrechnungskonto", "Standing order to bank account"},
+	{"58", "SEPA-Überweisung", "SEPA credit transfer"},
+	{"59", "SEPA-Lastschrift", "SEPA direct debit"},
+	{"97", "Verrechnung", "Clearing between partners"},
+}
+
+// VATCategories returns the VAT categories a line may carry (UNTDID 5305 as EN 16931 allows).
+func VATCategories() []Code { return append([]Code(nil), vatCategories...) }
+
+// PaymentMeansCodes returns the payment means codes an invoice may carry (UNTDID 4461 as
+// EN 16931 allows).
+func PaymentMeansCodes() []Code { return append([]Code(nil), paymentMeansCodes...) }
+
+// HasCode reports whether code is in list, ignoring surrounding space.
+func HasCode(list []Code, code string) bool {
+	code = strings.TrimSpace(code)
+	for _, c := range list {
+		if c.Code == code {
+			return true
+		}
+	}
+	return false
+}
 
 // Party is a seller or buyer (EN16931 BG-4 / BG-7).
 type Party struct {
@@ -164,6 +221,9 @@ func Validate(inv Invoice) error {
 	if strings.TrimSpace(inv.PaymentMeansCode) == "" {
 		return ErrPaymentMeansRequired
 	}
+	if !HasCode(paymentMeansCodes, inv.PaymentMeansCode) {
+		return ErrPaymentMeansUnknown
+	}
 	if strings.TrimSpace(inv.PayeeIBAN) == "" {
 		return ErrPayeeIBANRequired
 	}
@@ -182,6 +242,9 @@ func Validate(inv Invoice) error {
 		}
 		if strings.TrimSpace(l.VatCategory) == "" {
 			return ErrVATCategoryRequired
+		}
+		if !HasCode(vatCategories, l.VatCategory) {
+			return ErrVATCategoryUnknown
 		}
 		if l.NetCents != LineNet(l.QuantityMilli, l.UnitPriceCents) {
 			return ErrLineNetMismatch

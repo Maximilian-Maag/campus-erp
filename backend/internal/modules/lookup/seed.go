@@ -1,5 +1,7 @@
 package lookup
 
+import core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
+
 // standardCatalogues returns the built-in code lists, seeded from the standards
 // the productive source itself references (docs/08-reuse-inventory.md §4/§5):
 // UNTDID 1001 (document type), UNTDID 4461 (payment means), UNTDID 5305 (VAT
@@ -9,6 +11,12 @@ func standardCatalogues() []Value {
 	add := func(ns, code, short, long string, sort int) {
 		out = append(out, Value{Namespace: ns, Code: code, ShortText: short, LongText: long, SortOrder: sort, Active: true})
 	}
+	// addCodes seeds a whole standard code list, keeping the standard's order.
+	addCodes := func(ns string, codes []core.Code) {
+		for i, c := range codes {
+			add(ns, c.Code, c.ShortText, c.LongText, (i+1)*10)
+		}
+	}
 
 	// UNTDID 1001 — invoice document type codes.
 	add("document_type", "380", "Rechnung", "Commercial invoice", 10)
@@ -16,21 +24,11 @@ func standardCatalogues() []Value {
 	add("document_type", "384", "Korrigierte Rechnung", "Corrected invoice", 30)
 	add("document_type", "389", "Selbstausgestellte Rechnung", "Self-billed invoice", 40)
 
-	// UNTDID 4461 — payment means.
-	add("payment_means", "10", "Bar", "In cash", 10)
-	add("payment_means", "30", "Überweisung", "Credit transfer", 20)
-	add("payment_means", "48", "Karte", "Bank card", 30)
-	add("payment_means", "58", "SEPA-Überweisung", "SEPA credit transfer", 40)
-	add("payment_means", "59", "SEPA-Lastschrift", "SEPA direct debit", 50)
-
-	// UNTDID 5305 — VAT category.
-	add("vat_category", "S", "Regelsteuersatz", "Standard rate", 10)
-	add("vat_category", "Z", "Nullsatz", "Zero rated", 20)
-	add("vat_category", "E", "Steuerfrei", "Exempt from tax", 30)
-	add("vat_category", "AE", "Reverse charge", "VAT reverse charge", 40)
-	add("vat_category", "K", "Innergemeinschaftlich", "Intra-community supply", 50)
-	add("vat_category", "G", "Ausfuhr", "Free export item", 60)
-	add("vat_category", "O", "Nicht im Anwendungsbereich", "Services outside scope of tax", 70)
+	// UNTDID 4461 — payment means, and UNTDID 5305 — VAT category. Both are generated from
+	// the code lists core/einvoice validates against, so the catalogue an operator sees and the
+	// codes the generator accepts are the same list by construction rather than by habit.
+	addCodes("payment_means", core.PaymentMeansCodes())
+	addCodes("vat_category", core.VATCategories())
 
 	// UNECE Recommendation 20 — units of measure.
 	add("unit_of_measure", "C62", "Stück", "one", 10)

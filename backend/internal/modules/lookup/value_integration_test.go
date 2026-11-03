@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
+	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/dbtest"
@@ -33,6 +34,44 @@ func suffix(t *testing.T) string {
 	return strings.ReplaceAll(t.Name(), "/", "-") + "-" + time.Now().Format("150405.000000000")
 }
 
+// TestSeededCataloguesMatchCoreCodeLists: the seeded VAT categories and payment means are
+// exactly the lists core/einvoice validates against — same codes, same labels — so the
+// catalogue an operator sees and the codes the generator accepts cannot drift apart. This is
+// the guard for docs/11's "point the enums at the catalogue": pointed, and pinned.
+func TestSeededCataloguesMatchCoreCodeLists(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+	if _, err := svc.Seed(ctx, "alice"); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+
+	lists := []struct {
+		namespace string
+		codes     []core.Code
+	}{
+		{"vat_category", core.VATCategories()},
+		{"payment_means", core.PaymentMeansCodes()},
+	}
+	for _, l := range lists {
+		got, err := svc.List(ctx, l.namespace)
+		if err != nil {
+			t.Fatalf("List %s: %v", l.namespace, err)
+		}
+		if len(got) != len(l.codes) {
+			t.Fatalf("%s = %d values, want core's %d", l.namespace, len(got), len(l.codes))
+		}
+		// Index-wise, so the seeded order (the standard's order) is pinned and not just the set.
+		for i, want := range l.codes {
+			if got[i].Code != want.Code || got[i].ShortText != want.ShortText || got[i].LongText != want.LongText {
+				t.Fatalf("%s[%d] = %+v, want %+v", l.namespace, i, got[i], want)
+			}
+			if got[i].SortOrder != (i+1)*10 {
+				t.Fatalf("%s/%s sort_order = %d, want %d", l.namespace, want.Code, got[i].SortOrder, (i+1)*10)
+			}
+		}
+	}
+}
+
 func TestLookupSeedIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	svc := newService(t)
@@ -52,8 +91,10 @@ func TestLookupSeedIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if len(vat) != 7 {
-		t.Fatalf("vat_category = %d, want 7", len(vat))
+	// The seeded VAT categories are core/einvoice's list, so the count is derived from it: a
+	// code added there but not seeded here (or vice versa) would fail rather than drift.
+	if len(vat) != len(core.VATCategories()) {
+		t.Fatalf("vat_category = %d, want core's %d", len(vat), len(core.VATCategories()))
 	}
 	if vat[0].Code != "S" {
 		t.Fatalf("first = %+v", vat[0])

@@ -2,6 +2,27 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.73.0] - 2026-11-03
+
+The e-invoice generator enforces the standard's code lists, and the catalogue is seeded from
+the same lists.
+
+### Fixed
+- `core.Validate` accepted **any** non-blank VAT category and payment means code, so a document
+  with a category or payment means EN 16931 does not define was generated (or imported) happily.
+  It now rejects them (`ErrVATCategoryUnknown`, `ErrPaymentMeansUnknown`) against the code lists
+  in the package: UNTDID 5305 (S, Z, E, AE, K, G, O, L, M) and UNTDID 4461 (1, 10, 20, 30, 42,
+  48, 49, 57, 58, 59, 97).
+
+### Changed
+- The `vat_category` and `payment_means` catalogues are **generated from** those code lists
+  (`VATCategories()`, `PaymentMeansCodes()`) instead of being hand-kept in the seed, so the
+  catalogue an operator sees and the codes the generator accepts cannot drift. A test compares
+  the seeded rows with the lists in both code and label. (docs/11 claimed the generator had
+  inline enums to point at the catalogue; it did not — the gap was closed the other way round.)
+- The seeded catalogue gains the codes EN 16931 allows that it lacked (VAT L/M; payment means
+  1, 20, 42, 49, 57, 97).
+
 ## [0.72.0] - 2026-11-03
 
 Two-way matching: an inbound e-invoice is matched to its purchase order and the commitment
