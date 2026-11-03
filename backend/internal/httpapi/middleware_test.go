@@ -81,3 +81,69 @@ func TestStatusWriterRecordsStatus(t *testing.T) {
 		t.Errorf("statusWriter status=%d wrote=%v", sw.status, sw.wrote)
 	}
 }
+
+// TestProblemEnvelopeCarriesCodeAndRequestID: the envelope the spec documents is the one
+// the server sends — the machine code for the status, and the correlation id the client
+// also gets in X-Request-ID.
+func TestProblemEnvelopeCarriesCodeAndRequestID(t *testing.T) {
+	h := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeProblem(w, http.StatusNotFound, "no such thing")
+	}), slog.Default())
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/x", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+	var p Problem
+	if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
+		t.Fatalf("body is not a Problem: %v (%q)", err, rec.Body.String())
+	}
+	if p.Error != "no such thing" {
+		t.Errorf("error = %q, want the message", p.Error)
+	}
+	if p.Code != "not_found" {
+		t.Errorf("code = %q, want not_found", p.Code)
+	}
+	if hdr := rec.Header().Get("X-Request-ID"); p.RequestID == "" || p.RequestID != hdr {
+		t.Errorf("request_id = %q, header = %q; want the same non-empty id", p.RequestID, hdr)
+	}
+}
+
+// TestWriteProblemCodeUsesTheGivenCode: an explicit code is written verbatim, for errors a
+// client branches on rather than matches by text.
+func TestWriteProblemCodeUsesTheGivenCode(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeProblemCode(rec, http.StatusUnprocessableEntity, "state_required", "state is required")
+	var p Problem
+	if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
+		t.Fatalf("body is not a Problem: %v", err)
+	}
+	if p.Code != "state_required" {
+		t.Errorf("code = %q, want state_required", p.Code)
+	}
+	// Written to a bare recorder (no middleware wrapper) the envelope simply has no id.
+	if p.RequestID != "" {
+		t.Errorf("request_id = %q, want empty without a wrapper", p.RequestID)
+	}
+}
+
+func TestCodeForStatus(t *testing.T) {
+	cases := map[int]string{
+		http.StatusBadRequest:          "bad_request",
+		http.StatusUnauthorized:        "unauthorized",
+		http.StatusForbidden:           "forbidden",
+		http.StatusNotFound:            "not_found",
+		http.StatusConflict:            "conflict",
+		http.StatusUnprocessableEntity: "unprocessable",
+		http.StatusServiceUnavailable:  "unavailable",
+		http.StatusInternalServerError: "internal",
+		http.StatusTeapot:              "error", // anything unmapped
+	}
+	for status, want := range cases {
+		if got := codeForStatus(status); got != want {
+			t.Errorf("codeForStatus(%d) = %q, want %q", status, got, want)
+		}
+	}
+}

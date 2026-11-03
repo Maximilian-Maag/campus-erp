@@ -1,13 +1,26 @@
 package httpapi_test
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
 )
+
+// problemCode decodes the machine code out of an error envelope.
+func problemCode(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	var p httpapi.Problem
+	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
+		t.Fatalf("body is not a Problem: %v", err)
+	}
+	return p.Code
+}
 
 // TestArtefactRoute serves stored artefacts of every kind over HTTP.
 func TestArtefactRoute(t *testing.T) {
@@ -55,11 +68,19 @@ func TestArtefactRoute(t *testing.T) {
 	}
 
 	// A kind the route does not serve stays out of reach, even if such a key exists.
-	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/artefacts/keys/master", "carol", ""); resp.StatusCode != http.StatusBadRequest {
+	resp := doJSON(t, http.MethodGet, srv.URL+"/api/artefacts/keys/master", "carol", "")
+	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("unknown kind = %d, want 400", resp.StatusCode)
 	}
+	if code := problemCode(t, resp); code != "invalid_artefact" {
+		t.Fatalf("unknown kind code = %q, want invalid_artefact", code)
+	}
 	// A known kind, nothing stored under that name.
-	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/artefacts/reports/absent.csv", "carol", ""); resp.StatusCode != http.StatusNotFound {
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/artefacts/reports/absent.csv", "carol", "")
+	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("absent artefact = %d, want 404", resp.StatusCode)
+	}
+	if code := problemCode(t, resp); code != "artefact_not_found" {
+		t.Fatalf("absent artefact code = %q, want artefact_not_found", code)
 	}
 }

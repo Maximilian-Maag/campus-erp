@@ -101,7 +101,7 @@ failure) and is reachable at route `/kasse/tag`.
 
 - The client is generated but only one screen consumes it; the rest of the
   domains get screens as their phases land.
-- Error responses are a shared `Problem` envelope in the spec, but the Go
-  handlers still map errors per module (`statusFor`) and send `http.Error`
-  plain text. Unifying them into the same JSON envelope is the next
-  cross-cutting step (a follow-up slice).
+- Error responses are the shared `Problem` envelope, written by one function
+  (`writeProblem`) with a machine `code` and the request id (docs/16 §3). The
+  per-module `statusFor…` mappers still choose the status — that is where the domain
+  meaning lives — but the body no longer varies by module.

@@ -55,7 +55,7 @@ func (s *Server) requestStatisticsExport(w http.ResponseWriter, r *http.Request)
 	}
 	state := strings.TrimSpace(req.State)
 	if state == "" {
-		writeProblem(w, http.StatusUnprocessableEntity, "state is required")
+		writeProblemCode(w, http.StatusUnprocessableEntity, "state_required", "state is required")
 		return
 	}
 	from, to, ok := s.exportPeriod(w, req.From, req.To)
@@ -92,7 +92,7 @@ func (s *Server) requestReportRender(w http.ResponseWriter, r *http.Request) {
 	}
 	reportID := strings.TrimSpace(req.ReportID)
 	if reportID == "" {
-		writeProblem(w, http.StatusUnprocessableEntity, "report_id is required")
+		writeProblemCode(w, http.StatusUnprocessableEntity, "report_id_required", "report_id is required")
 		return
 	}
 	from, to, ok := s.exportPeriod(w, req.From, req.To)
@@ -108,7 +108,7 @@ func (s *Server) requestReportRender(w http.ResponseWriter, r *http.Request) {
 // problem response itself. It reports whether the caller should continue.
 func (s *Server) decodeExportRequest(w http.ResponseWriter, r *http.Request, into any) bool {
 	if s.exports == nil {
-		writeProblem(w, http.StatusServiceUnavailable, "export queue is not configured")
+		writeProblemCode(w, http.StatusServiceUnavailable, "export_queue_unconfigured", "export queue is not configured")
 		return false
 	}
 	if err := json.NewDecoder(r.Body).Decode(into); err != nil {
@@ -124,12 +124,12 @@ func (s *Server) decodeExportRequest(w http.ResponseWriter, r *http.Request, int
 func (s *Server) exportPeriod(w http.ResponseWriter, from, to string) (string, string, bool) {
 	f, err := parseExportDate(from)
 	if err != nil {
-		writeProblem(w, http.StatusUnprocessableEntity, "from must be YYYY-MM-DD")
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_period", "from must be YYYY-MM-DD")
 		return "", "", false
 	}
 	t, err := parseExportDate(to)
 	if err != nil {
-		writeProblem(w, http.StatusUnprocessableEntity, "to must be YYYY-MM-DD")
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_period", "to must be YYYY-MM-DD")
 		return "", "", false
 	}
 	return f, t, true

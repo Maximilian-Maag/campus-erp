@@ -101,17 +101,18 @@ func TestExportRoutesRefuseBadRequests(t *testing.T) {
 	cases := []struct {
 		name, path, body string
 		want             int
+		wantCode         string
 	}{
-		{"statistics malformed", "/api/statistics/exports", `{`, http.StatusBadRequest},
-		{"statistics no state", "/api/statistics/exports", `{"from":"2026-11-01","to":"2026-11-30"}`, http.StatusUnprocessableEntity},
-		{"statistics bad from", "/api/statistics/exports", `{"state":"bw","from":"01.11.2026","to":"2026-11-30"}`, http.StatusUnprocessableEntity},
-		{"statistics bad to", "/api/statistics/exports", `{"state":"bw","from":"2026-11-01","to":"nope"}`, http.StatusUnprocessableEntity},
-		{"ledger malformed", "/api/ledger/exports", `{`, http.StatusBadRequest},
-		{"ledger empty from", "/api/ledger/exports", `{"to":"2026-11-30"}`, http.StatusUnprocessableEntity},
-		{"ledger bad to", "/api/ledger/exports", `{"from":"2026-11-01","to":"2026/11/30"}`, http.StatusUnprocessableEntity},
-		{"report malformed", "/api/reports/renders", `{`, http.StatusBadRequest},
-		{"report no id", "/api/reports/renders", `{"from":"2026-11-01","to":"2026-11-30"}`, http.StatusUnprocessableEntity},
-		{"report bad from", "/api/reports/renders", `{"report_id":"r","from":"x","to":"2026-11-30"}`, http.StatusUnprocessableEntity},
+		{"statistics malformed", "/api/statistics/exports", `{`, http.StatusBadRequest, "bad_request"},
+		{"statistics no state", "/api/statistics/exports", `{"from":"2026-11-01","to":"2026-11-30"}`, http.StatusUnprocessableEntity, "state_required"},
+		{"statistics bad from", "/api/statistics/exports", `{"state":"bw","from":"01.11.2026","to":"2026-11-30"}`, http.StatusUnprocessableEntity, "invalid_period"},
+		{"statistics bad to", "/api/statistics/exports", `{"state":"bw","from":"2026-11-01","to":"nope"}`, http.StatusUnprocessableEntity, "invalid_period"},
+		{"ledger malformed", "/api/ledger/exports", `{`, http.StatusBadRequest, "bad_request"},
+		{"ledger empty from", "/api/ledger/exports", `{"to":"2026-11-30"}`, http.StatusUnprocessableEntity, "invalid_period"},
+		{"ledger bad to", "/api/ledger/exports", `{"from":"2026-11-01","to":"2026/11/30"}`, http.StatusUnprocessableEntity, "invalid_period"},
+		{"report malformed", "/api/reports/renders", `{`, http.StatusBadRequest, "bad_request"},
+		{"report no id", "/api/reports/renders", `{"from":"2026-11-01","to":"2026-11-30"}`, http.StatusUnprocessableEntity, "report_id_required"},
+		{"report bad from", "/api/reports/renders", `{"report_id":"r","from":"x","to":"2026-11-30"}`, http.StatusUnprocessableEntity, "invalid_period"},
 	}
 	stub := &stubExports{id: 1}
 	srv := exportServer(t, stub)
@@ -120,6 +121,13 @@ func TestExportRoutesRefuseBadRequests(t *testing.T) {
 			resp := doJSON(t, http.MethodPost, srv.URL+c.path, "carol", c.body)
 			if resp.StatusCode != c.want {
 				t.Fatalf("status = %d, want %d", resp.StatusCode, c.want)
+			}
+			var problem httpapi.Problem
+			if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+				t.Fatalf("body is not a Problem: %v", err)
+			}
+			if problem.Code != c.wantCode {
+				t.Fatalf("code = %q, want %q", problem.Code, c.wantCode)
 			}
 		})
 	}
@@ -155,6 +163,13 @@ func TestExportRoutesWithoutQueue(t *testing.T) {
 		resp := doJSON(t, http.MethodPost, srv.URL+p, "carol", `{}`)
 		if resp.StatusCode != http.StatusServiceUnavailable {
 			t.Fatalf("%s status = %d, want 503", p, resp.StatusCode)
+		}
+		var problem httpapi.Problem
+		if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+			t.Fatalf("%s body is not a Problem: %v", p, err)
+		}
+		if problem.Code != "export_queue_unconfigured" {
+			t.Fatalf("%s code = %q, want export_queue_unconfigured", p, problem.Code)
 		}
 	}
 }
