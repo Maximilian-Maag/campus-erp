@@ -68,6 +68,75 @@ func TestStoreAppendSealsAndVerifies(t *testing.T) {
 	}
 }
 
+// TestStoreEventsReadsByActionAndSubject: the read side returns an action's newest events,
+// narrows to one subject, and honours the subject filter it was given (the stream is shared
+// by every package and run, so the test owns a subject unique to this run).
+func TestStoreEventsReadsByActionAndSubject(t *testing.T) {
+	ctx := context.Background()
+	pool := storeTestPool(t)
+	store := audit.NewStore(pool)
+
+	var token string
+	if err := pool.QueryRow(ctx, "SELECT gen_random_uuid()::text").Scan(&token); err != nil {
+		t.Fatalf("unique token: %v", err)
+	}
+	subject := "events-test/" + token
+	other := "events-other/" + token
+
+	for i := 0; i < 3; i++ {
+		if _, err := store.Append(ctx, audit.Event{
+			At: time.Now(), Actor: "alice", Action: "test.events", Subject: subject,
+		}); err != nil {
+			t.Fatalf("append %d: %v", i, err)
+		}
+	}
+	if _, err := store.Append(ctx, audit.Event{
+		At: time.Now(), Actor: "bob", Action: "test.events", Subject: other,
+	}); err != nil {
+		t.Fatalf("append other: %v", err)
+	}
+
+	got, err := store.Events(ctx, "test.events", subject, 0)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("Events = %d, want the 3 appended to this subject", len(got))
+	}
+	for i := 1; i < len(got); i++ {
+		if got[i-1].Seq <= got[i].Seq {
+			t.Fatalf("events are not newest-first at %d", i)
+		}
+	}
+	if got[0].Action != "test.events" || got[0].Subject != subject {
+		t.Fatalf("event = %+v, want this action and subject", got[0])
+	}
+
+	if one, err := store.Events(ctx, "test.events", subject, 1); err != nil || len(one) != 1 {
+		t.Fatalf("limit=1 -> %d events, %v; want 1", len(one), err)
+	}
+
+	// No subject matches the action across subjects, so this run's other subject appears.
+	all, err := store.Events(ctx, "test.events", "", 200)
+	if err != nil {
+		t.Fatalf("Events (no subject): %v", err)
+	}
+	var sawOther bool
+	for _, e := range all {
+		if e.Subject == other {
+			sawOther = true
+		}
+	}
+	if !sawOther {
+		t.Fatalf("a subject-less read did not match %q", other)
+	}
+
+	// An action nobody wrote has no events, and is not an error.
+	if none, err := store.Events(ctx, "test.events.none", "", 0); err != nil || len(none) != 0 {
+		t.Fatalf("unknown action -> %d events, %v; want none and no error", len(none), err)
+	}
+}
+
 func TestStoreAppendSealsTheFirstEventToGenesis(t *testing.T) {
 	ctx := context.Background()
 	store := audit.NewStore(storeTestPool(t))

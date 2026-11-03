@@ -2153,6 +2153,32 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
   /api/etl/runs:
+    get:
+      tags:
+      - etl
+      operationId: listETLRuns
+      summary: List recent ETL runs (by dataset, read from the audit stream)
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EtlRunsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
     post:
       tags:
       - etl
@@ -2225,6 +2251,15 @@ components:
           type: string
       required:
       - dataset
+    EtlRunsResponse:
+      type: object
+      properties:
+        runs:
+          type: array
+          items:
+            type: string
+      required:
+      - runs
     DatasetsResponse:
       type: object
       properties:

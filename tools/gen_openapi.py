@@ -225,6 +225,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
         "get": ("listETLDatasets", "etl", "List the registered ETL datasets", None, "httpapi.datasetsResponse", 200, "json"),
     },
     "/api/etl/runs": {
+        "get": ("listETLRuns", "etl", "List recent ETL runs (by dataset, read from the audit stream)", None, "httpapi.etlRunsResponse", 200, "json"),
         "post": ("runETLDataset", "etl", "Run a named ETL dataset", "httpapi.etlRunRequest", "etl.Report", 200, "json"),
     },
 }

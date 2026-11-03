@@ -119,6 +119,10 @@ export class CampusErpApi {
     return this.http.get<m.DatasetsResponse>(this.base + `/api/etl/datasets`);
   }
 
+  listETLRuns(): Observable<m.EtlRunsResponse> {
+    return this.http.get<m.EtlRunsResponse>(this.base + `/api/etl/runs`);
+  }
+
   runETLDataset(body: m.EtlRunRequest): Observable<m.Report> {
     return this.http.post<m.Report>(this.base + `/api/etl/runs`, body);
   }

@@ -147,6 +147,7 @@ func (s *Server) Routes() http.Handler {
 
 	// ETL: list + run the registered datasets (admin).
 	mux.HandleFunc("GET /api/etl/datasets", s.authorize(s.listETLDatasets, auth.RoleAdmin))
+	mux.HandleFunc("GET /api/etl/runs", s.authorize(s.listETLRuns, auth.RoleAdmin))
 	mux.HandleFunc("POST /api/etl/runs", s.authorize(s.runETLDataset, auth.RoleAdmin))
 
 	mux.HandleFunc("POST /api/cashbook/days", s.authorize(s.openDay, auth.RoleKasse))

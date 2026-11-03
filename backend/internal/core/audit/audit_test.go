@@ -5,6 +5,25 @@ import (
 	"time"
 )
 
+// TestClampLimit: a read of the stream cannot be asked for everything, and a caller that
+// passes nothing gets the default rather than an unbounded query.
+func TestClampLimit(t *testing.T) {
+	cases := map[int]int{
+		0:                 defaultEventLimit,
+		-1:                defaultEventLimit,
+		1:                 1,
+		50:                50,
+		maxEventLimit:     maxEventLimit,
+		maxEventLimit + 1: maxEventLimit,
+		100000:            maxEventLimit,
+	}
+	for in, want := range cases {
+		if got := clampLimit(in); got != want {
+			t.Errorf("clampLimit(%d) = %d, want %d", in, got, want)
+		}
+	}
+}
+
 func TestAppendChainsEvents(t *testing.T) {
 	l := &Log{}
 	a := l.Append(Event{Actor: "alice", Action: "create", Subject: "stelle/1"})

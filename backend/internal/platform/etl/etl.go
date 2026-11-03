@@ -91,6 +91,39 @@ type Report struct {
 	At       time.Time `json:"at"`
 }
 
+// actionETLRun is the audit action every run records; the run history reads the same
+// action back, so the two cannot drift apart.
+const actionETLRun = "etl.run"
+
+// runSubject is the audit subject a dataset's runs are recorded under.
+func runSubject(dataset string) string { return "etl/" + dataset }
+
+// Run is one recorded ETL run, read back from the audit stream (docs/19). The run already
+// happened and was audited; this is the read side of that record, not a second store.
+type Run struct {
+	At      time.Time `json:"at"`
+	Actor   string    `json:"actor"`
+	Summary string    `json:"summary"`
+}
+
+// History returns a dataset's recent runs, newest first. An empty dataset matches every
+// dataset. limit is clamped by the audit store.
+func (r *Runner) History(ctx context.Context, dataset string, limit int) ([]Run, error) {
+	subject := ""
+	if name := strings.TrimSpace(dataset); name != "" {
+		subject = runSubject(name)
+	}
+	events, err := r.audit.Events(ctx, actionETLRun, subject, limit)
+	if err != nil {
+		return nil, fmt.Errorf("etl: history: %w", err)
+	}
+	runs := make([]Run, 0, len(events))
+	for _, e := range events {
+		runs = append(runs, Run{At: e.At, Actor: e.Actor, Summary: e.After})
+	}
+	return runs, nil
+}
+
 // checksumPrefix labels the checksum in the audit detail. afterText writes it and
 // checksumOf reads it, so the two stay in step.
 const checksumPrefix = "checksum="
@@ -111,9 +144,10 @@ type Ledger interface {
 	LastChecksum(ctx context.Context, dataset string) (checksum string, ok bool, err error)
 }
 
-// AuditSink records each run.
+// AuditSink records runs and reads them back; *audit.Store satisfies it.
 type AuditSink interface {
 	Append(ctx context.Context, e audit.Event) (audit.Event, error)
+	Events(ctx context.Context, action, subject string, limit int) ([]audit.Event, error)
 }
 
 // Runner runs datasets and records every run in the audit stream.
@@ -171,9 +205,10 @@ func (r *Runner) Run(ctx context.Context, ds Dataset, by string) (Report, error)
 		return rep, fmt.Errorf("%w: %s loaded %d of %d", ErrReconcile, ds.Name, loaded, len(records))
 	}
 	if _, err := r.audit.Append(ctx, audit.Event{
+		At:      rep.At,
 		Actor:   by,
-		Action:  "etl.run",
-		Subject: "etl/" + ds.Name,
+		Action:  actionETLRun,
+		Subject: runSubject(ds.Name),
 		After:   afterText(rep),
 	}); err != nil {
 		return rep, err

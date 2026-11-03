@@ -262,6 +262,10 @@ export interface EtlRunRequest {
   dataset: string;
 }
 
+export interface EtlRunsResponse {
+  runs: string[];
+}
+
 export interface ExportQueuedResponse {
   job_id: number;
 }

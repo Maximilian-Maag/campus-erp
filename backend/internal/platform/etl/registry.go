@@ -42,6 +42,12 @@ func (r *Registry) Names() []string {
 	return out
 }
 
+// History returns the recent runs of a dataset (or of every dataset when name is empty),
+// newest first. It is the read side of the audit record Run writes.
+func (r *Registry) History(ctx context.Context, name string, limit int) ([]Run, error) {
+	return r.runner.History(ctx, name, limit)
+}
+
 // Run runs the named dataset, or returns ErrUnknownDataset.
 func (r *Registry) Run(ctx context.Context, name, by string) (Report, error) {
 	ds, ok := r.datasets[strings.TrimSpace(name)]
