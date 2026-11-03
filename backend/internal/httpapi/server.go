@@ -64,6 +64,7 @@ type Server struct {
 	auth            auth.Verifier
 	artefacts       storage.Store
 	exports         exportQueue
+	reports         reportCatalogue
 }
 
 // Deps are the collaborators the HTTP server needs. A struct (not thirteen
@@ -91,6 +92,7 @@ type Deps struct {
 	Auth            auth.Verifier
 	Artefacts       storage.Store
 	Exports         exportQueue
+	Reports         reportCatalogue
 }
 
 // New returns a Server.
@@ -116,6 +118,7 @@ func New(d Deps) *Server {
 		auth:            d.Auth,
 		artefacts:       d.Artefacts,
 		exports:         d.Exports,
+		reports:         d.Reports,
 	}
 }
 
@@ -140,6 +143,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/audit/verify", s.authorize(s.auditVerify, auth.RoleAdmin))
 	mux.HandleFunc("GET /api/artefacts/{kind}/{name}", s.authorizeRead(s.getArtefact, auth.RoleKasse))
 
+	// Reports render on the worker role; the API lists them from the same catalogue (docs/25).
+	mux.HandleFunc("GET /api/reports", s.authorizeRead(s.listReports, auth.RoleKasse))
 	// Exports run on the worker role; the API only queues them (docs/27).
 	mux.HandleFunc("POST /api/statistics/exports", s.authorize(s.requestStatisticsExport, auth.RoleKasse))
 	mux.HandleFunc("POST /api/ledger/exports", s.authorize(s.requestLedgerExport, auth.RoleKasse))

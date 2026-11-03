@@ -33,6 +33,59 @@ func suffix(t *testing.T) string {
 	return strings.ReplaceAll(t.Name(), "/", "-") + "-" + time.Now().Format("150405.000000000")
 }
 
+// TestPositionsListsEveryPositionInBudgetOrder: the Mittelübersicht's data source lists every
+// position, in the order a budget is read, and picks up positions created after it was asked.
+func TestPositionsListsEveryPositionInBudgetOrder(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+	tag := suffix(t)
+
+	// A position from another year, to prove the ordering is by year first.
+	older, err := svc.CreatePosition(ctx, 2025, "T-"+tag, "1", "", 1000, "alice")
+	if err != nil {
+		t.Fatalf("CreatePosition: %v", err)
+	}
+	newer, err := svc.CreatePosition(ctx, 2026, "T-"+tag, "2", "Beschaffung", 2000, "alice")
+	if err != nil {
+		t.Fatalf("CreatePosition: %v", err)
+	}
+
+	all, err := svc.Positions(ctx)
+	if err != nil {
+		t.Fatalf("Positions: %v", err)
+	}
+	var seenOlder, seenNewer int
+	for i, p := range all {
+		switch p.ID {
+		case older.ID:
+			seenOlder = i + 1
+		case newer.ID:
+			seenNewer = i + 1
+		}
+	}
+	if seenOlder == 0 || seenNewer == 0 {
+		t.Fatalf("Positions did not list both created positions")
+	}
+	if seenOlder > seenNewer {
+		t.Fatalf("2025 position came after the 2026 one: %d > %d", seenOlder, seenNewer)
+	}
+	// The order is year, chapter, title — so within a year the chapter decides.
+	for i := 1; i < len(all); i++ {
+		if all[i-1].Year > all[i].Year {
+			t.Fatalf("positions are not ordered by year: %d before %d", all[i-1].Year, all[i].Year)
+		}
+	}
+
+	// The balance of a created position is readable, which is what the overview needs.
+	bal, err := svc.Balance(ctx, newer.ID)
+	if err != nil {
+		t.Fatalf("Balance: %v", err)
+	}
+	if bal.AllocatedCents != 2000 || bal.AvailableCents() != 2000 {
+		t.Fatalf("balance = %+v", bal)
+	}
+}
+
 // TestBudgetOverspendGuard is the acceptance test: a posting beyond the available
 // amount is rejected, and a release restores availability.
 func TestBudgetOverspendGuard(t *testing.T) {

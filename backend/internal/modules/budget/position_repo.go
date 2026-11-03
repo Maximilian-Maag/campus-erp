@@ -16,6 +16,8 @@ const uniqueViolation = "23505"
 type PositionRepository interface {
 	CreatePosition(ctx context.Context, p Position) (Position, error)
 	GetPosition(ctx context.Context, id int64) (Position, error)
+	// ListPositions returns every position in budget order, for the Mittelübersicht (docs/25).
+	ListPositions(ctx context.Context) ([]Position, error)
 	InsertPosting(ctx context.Context, p Posting) (Posting, error)
 	Postings(ctx context.Context, positionID int64) ([]Posting, error)
 	Balance(ctx context.Context, positionID int64) (Balance, error)
@@ -59,6 +61,29 @@ func (r *PositionRepo) CreatePosition(ctx context.Context, p Position) (Position
 }
 
 // GetPosition loads a position by id.
+// ListPositions returns every position, ordered the way a budget is read: year, then chapter,
+// then title.
+func (r *PositionRepo) ListPositions(ctx context.Context) ([]Position, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+positionColumns+` FROM budget_position ORDER BY year, chapter, title, id`)
+	if err != nil {
+		return nil, fmt.Errorf("budget: list positions: %w", err)
+	}
+	defer rows.Close()
+	out := []Position{}
+	for rows.Next() {
+		p, err := scanPosition(rows)
+		if err != nil {
+			return nil, fmt.Errorf("budget: scan position: %w", err)
+		}
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("budget: list positions: %w", err)
+	}
+	return out, nil
+}
+
 func (r *PositionRepo) GetPosition(ctx context.Context, id int64) (Position, error) {
 	p, err := scanPosition(r.pool.QueryRow(ctx, `SELECT `+positionColumns+` FROM budget_position WHERE id = $1`, id))
 	if errors.Is(err, pgx.ErrNoRows) {

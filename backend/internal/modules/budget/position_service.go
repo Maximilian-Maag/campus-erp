@@ -49,6 +49,11 @@ func (s *PositionService) CreatePosition(ctx context.Context, year int, chapter,
 	return saved, nil
 }
 
+// Positions returns every position in budget order. It is read-only, so it is not audited.
+func (s *PositionService) Positions(ctx context.Context) ([]Position, error) {
+	return s.repo.ListPositions(ctx)
+}
+
 // Post appends a posting, enforcing Mittelüberwachung.
 func (s *PositionService) Post(ctx context.Context, positionID int64, kind PostingKind, amountCents int64, reference, by string) (Posting, error) {
 	if strings.TrimSpace(by) == "" {

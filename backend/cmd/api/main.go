@@ -28,6 +28,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/etl"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/jobs"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/reports"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/tenant"
 )
 
@@ -79,6 +80,12 @@ func main() {
 		if err != nil {
 			log.Fatalf("api: job enqueuer: %v", err)
 		}
+		// The report catalogue is the same one the worker renders from, so the reports this API
+		// offers and the reports that actually render cannot drift apart (docs/25).
+		reportCatalogue := reports.NewCatalogue(reports.DataSources{
+			Bookings:  kasse.NewLedgerRepo(pool),
+			Positions: budgetSvc,
+		})
 		// The e-invoice service matches an inbound invoice to a purchase order, so it needs the
 		// procurement service (which owns the order and the budget conversion).
 		procurementSvc := procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store)
@@ -102,6 +109,7 @@ func main() {
 			Audit:           store,
 			Health:          pool,
 			Exports:         jobs.NewExports(enqueuer),
+			Reports:         reportCatalogue,
 		}
 		if cfg.OIDCJWKSURL != "" {
 			deps.Auth = &auth.JWKVerifier{

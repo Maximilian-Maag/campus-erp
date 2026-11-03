@@ -85,6 +85,12 @@ export interface CollectionRunRequest {
   items: CollectionItemRequest[];
 }
 
+export interface Column {
+  Key: string;
+  Title: string;
+  Align: string;
+}
+
 export interface CostCenter {
   ID: number;
   Number: string;
@@ -197,6 +203,12 @@ export interface DecisionRequest {
   reason: string;
 }
 
+export interface Definition {
+  ID: string;
+  Title: string;
+  Columns: Column[];
+}
+
 export interface DunningBand {
   UpToCents: number;
   FeeCents: number;
@@ -257,6 +269,9 @@ export interface EinvoicePartyRequest {
   endpoint_id: string;
   endpoint_scheme: string;
   email: string;
+}
+
+export interface EtlReport {
 }
 
 export interface EtlRunRequest {
@@ -348,6 +363,12 @@ export interface KlrRecordRequest {
   kind: string;
   amount_cents: number;
   reference: string;
+}
+
+export interface KlrReport {
+  CostCenterID: number;
+  CostsCents: number;
+  RevenuesCents: number;
 }
 
 export interface LedgerExportRequest {
@@ -495,12 +516,6 @@ export interface Record {
   AmountCents: number;
   Reference: string;
   BookedBy: string;
-}
-
-export interface Report {
-  CostCenterID: number;
-  CostsCents: number;
-  RevenuesCents: number;
 }
 
 export interface ReportRenderRequest {

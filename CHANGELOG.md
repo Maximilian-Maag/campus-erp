@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.74.0] - 2026-11-03
+
+Reports: a shared catalogue, and the budget's Mittelübersicht.
+
+### Added
+- `internal/platform/reports` — the catalogue of reports this system renders (definition plus
+  collector). The worker renders through it and the API lists it, so the reports a client is
+  offered and the reports that actually render cannot drift.
+- `budget.PositionOverview` (id `budget-position-overview`, "Mittelübersicht"): every position
+  with Ansatz, Verpflichtet, Ist and Verfügbar, plus a totals row. The available column is
+  derived per position from the balance the guard uses.
+- `GET /api/reports` (role `kasse`) returns those definitions, columns included.
+- `PositionRepository.ListPositions` and `PositionService.Positions`.
+
+### Changed
+- The `report-render` worker kind no longer knows one hardcoded report: it asks the catalogue.
+  An unknown id, or a collector whose data source was not wired, is refused rather than
+  producing an empty report that looks real.
+- `internal/platform/reports` added to `backend/mutation.json`; `core/report` added to the
+  OpenAPI generator's package list so `report.Definition` is a typed schema instead of a
+  free-form object.
+
 ## [0.73.0] - 2026-11-03
 
 The e-invoice generator enforces the standard's code lists, and the catalogue is seeded from

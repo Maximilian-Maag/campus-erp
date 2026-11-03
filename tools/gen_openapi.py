@@ -118,6 +118,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/ledger/exports": {
         "post": ("requestLedgerExport", "kasse", "Queue a ledger posting export (renders on the worker role)", "httpapi.ledgerExportRequest", "httpapi.exportQueuedResponse", 202, "json"),
     },
+    "/api/reports": {
+        "get": ("listReports", "kasse", "List the reports this system renders", None, "[]report.Definition", 200, "json"),
+    },
     "/api/reports/renders": {
         "post": ("requestReportRender", "kasse", "Queue a report render (renders on the worker role)", "httpapi.reportRenderRequest", "httpapi.exportQueuedResponse", 202, "json"),
     },
@@ -260,6 +263,7 @@ PKG_DIRS = {
     "einvoice": BACKEND / "core" / "einvoice",
     "sepa": BACKEND / "core" / "sepa",
     "audit": BACKEND / "core" / "audit",
+    "report": BACKEND / "core" / "report",
     "finance": BACKEND / "modules" / "finance",
     "personal": BACKEND / "modules" / "personal",
 }

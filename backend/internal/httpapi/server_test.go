@@ -25,6 +25,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/klr"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/reports"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/dbtest"
 )
@@ -68,7 +69,12 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	}
 	budgetSvc := budget.NewPositionService(budget.NewPositionRepo(pool), store)
 	procurementSvc := procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store)
-	srv := httptest.NewServer(httpapi.New(httpapi.Deps{Kasse: kasse.NewService(kasse.NewRepo(pool), store), Orders: kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetSvc, store), Dunning: kasse.NewDunningService(kasse.NewDunningRepo(pool), store), Tax: kasse.NewTaxService(kasse.NewTaxRepo(pool), store), Runs: kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store), Statements: kasse.NewStatementService(kasse.NewStatementRepo(pool), store), FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store), EInvoices: einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), procurementSvc, store), Budget: budgetSvc, Lookups: lookup.NewValueService(lookup.NewValueRepo(pool), store), Procurement: procurementSvc, KLR: klr.NewService(klr.NewRepo(pool), store), Audit: store, Artefacts: artefactStore}).Handler())
+	reportCatalogue := reports.NewCatalogue(reports.DataSources{
+		Bookings:  kasse.NewLedgerRepo(pool),
+		Positions: budgetSvc,
+	})
+	srv := httptest.NewServer(httpapi.New(httpapi.Deps{Kasse: kasse.NewService(kasse.NewRepo(pool), store), Orders: kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetSvc, store), Dunning: kasse.NewDunningService(kasse.NewDunningRepo(pool), store), Tax: kasse.NewTaxService(kasse.NewTaxRepo(pool), store), Runs: kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store), Statements: kasse.NewStatementService(kasse.NewStatementRepo(pool), store), FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store), EInvoices: einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), procurementSvc, store), Budget: budgetSvc, Lookups: lookup.NewValueService(lookup.NewValueRepo(pool), store), Procurement: procurementSvc,
+		Reports: reportCatalogue, KLR: klr.NewService(klr.NewRepo(pool), store), Audit: store, Artefacts: artefactStore}).Handler())
 	t.Cleanup(srv.Close)
 	return srv, pool
 }
