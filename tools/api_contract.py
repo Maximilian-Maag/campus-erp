@@ -356,13 +356,20 @@ def gen_service(doc: dict) -> str:
         "  constructor(private readonly http: HttpClient) {}",
         "",
     ]
+    any_query = False
     for path, item in sorted(paths.items()):
         for method, op in sorted(item.items()):
             op_id = op.get("operationId", "unnamed")
-            params = [p["name"] for p in op.get("parameters") or []]
+            declared = op.get("parameters") or []
+            path_params = [p["name"] for p in declared if p.get("in") == "path"]
+            query_params = [p for p in declared if p.get("in") == "query"]
             args = []
-            for p in params:
+            for p in path_params:
                 args.append(f"{_ts_param(p)}: number | string")
+            for q in query_params:
+                # Query values travel as strings, so an optional filter reads as `status?: string`.
+                optional = "" if q.get("required") else "?"
+                args.append(f"{_ts_param(q['name'])}{optional}: string")
             body_ref = _body_schema(op)
             raw_body = body_ref is None and _has_raw_body(op)
             if body_ref:
@@ -375,6 +382,10 @@ def gen_service(doc: dict) -> str:
             ret = _response_type(op)
             # turn {name} into ${name}
             url_expr = re.sub(r"\{([A-Za-z0-9_]+)\}", r"${\1}", path)
+            if query_params:
+                any_query = True
+                pairs = ", ".join(q["name"] for q in query_params)
+                url_expr += "$" + "{this._query({ " + pairs + " })}"
             if raw_body:
                 body_arg = ", body, { headers: { 'Content-Type': 'application/xml' } }"
             else:
@@ -384,6 +395,17 @@ def gen_service(doc: dict) -> str:
             lines.append(f"    return this.http.{method}<{ret}>(this.base + `{url_expr}`{body_arg});")
             lines.append("  }")
             lines.append("")
+    if any_query:
+        # One helper, used by every method that takes filters. Empty and undefined values drop
+        # out, so an omitted filter is simply not sent.
+        lines.append("  /** Renders the query string for the parameters that were given. */")
+        lines.append("  private _query(params: Record<string, string | number | undefined>): string {")
+        lines.append("    const parts = Object.entries(params)")
+        lines.append("      .filter(([, value]) => value !== undefined && value !== '')")
+        lines.append("      .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`);")
+        lines.append("    return parts.length > 0 ? '?' + parts.join('&') : '';")
+        lines.append("  }")
+        lines.append("")
     lines.append("}")
     lines.append("")
     return "\n".join(lines)
@@ -476,6 +498,24 @@ paths:
       responses:
         '200':
           description: ok
+  /api/x:
+    get:
+      operationId: listX
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/X'
   /api/x/{id}:
     post:
       operationId: doX
@@ -508,7 +548,7 @@ components:
             type: string
 """
     doc = load_yaml(sample)
-    check(set((doc.get("paths") or {})) == {"/healthz", "/api/x/{id}"}, "parses paths")
+    check(set((doc.get("paths") or {})) == {"/healthz", "/api/x", "/api/x/{id}"}, "parses paths")
     check(doc["paths"]["/api/x/{id}"]["post"]["operationId"] == "doX", "parses operationId")
     check(doc["components"]["schemas"]["X"]["required"] == ["a"], "parses required list")
     check(ts_type({"$ref": "#/components/schemas/X"}) == "X", "ref -> type name")
@@ -518,6 +558,9 @@ components:
           "models interface")
     service = gen_service(doc)
     check("doX(" in service and "${id}" in service, "service method + path param")
+    check("listX(status?: string)" in service, "query param is optional and typed as a string")
+    check("this._query({ status })" in service, "query params are rendered into the URL")
+    check("private _query(" in service, "one query helper is emitted")
 
     # The real, committed spec must also parse and stay consistent.
     real = load_yaml(SPEC.read_text())

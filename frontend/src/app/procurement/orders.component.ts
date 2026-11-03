@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CampusErpApi, OrderSummary } from '../core/api/generated';
 import { formatCents } from '../core/format';
 
@@ -6,9 +6,9 @@ import { formatCents } from '../core/format';
  * Procurement — purchase orders (Bestellungen).
  *
  * Lists the orders and approves one that is still a draft, which is the step that commits
- * budget. The status filter is applied to the orders already loaded: the generated client
- * cannot send query parameters yet, so the server's own filter is not reachable from here.
- * That is the follow-up for lists big enough to need paging.
+ * budget. The status filter is the server's own: choosing one asks the API for that status
+ * rather than sifting what happens to be loaded, so the screen works on a list it never holds
+ * in full.
  */
 @Component({
   selector: 'app-purchase-orders',
@@ -18,11 +18,7 @@ import { formatCents } from '../core/format';
 
       <div class="filter">
         <label for="order-status">Status</label>
-        <select
-          id="order-status"
-          [value]="status()"
-          (change)="status.set($any($event.target).value)"
-        >
+        <select id="order-status" [value]="status()" (change)="filterTo($any($event.target).value)">
           <option value="">Alle</option>
           <option value="draft">Entwurf</option>
           <option value="approved">Genehmigt</option>
@@ -40,7 +36,7 @@ import { formatCents } from '../core/format';
 
       @if (loading()) {
         <p role="status">Bestellungen werden geladen.</p>
-      } @else if (visible().length === 0 && !loadError()) {
+      } @else if (orders().length === 0 && !loadError()) {
         <p role="status">
           {{ status() ? 'Keine Bestellung in diesem Status.' : 'Es sind keine Bestellungen angelegt.' }}
         </p>
@@ -59,7 +55,7 @@ import { formatCents } from '../core/format';
             </tr>
           </thead>
           <tbody>
-            @for (order of visible(); track order.ID) {
+            @for (order of orders(); track order.ID) {
               <tr [attr.data-testid]="'order-' + order.Number">
                 <td>{{ order.Number }}</td>
                 <td>{{ order.Supplier }}</td>
@@ -96,22 +92,22 @@ export class PurchaseOrdersComponent implements OnInit {
   /** The order being approved, so its button can report progress and block a double submit. */
   readonly approving = signal<number | null>(null);
 
-  readonly visible = computed(() => {
-    const wanted = this.status();
-    const all = this.orders();
-    return wanted ? all.filter((o) => o.Status === wanted) : all;
-  });
-
   // Loading starts when the screen is shown, not when it is constructed: the initial state is
   // then observable (and testable) before any request is made.
   ngOnInit(): void {
     this.load();
   }
 
+  /** Narrow to one status ("" for all). The server does the filtering. */
+  filterTo(status: string): void {
+    this.status.set(status);
+    this.load();
+  }
+
   load(): void {
     this.loading.set(true);
     this.loadError.set(null);
-    this.api.listPurchaseOrders().subscribe({
+    this.api.listPurchaseOrders(this.status() || undefined).subscribe({
       next: (orders) => {
         this.orders.set(orders ?? []);
         this.loading.set(false);

@@ -2,6 +2,21 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.78.0] - 2026-11-03
+
+Query parameters in the generated client, so a screen can use a route's filter.
+
+### Added
+- Contract rows may declare query parameters as `(name, type, required)` triples. The OpenAPI
+  spec emits them, and the generated client takes them as optional arguments
+  (`listPurchaseOrders(status?: string)`), rendering one `_query` helper that drops anything
+  omitted or empty.
+
+### Changed
+- The orders screen filters **on the server** now: choosing a status asks the API for it
+  (`?status=`), instead of sifting the list it happens to hold. The end-to-end test asserts the
+  parameter really travels.
+
 ## [0.77.0] - 2026-11-03
 
 The e-invoice screen, the invoice list, and the match recorded on the invoice.

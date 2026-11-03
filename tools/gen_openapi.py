@@ -183,7 +183,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     # ── Procurement ──────────────────────────────────────────────────────────
     "/api/purchase-orders": {
-        "get": ("listPurchaseOrders", "procurement", "List purchase orders, optionally narrowed to one status", None, "[]procurement.OrderSummary", 200, "json"),
+        "get": ("listPurchaseOrders", "procurement", "List purchase orders, optionally narrowed to one status", None, "[]procurement.OrderSummary", 200, "json", [("status", "string", False)]),
         "post": ("createPurchaseOrder", "procurement", "Create a purchase order", "httpapi.createPurchaseOrderRequest", "procurement.Order", 201, "json"),
     },
     "/api/purchase-orders/{id}": {
@@ -501,19 +501,28 @@ def build_document(res: Resolver) -> dict:
     paths: dict = {}
     for path, methods in CONTRACT.items():
         item: dict = {}
-        for method, (op_id, tag, summary, req, resp, status, kind) in methods.items():
+        for method, spec in methods.items():
+            # A row is (operationId, tag, summary, requestType, responseType, status, kind) and,
+            # optionally, query parameters as (name, type, required) triples.
+            op_id, tag, summary, req, resp, status, kind = spec[:7]
+            query = spec[7] if len(spec) > 7 else []
             op: dict = {"tags": [tag], "operationId": op_id, "summary": summary}
             params = re.findall(r"\{([A-Za-z_][A-Za-z0-9_]*)\}", path)
-            if params:
-                op["parameters"] = [
-                    {
-                        "name": p,
-                        "in": "path",
-                        "required": True,
-                        "schema": {"type": "integer", "format": "int64"} if p in ("id", "year") else {"type": "string"},
-                    }
-                    for p in params
-                ]
+            declared: list = [
+                {
+                    "name": p,
+                    "in": "path",
+                    "required": True,
+                    "schema": {"type": "integer", "format": "int64"} if p in ("id", "year") else {"type": "string"},
+                }
+                for p in params
+            ]
+            declared += [
+                {"name": name, "in": "query", "required": required, "schema": {"type": kind_}}
+                for name, kind_, required in query
+            ]
+            if declared:
+                op["parameters"] = declared
             if req:
                 op["requestBody"] = {
                     "required": True,
