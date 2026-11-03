@@ -1024,6 +1024,73 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/bank-statements/imports:
+    post:
+      tags:
+      - kasse
+      operationId: requestStatementImport
+      summary: Queue a bank-statement import (runs on the worker role)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatementImportRequest'
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportQueuedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/payment-runs/{id}/exports:
+    post:
+      tags:
+      - kasse
+      operationId: requestSepaExport
+      summary: Queue a payment run's SEPA file for delivery to the bank channel
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportQueuedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/dunning/levels:
     post:
       tags:
@@ -3297,6 +3364,17 @@ components:
           format: int64
       required:
       - job_id
+    StatementImportRequest:
+      type: object
+      properties:
+        account_id:
+          type: integer
+          format: int64
+        content:
+          type: string
+      required:
+      - account_id
+      - content
     ReportRenderRequest:
       type: object
       properties:

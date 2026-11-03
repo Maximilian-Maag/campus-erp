@@ -27,6 +27,10 @@ export class CampusErpApi {
     return this.http.post<m.Statement[]>(this.base + `/api/bank-statements`, body);
   }
 
+  requestStatementImport(body: m.StatementImportRequest): Observable<m.ExportQueuedResponse> {
+    return this.http.post<m.ExportQueuedResponse>(this.base + `/api/bank-statements/imports`, body);
+  }
+
   getBankStatement(id: number | string): Observable<m.Statement> {
     return this.http.get<m.Statement>(this.base + `/api/bank-statements/${id}`);
   }
@@ -213,6 +217,10 @@ export class CampusErpApi {
 
   getPaymentRun(id: number | string): Observable<m.PaymentRun> {
     return this.http.get<m.PaymentRun>(this.base + `/api/payment-runs/${id}`);
+  }
+
+  requestSepaExport(id: number | string): Observable<m.ExportQueuedResponse> {
+    return this.http.post<m.ExportQueuedResponse>(this.base + `/api/payment-runs/${id}/exports`, null);
   }
 
   getPaymentRunFile(id: number | string): Observable<string> {

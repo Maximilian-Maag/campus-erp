@@ -121,6 +121,12 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/reports/renders": {
         "post": ("requestReportRender", "kasse", "Queue a report render (renders on the worker role)", "httpapi.reportRenderRequest", "httpapi.exportQueuedResponse", 202, "json"),
     },
+    "/api/bank-statements/imports": {
+        "post": ("requestStatementImport", "kasse", "Queue a bank-statement import (runs on the worker role)", "httpapi.statementImportRequest", "httpapi.exportQueuedResponse", 202, "json"),
+    },
+    "/api/payment-runs/{id}/exports": {
+        "post": ("requestSepaExport", "kasse", "Queue a payment run's SEPA file for delivery to the bank channel", None, "httpapi.exportQueuedResponse", 202, "json"),
+    },
     "/api/dunning/levels": {
         "post": ("createDunningLevel", "kasse", "Create a dunning level", "httpapi.createLevelRequest", "kasse.DunningLevel", 201, "json"),
     },

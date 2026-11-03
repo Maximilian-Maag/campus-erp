@@ -529,6 +529,11 @@ export interface Statement {
   Lines: StatementLine[];
 }
 
+export interface StatementImportRequest {
+  account_id: number;
+  content: string;
+}
+
 export interface StatementLine {
   ID: number;
   LineNo: number;

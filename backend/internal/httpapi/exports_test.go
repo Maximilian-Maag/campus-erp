@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
@@ -34,6 +35,16 @@ func (s *stubExports) EnqueueLedgerExport(_ context.Context, from, to, actor str
 
 func (s *stubExports) EnqueueReportRender(_ context.Context, reportID, from, to, actor string) (int64, error) {
 	s.record("report", reportID, from, to, actor)
+	return s.id, s.err
+}
+
+func (s *stubExports) EnqueueStatementImport(_ context.Context, accountID int64, content, actor string) (int64, error) {
+	s.record("statement", strconv.FormatInt(accountID, 10), content, actor)
+	return s.id, s.err
+}
+
+func (s *stubExports) EnqueueSepaExport(_ context.Context, runID int64, actor string) (int64, error) {
+	s.record("sepa", strconv.FormatInt(runID, 10), actor)
 	return s.id, s.err
 }
 
@@ -69,6 +80,16 @@ func TestExportRoutesQueue(t *testing.T) {
 			"report", "/api/reports/renders",
 			`{"report_id":" kasse-daily-close ","from":"2026-11-01","to":"2026-11-30"}`,
 			[]string{"report", "kasse-daily-close", "2026-11-01", "2026-11-30", "carol"},
+		},
+		{
+			"statement import", "/api/bank-statements/imports",
+			`{"account_id":7,"content":":20:ref\n:61:..."}`,
+			[]string{"statement", "7", ":20:ref\n:61:...", "carol"},
+		},
+		{
+			"sepa export", "/api/payment-runs/9/exports",
+			"",
+			[]string{"sepa", "9", "carol"},
 		},
 	}
 	for _, c := range cases {
@@ -113,6 +134,10 @@ func TestExportRoutesRefuseBadRequests(t *testing.T) {
 		{"report malformed", "/api/reports/renders", `{`, http.StatusBadRequest, "bad_request"},
 		{"report no id", "/api/reports/renders", `{"from":"2026-11-01","to":"2026-11-30"}`, http.StatusUnprocessableEntity, "report_id_required"},
 		{"report bad from", "/api/reports/renders", `{"report_id":"r","from":"x","to":"2026-11-30"}`, http.StatusUnprocessableEntity, "invalid_period"},
+		{"statement malformed", "/api/bank-statements/imports", `{`, http.StatusBadRequest, "bad_request"},
+		{"statement no account", "/api/bank-statements/imports", `{"content":"x"}`, http.StatusUnprocessableEntity, "account_required"},
+		{"statement no content", "/api/bank-statements/imports", `{"account_id":7,"content":"  "}`, http.StatusUnprocessableEntity, "content_required"},
+		{"sepa bad id", "/api/payment-runs/abc/exports", "", http.StatusBadRequest, "invalid_id"},
 	}
 	stub := &stubExports{id: 1}
 	srv := exportServer(t, stub)
@@ -141,11 +166,14 @@ func TestExportRoutesRefuseBadRequests(t *testing.T) {
 func TestExportRoutesQueueFailure(t *testing.T) {
 	stub := &stubExports{err: errors.New("river down")}
 	srv := exportServer(t, stub)
-	paths := []string{"/api/statistics/exports", "/api/ledger/exports", "/api/reports/renders"}
+	paths := []string{"/api/statistics/exports", "/api/ledger/exports", "/api/reports/renders",
+		"/api/bank-statements/imports", "/api/payment-runs/1/exports"}
 	bodies := []string{
 		`{"state":"bw","from":"2026-11-01","to":"2026-11-30"}`,
 		`{"from":"2026-11-01","to":"2026-11-30"}`,
 		`{"report_id":"r","from":"2026-11-01","to":"2026-11-30"}`,
+		`{"account_id":7,"content":"x"}`,
+		``,
 	}
 	for i, p := range paths {
 		resp := doJSON(t, http.MethodPost, srv.URL+p, "carol", bodies[i])
@@ -159,7 +187,8 @@ func TestExportRoutesQueueFailure(t *testing.T) {
 // pretending the work was accepted.
 func TestExportRoutesWithoutQueue(t *testing.T) {
 	srv := exportServer(t, nil)
-	for _, p := range []string{"/api/statistics/exports", "/api/ledger/exports", "/api/reports/renders"} {
+	for _, p := range []string{"/api/statistics/exports", "/api/ledger/exports", "/api/reports/renders",
+		"/api/bank-statements/imports", "/api/payment-runs/1/exports"} {
 		resp := doJSON(t, http.MethodPost, srv.URL+p, "carol", `{}`)
 		if resp.StatusCode != http.StatusServiceUnavailable {
 			t.Fatalf("%s status = %d, want 503", p, resp.StatusCode)
