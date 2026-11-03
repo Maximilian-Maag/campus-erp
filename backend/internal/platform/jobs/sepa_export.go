@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 )
 
@@ -55,6 +56,16 @@ func (w *SepaExportWorker) Work(ctx context.Context, job *river.Job[SepaExportAr
 	}
 	w.log().InfoContext(ctx, "SEPA export finished", "run", job.Args.RunID, "file", name)
 	return nil
+}
+
+// EnqueueSepaExport inserts a KindSepaExport job and returns its id. The API role uses it to
+// hand a payment run's already-rendered file to the worker for delivery.
+func EnqueueSepaExport(ctx context.Context, client *river.Client[pgx.Tx], runID int64, actor string) (int64, error) {
+	res, err := client.Insert(ctx, SepaExportArgs{RunID: runID, Actor: actor}, nil)
+	if err != nil {
+		return 0, fmt.Errorf("jobs: enqueue SEPA export: %w", err)
+	}
+	return res.Job.ID, nil
 }
 
 // plainFileName refuses a file name that would escape the outbox. Both export kinds

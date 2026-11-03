@@ -46,3 +46,14 @@ func (e Exports) EnqueueLedgerExport(ctx context.Context, from, to, actor string
 func (e Exports) EnqueueReportRender(ctx context.Context, reportID, from, to, actor string) (int64, error) {
 	return EnqueueReportRender(ctx, e.client, reportID, from, to, actor)
 }
+
+// EnqueueStatementImport queues a bank-statement import of content for an account and
+// returns the job id. The bytes travel with the job, so a retry re-imports the same file.
+func (e Exports) EnqueueStatementImport(ctx context.Context, accountID int64, content, actor string) (int64, error) {
+	return EnqueueStatementImport(ctx, e.client, accountID, content, actor)
+}
+
+// EnqueueSepaExport queues the delivery of a payment run's SEPA file and returns the job id.
+func (e Exports) EnqueueSepaExport(ctx context.Context, runID int64, actor string) (int64, error) {
+	return EnqueueSepaExport(ctx, e.client, runID, actor)
+}

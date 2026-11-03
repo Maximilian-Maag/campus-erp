@@ -2,6 +2,27 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.69.0] - 2026-11-02
+
+Every job kind is now reachable from a route.
+
+### Added
+- `POST /api/bank-statements/imports` (role `kasse`): queues a bank-statement import
+  (`{account_id, content}` -> `202`), the asynchronous counterpart of `POST /api/bank-statements`.
+  The bytes travel with the job, so a retry re-imports the same file.
+- `POST /api/payment-runs/{id}/exports` (role `kasse`): queues the delivery of a payment run's
+  already-rendered SEPA file to the bank channel.
+- `jobs.EnqueueSepaExport` — the one enqueue seam docs/17 listed that did not exist (the doc
+  was wrong; the code now matches it). `jobs.Exports` exposes it and the statement import.
+
+### Changed
+- With all six kinds reachable, docs/17 §7 lists the routes instead of saying which seams are
+  still to be wired.
+
+### Tests
+- The two new routes in the shared export-route table (args passed through, refusals as
+  `account_required` / `content_required` / `invalid_id`, queue failure, no queue configured).
+
 ## [0.68.0] - 2026-11-02
 
 Documentation: three claims the code had outgrown.

@@ -17,6 +17,8 @@ type exportQueue interface {
 	EnqueueStatisticsExport(ctx context.Context, state, from, to, actor string) (int64, error)
 	EnqueueLedgerExport(ctx context.Context, from, to, actor string) (int64, error)
 	EnqueueReportRender(ctx context.Context, reportID, from, to, actor string) (int64, error)
+	EnqueueStatementImport(ctx context.Context, accountID int64, content, actor string) (int64, error)
+	EnqueueSepaExport(ctx context.Context, runID int64, actor string) (int64, error)
 }
 
 // statisticsExportRequest is the payload of POST /api/statistics/exports.
@@ -30,6 +32,12 @@ type statisticsExportRequest struct {
 type ledgerExportRequest struct {
 	From string `json:"from"`
 	To   string `json:"to"`
+}
+
+// statementImportRequest is the payload of POST /api/bank-statements/imports.
+type statementImportRequest struct {
+	AccountID int64  `json:"account_id"`
+	Content   string `json:"content"`
 }
 
 // reportRenderRequest is the payload of POST /api/reports/renders.
@@ -101,6 +109,44 @@ func (s *Server) requestReportRender(w http.ResponseWriter, r *http.Request) {
 	}
 	s.enqueueExport(w, func() (int64, error) {
 		return s.exports.EnqueueReportRender(r.Context(), reportID, from, to, actor(r))
+	})
+}
+
+// requestStatementImport queues a bank-statement import, so a large file does not hold the
+// request open (POST /api/bank-statements is the synchronous counterpart). The bytes travel
+// with the job, so a retry re-imports the same file.
+func (s *Server) requestStatementImport(w http.ResponseWriter, r *http.Request) {
+	var req statementImportRequest
+	if !s.decodeExportRequest(w, r, &req) {
+		return
+	}
+	if req.AccountID <= 0 {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "account_required", "account_id is required")
+		return
+	}
+	if strings.TrimSpace(req.Content) == "" {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "content_required", "content is required")
+		return
+	}
+	s.enqueueExport(w, func() (int64, error) {
+		return s.exports.EnqueueStatementImport(r.Context(), req.AccountID, req.Content, actor(r))
+	})
+}
+
+// requestSepaExport queues the delivery of a payment run's already-rendered SEPA file to the
+// bank channel; the run id is the path parameter.
+func (s *Server) requestSepaExport(w http.ResponseWriter, r *http.Request) {
+	if s.exports == nil {
+		writeProblemCode(w, http.StatusServiceUnavailable, "export_queue_unconfigured", "export queue is not configured")
+		return
+	}
+	id, err := pathID(r)
+	if err != nil {
+		writeProblemCode(w, http.StatusBadRequest, "invalid_id", err.Error())
+		return
+	}
+	s.enqueueExport(w, func() (int64, error) {
+		return s.exports.EnqueueSepaExport(r.Context(), id, actor(r))
 	})
 }
 

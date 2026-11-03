@@ -122,19 +122,20 @@ on Postgres (ADR-0007) — no extra broker. The runtime is `internal/platform/jo
 - The `sepa-export` kind (`SepaExportArgs{RunID, Actor}`) delivers a payment run's
   already-rendered pain.001 file to the bank channel. `SepaExportFunc` returns the file
   name and bytes; a name that is empty, nested or escaping is refused, so the outbox
-  cannot be written outside.
+  cannot be written outside. `POST /api/payment-runs/{id}/exports` queues one.
 - The `report-render` kind (`ReportRenderArgs{ReportID, From, To, Actor}`) builds a report
   by id over a period and stores its artefact. `ReportRenderFunc` keeps the package free of
   the domains that own the reports; the worker role knows `kasse-daily-close` and renders it
   through the document service (`docs/25`).
 - `EnqueueEtl` / `EnqueueStatementImport` / `EnqueueLedgerExport` / `EnqueueSepaExport` /
   `EnqueueReportRender` / `EnqueueStatisticsExport` are the enqueue seams the API role can
-  use to hand work to the worker instead of running it inline. The export seams are wired
-  through an **insert-only** client (`jobs.NewEnqueuer` — no queues, no workers, so the API can
-  never work a job): `POST /api/statistics/exports`, `POST /api/ledger/exports` and
-  `POST /api/reports/renders`. `POST /api/etl/runs` is the one route that runs its work inline.
-  `EnqueueStatementImport` and `EnqueueSepaExport` follow the same pattern when their triggers
-  are needed.
+  use to hand work to the worker instead of running it inline. **Every kind is reachable
+  now**: five export/import seams queue through an **insert-only** client
+  (`jobs.NewEnqueuer` — no queues, no workers, so the API can never work a job) —
+  `POST /api/statistics/exports`, `POST /api/ledger/exports`, `POST /api/reports/renders`,
+  `POST /api/bank-statements/imports` and `POST /api/payment-runs/{id}/exports` — and
+  `POST /api/etl/runs` is the one route that runs its work inline. All answer `202` with the
+  job id, and `503` when no queue is configured rather than pretending.
 - `cmd/worker` is the wiring: it opens the pool, migrates, builds the registry
   (legacy source pool when `ERP_LEGACY_DATABASE_URL` is set), starts the client and
   blocks until SIGINT/SIGTERM, then drains with a bounded stop.

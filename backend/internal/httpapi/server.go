@@ -144,6 +144,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/statistics/exports", s.authorize(s.requestStatisticsExport, auth.RoleKasse))
 	mux.HandleFunc("POST /api/ledger/exports", s.authorize(s.requestLedgerExport, auth.RoleKasse))
 	mux.HandleFunc("POST /api/reports/renders", s.authorize(s.requestReportRender, auth.RoleKasse))
+	mux.HandleFunc("POST /api/bank-statements/imports", s.authorize(s.requestStatementImport, auth.RoleKasse))
+	mux.HandleFunc("POST /api/payment-runs/{id}/exports", s.authorize(s.requestSepaExport, auth.RoleKasse))
 
 	// ETL: list + run the registered datasets (admin).
 	mux.HandleFunc("GET /api/etl/datasets", s.authorize(s.listETLDatasets, auth.RoleAdmin))
