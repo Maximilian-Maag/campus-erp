@@ -13,6 +13,7 @@ import (
 // paymentRunService is the payment-run surface the HTTP layer needs.
 type paymentRunService interface {
 	CreateCashAccount(ctx context.Context, name, iban, bic, currency string) (kasse.CashAccount, error)
+	CashAccounts(ctx context.Context) ([]kasse.CashAccount, error)
 	CreateRun(ctx context.Context, reference string, accountID int64, executionDate time.Time, orderIDs []int64, by string) (kasse.PaymentRun, error)
 	Run(ctx context.Context, id int64) (kasse.PaymentRun, error)
 	RunFile(ctx context.Context, id int64) (string, error)
@@ -39,6 +40,17 @@ func statusForRun(err error) int {
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+// listCashAccounts reads the university's own accounts, which a screen has to offer before it can
+// ask about one.
+func (s *Server) listCashAccounts(w http.ResponseWriter, r *http.Request) {
+	accounts, err := s.runs.CashAccounts(r.Context())
+	if err != nil {
+		writeProblem(w, statusForRun(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, accounts)
 }
 
 type createCashAccountRequest struct {

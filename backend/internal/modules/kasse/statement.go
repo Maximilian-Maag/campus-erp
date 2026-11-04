@@ -61,6 +61,23 @@ type BankFile struct {
 	ImportedBy string
 }
 
+// StatementSummary is an imported statement as a list shows it: which account it belongs to, the
+// period it covers with its opening and closing balance, and how many lines came with it.
+type StatementSummary struct {
+	ID                  int64
+	AccountID           int64
+	Reference           string
+	Number              int
+	Page                int
+	Currency            string
+	OpeningBalanceCents int64
+	OpeningDate         time.Time
+	ClosingBalanceCents int64
+	ClosingDate         time.Time
+	LineCount           int
+	ImportedBy          string
+}
+
 // Statement is one imported bank statement with its lines.
 type Statement struct {
 	ID                  int64

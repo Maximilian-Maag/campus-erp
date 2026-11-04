@@ -171,11 +171,13 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/payment-orders/{id}/cancel", s.authorize(s.cancelOrder, auth.RoleKasse))
 
 	mux.HandleFunc("POST /api/cash-accounts", s.authorize(s.createCashAccount, auth.RoleKasse))
+	mux.HandleFunc("GET /api/cash-accounts", s.authorizeRead(s.listCashAccounts, auth.RoleKasse))
 	mux.HandleFunc("POST /api/payment-runs", s.authorize(s.createRun, auth.RoleKasse))
 	mux.HandleFunc("GET /api/payment-runs/{id}", s.authorizeRead(s.getRun, auth.RoleKasse))
 	mux.HandleFunc("GET /api/payment-runs/{id}/file", s.authorizeRead(s.getRunFile, auth.RoleKasse))
 
 	mux.HandleFunc("POST /api/bank-statements", s.authorize(s.importStatement, auth.RoleKasse))
+	mux.HandleFunc("GET /api/bank-statements", s.authorizeRead(s.listStatements, auth.RoleKasse))
 	mux.HandleFunc("GET /api/bank-statements/{id}", s.authorizeRead(s.getStatement, auth.RoleKasse))
 	mux.HandleFunc("GET /api/bank-files/{id}", s.authorizeRead(s.getBankFile, auth.RoleKasse))
 

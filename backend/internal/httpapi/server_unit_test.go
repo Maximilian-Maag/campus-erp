@@ -145,6 +145,10 @@ func (s stubRuns) CreateCashAccount(context.Context, string, string, string, str
 	return s.account, s.err
 }
 
+func (s stubRuns) CashAccounts(context.Context) ([]kasse.CashAccount, error) {
+	return nil, s.err
+}
+
 func (s stubRuns) CreateRun(context.Context, string, int64, time.Time, []int64, string) (kasse.PaymentRun, error) {
 	return s.run, s.err
 }
@@ -166,6 +170,10 @@ func (s stubStatements) Import(context.Context, int64, string, string) ([]kasse.
 
 func (s stubStatements) Statement(context.Context, int64) (kasse.Statement, error) {
 	return s.st, s.err
+}
+
+func (s stubStatements) Statements(context.Context, int64) ([]kasse.StatementSummary, error) {
+	return nil, s.err
 }
 
 func (s stubStatements) BankFile(context.Context, int64) (kasse.BankFile, error) {

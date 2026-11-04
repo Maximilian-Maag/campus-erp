@@ -120,6 +120,15 @@ workflow's rules stay with the API — the screen offers what a state allows and
 as it comes back, so a four-eyes rejection reads as the refusal it is rather than being
 pre-empted in TypeScript.
 
+`frontend/src/app/kasse/bank-statements.component.ts` — *Kasse: Kontoauszüge* (route
+`/kasse/kontoauszuege`) — lists the statements imported for one of the university's own accounts,
+opens a statement's lines without leaving the page, and reads an MT940 file in by pasting its
+content. Its account filter is the server's too (`?account_id=`). Whether an import is a *new*
+file is the API's decision: importing the same file twice returns what was already stored.
+
+Every screen has a link in the shell's navigation (`app.html`), and `e2e/app.e2e.spec.ts` fails
+if the route table and those links disagree: a screen nobody can navigate to is not finished.
+
 These are covered twice: a Karma spec drives the component against a mocked HTTP backend
 (request, render, empty, failure, formatting, reload, and the action's own success and failure
 paths), and a Playwright test drives the real browser against a stubbed API and runs **axe**
@@ -147,10 +156,10 @@ gate (`npx stryker run`, break 85) covers them too.
 
 ## Not yet done
 
-- Six screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`), Budget,
-  Beschaffung, E-Rechnung and KLR. The rest get theirs as their phases land, each one starting
-  from the read routes it needs — and the kasse/payments domain is where that bites: it has 32
-  operations and, before this slice, exactly one list route, so nearly every remaining screen
-  there needs its `GET` built first.
+- Seven screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
+  `/kasse/kontoauszuege`), Budget, Beschaffung, E-Rechnung and KLR. The rest get theirs as their
+  phases land, each one starting from the read routes it needs — and the kasse/payments domain is
+  where that bites: it had 32 operations and one list route, so nearly every screen there needs
+  its `GET` built first.
 - **No paging yet.** Every list route returns everything; a list big enough to need paging
   needs a page parameter on the route and on the screens that read it.

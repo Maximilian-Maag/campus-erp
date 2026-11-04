@@ -18,6 +18,7 @@ type StatementRepository interface {
 	InsertStatements(ctx context.Context, bankFileID int64, stmts []Statement) ([]Statement, error)
 	StatementsByFile(ctx context.Context, accountID int64, fileHash string) ([]Statement, error)
 	GetStatement(ctx context.Context, id int64) (Statement, error)
+	Statements(ctx context.Context, accountID int64) ([]StatementSummary, error)
 	PaidOrdersByReference(ctx context.Context, refs []string) (map[string]int64, error)
 }
 
@@ -50,6 +51,46 @@ func derefDate(p *time.Time) time.Time {
 		return time.Time{}
 	}
 	return *p
+}
+
+// Statements lists imported statements, newest closing date first — the order an operator looks
+// for one in — optionally narrowed to one account (0 for all).
+func (r *StatementRepo) Statements(ctx context.Context, accountID int64) ([]StatementSummary, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, account_id, reference, statement_number, page, currency,
+		        opening_balance_cents, opening_date, closing_balance_cents, closing_date,
+		        line_count, imported_by
+		   FROM bank_statement
+		  -- The cast is required: comparing the parameter to a bare 0 would type it as an
+		  -- integer, and an account id past the 32-bit range would be refused rather than
+		  -- simply matching nothing.
+		  WHERE ($1::bigint = 0 OR account_id = $1::bigint)
+		  -- A statement the bank sent without a closing date sorts last: it has no period to be
+		  -- found by, and NULLs would otherwise lead the newest-first order.
+		  ORDER BY closing_date DESC NULLS LAST, statement_number DESC`, accountID)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: list statements: %w", err)
+	}
+	defer rows.Close()
+	out := []StatementSummary{}
+	for rows.Next() {
+		var s StatementSummary
+		// A statement's dates are nullable in the table, so they are read the same way the
+		// single-statement read reads them.
+		var openingDate, closingDate *time.Time
+		if err := rows.Scan(&s.ID, &s.AccountID, &s.Reference, &s.Number, &s.Page, &s.Currency,
+			&s.OpeningBalanceCents, &openingDate, &s.ClosingBalanceCents, &closingDate,
+			&s.LineCount, &s.ImportedBy); err != nil {
+			return nil, fmt.Errorf("kasse: scan statement summary: %w", err)
+		}
+		s.OpeningDate = derefDate(openingDate)
+		s.ClosingDate = derefDate(closingDate)
+		out = append(out, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("kasse: list statements: %w", err)
+	}
+	return out, nil
 }
 
 // InsertBankFile stores an imported file.

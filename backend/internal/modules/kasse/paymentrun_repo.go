@@ -14,6 +14,7 @@ import (
 type PaymentRunRepository interface {
 	CreateCashAccount(ctx context.Context, a CashAccount) (CashAccount, error)
 	GetCashAccount(ctx context.Context, id int64) (CashAccount, error)
+	ListCashAccounts(ctx context.Context) ([]CashAccount, error)
 	RunByReference(ctx context.Context, reference string) (PaymentRun, bool, error)
 	GetRun(ctx context.Context, id int64) (PaymentRun, error)
 	RunFile(ctx context.Context, id int64) (string, error)
@@ -49,6 +50,28 @@ func (r *PaymentRunRepo) CreateCashAccount(ctx context.Context, a CashAccount) (
 	var out CashAccount
 	if err := row.Scan(&out.ID, &out.Name, &out.IBAN, &out.BIC, &out.Currency); err != nil {
 		return CashAccount{}, fmt.Errorf("kasse: create cash account: %w", err)
+	}
+	return out, nil
+}
+
+// ListCashAccounts lists the university's own accounts by name, which is how they are offered to
+// an operator.
+func (r *PaymentRunRepo) ListCashAccounts(ctx context.Context) ([]CashAccount, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, name, iban, bic, currency FROM cash_account ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: list cash accounts: %w", err)
+	}
+	defer rows.Close()
+	out := []CashAccount{}
+	for rows.Next() {
+		var a CashAccount
+		if err := rows.Scan(&a.ID, &a.Name, &a.IBAN, &a.BIC, &a.Currency); err != nil {
+			return nil, fmt.Errorf("kasse: scan cash account: %w", err)
+		}
+		out = append(out, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("kasse: list cash accounts: %w", err)
 	}
 	return out, nil
 }

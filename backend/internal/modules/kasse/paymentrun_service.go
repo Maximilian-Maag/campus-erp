@@ -23,6 +23,11 @@ func NewPaymentRunService(repo PaymentRunRepository, sink AuditSink) *PaymentRun
 	return &PaymentRunService{repo: repo, audit: sink}
 }
 
+// CashAccounts lists the university's own accounts.
+func (s *PaymentRunService) CashAccounts(ctx context.Context) ([]CashAccount, error) {
+	return s.repo.ListCashAccounts(ctx)
+}
+
 // CreateCashAccount validates and stores a debtor cash account.
 func (s *PaymentRunService) CreateCashAccount(ctx context.Context, name, iban, bic, currency string) (CashAccount, error) {
 	account, err := NewCashAccount(name, iban, bic, currency)
