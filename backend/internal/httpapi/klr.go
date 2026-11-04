@@ -23,6 +23,9 @@ type klrService interface {
 	Allocate(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (klr.Run, error)
 	PostCostType(ctx context.Context, code, name, by string) (klr.CostType, error)
 	CostTypes(ctx context.Context) ([]klr.CostType, error)
+	DefineCostUnitKey(ctx context.Context, sourceCenterID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (klr.CostUnitKey, error)
+	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]klr.CostUnitKey, error)
+	AllocateToCostUnits(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (klr.Run, error)
 	MapAccount(ctx context.Context, costTypeID int64, accountCode, by string) (klr.CostTypeAccount, error)
 	AccountsOf(ctx context.Context, costTypeID int64) ([]klr.CostTypeAccount, error)
 	CostTypeByAccount(ctx context.Context, accountCode string) (klr.CostType, error)
@@ -237,6 +240,94 @@ func (s *Server) runAllocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	run, err := s.klr.Allocate(r.Context(), sourceID, from, to, actor(r))
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, run)
+}
+
+// ── Kostenträgerrechnung: a centre's costs attributed to its cost units ─────
+
+type defineCostUnitKeyRequest struct {
+	TargetUnitID int64  `json:"target_unit_id"`
+	ShareBP      int64  `json:"share_bp"`
+	ValidFrom    string `json:"valid_from"`
+	ValidTo      string `json:"valid_to"`
+}
+
+// defineCostUnitKey stores a key from a cost centre to one of its cost units.
+func (s *Server) defineCostUnitKey(w http.ResponseWriter, r *http.Request) {
+	sourceID, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var req defineCostUnitKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	from, err := time.Parse(time.DateOnly, strings.TrimSpace(req.ValidFrom))
+	if err != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "valid_from must be a date (YYYY-MM-DD)")
+		return
+	}
+	var to *time.Time
+	if raw := strings.TrimSpace(req.ValidTo); raw != "" {
+		parsed, err := time.Parse(time.DateOnly, raw)
+		if err != nil {
+			writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "valid_to must be a date (YYYY-MM-DD)")
+			return
+		}
+		to = &parsed
+	}
+	key, err := s.klr.DefineCostUnitKey(r.Context(), sourceID, req.TargetUnitID, req.ShareBP, from, to, actor(r))
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, key)
+}
+
+// listCostUnitKeys reads a cost centre's Kostenträger keys.
+func (s *Server) listCostUnitKeys(w http.ResponseWriter, r *http.Request) {
+	sourceID, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	keys, err := s.klr.CostUnitKeys(r.Context(), sourceID)
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, keys)
+}
+
+// runCostUnitAllocation attributes a cost centre's period costs to its cost units.
+func (s *Server) runCostUnitAllocation(w http.ResponseWriter, r *http.Request) {
+	sourceID, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var req runAllocationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	from, err := time.Parse(time.DateOnly, strings.TrimSpace(req.From))
+	if err != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "from must be a date (YYYY-MM-DD)")
+		return
+	}
+	to, err := time.Parse(time.DateOnly, strings.TrimSpace(req.To))
+	if err != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "to must be a date (YYYY-MM-DD)")
+		return
+	}
+	run, err := s.klr.AllocateToCostUnits(r.Context(), sourceID, from, to, actor(r))
 	if err != nil {
 		writeProblem(w, statusForKLR(err), err.Error())
 		return

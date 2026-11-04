@@ -30,6 +30,10 @@ type Repository interface {
 	CreateAllocation(ctx context.Context, a Allocation) (Allocation, error)
 	Allocations(ctx context.Context, sourceCenterID int64) ([]Allocation, error)
 	CostUnitFigures(ctx context.Context) ([]CostUnitLine, error)
+	GetCostUnit(ctx context.Context, id int64) (CostUnit, error)
+	CreateCostUnitKey(ctx context.Context, k CostUnitKey) (CostUnitKey, error)
+	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]CostUnitKey, error)
+	RecordCostUnitRun(ctx context.Context, run Run, records []Record) (Run, error)
 	CostsInPeriod(ctx context.Context, costCenterID int64, from, to time.Time) (int64, error)
 	RecordRun(ctx context.Context, run Run, records []Record) (Run, error)
 

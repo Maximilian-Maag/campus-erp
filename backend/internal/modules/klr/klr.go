@@ -204,32 +204,52 @@ type Share struct {
 // add up to the amount exactly - no cent is created or lost. The keys must add
 // up to 10000 basis points; they are split in the order given.
 func SplitShares(amountCents int64, keys []Allocation) ([]Share, error) {
-	if len(keys) == 0 {
+	sharesBP := make([]int64, 0, len(keys))
+	for _, k := range keys {
+		sharesBP = append(sharesBP, k.ShareBP)
+	}
+	cents, err := splitByBasisPoints(amountCents, sharesBP)
+	if err != nil {
+		return nil, err
+	}
+	shares := make([]Share, 0, len(keys))
+	for i, k := range keys {
+		shares = append(shares, Share{Allocation: k, Cents: cents[i]})
+	}
+	return shares, nil
+}
+
+// splitByBasisPoints is the arithmetic both splits share: the receivers of a distribution are
+// cost centres on one side and cost units on the other, but a slice is a slice. Every key but the
+// last is rounded down and the last takes the remainder, so the slices add up to the amount
+// exactly; the basis points must add up to 10000.
+func splitByBasisPoints(amountCents int64, sharesBP []int64) ([]int64, error) {
+	if len(sharesBP) == 0 {
 		return nil, ErrAllocationRunNoTargets
 	}
 	if amountCents <= 0 {
 		return nil, ErrNothingToAllocate
 	}
 	var total int64
-	for _, k := range keys {
-		total += k.ShareBP
+	for _, bp := range sharesBP {
+		total += bp
 	}
 	if total != 10000 {
 		return nil, ErrSharesIncomplete
 	}
-	shares := make([]Share, 0, len(keys))
+	cents := make([]int64, 0, len(sharesBP))
 	var given int64
-	for i, k := range keys {
-		var cents int64
-		if i == len(keys)-1 {
-			cents = amountCents - given
+	for i, bp := range sharesBP {
+		var slice int64
+		if i == len(sharesBP)-1 {
+			slice = amountCents - given
 		} else {
-			cents = amountCents * k.ShareBP / 10000
+			slice = amountCents * bp / 10000
 		}
-		given += cents
-		shares = append(shares, Share{Allocation: k, Cents: cents})
+		given += slice
+		cents = append(cents, slice)
 	}
-	return shares, nil
+	return cents, nil
 }
 
 // String renders a key for messages and logs.

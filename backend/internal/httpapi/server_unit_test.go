@@ -322,6 +322,18 @@ func (s stubKLR) PostCostType(context.Context, string, string, string) (klr.Cost
 	return klr.CostType{}, s.err
 }
 
+func (s stubKLR) DefineCostUnitKey(context.Context, int64, int64, int64, time.Time, *time.Time, string) (klr.CostUnitKey, error) {
+	return klr.CostUnitKey{}, s.err
+}
+
+func (s stubKLR) CostUnitKeys(context.Context, int64) ([]klr.CostUnitKey, error) {
+	return nil, s.err
+}
+
+func (s stubKLR) AllocateToCostUnits(context.Context, int64, time.Time, time.Time, string) (klr.Run, error) {
+	return klr.Run{}, s.err
+}
+
 func (s stubKLR) CostTypes(context.Context) ([]klr.CostType, error) {
 	return nil, s.err
 }

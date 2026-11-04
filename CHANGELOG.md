@@ -2,6 +2,32 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.92.0] - 2026-11-04
+
+The KLR's Kostenträgerrechnung: a cost centre's costs are attributed to its cost units, the other
+half of the apportionment the centre-side engine already does.
+
+### Added
+- `cost_unit_key` and `cost_unit_run` (migration 0026), plus
+  `POST/GET /api/klr/cost-centers/{id}/cost-unit-keys` and
+  `POST /api/klr/cost-centers/{id}/cost-unit-keys/run`. A key says how much of a centre's costs a
+  cost unit takes; a run books one cost on the source centre tagged with each unit that takes a
+  share, and a revenue relieving the source by exactly what it handed out.
+- `klr.CostUnitKey`, `klr.SplitUnitShares` and `klr.Service.AllocateToCostUnits`, with the share
+  arithmetic shared with the centre-side split (`splitByBasisPoints`) rather than copied: the
+  receivers differ, the rounding rule does not.
+- Audit events `cost_unit_key.define` and `cost_unit_run.run`. A run's records carry the reference
+  `KTU:<run id>`, distinct from the centre-side `UML:<run id>`.
+
+### Notes
+- **The source centre's balance does not move.** The tagged costs and the relief cancel, so
+  attributing a centre's costs leaves its Saldo where it was while the unit carries them — a run
+  still neither creates nor destroys cost. Records are append-only, so the cost *volume* rises.
+- `docs/03` reads the legacy `kpum` / `um*` tables as "Umlage/Verrechnung", so the vendor's
+  `cost_center_clearing` / `cost_unit_clearing` are taken to be the two sides of one distribution:
+  the centre side is `allocation`, the unit side is this. The vendor's exact shape is unpublished,
+  so the mapping stays data (docs/13).
+
 ## [0.91.0] - 2026-11-04
 
 The KLR gets its Kostenträger view: the second stage of the cost accounting, next to the
