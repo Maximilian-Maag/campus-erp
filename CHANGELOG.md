@@ -2,6 +2,25 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.89.0] - 2026-11-04
+
+The KLR gets its cost types (Kostenarten) and the bridge from the ledger's accounts to them.
+
+### Added
+- KLR **cost types** (`cost_type`) and the **account bridge** (`cost_type_account`), the piece
+  `docs/13` listed as unpublished. The vendor's shape for it is not available, so the mapping is
+  modelled as data: a cost type owns account codes, and a code is a plain string, so when the
+  ledger side lands its codes are the ones the bridge already holds. An account belongs to exactly
+  one cost type — mapping the same code to the same cost type again is idempotent, mapping it to a
+  different one is refused. `POST/GET /api/klr/cost-types`,
+  `POST/GET /api/klr/cost-types/{id}/accounts`, `GET /api/klr/accounts/{account}/cost-type`. The
+  bridge's read side sits on the account because `/api/klr/cost-types/by-account/{account}` would
+  be as specific as `/api/klr/cost-types/{id}/accounts` and the router refuses to guess between
+  two equally specific patterns.
+- `accounting_record.cost_type_id` (nullable): a record may name the cost type it belongs to. A
+  record with none is valid — nobody has classified it yet.
+- Audit events `cost_type.create` and `cost_type.map_account`.
+
 ## [0.88.0] - 2026-11-04
 
 The KLR gets its per-centre view, in the report catalogue.

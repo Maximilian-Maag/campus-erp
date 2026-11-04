@@ -16,24 +16,33 @@ type klrService interface {
 	CreateCostCenter(ctx context.Context, number, name, by string) (klr.CostCenter, error)
 	CostCenters(ctx context.Context) ([]klr.CostCenter, error)
 	CreateCostUnit(ctx context.Context, number, name, by string) (klr.CostUnit, error)
-	Post(ctx context.Context, costCenterID int64, costUnitID *int64, kind klr.Kind, amountCents int64, businessDate time.Time, reference, by string) (klr.Record, error)
+	Post(ctx context.Context, costCenterID int64, costUnitID, costTypeID *int64, kind klr.Kind, amountCents int64, businessDate time.Time, reference, by string) (klr.Record, error)
 	Report(ctx context.Context, costCenterID int64) (klr.Report, error)
 	DefineAllocation(ctx context.Context, sourceCenterID, targetCenterID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (klr.Allocation, error)
 	Allocations(ctx context.Context, sourceCenterID int64) ([]klr.Allocation, error)
 	Allocate(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (klr.Run, error)
+	PostCostType(ctx context.Context, code, name, by string) (klr.CostType, error)
+	CostTypes(ctx context.Context) ([]klr.CostType, error)
+	MapAccount(ctx context.Context, costTypeID int64, accountCode, by string) (klr.CostTypeAccount, error)
+	AccountsOf(ctx context.Context, costTypeID int64) ([]klr.CostTypeAccount, error)
+	CostTypeByAccount(ctx context.Context, accountCode string) (klr.CostType, error)
 }
 
 // statusForKLR maps a KLR error to an HTTP status.
 func statusForKLR(err error) int {
 	switch {
-	case errors.Is(err, klr.ErrCostCenterNotFound), errors.Is(err, klr.ErrCostUnitNotFound):
+	case errors.Is(err, klr.ErrCostCenterNotFound), errors.Is(err, klr.ErrCostUnitNotFound),
+		errors.Is(err, klr.ErrCostTypeNotFound), errors.Is(err, klr.ErrAccountNotMapped):
 		return http.StatusNotFound
-	case errors.Is(err, klr.ErrCostCenterExists), errors.Is(err, klr.ErrCostUnitExists):
+	case errors.Is(err, klr.ErrCostCenterExists), errors.Is(err, klr.ErrCostUnitExists),
+		errors.Is(err, klr.ErrCostTypeExists), errors.Is(err, klr.ErrAccountAlreadyMapped):
 		return http.StatusConflict
 	case errors.Is(err, klr.ErrAlreadyAllocated):
 		return http.StatusConflict
 	case errors.Is(err, klr.ErrActorRequired),
 		errors.Is(err, klr.ErrNumberRequired),
+		errors.Is(err, klr.ErrCodeRequired),
+		errors.Is(err, klr.ErrAccountCodeRequired),
 		errors.Is(err, klr.ErrNameRequired),
 		errors.Is(err, klr.ErrAmountNotPositive),
 		errors.Is(err, klr.ErrUnknownKind),
@@ -97,6 +106,7 @@ func (s *Server) createCostUnit(w http.ResponseWriter, r *http.Request) {
 
 type klrRecordRequest struct {
 	CostUnitID *int64 `json:"cost_unit_id"`
+	CostTypeID *int64 `json:"cost_type_id"`
 	Kind       string `json:"kind"`
 	// BusinessDate is the period the record belongs to ("2026-04-30"). Empty means today: the
 	// edge decides that, and the domain is given an explicit date.
@@ -134,7 +144,7 @@ func (s *Server) postAccountingRecord(w http.ResponseWriter, r *http.Request) {
 		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "business_date must be a date (YYYY-MM-DD)")
 		return
 	}
-	rec, err := s.klr.Post(r.Context(), id, req.CostUnitID, klr.Kind(req.Kind), req.AmountCents, date, req.Reference, actor(r))
+	rec, err := s.klr.Post(r.Context(), id, req.CostUnitID, req.CostTypeID, klr.Kind(req.Kind), req.AmountCents, date, req.Reference, actor(r))
 	if err != nil {
 		writeProblem(w, statusForKLR(err), err.Error())
 		return
@@ -246,4 +256,86 @@ func (s *Server) getKLRReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, rep)
+}
+
+// ── Cost types (Kostenarten) and the account bridge ─────────────────────────
+
+type klrCostTypeRequest struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+func (s *Server) createCostType(w http.ResponseWriter, r *http.Request) {
+	var req klrCostTypeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	ct, err := s.klr.PostCostType(r.Context(), req.Code, req.Name, actor(r))
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, ct)
+}
+
+// listCostTypes reads every cost type, which is what a screen needs before it can ask about one.
+func (s *Server) listCostTypes(w http.ResponseWriter, r *http.Request) {
+	types, err := s.klr.CostTypes(r.Context())
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, types)
+}
+
+type klrAccountRequest struct {
+	AccountCode string `json:"account_code"`
+}
+
+// mapCostTypeAccount links a general-ledger account code to a cost type (the bridge).
+func (s *Server) mapCostTypeAccount(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var req klrAccountRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	link, err := s.klr.MapAccount(r.Context(), id, req.AccountCode, actor(r))
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, link)
+}
+
+// listCostTypeAccounts reads the accounts a cost type owns.
+func (s *Server) listCostTypeAccounts(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	accounts, err := s.klr.AccountsOf(r.Context(), id)
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, accounts)
+}
+
+// getCostTypeByAccount is the bridge's read side: which cost type an account belongs to. The
+// account is passed through as it arrives — the pattern's {account} cannot be empty, and the
+// other path-value handlers read their segment the same way.
+func (s *Server) getCostTypeByAccount(w http.ResponseWriter, r *http.Request) {
+	ct, err := s.klr.CostTypeByAccount(r.Context(), r.PathValue("account"))
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, ct)
 }

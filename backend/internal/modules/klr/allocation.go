@@ -29,7 +29,7 @@ func plan(sourceCenterID, amountCents int64, keys []Allocation, businessDate tim
 			// nothing. It moves nothing either way.
 			continue
 		}
-		rec, err := NewRecord(share.Allocation.TargetCenterID, nil, Cost, share.Cents, businessDate, "")
+		rec, err := NewRecord(share.Allocation.TargetCenterID, nil, nil, Cost, share.Cents, businessDate, "")
 		if err != nil {
 			return nil, err
 		}
@@ -37,7 +37,7 @@ func plan(sourceCenterID, amountCents int64, keys []Allocation, businessDate tim
 		records = append(records, rec)
 		moved += share.Cents
 	}
-	relief, err := NewRecord(sourceCenterID, nil, Revenue, moved, businessDate, "")
+	relief, err := NewRecord(sourceCenterID, nil, nil, Revenue, moved, businessDate, "")
 	if err != nil {
 		return nil, err
 	}

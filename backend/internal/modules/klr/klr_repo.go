@@ -31,6 +31,13 @@ type Repository interface {
 	Allocations(ctx context.Context, sourceCenterID int64) ([]Allocation, error)
 	CostsInPeriod(ctx context.Context, costCenterID int64, from, to time.Time) (int64, error)
 	RecordRun(ctx context.Context, run Run, records []Record) (Run, error)
+
+	CreateCostType(ctx context.Context, t CostType) (CostType, error)
+	GetCostType(ctx context.Context, id int64) (CostType, error)
+	CostTypes(ctx context.Context) ([]CostType, error)
+	MapAccount(ctx context.Context, link CostTypeAccount) (CostTypeAccount, error)
+	AccountsOf(ctx context.Context, costTypeID int64) ([]CostTypeAccount, error)
+	CostTypeByAccount(ctx context.Context, accountCode string) (CostType, error)
 }
 
 // Repo is the PostgreSQL implementation.
@@ -113,14 +120,19 @@ func (r *Repo) CreateCostUnit(ctx context.Context, u CostUnit) (CostUnit, error)
 func (r *Repo) InsertRecord(ctx context.Context, rec Record) (Record, error) {
 	saved := rec
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO accounting_record (cost_center_id, cost_unit_id, kind, amount_cents, business_date, reference, booked_by)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-		rec.CostCenterID, rec.CostUnitID, rec.Kind, rec.AmountCents, rec.BusinessDate,
+		`INSERT INTO accounting_record (cost_center_id, cost_unit_id, cost_type_id, kind, amount_cents, business_date, reference, booked_by)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+		rec.CostCenterID, rec.CostUnitID, rec.CostTypeID, rec.Kind, rec.AmountCents, rec.BusinessDate,
 		rec.Reference, rec.BookedBy).Scan(&saved.ID)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation {
+		// Which foreign key failed says which reference was unknown.
+		switch {
+		case isForeignKeyViolationOn(err, "accounting_record_cost_center_id_fkey"):
 			return Record{}, fmt.Errorf("klr: cost centre %d: %w", rec.CostCenterID, ErrCostCenterNotFound)
+		case isForeignKeyViolationOn(err, "accounting_record_cost_unit_id_fkey"):
+			return Record{}, fmt.Errorf("klr: cost unit: %w", ErrCostUnitNotFound)
+		case isForeignKeyViolationOn(err, "accounting_record_cost_type_id_fkey"):
+			return Record{}, fmt.Errorf("klr: cost type: %w", ErrCostTypeNotFound)
 		}
 		return Record{}, fmt.Errorf("klr: insert record: %w", err)
 	}

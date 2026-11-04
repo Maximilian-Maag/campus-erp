@@ -32,7 +32,7 @@ func TestWritesFailWhenTheAuditFails(t *testing.T) {
 			name: "posting a record",
 			repo: &fakeRepo{center: center, record: Record{ID: 1, Kind: Cost, AmountCents: 100, BusinessDate: from}},
 			call: func(s *Service) error {
-				_, err := s.Post(ctx, 1, nil, Cost, 100, from, "RE-1", "alice")
+				_, err := s.Post(ctx, 1, nil, nil, Cost, 100, from, "RE-1", "alice")
 				return err
 			},
 		},

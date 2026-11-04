@@ -175,6 +175,10 @@ export class CampusErpApi {
     return this.http.post<m.Foundation>(this.base + `/api/foundations`, body);
   }
 
+  getCostTypeByAccount(account: number | string): Observable<m.CostType> {
+    return this.http.get<m.CostType>(this.base + `/api/klr/accounts/${account}/cost-type`);
+  }
+
   listCostCenters(): Observable<m.CostCenter[]> {
     return this.http.get<m.CostCenter[]>(this.base + `/api/klr/cost-centers`);
   }
@@ -201,6 +205,22 @@ export class CampusErpApi {
 
   getKLRReport(id: number | string): Observable<m.KlrReport> {
     return this.http.get<m.KlrReport>(this.base + `/api/klr/cost-centers/${id}/report`);
+  }
+
+  listCostTypes(): Observable<m.CostType[]> {
+    return this.http.get<m.CostType[]>(this.base + `/api/klr/cost-types`);
+  }
+
+  createCostType(body: m.KlrCostTypeRequest): Observable<m.CostType> {
+    return this.http.post<m.CostType>(this.base + `/api/klr/cost-types`, body);
+  }
+
+  listCostTypeAccounts(id: number | string): Observable<m.CostTypeAccount[]> {
+    return this.http.get<m.CostTypeAccount[]>(this.base + `/api/klr/cost-types/${id}/accounts`);
+  }
+
+  mapCostTypeAccount(id: number | string, body: m.KlrAccountRequest): Observable<m.CostTypeAccount> {
+    return this.http.post<m.CostTypeAccount>(this.base + `/api/klr/cost-types/${id}/accounts`, body);
   }
 
   createCostUnit(body: m.KlrNamedRequest): Observable<m.CostUnit> {
