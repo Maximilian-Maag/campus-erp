@@ -225,6 +225,13 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/klr/cost-centers/{id}/allocations/run": {
         "post": ("runAllocation", "klr", "Distribute a period's costs over the keys", "httpapi.runAllocationRequest", "klr.Run", 201, "json"),
     },
+    "/api/klr/cost-centers/{id}/cost-unit-keys": {
+        "post": ("defineCostUnitKey", "klr", "Define a key from a cost centre to a cost unit", "httpapi.defineCostUnitKeyRequest", "klr.CostUnitKey", 201, "json"),
+        "get": ("listCostUnitKeys", "klr", "List a cost centre's cost-unit keys", None, "[]klr.CostUnitKey", 200, "json"),
+    },
+    "/api/klr/cost-centers/{id}/cost-unit-keys/run": {
+        "post": ("runCostUnitAllocation", "klr", "Attribute a period's costs to the cost units", "httpapi.runAllocationRequest", "klr.Run", 201, "json"),
+    },
     "/api/klr/cost-types": {
         "post": ("createCostType", "klr", "Create a cost type", "httpapi.klrCostTypeRequest", "klr.CostType", 201, "json"),
         "get": ("listCostTypes", "klr", "List the cost types", None, "[]klr.CostType", 200, "json"),

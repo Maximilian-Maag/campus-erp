@@ -88,6 +88,9 @@ column for it was added here.
 | `POST` | `/api/klr/cost-centers/{id}/allocations` |
 | `GET`  | `/api/klr/cost-centers/{id}/allocations` |
 | `POST` | `/api/klr/cost-centers/{id}/allocations/run` |
+| `POST` | `/api/klr/cost-centers/{id}/cost-unit-keys` |
+| `GET`  | `/api/klr/cost-centers/{id}/cost-unit-keys` |
+| `POST` | `/api/klr/cost-centers/{id}/cost-unit-keys/run` |
 | `POST` | `/api/klr/cost-types` |
 | `GET`  | `/api/klr/cost-types` |
 | `POST` | `/api/klr/cost-types/{id}/accounts` |
@@ -135,15 +138,41 @@ A record's `business_date` may be left out, in which case the API takes today �
 the edge decides what "today" is, and the domain is always given a date. Every
 write is audited (`cost_center.create`, `cost_unit.create`,
 `accounting_record.create`, `allocation.define`, `allocation.run`,
-`cost_type.create`, `cost_type.map_account`), and
+`cost_type.create`, `cost_type.map_account`, `cost_unit_key.define`,
+`cost_unit_run.run`), and
 `allocation.run` names the period, the amount distributed and the number of
 receivers.
 
+## Kostenträgerrechnung: attributing a centre's costs to its units
+
+The same distribution with the other kind of receiver. `cost_unit_key` says how much of a cost
+centre's costs a cost unit takes, `cost_unit_run` records a run, and the run books one cost on
+the source centre tagged with each unit that takes a share, plus a revenue relieving the source
+by exactly what it handed out.
+
+**The source centre's balance does not move.** The tagged costs and the relief cancel, so
+attributing a centre's costs leaves the centre's Saldo where it was and the unit now carries
+them — a run still neither creates nor destroys cost. Records are append-only, so the cost
+*volume* rises by the attributed amount; the balances do not.
+
+A run over a period with no key in force is refused (`ErrAllocationRunNoTargets`) and so is a
+second run over the same or an overlapping period (`ErrAlreadyAllocated`, from the table's
+exclusion constraint). A key whose validity has already closed does not distribute a later
+period.
+
+Its records carry the reference `KTU:<run id>`, distinct from the centre-side run's `UML:<run id>`,
+so a reference always says which engine wrote it.
+
+## Why "clearing" is two things here
+
+`docs/08` lists the vendor's `cost_center_clearing` and `cost_unit_clearing` next to the
+`allocation*` engine, and `docs/03` reads the legacy `kpum` / `um*` tables as
+"Umlage/Verrechnung" — the same apportionment. So the two clearing tables are taken to be the two
+sides of one distribution: the centre side is `allocation` + `allocation_run`, the unit side is
+`cost_unit_key` + `cost_unit_run`. The vendor's exact shape is not published, so as everywhere
+else in this package the mapping is data an operator can change rather than code.
+
 ## Not yet done
 
-- The clearing tables (`cost_center_clearing`, `cost_unit_clearing`).
-- Distributing onto cost units (Kostenträgerrechnung): a unit is shown with what the books already
-  carry on it (`klr-cost-unit-overview`, docs/25), but the engine does not yet charge a centre's
-  costs to a unit by keys, and it refuses a period it cannot reach rather than approximating one.
 - Internal pricing (`overhead_calc*` rates): the engine distributes actual costs
   by keys, it does not yet price an internal service and charge it out.

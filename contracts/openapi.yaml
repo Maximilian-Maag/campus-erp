@@ -2316,6 +2316,121 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/klr/cost-centers/{id}/cost-unit-keys:
+    post:
+      tags:
+      - klr
+      operationId: defineCostUnitKey
+      summary: Define a key from a cost centre to a cost unit
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefineCostUnitKeyRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostUnitKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - klr
+      operationId: listCostUnitKeys
+      summary: List a cost centre's cost-unit keys
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CostUnitKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/klr/cost-centers/{id}/cost-unit-keys/run:
+    post:
+      tags:
+      - klr
+      operationId: runCostUnitAllocation
+      summary: Attribute a period's costs to the cost units
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunAllocationRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/klr/cost-types:
     post:
       tags:
@@ -3482,6 +3597,56 @@ components:
       required:
       - from
       - to
+    CostUnitKey:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        SourceCenterID:
+          type: integer
+          format: int64
+        TargetUnitID:
+          type: integer
+          format: int64
+        ShareBP:
+          type: integer
+          format: int64
+        ValidFrom:
+          type: string
+          format: date-time
+        ValidTo:
+          type: string
+          format: date-time
+          x-nullable: true
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - SourceCenterID
+      - TargetUnitID
+      - ShareBP
+      - ValidFrom
+      - ValidTo
+      - CreatedBy
+    DefineCostUnitKeyRequest:
+      type: object
+      properties:
+        target_unit_id:
+          type: integer
+          format: int64
+        share_bp:
+          type: integer
+          format: int64
+        valid_from:
+          type: string
+        valid_to:
+          type: string
+      required:
+      - target_unit_id
+      - share_bp
+      - valid_from
+      - valid_to
     Allocation:
       type: object
       properties:

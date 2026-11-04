@@ -141,6 +141,16 @@ export interface CostUnit {
   CreatedBy: string;
 }
 
+export interface CostUnitKey {
+  ID: number;
+  SourceCenterID: number;
+  TargetUnitID: number;
+  ShareBP: number;
+  ValidFrom: string;
+  ValidTo: string | null;
+  CreatedBy: string;
+}
+
 export interface CreateBudgetPositionRequest {
   year: number;
   chapter: string;
@@ -241,6 +251,13 @@ export interface DecisionRequest {
 
 export interface DefineAllocationRequest {
   target_center_id: number;
+  share_bp: number;
+  valid_from: string;
+  valid_to: string;
+}
+
+export interface DefineCostUnitKeyRequest {
+  target_unit_id: number;
   share_bp: number;
   valid_from: string;
   valid_to: string;

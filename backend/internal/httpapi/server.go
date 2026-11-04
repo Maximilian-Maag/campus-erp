@@ -225,6 +225,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/klr/cost-centers/{id}/allocations", s.authorizeRead(s.listAllocations, auth.RoleKLR))
 	mux.HandleFunc("POST /api/klr/cost-centers/{id}/allocations/run", s.authorize(s.runAllocation, auth.RoleKLR))
 
+	// Kostenträgerrechnung: the same distribution, with cost units as the receivers.
+	mux.HandleFunc("POST /api/klr/cost-centers/{id}/cost-unit-keys", s.authorize(s.defineCostUnitKey, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-centers/{id}/cost-unit-keys", s.authorizeRead(s.listCostUnitKeys, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-centers/{id}/cost-unit-keys/run", s.authorize(s.runCostUnitAllocation, auth.RoleKLR))
+
 	// Cost types (Kostenarten) and the account bridge from the ledger's accounts.
 	mux.HandleFunc("POST /api/klr/cost-types", s.authorize(s.createCostType, auth.RoleKLR))
 	mux.HandleFunc("GET /api/klr/cost-types", s.authorizeRead(s.listCostTypes, auth.RoleKLR))
