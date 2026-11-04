@@ -2,6 +2,19 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.86.0] - 2026-11-04
+
+The open receivables reach a screen.
+
+### Added
+- `frontend`: *Kasse: Offene Posten* (`/kasse/offene-posten`) — lists the open items a collection
+  run selects from, filtered by state on the server (`?state=`, so the screen shows one state
+  rather than holding every item and sifting), and records one. An amount is typed in euros and
+  stored in cents, converted on the string rather than through a float so 0,01 € is exactly one
+  cent, with a comma as the decimal separator and points grouping thousands. Whether an item may
+  be collected (its mandate active, the currency matching) stays the API's decision at collection
+  time; the screen does not re-derive it.
+
 ## [0.85.0] - 2026-11-04
 
 The generated client could not name a field that carried a comment.

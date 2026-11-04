@@ -132,6 +132,13 @@ opens a statement's lines without leaving the page, and reads an MT940 file in b
 content. Its account filter is the server's too (`?account_id=`). Whether an import is a *new*
 file is the API's decision: importing the same file twice returns what was already stored.
 
+`frontend/src/app/kasse/receivables.component.ts` — *Kasse: Offene Posten* (route
+`/kasse/offene-posten`) — lists the open items a collection run selects from, by state (the
+server's filter, `?state=`), and records one. The amount is typed in euros and stored in cents,
+converted on the string so 0,01 € is exactly one cent; a comma is the decimal separator, as in
+German. Whether an item may actually be collected — its mandate active, the currency matching —
+is the API's decision at collection time, not the screen's.
+
 Every screen has a link in the shell's navigation (`app.html`), and `e2e/app.e2e.spec.ts` fails
 if the route table and those links disagree: a screen nobody can navigate to is not finished.
 
@@ -162,10 +169,10 @@ gate (`npx stryker run`, break 85) covers them too.
 
 ## Not yet done
 
-- Seven screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
-  `/kasse/kontoauszuege`), Budget, Beschaffung, E-Rechnung and KLR. The rest get theirs as their
-  phases land, each one starting from the read routes it needs — and the kasse/payments domain is
-  where that bites: it had 32 operations and one list route, so nearly every screen there needs
-  its `GET` built first.
+- Eight screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
+  `/kasse/kontoauszuege`, `/kasse/offene-posten`), Budget, Beschaffung, E-Rechnung and KLR. The
+  rest get theirs as their phases land, each one starting from the read routes it needs — and the
+  kasse/payments domain is where that bites: it had 32 operations and one list route, so nearly
+  every screen there needs its `GET` built first.
 - **No paging yet.** Every list route returns everything; a list big enough to need paging
   needs a page parameter on the route and on the screens that read it.
