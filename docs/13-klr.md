@@ -34,6 +34,10 @@ balance  = revenues − costs
 The report is scoped to one cost centre, so one cost centre never sees another's
 records (tested).
 
+The same figures reach the report catalogue: `klr-cost-center-overview` (Kostenstellenübersicht,
+docs/25) is every cost centre with its Kosten, Erlöse and Saldo and a totals row, rendered through
+the same worker as the other reports.
+
 ## Distribution (Umlage)
 
 A cost centre's costs are distributed over its receivers by **keys**, which are

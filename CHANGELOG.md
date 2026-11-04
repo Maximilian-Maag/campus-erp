@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.88.0] - 2026-11-04
+
+The KLR gets its per-centre view, in the report catalogue.
+
+### Added
+- `klr-cost-center-overview` (*Kostenstellenübersicht*) — every cost centre with its Kosten,
+  Erlöse and Saldo, plus a totals row. It is a snapshot like the Mittelübersicht, so it takes no
+  period, and the balance is derived per centre from the figures its row shows, so the totals
+  cannot disagree with the rows above them. `GET /api/reports` offers it and the worker renders
+  it to a PDF through the same path as the other reports — the catalogue is the one list both
+  read, so the API and the worker cannot disagree about what exists.
+
 ## [0.87.0] - 2026-11-04
 
 A run can be created from the UI, and the client can read a file it produces.

@@ -37,10 +37,14 @@ render instead of a hardcoded list.
 |---|---|
 | `kasse-daily-close` | Kassenabschluss: a period's bookings, closing with income, expense and net |
 | `budget-position-overview` | Mittelübersicht: every position with Ansatz, Verpflichtet, Ist and Verfügbar, plus totals |
+| `klr-cost-center-overview` | Kostenstellenübersicht: every cost centre with its Kosten, Erlöse and Saldo, plus totals |
 
-The Mittelübersicht is a snapshot, so it takes no period: it reads every position and the
-balance booked against each. Its available column is derived per position from the same
-balance the guard uses, so the report cannot disagree with what the budget will allow.
+The Mittelübersicht and the Kostenstellenübersicht are snapshots, so they take no period: they
+read every position (or centre) and the balance booked against each. The Mittelübersicht's
+available column is derived per position from the same balance the guard uses, so the report
+cannot disagree with what the budget will allow; the Kostenstellenübersicht's balance is derived
+the same way from the figures its rows show, so the totals cannot disagree with the rows above
+them.
 
 ## Rendering a report
 
@@ -64,7 +68,7 @@ with the job id, and the PDF is then reachable through `GET /api/artefacts/repor
 
 ## Not yet done
 
-- More of the print/centre views: the Mittelübersicht is the centre view; the per-centre
-  aggregation (KLR) and the print layouts the vendor ships are still to come.
+- More of the print views: the Mittelübersicht and the Kostenstellenübersicht are the centre
+  views; the print layouts the vendor ships are still to come.
 - The statistics exports are their own mechanism (a per-state layout over aggregated figures),
   not a report definition — see docs/27 and ADR-0012.

@@ -21,6 +21,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/statistics"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/klr"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/lookup"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/config"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/platform/db"
@@ -95,6 +96,7 @@ func main() {
 	reportCatalogue := reports.NewCatalogue(reports.DataSources{
 		Bookings:  ledgerRepo,
 		Positions: budget.NewPositionService(budget.NewPositionRepo(pool), audit.NewStore(pool)),
+		Centres:   klr.NewService(klr.NewRepo(pool), audit.NewStore(pool)),
 	})
 	reportRenderer := func(ctx context.Context, reportID string, from, to time.Time, by string) (string, error) {
 		if docRenderer == nil {
