@@ -56,7 +56,10 @@ Two tools, two responsibilities:
     `operationId` and a `responses` map; every `$ref` must resolve. Any drift
     fails the build.
   - `gen` — the **client generator**: TypeScript models + a typed Angular
-    `HttpClient` service (`CampusErpApi`), one method per operation.
+    `HttpClient` service (`CampusErpApi`), one method per operation. A response that is not
+    JSON (a stored file, the probe) is read with `responseType: 'text'` and the string overload
+    of `HttpClient`: a `json` response would make Angular parse the body and an XML one would
+    throw instead of arriving as a string.
   - `selftest` — exercises the parser and generator on fixtures *and* on the
     committed spec.
 
@@ -139,6 +142,13 @@ converted on the string so 0,01 € is exactly one cent; a comma is the decimal 
 German. Whether an item may actually be collected — its mandate active, the currency matching —
 is the API's decision at collection time, not the screen's.
 
+`frontend/src/app/kasse/collection-runs.component.ts` — *Kasse: Einzüge* (route `/kasse/einzuege`)
+— offers one of the university's own accounts, states a direct-debit run (reference, Gläubiger-ID,
+Einzugsdatum, Fälligkeit bis, Sequenztyp, Local Instrument) and creates it from the open
+receivables, then shows the pain.008 the run produced. What the run can gather stays the API's
+decision: the screen reports a refusal (nothing due, a foreign currency, a due-by after the
+collection date) as it comes back rather than re-deriving the rule.
+
 Every screen has a link in the shell's navigation (`app.html`), and `e2e/app.e2e.spec.ts` fails
 if the route table and those links disagree: a screen nobody can navigate to is not finished.
 
@@ -169,10 +179,10 @@ gate (`npx stryker run`, break 85) covers them too.
 
 ## Not yet done
 
-- Eight screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
-  `/kasse/kontoauszuege`, `/kasse/offene-posten`), Budget, Beschaffung, E-Rechnung and KLR. The
-  rest get theirs as their phases land, each one starting from the read routes it needs — and the
-  kasse/payments domain is where that bites: it had 32 operations and one list route, so nearly
-  every screen there needs its `GET` built first.
+- Nine screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
+  `/kasse/kontoauszuege`, `/kasse/offene-posten`, `/kasse/einzuege`), Budget, Beschaffung,
+  E-Rechnung and KLR. The rest get theirs as their phases land, each one starting from the read
+  routes it needs — and the kasse/payments domain is where that bites: it had 32 operations and
+  one list route, so nearly every screen there needs its `GET` built first.
 - **No paging yet.** Every list route returns everything; a list big enough to need paging
   needs a page parameter on the route and on the screens that read it.

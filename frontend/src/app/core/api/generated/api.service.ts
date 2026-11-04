@@ -12,11 +12,11 @@ export class CampusErpApi {
   constructor(private readonly http: HttpClient) {}
 
   getArtefact(kind: number | string, name: number | string): Observable<string> {
-    return this.http.get<string>(this.base + `/api/artefacts/${kind}/${name}`);
+    return this.http.get(this.base + `/api/artefacts/${kind}/${name}`, { responseType: 'text' });
   }
 
   verifyAuditChain(): Observable<string> {
-    return this.http.get<string>(this.base + `/api/audit/verify`);
+    return this.http.get(this.base + `/api/audit/verify`, { responseType: 'text' });
   }
 
   getBankFile(id: number | string): Observable<m.BankFile> {
@@ -100,7 +100,7 @@ export class CampusErpApi {
   }
 
   getCollectionRunFile(reference: number | string): Observable<string> {
-    return this.http.get<string>(this.base + `/api/direct-debit/runs/${reference}/file`);
+    return this.http.get(this.base + `/api/direct-debit/runs/${reference}/file`, { responseType: 'text' });
   }
 
   createDunningLevel(body: m.CreateLevelRequest): Observable<m.DunningLevel> {
@@ -116,7 +116,7 @@ export class CampusErpApi {
   }
 
   getDunningNoticeDocument(id: number | string): Observable<string> {
-    return this.http.get<string>(this.base + `/api/dunning/notices/${id}/document`);
+    return this.http.get(this.base + `/api/dunning/notices/${id}/document`, { responseType: 'text' });
   }
 
   listEInvoices(): Observable<m.InvoiceSummary[]> {
@@ -140,7 +140,7 @@ export class CampusErpApi {
   }
 
   getEInvoiceXML(id: number | string): Observable<string> {
-    return this.http.get<string>(this.base + `/api/e-invoices/${id}/xrechnung`);
+    return this.http.get(this.base + `/api/e-invoices/${id}/xrechnung`, { responseType: 'text' });
   }
 
   listETLDatasets(): Observable<m.DatasetsResponse> {
@@ -268,7 +268,7 @@ export class CampusErpApi {
   }
 
   getPaymentRunFile(id: number | string): Observable<string> {
-    return this.http.get<string>(this.base + `/api/payment-runs/${id}/file`);
+    return this.http.get(this.base + `/api/payment-runs/${id}/file`, { responseType: 'text' });
   }
 
   listPurchaseOrders(status?: string): Observable<m.ProcurementOrderSummary[]> {
@@ -332,11 +332,11 @@ export class CampusErpApi {
   }
 
   getHealth(): Observable<string> {
-    return this.http.get<string>(this.base + `/healthz`);
+    return this.http.get(this.base + `/healthz`, { responseType: 'text' });
   }
 
   getReady(): Observable<string> {
-    return this.http.get<string>(this.base + `/readyz`);
+    return this.http.get(this.base + `/readyz`, { responseType: 'text' });
   }
 
   /** Renders the query string for the parameters that were given. */

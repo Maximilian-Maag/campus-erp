@@ -380,6 +380,9 @@ def gen_service(doc: dict) -> str:
                 # make the route unreachable through the client.
                 args.append("body: string")
             ret = _response_type(op)
+            # A response that is not JSON (a stored file) must be read as text: Angular parses a
+            # `json` response blindly, and an XML body would throw instead of arriving as a string.
+            text_response = _response_is_text(op)
             # turn {name} into ${name}
             url_expr = re.sub(r"\{([A-Za-z0-9_]+)\}", r"${\1}", path)
             if query_params:
@@ -390,9 +393,14 @@ def gen_service(doc: dict) -> str:
                 body_arg = ", body, { headers: { 'Content-Type': 'application/xml' } }"
             else:
                 body_arg = ", body" if body_ref else (", null" if method in ("post", "put", "patch") else "")
+            if text_response:
+                body_arg = (body_arg + ", " if body_arg else ", ") + "{ responseType: 'text' }"
             arg_list = (", ".join(args)) if args else ""
+            # The `text` response overload of HttpClient takes no type argument: `get<T>(url, ...)`
+            # only accepts `responseType: 'json'`, so a file read needs the string overload.
+            generic = "" if text_response else f"<{ret}>"
             lines.append(f"  {op_id}({arg_list}): Observable<{ret}> {{")
-            lines.append(f"    return this.http.{method}<{ret}>(this.base + `{url_expr}`{body_arg});")
+            lines.append(f"    return this.http.{method}{generic}(this.base + `{url_expr}`{body_arg});")
             lines.append("  }")
             lines.append("")
     if any_query:
@@ -442,6 +450,17 @@ def _response_type(op: dict) -> str:
         for _mt, media in ((resp or {}).get("content") or {}).items():
             return _schema_ts(media.get("schema") or {})
     return "void"
+
+
+def _response_is_text(op: dict) -> bool:
+    """Whether the response is not JSON — a stored file the client must read as text."""
+    for status in sorted((op.get("responses") or {}), key=lambda s: str(s)):
+        resp = op["responses"][status]
+        if not isinstance(resp, dict) or "$ref" in resp:
+            continue
+        for media_type in ((resp or {}).get("content") or {}):
+            return "json" not in media_type
+    return False
 
 
 def _schema_ts(schema: dict) -> str:
@@ -561,6 +580,16 @@ components:
     check("listX(status?: string)" in service, "query param is optional and typed as a string")
     check("this._query({ status })" in service, "query params are rendered into the URL")
     check("private _query(" in service, "one query helper is emitted")
+    check("responseType" not in service, "a JSON response is not forced to text")
+
+    # A non-JSON response (a stored file) must be read as text: Angular parses a json response
+    # blindly, so an XML body would throw instead of arriving as a string.
+    file_doc = {"paths": {"/f": {"get": {"operationId": "getF", "tags": ["f"], "responses": {
+        "200": {"content": {"application/xml": {"schema": {"type": "string"}}}}}}}}}
+    file_service = gen_service(file_doc)
+    check("Observable<string>" in file_service and "responseType: 'text'" in file_service
+          and "http.get<string>" not in file_service,
+          "a non-JSON response is read as text (string overload, no type argument)")
 
     # The real, committed spec must also parse and stay consistent.
     real = load_yaml(SPEC.read_text())
