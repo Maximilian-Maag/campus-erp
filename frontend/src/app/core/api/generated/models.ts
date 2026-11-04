@@ -644,6 +644,21 @@ export interface StatementLine {
   OrderID: number | null;
 }
 
+export interface StatementSummary {
+  ID: number;
+  AccountID: number;
+  Reference: string;
+  Number: number;
+  Page: number;
+  Currency: string;
+  OpeningBalanceCents: number;
+  OpeningDate: string;
+  ClosingBalanceCents: number;
+  ClosingDate: string;
+  LineCount: number;
+  ImportedBy: string;
+}
+
 export interface StatisticsExportRequest {
   state: string;
   from: string;

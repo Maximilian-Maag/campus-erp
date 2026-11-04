@@ -59,6 +59,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/cash-accounts": {
         "post": ("createCashAccount", "kasse", "Create an own cash account", "httpapi.createCashAccountRequest", "kasse.CashAccount", 201, "json"),
+        "get": ("listCashAccounts", "kasse", "List the own cash accounts", None, "[]kasse.CashAccount", 200, "json"),
     },
     "/api/payment-orders": {
         "post": ("createPaymentOrder", "kasse", "Create a payment order", "httpapi.createOrderRequest", "kasse.PaymentOrder", 201, "json"),
@@ -90,6 +91,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/bank-statements": {
         "post": ("importBankStatement", "kasse", "Import an MT940 bank statement", "httpapi.importStatementRequest", "[]kasse.Statement", 201, "json"),
+        "get": ("listBankStatements", "kasse", "List imported bank statements, optionally for one account", None, "[]kasse.StatementSummary", 200, "json", [("account_id", "string", False)]),
     },
     "/api/bank-statements/{id}": {
         "get": ("getBankStatement", "kasse", "Read a bank statement", None, "kasse.Statement", 200, "json"),

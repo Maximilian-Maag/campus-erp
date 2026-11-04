@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 )
@@ -13,6 +15,7 @@ import (
 type statementService interface {
 	Import(ctx context.Context, accountID int64, content, by string) ([]kasse.Statement, error)
 	Statement(ctx context.Context, id int64) (kasse.Statement, error)
+	Statements(ctx context.Context, accountID int64) ([]kasse.StatementSummary, error)
 	BankFile(ctx context.Context, id int64) (kasse.BankFile, error)
 }
 
@@ -48,6 +51,26 @@ func (s *Server) importStatement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, stmts)
+}
+
+// listStatements reads the imported statements, optionally narrowed to one account. The filter
+// is the server's, so the screen never has to hold every statement to show one account's.
+func (s *Server) listStatements(w http.ResponseWriter, r *http.Request) {
+	accountID := int64(0)
+	if raw := strings.TrimSpace(r.URL.Query().Get("account_id")); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || parsed < 0 {
+			writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_account", "account_id must be a positive number")
+			return
+		}
+		accountID = parsed
+	}
+	stmts, err := s.statements.Statements(r.Context(), accountID)
+	if err != nil {
+		writeProblem(w, statusForStatement(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, stmts)
 }
 
 func (s *Server) getStatement(w http.ResponseWriter, r *http.Request) {

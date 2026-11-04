@@ -284,6 +284,34 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - kasse
+      operationId: listCashAccounts
+      summary: List the own cash accounts
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CashAccount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/payment-orders:
     post:
       tags:
@@ -653,6 +681,40 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Statement'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - kasse
+      operationId: listBankStatements
+      summary: List imported bank statements, optionally for one account
+      parameters:
+      - name: account_id
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatementSummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4190,6 +4252,55 @@ components:
       - UnclearedCents
       - Status
       - OrderID
+    StatementSummary:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        AccountID:
+          type: integer
+          format: int64
+        Reference:
+          type: string
+        Number:
+          type: integer
+          format: int64
+        Page:
+          type: integer
+          format: int64
+        Currency:
+          type: string
+        OpeningBalanceCents:
+          type: integer
+          format: int64
+        OpeningDate:
+          type: string
+          format: date-time
+        ClosingBalanceCents:
+          type: integer
+          format: int64
+        ClosingDate:
+          type: string
+          format: date-time
+        LineCount:
+          type: integer
+          format: int64
+        ImportedBy:
+          type: string
+      required:
+      - ID
+      - AccountID
+      - Reference
+      - Number
+      - Page
+      - Currency
+      - OpeningBalanceCents
+      - OpeningDate
+      - ClosingBalanceCents
+      - ClosingDate
+      - LineCount
+      - ImportedBy
     ImportStatementRequest:
       type: object
       properties:

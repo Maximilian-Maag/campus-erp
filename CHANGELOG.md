@@ -2,6 +2,33 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.83.0] - 2026-11-04
+
+Bank statements reach a screen, and the two reads behind it.
+
+### Added
+- `GET /api/cash-accounts` (role `kasse`): the university's own accounts by name. A screen that
+  offers an account has to be able to read them; the kasse had only the create route.
+- `GET /api/bank-statements` (role `kasse`): the imported statements, newest closing date first,
+  with the account filter as a query parameter. `kasse.StatementSummary` +
+  `StatementRepo.Statements`.
+- `frontend`: *Kasse: Kontoauszüge* (`/kasse/kontoauszuege`) — lists one account's statements,
+  opens a statement's lines in place, and reads an MT940 file in by pasting its content.
+
+### Fixed
+- **The statement list broke on a row it could not date.** `closing_date` and `opening_date` are
+  nullable, and the list scanned them into `time.Time`: one undated statement — the bank may send
+  one, and the ETL path can store one — failed the *whole answer* with a 500, not just that row.
+  They are read the way the single-statement read reads them, and an undated statement sorts last
+  rather than leading a newest-first list.
+- The account filter's parameter was typed as an `integer` by its own comparison, so an account id
+  past the 32-bit range was refused instead of simply matching nothing.
+
+### Changed
+- **Every screen is now linked from the shell's navigation, and a test enforces it.** The
+  navigation lives in `app.html` and three screens landed without a link — reachable only by
+  typing a URL. `e2e/app.e2e.spec.ts` now fails if the route table and those links disagree.
+
 ## [0.82.0] - 2026-11-03
 
 Payment orders reach a screen, and the workflow they drive.

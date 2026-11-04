@@ -358,3 +358,156 @@ func TestStatementImportCAMT052(t *testing.T) {
 		t.Fatalf("counterparty = %q", l.CounterpartyName)
 	}
 }
+
+// TestStatementAndCashAccountLists: the two reads a statements screen needs. Statements come back
+// newest closing date first — the order an operator looks for one in — and the account filter
+// narrows them on the server; accounts come back by name, which is how they are offered.
+func TestStatementAndCashAccountLists(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	runSvc, _ := newRunService(t)
+	stmtSvc := kasse.NewStatementService(kasse.NewStatementRepo(pool), audit.NewStore(pool))
+
+	mark := uniqueSuffix(t)
+	account, err := runSvc.CreateCashAccount(ctx, "Uni-Liste-"+mark, "DE02120300000000202051", "BYLADEM1001", "EUR")
+	if err != nil {
+		t.Fatalf("CreateCashAccount: %v", err)
+	}
+
+	// A closing date is what the list sorts on, so the statements are imported oldest first and
+	// must come back the other way.
+	file := func(ref, closing string) string {
+		return ":20:" + ref + "\n:25:DE02120300000000202051\n:28C:00001/001\n" +
+			":60F:C261001EUR10000,00\n:62F:C" + closing + "EUR10000,00\n-\n"
+	}
+	older, err := stmtSvc.Import(ctx, account.ID, file("STMT-OLD-"+mark, "261010"), "carol")
+	if err != nil {
+		t.Fatalf("Import older: %v", err)
+	}
+	newer, err := stmtSvc.Import(ctx, account.ID, file("STMT-NEW-"+mark, "261031"), "carol")
+	if err != nil {
+		t.Fatalf("Import newer: %v", err)
+	}
+
+	all, err := stmtSvc.Statements(ctx, 0)
+	if err != nil {
+		t.Fatalf("Statements: %v", err)
+	}
+	positions := map[int64]int{}
+	for i, s := range all {
+		positions[s.ID] = i
+	}
+	oldPos, haveOld := positions[older[0].ID]
+	newPos, haveNew := positions[newer[0].ID]
+	if !haveOld || !haveNew {
+		t.Fatalf("both imported statements should be listed, got %d entries", len(all))
+	}
+	if newPos > oldPos {
+		t.Fatalf("the newer statement (pos %d) is listed after the older one (pos %d)", newPos, oldPos)
+	}
+
+	// The summary carries what a list shows.
+	for _, s := range all {
+		if s.ID != newer[0].ID {
+			continue
+		}
+		if s.AccountID != account.ID || s.Reference != "STMT-NEW-"+mark || s.Number != 1 {
+			t.Fatalf("summary = %+v", s)
+		}
+		if s.OpeningBalanceCents != 1000000 || s.ClosingDate.Format(time.DateOnly) != "2026-10-31" {
+			t.Fatalf("summary = %+v", s)
+		}
+		if s.ImportedBy != "carol" || s.LineCount != 0 {
+			t.Fatalf("summary = %+v", s)
+		}
+	}
+
+	// The filter narrows to one account.
+	narrowed, err := stmtSvc.Statements(ctx, account.ID)
+	if err != nil {
+		t.Fatalf("Statements(account): %v", err)
+	}
+	if len(narrowed) < 2 {
+		t.Fatalf("narrowed = %d, want the account's two statements", len(narrowed))
+	}
+	for _, s := range narrowed {
+		if s.AccountID != account.ID {
+			t.Fatalf("narrowed list contains a statement of account %d", s.AccountID)
+		}
+	}
+	// An account id past the 32-bit range simply matches nothing rather than failing.
+	if none, err := stmtSvc.Statements(ctx, 9223372036854775807); err != nil || len(none) != 0 {
+		t.Fatalf("far account = %d statements, %v", len(none), err)
+	}
+
+	// The accounts come back by name.
+	accounts, err := runSvc.CashAccounts(ctx)
+	if err != nil {
+		t.Fatalf("CashAccounts: %v", err)
+	}
+	at := -1
+	for i, a := range accounts {
+		if a.ID == account.ID {
+			at = i
+			if a.Name != "Uni-Liste-"+mark || a.IBAN == "" || a.Currency != "EUR" {
+				t.Fatalf("account = %+v", a)
+			}
+		}
+		if i > 0 && accounts[i-1].Name > a.Name {
+			t.Fatalf("accounts are not sorted by name: %q before %q", accounts[i-1].Name, a.Name)
+		}
+	}
+	if at < 0 {
+		t.Fatalf("the account is not among %d", len(accounts))
+	}
+}
+
+// TestStatementListToleratesMissingDates: a statement the bank sent without dates is still
+// listed. The table allows them to be null, and a list that refuses to read a row it cannot date
+// fails for every statement in the answer, not just that one — which is what it did before this
+// test existed.
+func TestStatementListToleratesMissingDates(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	repo := kasse.NewStatementRepo(pool)
+	stmtSvc := kasse.NewStatementService(repo, audit.NewStore(pool))
+	runSvc, _ := newRunService(t)
+
+	mark := uniqueSuffix(t)
+	account, err := runSvc.CreateCashAccount(ctx, "Uni-OhneDatum-"+mark, "DE02120300000000202051", "BYLADEM1001", "EUR")
+	if err != nil {
+		t.Fatalf("CreateCashAccount: %v", err)
+	}
+	file, err := repo.InsertBankFile(ctx, kasse.BankFile{
+		AccountID: account.ID, FileName: "ohne-datum-" + mark, FileHash: "hash-" + mark, ImportedBy: "carol",
+	})
+	if err != nil {
+		t.Fatalf("InsertBankFile: %v", err)
+	}
+	// A statement with no dates at all, which is what the zero time becomes on the way in.
+	saved, err := repo.InsertStatements(ctx, file.ID, []kasse.Statement{{
+		AccountID: account.ID, Reference: "STMT-NODATE-" + mark, Number: 1, Page: 1, Currency: "EUR",
+		LineCount: 0, ImportedBy: "carol",
+	}})
+	if err != nil {
+		t.Fatalf("InsertStatements: %v", err)
+	}
+
+	list, err := stmtSvc.Statements(ctx, account.ID)
+	if err != nil {
+		t.Fatalf("Statements: %v", err)
+	}
+	var found bool
+	for _, s := range list {
+		if s.ID != saved[0].ID {
+			continue
+		}
+		found = true
+		if !s.ClosingDate.IsZero() || !s.OpeningDate.IsZero() {
+			t.Fatalf("a statement without dates came back dated: %+v", s)
+		}
+	}
+	if !found {
+		t.Fatalf("the undated statement is not among %d", len(list))
+	}
+}

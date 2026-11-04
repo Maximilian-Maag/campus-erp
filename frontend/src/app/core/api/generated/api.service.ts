@@ -23,6 +23,10 @@ export class CampusErpApi {
     return this.http.get<m.BankFile>(this.base + `/api/bank-files/${id}`);
   }
 
+  listBankStatements(account_id?: string): Observable<m.StatementSummary[]> {
+    return this.http.get<m.StatementSummary[]>(this.base + `/api/bank-statements${this._query({ account_id })}`);
+  }
+
   importBankStatement(body: m.ImportStatementRequest): Observable<m.Statement[]> {
     return this.http.post<m.Statement[]>(this.base + `/api/bank-statements`, body);
   }
@@ -53,6 +57,10 @@ export class CampusErpApi {
 
   postBudgetMovement(id: number | string, body: m.BudgetPostingRequest): Observable<m.Posting> {
     return this.http.post<m.Posting>(this.base + `/api/budget/positions/${id}/postings`, body);
+  }
+
+  listCashAccounts(): Observable<m.CashAccount[]> {
+    return this.http.get<m.CashAccount[]>(this.base + `/api/cash-accounts`);
   }
 
   createCashAccount(body: m.CreateCashAccountRequest): Observable<m.CashAccount> {
