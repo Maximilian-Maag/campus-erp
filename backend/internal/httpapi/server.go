@@ -219,6 +219,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/klr/cost-centers", s.authorize(s.createCostCenter, auth.RoleKLR))
 	mux.HandleFunc("GET /api/klr/cost-centers", s.authorizeRead(s.listCostCenters, auth.RoleKLR))
 	mux.HandleFunc("POST /api/klr/cost-units", s.authorize(s.createCostUnit, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-units", s.authorizeRead(s.listCostUnits, auth.RoleKLR))
 	mux.HandleFunc("POST /api/klr/cost-centers/{id}/records", s.authorize(s.postAccountingRecord, auth.RoleKLR))
 	mux.HandleFunc("GET /api/klr/cost-centers/{id}/report", s.authorizeRead(s.getKLRReport, auth.RoleKLR))
 	mux.HandleFunc("POST /api/klr/cost-centers/{id}/allocations", s.authorize(s.defineAllocation, auth.RoleKLR))

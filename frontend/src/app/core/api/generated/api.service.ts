@@ -235,6 +235,10 @@ export class CampusErpApi {
     return this.http.post<m.CostTypeAccount>(this.base + `/api/klr/cost-types/${id}/accounts`, body);
   }
 
+  listCostUnits(): Observable<m.CostUnit[]> {
+    return this.http.get<m.CostUnit[]>(this.base + `/api/klr/cost-units`);
+  }
+
   createCostUnit(body: m.KlrNamedRequest): Observable<m.CostUnit> {
     return this.http.post<m.CostUnit>(this.base + `/api/klr/cost-units`, body);
   }

@@ -211,6 +211,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/klr/cost-units": {
         "post": ("createCostUnit", "klr", "Create a cost unit", "httpapi.klrNamedRequest", "klr.CostUnit", 201, "json"),
+        "get": ("listCostUnits", "klr", "List the cost units", None, "[]klr.CostUnit", 200, "json"),
     },
     "/api/klr/cost-centers/{id}/records": {
         "post": ("postAccountingRecord", "klr", "Post an accounting record", "httpapi.klrRecordRequest", "klr.Record", 201, "json"),

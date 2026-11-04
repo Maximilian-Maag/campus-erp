@@ -163,6 +163,10 @@ period.
 Its records carry the reference `KTU:<run id>`, distinct from the centre-side run's `UML:<run id>`,
 so a reference always says which engine wrote it.
 
+The frontend has one screen for this, *Kostenträgerrechnung* (`/klr/kostentraeger`): it picks a
+cost centre, shows its keys, defines one (the share is typed as a percentage and stored as basis
+points), and runs a period. What the shares must add up to stays with the API.
+
 ## Why "clearing" is two things here
 
 `docs/08` lists the vendor's `cost_center_clearing` and `cost_unit_clearing` next to the

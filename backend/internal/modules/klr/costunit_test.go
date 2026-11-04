@@ -222,6 +222,22 @@ func TestDefineCostUnitKey(t *testing.T) {
 	}
 }
 
+func TestCostUnitsList(t *testing.T) {
+	ctx := context.Background()
+	repo := &fakeRepo{units: []CostUnit{{ID: 1, Number: "T-1"}}}
+	svc := NewService(repo, okAudit{})
+
+	units, err := svc.CostUnits(ctx)
+	if err != nil || len(units) != 1 || units[0].Number != "T-1" {
+		t.Fatalf("CostUnits = %+v, %v", units, err)
+	}
+
+	boom := errors.New("boom")
+	if _, err := NewService(&fakeRepo{err: boom}, okAudit{}).CostUnits(ctx); !errors.Is(err, boom) {
+		t.Fatalf("repo error = %v, want boom", err)
+	}
+}
+
 func TestCostUnitKeys(t *testing.T) {
 	ctx := context.Background()
 	repo := &fakeRepo{unitKeys: []CostUnitKey{{ID: 1, TargetUnitID: 2, ShareBP: 10000}}}

@@ -52,6 +52,20 @@ func TestKostentraegerRun(t *testing.T) {
 		t.Fatalf("CostUnitKeys = %+v, %v", keys, err)
 	}
 
+	// The list a screen reads before it can pick a unit, read through the store rather than a
+	// stub so the query itself is exercised.
+	all, err := svc.CostUnits(ctx)
+	if err != nil {
+		t.Fatalf("CostUnits: %v", err)
+	}
+	listed := map[int64]bool{}
+	for _, u := range all {
+		listed[u.ID] = true
+	}
+	if !listed[unitA.ID] || !listed[unitB.ID] {
+		t.Fatalf("the new cost units are missing from the list of %d", len(all))
+	}
+
 	before, err := svc.Report(ctx, center.ID)
 	if err != nil {
 		t.Fatalf("Report: %v", err)

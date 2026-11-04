@@ -30,6 +30,28 @@ func (r *Repo) GetCostUnit(ctx context.Context, id int64) (CostUnit, error) {
 	return u, nil
 }
 
+// CostUnits lists every cost unit by number, which is the order an operator reads them in.
+func (r *Repo) CostUnits(ctx context.Context) ([]CostUnit, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, number, name, created_by FROM cost_unit ORDER BY number`)
+	if err != nil {
+		return nil, fmt.Errorf("klr: list cost units: %w", err)
+	}
+	defer rows.Close()
+	out := []CostUnit{}
+	for rows.Next() {
+		var u CostUnit
+		if err := rows.Scan(&u.ID, &u.Number, &u.Name, &u.CreatedBy); err != nil {
+			return nil, fmt.Errorf("klr: scan cost unit: %w", err)
+		}
+		out = append(out, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("klr: list cost units: %w", err)
+	}
+	return out, nil
+}
+
 // CreateCostUnitKey stores a Kostenträger key.
 func (r *Repo) CreateCostUnitKey(ctx context.Context, k CostUnitKey) (CostUnitKey, error) {
 	saved := k

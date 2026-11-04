@@ -25,6 +25,7 @@ type klrService interface {
 	CostTypes(ctx context.Context) ([]klr.CostType, error)
 	DefineCostUnitKey(ctx context.Context, sourceCenterID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (klr.CostUnitKey, error)
 	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]klr.CostUnitKey, error)
+	CostUnits(ctx context.Context) ([]klr.CostUnit, error)
 	AllocateToCostUnits(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (klr.Run, error)
 	MapAccount(ctx context.Context, costTypeID int64, accountCode, by string) (klr.CostTypeAccount, error)
 	AccountsOf(ctx context.Context, costTypeID int64) ([]klr.CostTypeAccount, error)
@@ -288,6 +289,16 @@ func (s *Server) defineCostUnitKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, key)
+}
+
+// listCostUnits reads every cost unit, which is what a screen needs before it can pick one.
+func (s *Server) listCostUnits(w http.ResponseWriter, r *http.Request) {
+	units, err := s.klr.CostUnits(r.Context())
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, units)
 }
 
 // listCostUnitKeys reads a cost centre's Kostenträger keys.
