@@ -29,6 +29,7 @@ type Repository interface {
 
 	CreateAllocation(ctx context.Context, a Allocation) (Allocation, error)
 	Allocations(ctx context.Context, sourceCenterID int64) ([]Allocation, error)
+	CostUnitFigures(ctx context.Context) ([]CostUnitLine, error)
 	CostsInPeriod(ctx context.Context, costCenterID int64, from, to time.Time) (int64, error)
 	RecordRun(ctx context.Context, run Run, records []Record) (Run, error)
 
@@ -137,6 +138,37 @@ func (r *Repo) InsertRecord(ctx context.Context, rec Record) (Record, error) {
 		return Record{}, fmt.Errorf("klr: insert record: %w", err)
 	}
 	return saved, nil
+}
+
+// CostUnitFigures lists every cost unit with the costs and revenues booked on it. A unit with no
+// records is listed with zeroes rather than left out: "nothing is booked on it yet" is a fact
+// about the unit, and a report that hides it reads as if the unit did not exist.
+func (r *Repo) CostUnitFigures(ctx context.Context) ([]CostUnitLine, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT u.id, u.number, u.name,
+		        COALESCE(SUM(CASE WHEN a.kind = $1 THEN a.amount_cents ELSE 0 END), 0),
+		        COALESCE(SUM(CASE WHEN a.kind = $2 THEN a.amount_cents ELSE 0 END), 0)
+		   FROM cost_unit u
+		   LEFT JOIN accounting_record a ON a.cost_unit_id = u.id
+		  GROUP BY u.id, u.number, u.name
+		  ORDER BY u.number`, Cost, Revenue)
+	if err != nil {
+		return nil, fmt.Errorf("klr: cost unit figures: %w", err)
+	}
+	defer rows.Close()
+	out := []CostUnitLine{}
+	for rows.Next() {
+		var line CostUnitLine
+		if err := rows.Scan(&line.CostUnit.ID, &line.CostUnit.Number, &line.CostUnit.Name,
+			&line.CostsCents, &line.RevenuesCents); err != nil {
+			return nil, fmt.Errorf("klr: scan cost unit figure: %w", err)
+		}
+		out = append(out, line)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("klr: cost unit figures: %w", err)
+	}
+	return out, nil
 }
 
 // Report sums a cost centre's costs and revenues.

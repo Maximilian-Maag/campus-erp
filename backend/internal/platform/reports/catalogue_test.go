@@ -70,17 +70,27 @@ func (f *fakeCentres) Report(_ context.Context, id int64) (klr.Report, error) {
 	return r, nil
 }
 
+type fakeCostUnits struct {
+	lines []klr.CostUnitLine
+	err   error
+}
+
+func (f *fakeCostUnits) CostUnitFigures(context.Context) ([]klr.CostUnitLine, error) {
+	return f.lines, f.err
+}
+
 // TestCatalogueIsTheSingleList: the catalogue's definitions are the domains' own, in catalogue
 // order, so the API offering a report and the worker rendering it cannot disagree.
 func TestCatalogueIsTheSingleList(t *testing.T) {
 	c := reports.NewCatalogue(reports.DataSources{})
 
 	defs := c.Definitions()
-	if len(defs) != 3 {
-		t.Fatalf("definitions = %d, want 3", len(defs))
+	if len(defs) != 4 {
+		t.Fatalf("definitions = %d, want 4", len(defs))
 	}
-	if defs[0].ID != kasse.DailyCloseDefinition.ID || defs[1].ID != budget.PositionOverviewDefinition.ID || defs[2].ID != klr.CostCenterOverviewDefinition.ID {
-		t.Fatalf("definitions = %q, %q, %q", defs[0].ID, defs[1].ID, defs[2].ID)
+	if defs[0].ID != kasse.DailyCloseDefinition.ID || defs[1].ID != budget.PositionOverviewDefinition.ID ||
+		defs[2].ID != klr.CostCenterOverviewDefinition.ID || defs[3].ID != klr.CostUnitOverviewDefinition.ID {
+		t.Fatalf("definitions = %q, %q, %q, %q", defs[0].ID, defs[1].ID, defs[2].ID, defs[3].ID)
 	}
 	if defs[1].Title != budget.PositionOverviewDefinition.Title || len(defs[1].Columns) != len(budget.PositionOverviewDefinition.Columns) {
 		t.Fatalf("second definition is not the budget overview: %+v", defs[1])
@@ -88,9 +98,12 @@ func TestCatalogueIsTheSingleList(t *testing.T) {
 	if defs[2].Title != klr.CostCenterOverviewDefinition.Title || len(defs[2].Columns) != len(klr.CostCenterOverviewDefinition.Columns) {
 		t.Fatalf("third definition is not the cost-centre overview: %+v", defs[2])
 	}
+	if defs[3].Title != klr.CostUnitOverviewDefinition.Title || len(defs[3].Columns) != len(klr.CostUnitOverviewDefinition.Columns) {
+		t.Fatalf("fourth definition is not the cost-unit overview: %+v", defs[3])
+	}
 
 	ids := c.IDs()
-	if len(ids) != len(defs) || ids[0] != defs[0].ID || ids[1] != defs[1].ID || ids[2] != defs[2].ID {
+	if len(ids) != len(defs) || ids[0] != defs[0].ID || ids[1] != defs[1].ID || ids[2] != defs[2].ID || ids[3] != defs[3].ID {
 		t.Fatalf("ids = %v, want %v", ids, defs)
 	}
 
@@ -193,6 +206,37 @@ func TestRenderCostCenterOverview(t *testing.T) {
 	}
 }
 
+func TestRenderCostUnitOverview(t *testing.T) {
+	from, to := period()
+	units := &fakeCostUnits{lines: []klr.CostUnitLine{
+		{CostUnit: klr.CostUnit{ID: 1, Number: "T-1", Name: "Studiengang A"}, CostsCents: 100000, RevenuesCents: 25000},
+		{CostUnit: klr.CostUnit{ID: 2, Number: "T-2", Name: "Studiengang B"}, CostsCents: 5000, RevenuesCents: 10000},
+		// A unit the books have never seen is still a row.
+		{CostUnit: klr.CostUnit{ID: 3, Number: "T-3", Name: "Studiengang C"}},
+	}}
+	c := reports.NewCatalogue(reports.DataSources{Units: units})
+
+	got, err := c.Render(context.Background(), klr.CostUnitOverviewDefinition.ID, from, to)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	// Three units plus the totals row.
+	if len(got.Rows) != 4 {
+		t.Fatalf("rows = %d, want 4 (%v)", len(got.Rows), got.Rows)
+	}
+	if got.Rows[0][0] != "T-1" || got.Rows[0][1] != "Studiengang A" || got.Rows[0][2] != "1000.00" ||
+		got.Rows[0][3] != "250.00" || got.Rows[0][4] != "-750.00" {
+		t.Fatalf("first row = %v", got.Rows[0])
+	}
+	if got.Rows[2][2] != "0.00" || got.Rows[2][4] != "0.00" {
+		t.Fatalf("unit without records = %v", got.Rows[2])
+	}
+	total := got.Rows[3]
+	if total[1] != "Summe" || total[2] != "1050.00" || total[3] != "350.00" || total[4] != "-700.00" {
+		t.Fatalf("totals row = %v", total)
+	}
+}
+
 // TestRenderRefusals: an unknown report, a missing data source and a failing source all fail
 // rather than rendering something that looks real.
 func TestRenderRefusals(t *testing.T) {
@@ -229,5 +273,11 @@ func TestRenderRefusals(t *testing.T) {
 	missing := &fakeCentres{centres: []klr.CostCenter{{ID: 9, Number: "K-9"}}}
 	if _, err := reports.NewCatalogue(reports.DataSources{Centres: missing}).Render(context.Background(), klr.CostCenterOverviewDefinition.ID, from, to); err == nil {
 		t.Fatal("a missing centre report did not stop the report")
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{}).Render(context.Background(), klr.CostUnitOverviewDefinition.ID, from, to); !errors.Is(err, reports.ErrNoSource) {
+		t.Fatalf("no cost-unit source = %v, want ErrNoSource", err)
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{Units: &fakeCostUnits{err: boom}}).Render(context.Background(), klr.CostUnitOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
+		t.Fatalf("cost-unit figures error = %v, want boom", err)
 	}
 }

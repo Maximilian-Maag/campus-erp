@@ -38,13 +38,19 @@ render instead of a hardcoded list.
 | `kasse-daily-close` | Kassenabschluss: a period's bookings, closing with income, expense and net |
 | `budget-position-overview` | Mittelübersicht: every position with Ansatz, Verpflichtet, Ist and Verfügbar, plus totals |
 | `klr-cost-center-overview` | Kostenstellenübersicht: every cost centre with its Kosten, Erlöse and Saldo, plus totals |
+| `klr-cost-unit-overview` | Kostenträgerübersicht: every cost unit with its Kosten, Erlöse and Saldo, plus totals |
 
-The Mittelübersicht and the Kostenstellenübersicht are snapshots, so they take no period: they
-read every position (or centre) and the balance booked against each. The Mittelübersicht's
+The Mittelübersicht and the two KLR overviews are snapshots, so they take no period: they
+read every position (or centre, or unit) and the balance booked against each. The Mittelübersicht's
 available column is derived per position from the same balance the guard uses, so the report
-cannot disagree with what the budget will allow; the Kostenstellenübersicht's balance is derived
-the same way from the figures its rows show, so the totals cannot disagree with the rows above
+cannot disagree with what the budget will allow; the KLR overviews' balances are derived
+the same way from the figures their rows show, so the totals cannot disagree with the rows above
 them.
+
+The two KLR overviews are the two stages of the KLR: the Kostenstellen say where a cost arose,
+the Kostenträger say what it was for. A cost unit nothing is booked on is still a row of zeroes —
+"nothing is booked on it yet" is a fact about the unit, and leaving it out would read as if the
+unit did not exist. A record that names no cost unit belongs to no unit and is counted in neither.
 
 ## Rendering a report
 

@@ -92,11 +92,13 @@ func main() {
 		docRenderer = r
 	}
 	ledgerRepo := kasse.NewLedgerRepo(pool)
+	klrSvc := klr.NewService(klr.NewRepo(pool), audit.NewStore(pool))
 	// The catalogue decides which reports exist (docs/25); the worker only renders them.
 	reportCatalogue := reports.NewCatalogue(reports.DataSources{
 		Bookings:  ledgerRepo,
 		Positions: budget.NewPositionService(budget.NewPositionRepo(pool), audit.NewStore(pool)),
-		Centres:   klr.NewService(klr.NewRepo(pool), audit.NewStore(pool)),
+		Centres:   klrSvc,
+		Units:     klrSvc,
 	})
 	reportRenderer := func(ctx context.Context, reportID string, from, to time.Time, by string) (string, error) {
 		if docRenderer == nil {
