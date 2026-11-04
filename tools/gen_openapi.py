@@ -247,6 +247,16 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/direct-debit/runs/{reference}/file": {
         "get": ("getCollectionRunFile", "kasse", "Download the pain.008 XML of a collection run", None, None, 200, "file"),
     },
+    "/api/direct-debit/runs/from-receivables": {
+        "post": ("createCollectionRunFromReceivables", "kasse", "Create a collection run that selects its open receivables", "httpapi.collectionRunFromReceivablesRequest", "kasse.CollectionRun", 201, "json"),
+    },
+    "/api/receivables": {
+        "post": ("createReceivable", "kasse", "Record an open receivable", "httpapi.receivableRequest", "kasse.Receivable", 201, "json"),
+        "get": ("listReceivables", "kasse", "List open receivables, optionally for one state", None, "[]kasse.Receivable", 200, "json", [("state", "string", False)]),
+    },
+    "/api/receivables/{id}": {
+        "get": ("getReceivable", "kasse", "Read an open receivable", None, "kasse.Receivable", 200, "json"),
+    },
     "/api/etl/datasets": {
         "get": ("listETLDatasets", "etl", "List the registered ETL datasets", None, "httpapi.datasetsResponse", 200, "json"),
     },

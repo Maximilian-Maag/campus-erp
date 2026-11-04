@@ -57,6 +57,7 @@ type Server struct {
 	procurement     procurementService
 	klr             klrService
 	mandates        mandateService
+	receivables     receivableService
 	collectionRuns  collectionRunService
 	etl             etlRunner
 	audit           auditVerifier
@@ -85,6 +86,7 @@ type Deps struct {
 	Procurement     procurementService
 	KLR             klrService
 	Mandates        mandateService
+	Receivables     receivableService
 	CollectionRuns  collectionRunService
 	ETL             etlRunner
 	Audit           auditVerifier
@@ -111,6 +113,7 @@ func New(d Deps) *Server {
 		procurement:     d.Procurement,
 		klr:             d.KLR,
 		mandates:        d.Mandates,
+		receivables:     d.Receivables,
 		collectionRuns:  d.CollectionRuns,
 		etl:             d.ETL,
 		audit:           d.Audit,
@@ -236,7 +239,13 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/direct-debit/mandates", s.authorize(s.createMandate, auth.RoleKasse))
 	mux.HandleFunc("GET /api/direct-debit/mandates/{reference}", s.authorizeRead(s.getMandate, auth.RoleKasse))
 	mux.HandleFunc("POST /api/direct-debit/runs", s.authorize(s.createCollectionRun, auth.RoleKasse))
+	mux.HandleFunc("POST /api/direct-debit/runs/from-receivables", s.authorize(s.createCollectionRunFromReceivables, auth.RoleKasse))
 	mux.HandleFunc("GET /api/direct-debit/runs/{reference}/file", s.authorizeRead(s.getCollectionRunFile, auth.RoleKasse))
+
+	// Open receivables a collection run selects from (Kasse).
+	mux.HandleFunc("POST /api/receivables", s.authorize(s.createReceivable, auth.RoleKasse))
+	mux.HandleFunc("GET /api/receivables", s.authorizeRead(s.listReceivables, auth.RoleKasse))
+	mux.HandleFunc("GET /api/receivables/{id}", s.authorizeRead(s.getReceivable, auth.RoleKasse))
 	// authenticate runs first (it attaches the principal); authorize reads it.
 	return s.authenticate(mux)
 }

@@ -33,6 +33,12 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation
 }
 
+// isForeignKeyViolation reports whether err is a PostgreSQL foreign-key error.
+func isForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation
+}
+
 // CreateVATType stores a VAT type.
 func (r *TaxRepo) CreateVATType(ctx context.Context, v VATType) (VATType, error) {
 	row := r.pool.QueryRow(ctx,

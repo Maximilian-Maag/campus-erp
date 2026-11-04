@@ -15,6 +15,9 @@ type collectionRunService interface {
 	CreateCollectionRun(ctx context.Context, reference string, accountID int64, creditorID string,
 		collectionDate time.Time, sequenceType kasse.MandateSequence, localInstrument string,
 		items []kasse.CollectionItem, by string) (kasse.CollectionRun, error)
+	CreateCollectionRunFromReceivables(ctx context.Context, reference string, accountID int64,
+		creditorID string, collectionDate time.Time, sequenceType kasse.MandateSequence,
+		localInstrument string, dueBy time.Time, by string) (kasse.CollectionRun, error)
 	CollectionRun(ctx context.Context, reference string) (kasse.CollectionRun, error)
 	CollectionRunFile(ctx context.Context, reference string) (string, error)
 }
@@ -40,6 +43,10 @@ func statusForCollectionRun(err error) int {
 		errors.Is(err, kasse.ErrMandateNotActive),
 		errors.Is(err, kasse.ErrMandateSequenceMismatch),
 		errors.Is(err, kasse.ErrMandateNotFound),
+		errors.Is(err, kasse.ErrReceivableDueByRequired),
+		errors.Is(err, kasse.ErrReceivableDueByAfterCollection),
+		errors.Is(err, kasse.ErrReceivableCurrencyMismatch),
+		errors.Is(err, kasse.ErrReceivableNotOpen),
 		errors.Is(err, kasse.ErrActorRequired):
 		return http.StatusUnprocessableEntity
 	default:
@@ -86,6 +93,43 @@ func (s *Server) createCollectionRun(w http.ResponseWriter, r *http.Request) {
 	}
 	run, err := s.collectionRuns.CreateCollectionRun(r.Context(), req.Reference, req.AccountID, req.CreditorID,
 		collectionDate, kasse.MandateSequence(req.SequenceType), req.LocalInstrument, items, actor(r))
+	if err != nil {
+		writeProblem(w, statusForCollectionRun(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, run)
+}
+
+type collectionRunFromReceivablesRequest struct {
+	Reference       string `json:"reference"`
+	AccountID       int64  `json:"account_id"`
+	CreditorID      string `json:"creditor_id"`
+	CollectionDate  string `json:"collection_date"` // YYYY-MM-DD
+	SequenceType    string `json:"sequence_type"`
+	LocalInstrument string `json:"local_instrument"`
+	DueBy           string `json:"due_by"` // YYYY-MM-DD
+}
+
+// createCollectionRunFromReceivables selects the open receivables due by due_by
+// and collects them, rather than taking the items from the caller.
+func (s *Server) createCollectionRunFromReceivables(w http.ResponseWriter, r *http.Request) {
+	var req collectionRunFromReceivablesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	collectionDate, err := time.Parse(time.DateOnly, req.CollectionDate)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "collection_date must be YYYY-MM-DD")
+		return
+	}
+	dueBy, err := time.Parse(time.DateOnly, req.DueBy)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "due_by must be YYYY-MM-DD")
+		return
+	}
+	run, err := s.collectionRuns.CreateCollectionRunFromReceivables(r.Context(), req.Reference, req.AccountID,
+		req.CreditorID, collectionDate, kasse.MandateSequence(req.SequenceType), req.LocalInstrument, dueBy, actor(r))
 	if err != nil {
 		writeProblem(w, statusForCollectionRun(err), err.Error())
 		return
