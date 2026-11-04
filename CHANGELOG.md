@@ -2,6 +2,27 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.87.0] - 2026-11-04
+
+A run can be created from the UI, and the client can read a file it produces.
+
+### Added
+- `frontend`: *Kasse: Einzüge* (`/kasse/einzuege`) — offers one of the university's own accounts,
+  states a direct-debit run (reference, Gläubiger-ID, Einzugsdatum, Fälligkeit bis, Sequenztyp,
+  Local Instrument), creates it from the open receivables and shows the pain.008 it produced.
+  What the run can gather (nothing due, a foreign currency, a due-by after the collection date)
+  stays the API's decision — the screen reports a refusal as it comes back.
+
+### Fixed
+- **The generated client could not read a non-JSON response.** A route whose response is a stored
+  file (or the probe) was fetched with `HttpClient`'s default `json` response type, so Angular
+  parsed the body and an XML file threw instead of arriving as a string. Eight operations were
+  affected — the payment-run and collection-run files, the dunning notice document, the e-invoice
+  XRechnung, the artefacts download, `audit/verify`, `/healthz` and `/readyz` (the last three
+  answer plain text, so the client had been failing on them too). A non-JSON response is now read
+  with `responseType: 'text'` and the string overload of `HttpClient`, and `api_contract.py
+  selftest` pins that.
+
 ## [0.86.0] - 2026-11-04
 
 The open receivables reach a screen.
