@@ -82,6 +82,6 @@ it is due. Selecting nothing is `ErrNoCollectionItems`, not an empty file.
   sequence types into several `PmtInf` blocks in one file is a later refinement.
 - **No EBICS transport**: the file is stored and downloadable; sending it over
   EBICS remains `planned` (`docs/14 §4.3`).
-- **No UI**: the generated Angular client exposes the operations; the receivables
-  and runs have no screen yet.
+- **No run UI**: the open items have a screen (*Kasse: Offene Posten*), but a collection run is
+  still created through the API — the client exposes the operation, nothing offers it yet.
 
