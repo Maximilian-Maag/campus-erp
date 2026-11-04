@@ -80,6 +80,7 @@ export interface CollectionRun {
   CreditorID: string;
   CollectionDate: string;
   SequenceType: string;
+  LocalInstrument: string;
   MessageID: string;
   ItemCount: number;
   SumCents: number;
@@ -91,14 +92,17 @@ export interface CollectionRunFromReceivablesRequest {
   reference: string;
   account_id: number;
   creditor_id: string;
+  collection_date: string;
   sequence_type: string;
   local_instrument: string;
+  due_by: string;
 }
 
 export interface CollectionRunRequest {
   reference: string;
   account_id: number;
   creditor_id: string;
+  collection_date: string;
   sequence_type: string;
   local_instrument: string;
   items: CollectionItemRequest[];
@@ -452,6 +456,7 @@ export interface MandateRequest {
   debtor_name: string;
   debtor_iban: string;
   debtor_bic: string;
+  signature_date: string;
   sequence_type: string;
 }
 
@@ -589,6 +594,7 @@ export interface ReceivableRequest {
   mandate_reference: string;
   amount_cents: number;
   currency: string;
+  due_date: string;
   purpose: string;
   source: string;
 }

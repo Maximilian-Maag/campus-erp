@@ -71,6 +71,7 @@ jobs:
         run: |
           python3 tools/api_contract.py selftest
           python3 tools/api_contract.py check
+          python3 tools/gen_openapi.py --selftest
       - name: generated client is committed and current
         run: |
           python3 tools/api_contract.py gen

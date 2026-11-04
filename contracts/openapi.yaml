@@ -2898,6 +2898,8 @@ components:
           format: int64
         currency:
           type: string
+        due_date:
+          type: string
         purpose:
           type: string
         source:
@@ -2906,6 +2908,7 @@ components:
       - mandate_reference
       - amount_cents
       - currency
+      - due_date
       - purpose
       - source
     CollectionRun:
@@ -2926,6 +2929,8 @@ components:
           format: date-time
         SequenceType:
           type: string
+        LocalInstrument:
+          type: string
         MessageID:
           type: string
         ItemCount:
@@ -2945,6 +2950,7 @@ components:
       - CreditorID
       - CollectionDate
       - SequenceType
+      - LocalInstrument
       - MessageID
       - ItemCount
       - SumCents
@@ -2960,16 +2966,22 @@ components:
           format: int64
         creditor_id:
           type: string
+        collection_date:
+          type: string
         sequence_type:
           type: string
         local_instrument:
+          type: string
+        due_by:
           type: string
       required:
       - reference
       - account_id
       - creditor_id
+      - collection_date
       - sequence_type
       - local_instrument
+      - due_by
     CollectionRunRequest:
       type: object
       properties:
@@ -2979,6 +2991,8 @@ components:
           type: integer
           format: int64
         creditor_id:
+          type: string
+        collection_date:
           type: string
         sequence_type:
           type: string
@@ -2992,6 +3006,7 @@ components:
       - reference
       - account_id
       - creditor_id
+      - collection_date
       - sequence_type
       - local_instrument
       - items
@@ -3053,6 +3068,8 @@ components:
           type: string
         debtor_bic:
           type: string
+        signature_date:
+          type: string
         sequence_type:
           type: string
       required:
@@ -3060,6 +3077,7 @@ components:
       - debtor_name
       - debtor_iban
       - debtor_bic
+      - signature_date
       - sequence_type
     Foundation:
       type: object

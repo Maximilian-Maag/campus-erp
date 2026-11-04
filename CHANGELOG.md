@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.85.0] - 2026-11-04
+
+The generated client could not name a field that carried a comment.
+
+### Fixed
+- **A Go request field with a trailing comment was dropped from the spec and the generated
+  client.** `tools/gen_openapi.py` matched a struct field line only when nothing followed the
+  `json` tag, so a collection date written as `` `json:"collection_date"` // YYYY-MM-DD `` — and
+  the same shape on the mandate's `signature_date`, a receivable's `due_date` and the collection
+  run's `local_instrument` — never reached the contract. The client could not set a collection
+  date or a mandate's signature date at all, and neither could a test. The drift guard could not
+  see it: the spec and the client were produced by the same parser, so they agreed with each
+  other while both disagreed with the Go structs. The parser now reads a trailing line comment,
+  the six fields reappear in the spec and the client, and `gen_openapi.py --selftest` (run by
+  `make test` and CI) pins the case.
+
 ## [0.84.0] - 2026-11-04
 
 A direct-debit collection run can select its own items — the open receivables.

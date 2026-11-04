@@ -42,7 +42,13 @@ Two tools, two responsibilities:
   reads the Go structs (with their `json` tags) to emit a complete OpenAPI 3.1
   document (49 paths, 51 operations, 58 schemas when this slice landed; more now). Structs referenced transitively
   are followed, so nothing dangles; qualified Go types (`kasse.Day`) become
-  components with disambiguated names. It needs PyYAML, so it is a dev tool.
+  components with disambiguated names. It needs PyYAML to render, so it is a dev
+  tool — but `--selftest` reads only the struct parser and also runs in the
+  stdlib-only step. The parser accepts a trailing line comment on a field (a date
+  field annotated with `// YYYY-MM-DD`); a field it dropped that way would be
+  missing from the spec *and* the client at once, and the drift guard could not
+  see it, because both are produced by the same parser. `make test` and CI run
+  the self-test to pin that.
 - **`tools/api_contract.py`** — the *gate*. Stdlib-only (no YAML package, no JVM,
   no network) so CI can always run it:
   - `check` — the **drift guard**: every Go route must be documented *and* every
