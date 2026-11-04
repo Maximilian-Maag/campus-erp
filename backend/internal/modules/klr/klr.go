@@ -68,6 +68,7 @@ type Record struct {
 	ID           int64
 	CostCenterID int64
 	CostUnitID   *int64
+	CostTypeID   *int64
 	Kind         Kind
 	AmountCents  int64
 	BusinessDate time.Time
@@ -116,8 +117,10 @@ func NewCostUnit(number, name string) (CostUnit, error) {
 }
 
 // NewRecord validates and builds a posting. The business date is required: a record has to
-// belong to a period, and "whenever it was typed in" is not one.
-func NewRecord(costCenterID int64, costUnitID *int64, kind Kind, amountCents int64, businessDate time.Time, reference string) (Record, error) {
+// belong to a period, and "whenever it was typed in" is not one. The cost unit and the cost type
+// are optional — a record may be booked before either is known — and the store's foreign keys
+// refuse one that does not exist.
+func NewRecord(costCenterID int64, costUnitID, costTypeID *int64, kind Kind, amountCents int64, businessDate time.Time, reference string) (Record, error) {
 	if costCenterID <= 0 {
 		return Record{}, ErrCostCenterNotFound
 	}
@@ -131,7 +134,7 @@ func NewRecord(costCenterID int64, costUnitID *int64, kind Kind, amountCents int
 		return Record{}, ErrBusinessDateRequired
 	}
 	return Record{
-		CostCenterID: costCenterID, CostUnitID: costUnitID, Kind: kind,
+		CostCenterID: costCenterID, CostUnitID: costUnitID, CostTypeID: costTypeID, Kind: kind,
 		AmountCents: amountCents, BusinessDate: businessDate, Reference: strings.TrimSpace(reference),
 	}, nil
 }

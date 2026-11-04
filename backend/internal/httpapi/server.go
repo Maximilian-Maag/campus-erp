@@ -225,6 +225,14 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/klr/cost-centers/{id}/allocations", s.authorizeRead(s.listAllocations, auth.RoleKLR))
 	mux.HandleFunc("POST /api/klr/cost-centers/{id}/allocations/run", s.authorize(s.runAllocation, auth.RoleKLR))
 
+	// Cost types (Kostenarten) and the account bridge from the ledger's accounts.
+	mux.HandleFunc("POST /api/klr/cost-types", s.authorize(s.createCostType, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-types", s.authorizeRead(s.listCostTypes, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-types/{id}/accounts", s.authorize(s.mapCostTypeAccount, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-types/{id}/accounts", s.authorizeRead(s.listCostTypeAccounts, auth.RoleKLR))
+	// The bridge's read side lives on the account, not under the cost type: "/cost-types/by-account/
+	// {account}" would be as specific as "/cost-types/{id}/accounts" and the mux refuses to guess.
+	mux.HandleFunc("GET /api/klr/accounts/{account}/cost-type", s.authorizeRead(s.getCostTypeByAccount, auth.RoleKLR))
 	mux.HandleFunc("POST /api/dunning/levels", s.authorize(s.createDunningLevel, auth.RoleKasse))
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.authorizeRead(s.getDunningLevel, auth.RoleKasse))
 	mux.HandleFunc("GET /api/dunning/notices/{id}/document", s.authorizeRead(s.getDunningNoticeDocument, auth.RoleKasse))

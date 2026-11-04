@@ -2316,6 +2316,175 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/klr/cost-types:
+    post:
+      tags:
+      - klr
+      operationId: createCostType
+      summary: Create a cost type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KlrCostTypeRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - klr
+      operationId: listCostTypes
+      summary: List the cost types
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CostType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/klr/cost-types/{id}/accounts:
+    post:
+      tags:
+      - klr
+      operationId: mapCostTypeAccount
+      summary: Map a ledger account to a cost type
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KlrAccountRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostTypeAccount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - klr
+      operationId: listCostTypeAccounts
+      summary: List the accounts of a cost type
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CostTypeAccount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/klr/accounts/{account}/cost-type:
+    get:
+      tags:
+      - klr
+      operationId: getCostTypeByAccount
+      summary: Read the cost type a ledger account belongs to
+      parameters:
+      - name: account
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/vat-types:
     post:
       tags:
@@ -3223,6 +3392,55 @@ components:
       - description
       - rate_basis_points
       - kind
+    CostType:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Code:
+          type: string
+        Name:
+          type: string
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - Code
+      - Name
+      - CreatedBy
+    CostTypeAccount:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        CostTypeID:
+          type: integer
+          format: int64
+        AccountCode:
+          type: string
+      required:
+      - ID
+      - CostTypeID
+      - AccountCode
+    KlrAccountRequest:
+      type: object
+      properties:
+        account_code:
+          type: string
+      required:
+      - account_code
+    KlrCostTypeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+      required:
+      - code
+      - name
     Run:
       type: object
       properties:
@@ -3343,6 +3561,10 @@ components:
           type: integer
           format: int64
           x-nullable: true
+        CostTypeID:
+          type: integer
+          format: int64
+          x-nullable: true
         Kind:
           type: string
         AmountCents:
@@ -3359,6 +3581,7 @@ components:
       - ID
       - CostCenterID
       - CostUnitID
+      - CostTypeID
       - Kind
       - AmountCents
       - BusinessDate
@@ -3368,6 +3591,10 @@ components:
       type: object
       properties:
         cost_unit_id:
+          type: integer
+          format: int64
+          x-nullable: true
+        cost_type_id:
           type: integer
           format: int64
           x-nullable: true
@@ -3382,6 +3609,7 @@ components:
           type: string
       required:
       - cost_unit_id
+      - cost_type_id
       - kind
       - business_date
       - amount_cents

@@ -121,6 +121,19 @@ export interface CostCenter {
   CreatedBy: string;
 }
 
+export interface CostType {
+  ID: number;
+  Code: string;
+  Name: string;
+  CreatedBy: string;
+}
+
+export interface CostTypeAccount {
+  ID: number;
+  CostTypeID: number;
+  AccountCode: string;
+}
+
 export interface CostUnit {
   ID: number;
   Number: string;
@@ -408,6 +421,15 @@ export interface KasseOrderSummary {
   Status: string;
 }
 
+export interface KlrAccountRequest {
+  account_code: string;
+}
+
+export interface KlrCostTypeRequest {
+  code: string;
+  name: string;
+}
+
 export interface KlrNamedRequest {
   number: string;
   name: string;
@@ -415,6 +437,7 @@ export interface KlrNamedRequest {
 
 export interface KlrRecordRequest {
   cost_unit_id: number | null;
+  cost_type_id: number | null;
   kind: string;
   business_date: string;
   amount_cents: number;
@@ -603,6 +626,7 @@ export interface Record {
   ID: number;
   CostCenterID: number;
   CostUnitID: number | null;
+  CostTypeID: number | null;
   Kind: string;
   AmountCents: number;
   BusinessDate: string;

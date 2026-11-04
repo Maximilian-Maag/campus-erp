@@ -76,14 +76,14 @@ func TestAllocateDistributesCosts(t *testing.T) {
 
 	// Costs on the source inside the period, and one on another day that must not be part of
 	// this distribution.
-	if _, err := svc.Post(ctx, source.ID, nil, klr.Cost, 100000, from, "Strom", "alice"); err != nil {
+	if _, err := svc.Post(ctx, source.ID, nil, nil, klr.Cost, 100000, from, "Strom", "alice"); err != nil {
 		t.Fatalf("post cost: %v", err)
 	}
 	// A cost from the month before is not part of this run.
-	if _, err := svc.Post(ctx, source.ID, nil, klr.Cost, 99999, klrDay(2026, 3, 15), "Vormonat", "alice"); err != nil {
+	if _, err := svc.Post(ctx, source.ID, nil, nil, klr.Cost, 99999, klrDay(2026, 3, 15), "Vormonat", "alice"); err != nil {
 		t.Fatalf("post previous cost: %v", err)
 	}
-	if _, err := svc.Post(ctx, source.ID, nil, klr.Revenue, 5000, from, "Erstattung", "alice"); err != nil {
+	if _, err := svc.Post(ctx, source.ID, nil, nil, klr.Revenue, 5000, from, "Erstattung", "alice"); err != nil {
 		t.Fatalf("post revenue: %v", err)
 	}
 
@@ -150,7 +150,7 @@ func TestAllocateRefusesASecondRun(t *testing.T) {
 	if _, err := svc.DefineAllocation(ctx, source.ID, receiver.ID, 10000, from, &to, "alice"); err != nil {
 		t.Fatalf("DefineAllocation: %v", err)
 	}
-	if _, err := svc.Post(ctx, source.ID, nil, klr.Cost, 40000, from, "Miete", "alice"); err != nil {
+	if _, err := svc.Post(ctx, source.ID, nil, nil, klr.Cost, 40000, from, "Miete", "alice"); err != nil {
 		t.Fatalf("post: %v", err)
 	}
 	if _, err := svc.Allocate(ctx, source.ID, from, to, "carol"); err != nil {
@@ -181,7 +181,7 @@ func TestAllocateRefusesASecondRun(t *testing.T) {
 	if _, err := svc.Allocate(ctx, source.ID, klrDay(2026, 6, 1), klrDay(2026, 6, 30), "carol"); !errors.Is(err, klr.ErrNothingToAllocate) {
 		t.Fatalf("June without costs = %v, want ErrNothingToAllocate", err)
 	}
-	if _, err := svc.Post(ctx, source.ID, nil, klr.Cost, 20000, klrDay(2026, 6, 10), "Miete Juni", "alice"); err != nil {
+	if _, err := svc.Post(ctx, source.ID, nil, nil, klr.Cost, 20000, klrDay(2026, 6, 10), "Miete Juni", "alice"); err != nil {
 		t.Fatalf("post June: %v", err)
 	}
 	if _, err := svc.Allocate(ctx, source.ID, klrDay(2026, 6, 1), klrDay(2026, 6, 30), "carol"); err != nil {
@@ -223,7 +223,7 @@ func TestAllocateRefusals(t *testing.T) {
 	if _, err := svc.DefineAllocation(ctx, source.ID, receiver.ID, 6000, klrDay(2026, 8, 1), nil, "alice"); err != nil {
 		t.Fatalf("DefineAllocation: %v", err)
 	}
-	if _, err := svc.Post(ctx, source.ID, nil, klr.Cost, 1000, klrDay(2026, 8, 15), "RE", "alice"); err != nil {
+	if _, err := svc.Post(ctx, source.ID, nil, nil, klr.Cost, 1000, klrDay(2026, 8, 15), "RE", "alice"); err != nil {
 		t.Fatalf("post: %v", err)
 	}
 	if _, err := svc.Allocate(ctx, source.ID, klrDay(2026, 8, 1), klrDay(2026, 8, 31), "carol"); !errors.Is(err, klr.ErrSharesIncomplete) {
@@ -278,7 +278,7 @@ func TestAllocateIsOnTheAuditChain(t *testing.T) {
 	if _, err := svc.DefineAllocation(ctx, source.ID, receiver.ID, 10000, klrDay(2026, 10, 1), nil, "alice"); err != nil {
 		t.Fatalf("DefineAllocation: %v", err)
 	}
-	if _, err := svc.Post(ctx, source.ID, nil, klr.Cost, 12345, klrDay(2026, 10, 15), "RE", "alice"); err != nil {
+	if _, err := svc.Post(ctx, source.ID, nil, nil, klr.Cost, 12345, klrDay(2026, 10, 15), "RE", "alice"); err != nil {
 		t.Fatalf("post: %v", err)
 	}
 	if _, err := svc.Allocate(ctx, source.ID, klrDay(2026, 10, 1), klrDay(2026, 10, 31), "carol"); err != nil {

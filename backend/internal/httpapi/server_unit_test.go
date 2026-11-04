@@ -314,8 +314,28 @@ func (s stubKLR) CreateCostUnit(context.Context, string, string, string) (klr.Co
 	return klr.CostUnit{}, s.err
 }
 
-func (s stubKLR) Post(context.Context, int64, *int64, klr.Kind, int64, time.Time, string, string) (klr.Record, error) {
+func (s stubKLR) Post(context.Context, int64, *int64, *int64, klr.Kind, int64, time.Time, string, string) (klr.Record, error) {
 	return klr.Record{}, s.err
+}
+
+func (s stubKLR) PostCostType(context.Context, string, string, string) (klr.CostType, error) {
+	return klr.CostType{}, s.err
+}
+
+func (s stubKLR) CostTypes(context.Context) ([]klr.CostType, error) {
+	return nil, s.err
+}
+
+func (s stubKLR) MapAccount(context.Context, int64, string, string) (klr.CostTypeAccount, error) {
+	return klr.CostTypeAccount{}, s.err
+}
+
+func (s stubKLR) AccountsOf(context.Context, int64) ([]klr.CostTypeAccount, error) {
+	return nil, s.err
+}
+
+func (s stubKLR) CostTypeByAccount(context.Context, string) (klr.CostType, error) {
+	return klr.CostType{}, s.err
 }
 
 func (s stubKLR) DefineAllocation(context.Context, int64, int64, int64, time.Time, *time.Time, string) (klr.Allocation, error) {

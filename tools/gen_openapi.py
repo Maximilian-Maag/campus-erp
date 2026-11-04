@@ -225,6 +225,17 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/klr/cost-centers/{id}/allocations/run": {
         "post": ("runAllocation", "klr", "Distribute a period's costs over the keys", "httpapi.runAllocationRequest", "klr.Run", 201, "json"),
     },
+    "/api/klr/cost-types": {
+        "post": ("createCostType", "klr", "Create a cost type", "httpapi.klrCostTypeRequest", "klr.CostType", 201, "json"),
+        "get": ("listCostTypes", "klr", "List the cost types", None, "[]klr.CostType", 200, "json"),
+    },
+    "/api/klr/cost-types/{id}/accounts": {
+        "post": ("mapCostTypeAccount", "klr", "Map a ledger account to a cost type", "httpapi.klrAccountRequest", "klr.CostTypeAccount", 201, "json"),
+        "get": ("listCostTypeAccounts", "klr", "List the accounts of a cost type", None, "[]klr.CostTypeAccount", 200, "json"),
+    },
+    "/api/klr/accounts/{account}/cost-type": {
+        "get": ("getCostTypeByAccount", "klr", "Read the cost type a ledger account belongs to", None, "klr.CostType", 200, "json"),
+    },
     # ── Tax / foundations ────────────────────────────────────────────────────
     "/api/vat-types": {
         "post": ("createVATType", "kasse", "Create a VAT type", "httpapi.vatTypeRequest", "kasse.VATType", 201, "json"),

@@ -76,11 +76,11 @@ func (s *Service) CreateCostUnit(ctx context.Context, number, name, by string) (
 }
 
 // Post appends a KLR posting for a business date — the period the record belongs to.
-func (s *Service) Post(ctx context.Context, costCenterID int64, costUnitID *int64, kind Kind, amountCents int64, businessDate time.Time, reference, by string) (Record, error) {
+func (s *Service) Post(ctx context.Context, costCenterID int64, costUnitID, costTypeID *int64, kind Kind, amountCents int64, businessDate time.Time, reference, by string) (Record, error) {
 	if strings.TrimSpace(by) == "" {
 		return Record{}, ErrActorRequired
 	}
-	rec, err := NewRecord(costCenterID, costUnitID, kind, amountCents, businessDate, reference)
+	rec, err := NewRecord(costCenterID, costUnitID, costTypeID, kind, amountCents, businessDate, reference)
 	if err != nil {
 		return Record{}, err
 	}
