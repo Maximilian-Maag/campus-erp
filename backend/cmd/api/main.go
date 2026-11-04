@@ -82,9 +82,11 @@ func main() {
 		}
 		// The report catalogue is the same one the worker renders from, so the reports this API
 		// offers and the reports that actually render cannot drift apart (docs/25).
+		klrSvc := klr.NewService(klr.NewRepo(pool), store)
 		reportCatalogue := reports.NewCatalogue(reports.DataSources{
 			Bookings:  kasse.NewLedgerRepo(pool),
 			Positions: budgetSvc,
+			Centres:   klrSvc,
 		})
 		// The e-invoice service matches an inbound invoice to a purchase order, so it needs the
 		// procurement service (which owns the order and the budget conversion).
@@ -102,7 +104,7 @@ func main() {
 			Budget:          budgetSvc,
 			Lookups:         lookupSvc,
 			Procurement:     procurementSvc,
-			KLR:             klr.NewService(klr.NewRepo(pool), store),
+			KLR:             klrSvc,
 			Mandates:        kasse.NewMandateService(kasse.NewMandateRepo(pool), store),
 			Receivables:     kasse.NewReceivableService(kasse.NewReceivableRepo(pool), store),
 			CollectionRuns:  kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), kasse.NewReceivableRepo(pool), store),

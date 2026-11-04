@@ -15,6 +15,7 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/report"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/klr"
 )
 
 // ErrUnknownReport is returned for an id the catalogue does not hold.
@@ -36,10 +37,17 @@ type Positions interface {
 	Balance(ctx context.Context, positionID int64) (budget.Balance, error)
 }
 
+// Centres lists cost centres and reads their reports (klr.Service satisfies it).
+type Centres interface {
+	CostCenters(ctx context.Context) ([]klr.CostCenter, error)
+	Report(ctx context.Context, costCenterID int64) (klr.Report, error)
+}
+
 // DataSources is the read-only data the catalogue's reports collect from.
 type DataSources struct {
 	Bookings  Bookings
 	Positions Positions
+	Centres   Centres
 }
 
 // Report is one catalogue entry: the definition a client asks for, and the collector that fills
@@ -62,6 +70,10 @@ func NewCatalogue(src DataSources) *Catalogue {
 		{
 			Definition: budget.PositionOverviewDefinition,
 			Collect:    collectPositionOverview(src.Positions),
+		},
+		{
+			Definition: klr.CostCenterOverviewDefinition,
+			Collect:    collectCostCenterOverview(src.Centres),
 		},
 	}}
 }
@@ -129,6 +141,29 @@ func collectPositionOverview(positions Positions) func(context.Context, time.Tim
 			lines = append(lines, budget.PositionLine{Position: p, Balance: bal})
 		}
 		return budget.PositionOverview(generatedAt(), lines), nil
+	}
+}
+
+// collectCostCenterOverview builds the per-centre overview: every cost centre with the report
+// booked against it.
+func collectCostCenterOverview(centres Centres) func(context.Context, time.Time, time.Time) (report.Report, error) {
+	return func(ctx context.Context, _ time.Time, _ time.Time) (report.Report, error) {
+		if centres == nil {
+			return report.Report{}, ErrNoSource
+		}
+		list, err := centres.CostCenters(ctx)
+		if err != nil {
+			return report.Report{}, err
+		}
+		lines := make([]klr.CostCenterLine, 0, len(list))
+		for _, c := range list {
+			rep, err := centres.Report(ctx, c.ID)
+			if err != nil {
+				return report.Report{}, err
+			}
+			lines = append(lines, klr.CostCenterLine{CostCenter: c, Report: rep})
+		}
+		return klr.CostCenterOverview(generatedAt(), lines), nil
 	}
 }
 

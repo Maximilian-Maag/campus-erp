@@ -1,0 +1,83 @@
+package klr
+
+import (
+	"testing"
+	"time"
+)
+
+func TestCostCenterOverviewDefinition(t *testing.T) {
+	if CostCenterOverviewDefinition.ID != "klr-cost-center-overview" {
+		t.Fatalf("id = %q", CostCenterOverviewDefinition.ID)
+	}
+	if CostCenterOverviewDefinition.Title != "Kostenstellenübersicht" {
+		t.Fatalf("title = %q", CostCenterOverviewDefinition.Title)
+	}
+	// Kostenstelle, Bezeichnung, Kosten, Erlöse, Saldo.
+	if len(CostCenterOverviewDefinition.Columns) != 5 {
+		t.Fatalf("columns = %d, want 5", len(CostCenterOverviewDefinition.Columns))
+	}
+	if CostCenterOverviewDefinition.Columns[0].Key != "number" || CostCenterOverviewDefinition.Columns[4].Key != "balance" {
+		t.Fatalf("columns = %+v", CostCenterOverviewDefinition.Columns)
+	}
+}
+
+func TestCostCenterOverviewRows(t *testing.T) {
+	at := time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC)
+	lines := []CostCenterLine{
+		{CostCenter: CostCenter{ID: 1, Number: "K-10", Name: "Verwaltung"},
+			Report: Report{CostCenterID: 1, CostsCents: 100000, RevenuesCents: 25000}},
+		{CostCenter: CostCenter{ID: 2, Number: "K-99", Name: "Bibliothek"},
+			Report: Report{CostCenterID: 2, CostsCents: 5000, RevenuesCents: 10000}},
+	}
+	got := CostCenterOverview(at, lines)
+
+	if got.Definition.ID != CostCenterOverviewDefinition.ID || !got.GeneratedAt.Equal(at) {
+		t.Fatalf("report = %+v", got)
+	}
+	// One row per centre plus the totals row.
+	if len(got.Rows) != 3 {
+		t.Fatalf("rows = %d, want 3 (%v)", len(got.Rows), got.Rows)
+	}
+	// A centre that spends more than it earns carries a negative balance.
+	if got.Rows[0][0] != "K-10" || got.Rows[0][1] != "Verwaltung" || got.Rows[0][2] != "1000.00" ||
+		got.Rows[0][3] != "250.00" || got.Rows[0][4] != "-750.00" {
+		t.Fatalf("first row = %v", got.Rows[0])
+	}
+	if got.Rows[1][0] != "K-99" || got.Rows[1][4] != "50.00" {
+		t.Fatalf("second row = %v", got.Rows[1])
+	}
+	// The totals row sums what the rows show.
+	total := got.Rows[2]
+	if total[0] != "" || total[1] != "Summe" || total[2] != "1050.00" || total[3] != "350.00" || total[4] != "-700.00" {
+		t.Fatalf("totals row = %v", total)
+	}
+}
+
+func TestCostCenterOverviewWithoutCentres(t *testing.T) {
+	// No centres is an empty list and a zero totals row, not a panic.
+	got := CostCenterOverview(time.Time{}, nil)
+	if len(got.Rows) != 1 {
+		t.Fatalf("rows = %d, want the totals row only", len(got.Rows))
+	}
+	if got.Rows[0][1] != "Summe" || got.Rows[0][2] != "0.00" || got.Rows[0][4] != "0.00" {
+		t.Fatalf("totals row = %v", got.Rows[0])
+	}
+}
+
+func TestKlrCents(t *testing.T) {
+	cases := map[int64]string{
+		0:       "0.00",
+		1:       "0.01",
+		99:      "0.99",
+		100:     "1.00",
+		125000:  "1250.00",
+		-75000:  "-750.00",
+		-1:      "-0.01",
+		1000000: "10000.00",
+	}
+	for cents, want := range cases {
+		if got := klrCents(cents); got != want {
+			t.Errorf("klrCents(%d) = %q, want %q", cents, got, want)
+		}
+	}
+}
