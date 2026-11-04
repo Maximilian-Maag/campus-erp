@@ -2,6 +2,19 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.90.0] - 2026-11-04
+
+The cost-type catalogue gets its screen.
+
+### Added
+- `frontend`: *KLR: Kostenarten* (`/klr/kostenarten`) — lists the catalogue, creates a cost type,
+  shows the accounts of the chosen one and maps a new account, and looks an account up in the
+  other direction. An empty catalogue still offers the form, so the first cost type can be created
+  from the screen at all; an account nobody has mapped shows as an answer rather than a failure
+  (the API's 404 is the answer). The trim of a typed account code and the choice of the first
+  cost type are the screen's; what a code must look like and that an account belongs to at most one
+  cost type stay the API's.
+
 ## [0.89.0] - 2026-11-04
 
 The KLR gets its cost types (Kostenarten) and the bridge from the ledger's accounts to them.

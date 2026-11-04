@@ -179,9 +179,9 @@ gate (`npx stryker run`, break 85) covers them too.
 
 ## Not yet done
 
-- Nine screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
+- Ten screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
   `/kasse/kontoauszuege`, `/kasse/offene-posten`, `/kasse/einzuege`), Budget, Beschaffung,
-  E-Rechnung and KLR. The rest get theirs as their phases land, each one starting from the read
+  E-Rechnung and KLR (`/klr/umlage`, `/klr/kostenarten`). The rest get theirs as their phases land, each one starting from the read
   routes it needs — and the kasse/payments domain is where that bites: it had 32 operations and
   one list route, so nearly every screen there needs its `GET` built first.
 - **No paging yet.** Every list route returns everything; a list big enough to need paging
