@@ -119,10 +119,14 @@ A record may name its cost type (`cost_type_id`), and a record with none is
 valid — nobody has classified it yet. A cost type that does not exist is
 refused by the store, not silently dropped.
 
-The frontend has no screen for this yet; the catalogue is driven through the
-API.
+The frontend has one screen for this, *Kostenarten* (`/klr/kostenarten`): it
+lists the catalogue, creates entries, shows the accounts of the chosen cost type
+and maps a new one, and looks an account up in the other direction. An empty
+catalogue still offers the form, so the first cost type can be created from the
+screen; and an account nobody has mapped shows as an answer ("keine Kostenart
+hinterlegt"), not as a failure — the API's 404 is the answer.
 
-The frontend has one screen for this, *Umlage* (`/klr/umlage`): it picks a cost centre, shows
+The distribution has its own screen, *Umlage* (`/klr/umlage`): it picks a cost centre, shows
 its keys, defines one (the share is typed as a percentage and stored as basis points), and runs
 a period. The rule that a centre's shares must add up to 100 % stays with the API — the screen
 does not re-derive it.
