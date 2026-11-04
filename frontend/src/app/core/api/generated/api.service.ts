@@ -95,6 +95,10 @@ export class CampusErpApi {
     return this.http.post<m.CollectionRun>(this.base + `/api/direct-debit/runs`, body);
   }
 
+  createCollectionRunFromReceivables(body: m.CollectionRunFromReceivablesRequest): Observable<m.CollectionRun> {
+    return this.http.post<m.CollectionRun>(this.base + `/api/direct-debit/runs/from-receivables`, body);
+  }
+
   getCollectionRunFile(reference: number | string): Observable<string> {
     return this.http.get<string>(this.base + `/api/direct-debit/runs/${reference}/file`);
   }
@@ -289,6 +293,18 @@ export class CampusErpApi {
 
   receivePurchaseOrder(id: number | string): Observable<m.Order> {
     return this.http.post<m.Order>(this.base + `/api/purchase-orders/${id}/receive`, null);
+  }
+
+  listReceivables(state?: string): Observable<m.Receivable[]> {
+    return this.http.get<m.Receivable[]>(this.base + `/api/receivables${this._query({ state })}`);
+  }
+
+  createReceivable(body: m.ReceivableRequest): Observable<m.Receivable> {
+    return this.http.post<m.Receivable>(this.base + `/api/receivables`, body);
+  }
+
+  getReceivable(id: number | string): Observable<m.Receivable> {
+    return this.http.get<m.Receivable>(this.base + `/api/receivables/${id}`);
   }
 
   listReports(): Observable<m.Definition[]> {

@@ -87,6 +87,14 @@ export interface CollectionRun {
   CreatedBy: string;
 }
 
+export interface CollectionRunFromReceivablesRequest {
+  reference: string;
+  account_id: number;
+  creditor_id: string;
+  sequence_type: string;
+  local_instrument: string;
+}
+
 export interface CollectionRunRequest {
   reference: string;
   account_id: number;
@@ -562,6 +570,27 @@ export interface PurchaseOrderLineRequest {
   net_cents: number;
   vat_category: string;
   vat_rate_bp: number;
+}
+
+export interface Receivable {
+  ID: number;
+  MandateReference: string;
+  AmountCents: number;
+  Currency: string;
+  DueDate: string;
+  Purpose: string;
+  State: string;
+  CollectedRunID: number | null;
+  Source: string;
+  CreatedBy: string;
+}
+
+export interface ReceivableRequest {
+  mandate_reference: string;
+  amount_cents: number;
+  currency: string;
+  purpose: string;
+  source: string;
 }
 
 export interface Record {

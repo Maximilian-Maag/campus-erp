@@ -28,6 +28,15 @@ func (s stubCollectionRuns) CreateCollectionRun(_ context.Context, reference str
 	return s.run, nil
 }
 
+func (s stubCollectionRuns) CreateCollectionRunFromReceivables(_ context.Context, reference string, _ int64,
+	_ string, _ time.Time, _ kasse.MandateSequence, _ string, _ time.Time, _ string) (kasse.CollectionRun, error) {
+	if s.err != nil {
+		return kasse.CollectionRun{}, s.err
+	}
+	s.run.Reference = reference
+	return s.run, nil
+}
+
 func (s stubCollectionRuns) CollectionRun(context.Context, string) (kasse.CollectionRun, error) {
 	return s.run, s.err
 }
@@ -62,6 +71,37 @@ func TestCreateCollectionRunHandler(t *testing.T) {
 			srv := httpapi.New(httpapi.Deps{CollectionRuns: stubCollectionRuns{err: c.err}})
 			rec := httptest.NewRecorder()
 			srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/direct-debit/runs", strings.NewReader(c.body)))
+			if rec.Code != c.want {
+				t.Fatalf("status = %d, want %d (%s)", rec.Code, c.want, rec.Body.String())
+			}
+		})
+	}
+}
+
+const validFromReceivablesBody = `{"reference":"RUN-2","account_id":1,"creditor_id":"DE98ZZZ09999999999",` +
+	`"collection_date":"2026-11-01","sequence_type":"RCUR","local_instrument":"CORE","due_by":"2026-10-15"}`
+
+func TestCreateCollectionRunFromReceivablesHandler(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		err  error
+		want int
+	}{
+		{"created", validFromReceivablesBody, nil, http.StatusCreated},
+		{"bad json", `{`, nil, http.StatusBadRequest},
+		{"bad collection date", strings.Replace(validFromReceivablesBody, "2026-11-01", "01.11.2026", 1), nil, http.StatusBadRequest},
+		{"bad due by", strings.Replace(validFromReceivablesBody, "2026-10-15", "15.10.2026", 1), nil, http.StatusBadRequest},
+		{"nothing due", validFromReceivablesBody, kasse.ErrNoCollectionItems, http.StatusUnprocessableEntity},
+		{"due after collection", validFromReceivablesBody, kasse.ErrReceivableDueByAfterCollection, http.StatusUnprocessableEntity},
+		{"currency mismatch", validFromReceivablesBody, kasse.ErrReceivableCurrencyMismatch, http.StatusUnprocessableEntity},
+		{"unexpected", validFromReceivablesBody, errBoom, http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			srv := httpapi.New(httpapi.Deps{CollectionRuns: stubCollectionRuns{err: c.err}})
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/direct-debit/runs/from-receivables", strings.NewReader(c.body)))
 			if rec.Code != c.want {
 				t.Fatalf("status = %d, want %d (%s)", rec.Code, c.want, rec.Body.String())
 			}

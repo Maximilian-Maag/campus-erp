@@ -15,6 +15,7 @@ type CollectionRunRepository interface {
 	GetCollectionRun(ctx context.Context, reference string) (CollectionRun, error)
 	CollectionRunFile(ctx context.Context, reference string) (string, error)
 	InsertCollectionRun(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem) (CollectionRun, error)
+	InsertCollectionRunFromReceivables(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem, receivableIDs []int64) (CollectionRun, error)
 }
 
 // CollectionRunRepo is the PostgreSQL implementation.
@@ -84,6 +85,50 @@ func (r *CollectionRunRepo) InsertCollectionRun(ctx context.Context, run Collect
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	saved, err := insertRunWithin(ctx, tx, run, fileXML, items)
+	if err != nil {
+		return CollectionRun{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return CollectionRun{}, fmt.Errorf("kasse: commit collection run: %w", err)
+	}
+	return saved, nil
+}
+
+// InsertCollectionRunFromReceivables stores a run, its items and the open items
+// it claims, in one transaction: the run and the collected state of its
+// receivables are written together, so a stored run never points at items still
+// shown open. A receivable that is no longer open — taken by another run in the
+// meantime — maps to ErrReceivableNotOpen and the whole run is rolled back.
+func (r *CollectionRunRepo) InsertCollectionRunFromReceivables(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem, receivableIDs []int64) (CollectionRun, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return CollectionRun{}, fmt.Errorf("kasse: begin collection run: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	saved, err := insertRunWithin(ctx, tx, run, fileXML, items)
+	if err != nil {
+		return CollectionRun{}, err
+	}
+	tag, err := tx.Exec(ctx,
+		`UPDATE receivable SET state = 'collected', collected_run_id = $2
+		  WHERE id = ANY($1) AND state = 'open'`, receivableIDs, saved.ID)
+	if err != nil {
+		return CollectionRun{}, fmt.Errorf("kasse: claim receivables: %w", err)
+	}
+	if int(tag.RowsAffected()) != len(receivableIDs) {
+		return CollectionRun{}, ErrReceivableNotOpen
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return CollectionRun{}, fmt.Errorf("kasse: commit collection run: %w", err)
+	}
+	return saved, nil
+}
+
+// insertRunWithin writes the run row and its items inside an existing
+// transaction, mapping the two unique constraints to their sentinel errors.
+func insertRunWithin(ctx context.Context, tx pgx.Tx, run CollectionRun, fileXML string, items []CollectionRunItem) (CollectionRun, error) {
 	saved, err := scanCollectionRun(tx.QueryRow(ctx,
 		`INSERT INTO direct_debit_run
 		   (reference, account_id, creditor_id, collection_date, sequence_type, local_instrument,
@@ -109,9 +154,6 @@ func (r *CollectionRunRepo) InsertCollectionRun(ctx context.Context, run Collect
 			}
 			return CollectionRun{}, fmt.Errorf("kasse: insert collection run item: %w", err)
 		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return CollectionRun{}, fmt.Errorf("kasse: commit collection run: %w", err)
 	}
 	return saved, nil
 }

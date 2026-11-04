@@ -2,6 +2,34 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.84.0] - 2026-11-04
+
+A direct-debit collection run can select its own items — the open receivables.
+
+### Added
+- `receivable` (migration 0024): an open item (offener Posten) under a mandate, with a soft state
+  (`open`/`collected`/`cancelled`). It carries no debtor of its own — the mandate supplies the
+  debtor and the authority to collect, so the two cannot disagree — and a collected item is linked
+  to the run that took it, never deleted.
+- `POST`/`GET /api/receivables` and `GET /api/receivables/{id}` (role `kasse`): record and read the
+  open items, by due date, optionally narrowed to one state.
+- `POST /api/direct-debit/runs/from-receivables` (role `kasse`): a collection run that selects the
+  open items due on or before a `due_by` date, under active mandates matching the run's sequence
+  type. An item not yet due, or under a retired or differently-sequenced mandate, cannot be
+  gathered and is left open rather than failed on. A mandate's items are collected as one amount —
+  the pain.008 file allows one collection per mandate — and the selected items are marked
+  `collected` and linked to the run in the same transaction that stores it, so a stored run and its
+  claims cannot disagree.
+
+### Changed
+- The collection run's items are no longer only what the caller hands it; the run can select them
+  from what is owed. Idempotency is checked before selection, so re-issuing a reference whose items
+  are already collected returns the stored run instead of finding nothing left to collect.
+
+### Fixed
+- An open item in another currency than the collecting account's is refused
+  (`ErrReceivableCurrencyMismatch`) rather than collected at a silent rate of one.
+
 ## [0.83.0] - 2026-11-04
 
 Bank statements reach a screen, and the two reads behind it.

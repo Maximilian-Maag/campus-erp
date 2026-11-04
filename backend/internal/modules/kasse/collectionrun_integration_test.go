@@ -41,7 +41,7 @@ func TestCollectionRunProducesAndIsIdempotent(t *testing.T) {
 		}
 	}
 
-	svc := kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), store)
+	svc := kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), kasse.NewReceivableRepo(pool), store)
 	runRef := "RUN-" + uniqueSuffix(t)
 	date := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 	items := []kasse.CollectionItem{
@@ -102,7 +102,7 @@ func TestCollectionRunFailsClosed(t *testing.T) {
 		t.Fatalf("CreateCashAccount: %v", err)
 	}
 	mandates := kasse.NewMandateService(kasse.NewMandateRepo(pool), store)
-	svc := kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), store)
+	svc := kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), kasse.NewReceivableRepo(pool), store)
 	date := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 	sig := time.Date(2025, 3, 14, 0, 0, 0, 0, time.UTC)
 

@@ -2584,6 +2584,140 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/direct-debit/runs/from-receivables:
+    post:
+      tags:
+      - kasse
+      operationId: createCollectionRunFromReceivables
+      summary: Create a collection run that selects its open receivables
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionRunFromReceivablesRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/receivables:
+    post:
+      tags:
+      - kasse
+      operationId: createReceivable
+      summary: Record an open receivable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceivableRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receivable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - kasse
+      operationId: listReceivables
+      summary: List open receivables, optionally for one state
+      parameters:
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Receivable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/receivables/{id}:
+    get:
+      tags:
+      - kasse
+      operationId: getReceivable
+      summary: Read an open receivable
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receivable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/etl/datasets:
     get:
       tags:
@@ -2715,6 +2849,65 @@ components:
             type: string
       required:
       - datasets
+    Receivable:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        MandateReference:
+          type: string
+        AmountCents:
+          type: integer
+          format: int64
+        Currency:
+          type: string
+        DueDate:
+          type: string
+          format: date-time
+        Purpose:
+          type: string
+        State:
+          type: string
+        CollectedRunID:
+          type: integer
+          format: int64
+          x-nullable: true
+        Source:
+          type: string
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - MandateReference
+      - AmountCents
+      - Currency
+      - DueDate
+      - Purpose
+      - State
+      - CollectedRunID
+      - Source
+      - CreatedBy
+    ReceivableRequest:
+      type: object
+      properties:
+        mandate_reference:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+        currency:
+          type: string
+        purpose:
+          type: string
+        source:
+          type: string
+      required:
+      - mandate_reference
+      - amount_cents
+      - currency
+      - purpose
+      - source
     CollectionRun:
       type: object
       properties:
@@ -2757,6 +2950,26 @@ components:
       - SumCents
       - FileHash
       - CreatedBy
+    CollectionRunFromReceivablesRequest:
+      type: object
+      properties:
+        reference:
+          type: string
+        account_id:
+          type: integer
+          format: int64
+        creditor_id:
+          type: string
+        sequence_type:
+          type: string
+        local_instrument:
+          type: string
+      required:
+      - reference
+      - account_id
+      - creditor_id
+      - sequence_type
+      - local_instrument
     CollectionRunRequest:
       type: object
       properties:

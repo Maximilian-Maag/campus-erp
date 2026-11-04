@@ -73,9 +73,9 @@ Generated files are validated against the vendor's German Banking Industry Commi
 
 - **The collection run exists** (`internal/modules/kasse/collectionrun*.go`,
   `docs/22-collection-runs.md`): it gathers mandates into a pain.008 for one
-  collection date and sequence type. Still open: selecting items from outstanding
-  receivables automatically (today they are supplied explicitly), and EBICS
-  transport.
+  collection date and sequence type, and it can select its items from the open
+  receivables due for collection (`from-receivables`, `docs/22`). Still open:
+  EBICS transport.
 - **XSD validation is skipped**: the vendor ships the ISO 20022 schemas, but none is
   committed here, so `golden.ValidateXSD` has no schema to run against. The golden
   file plus the structural tests are the guard.

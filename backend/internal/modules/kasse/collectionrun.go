@@ -2,6 +2,7 @@ package kasse
 
 import (
 	"errors"
+	"sort"
 	"strings"
 	"time"
 )
@@ -69,30 +70,44 @@ type CollectionItem struct {
 	Purpose          string
 }
 
+// validateRunInputs checks the run-level fields and returns the trimmed
+// reference. It is separate from NewCollectionRun so a run that selects its items
+// can validate its inputs — and look itself up for idempotency — before it knows
+// which items exist.
+func validateRunInputs(reference string, accountID int64, creditorID string, collectionDate time.Time,
+	sequenceType MandateSequence, localInstrument string) (string, error) {
+
+	reference = strings.TrimSpace(reference)
+	if reference == "" {
+		return "", ErrRunReferenceRequired
+	}
+	if accountID <= 0 {
+		return "", ErrCashAccountRequired
+	}
+	if strings.TrimSpace(creditorID) == "" {
+		return "", ErrCollectionCreditorIDRequired
+	}
+	if collectionDate.IsZero() {
+		return "", ErrCollectionDateRequired
+	}
+	if !ValidSequenceType(sequenceType) {
+		return "", ErrSequenceTypeUnknown
+	}
+	if !validLocalInstrument(localInstrument) {
+		return "", ErrLocalInstrumentUnknown
+	}
+	return reference, nil
+}
+
 // NewCollectionRun validates the run-level inputs (the per-item mandate checks
 // happen in the service, where the mandates are loaded).
 func NewCollectionRun(reference string, accountID int64, creditorID string, collectionDate time.Time,
 	sequenceType MandateSequence, localInstrument string,
 	items []CollectionItem) (string, []CollectionRunItem, error) {
 
-	reference = strings.TrimSpace(reference)
-	if reference == "" {
-		return "", nil, ErrRunReferenceRequired
-	}
-	if accountID <= 0 {
-		return "", nil, ErrCashAccountRequired
-	}
-	if strings.TrimSpace(creditorID) == "" {
-		return "", nil, ErrCollectionCreditorIDRequired
-	}
-	if collectionDate.IsZero() {
-		return "", nil, ErrCollectionDateRequired
-	}
-	if !ValidSequenceType(sequenceType) {
-		return "", nil, ErrSequenceTypeUnknown
-	}
-	if !validLocalInstrument(localInstrument) {
-		return "", nil, ErrLocalInstrumentUnknown
+	reference, err := validateRunInputs(reference, accountID, creditorID, collectionDate, sequenceType, localInstrument)
+	if err != nil {
+		return "", nil, err
 	}
 	if len(items) == 0 {
 		return "", nil, ErrNoCollectionItems
@@ -123,4 +138,72 @@ func NewCollectionRun(reference string, accountID int64, creditorID string, coll
 		})
 	}
 	return reference, out, nil
+}
+
+// CollectionItemsFromReceivables groups the selected open receivables by their
+// mandate into the items of one run: the pain.008 file allows one collection per
+// mandate, so a mandate's open items are collected as a single amount. The
+// end-to-end id is the mandate reference, which is unique within the run (the
+// run-item table enforces one item per mandate). The returned map records which
+// receivable ids each mandate contributed, so the store marks exactly those
+// collected and no others.
+func CollectionItemsFromReceivables(recs []Receivable) ([]CollectionItem, map[string][]int64) {
+	type group struct {
+		amount   int64
+		purposes []string
+		ids      []int64
+	}
+	byMandate := map[string]*group{}
+	order := make([]string, 0, len(recs))
+	for _, r := range recs {
+		g, ok := byMandate[r.MandateReference]
+		if !ok {
+			g = &group{}
+			byMandate[r.MandateReference] = g
+			order = append(order, r.MandateReference)
+		}
+		g.amount += r.AmountCents
+		g.purposes = append(g.purposes, r.Purpose)
+		g.ids = append(g.ids, r.ID)
+	}
+	sort.Strings(order)
+	items := make([]CollectionItem, 0, len(order))
+	claims := make(map[string][]int64, len(order))
+	for _, ref := range order {
+		g := byMandate[ref]
+		items = append(items, CollectionItem{
+			MandateReference: ref,
+			EndToEndID:       ref,
+			AmountCents:      g.amount,
+			Purpose:          joinPurposes(g.purposes),
+		})
+		claims[ref] = g.ids
+	}
+	return items, claims
+}
+
+// joinPurposes joins the distinct purposes in order, capped at the ISO Max140Text
+// limit the remittance field allows so one long list of claims still renders.
+func joinPurposes(purposes []string) string {
+	seen := make(map[string]bool, len(purposes))
+	kept := make([]string, 0, len(purposes))
+	for _, p := range purposes {
+		p = strings.TrimSpace(p)
+		if p == "" || seen[p] {
+			continue
+		}
+		seen[p] = true
+		kept = append(kept, p)
+	}
+	return truncateRunes(strings.Join(kept, "; "), maxPurposeLen)
+}
+
+// truncateRunes caps s at max runes, so a multi-byte purpose is never cut mid
+// character.
+func truncateRunes(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max])
 }
