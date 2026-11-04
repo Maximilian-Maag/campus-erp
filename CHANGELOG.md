@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.91.0] - 2026-11-04
+
+The KLR gets its Kostenträger view: the second stage of the cost accounting, next to the
+Kostenstellen.
+
+### Added
+- `klr-cost-unit-overview` (*Kostenträgerübersicht*) — every cost unit with its Kosten, Erlöse and
+  Saldo, plus a totals row, in the report catalogue both the API and the worker read from. The
+  Kostenstellen say where a cost arose, the Kostenträger say what it was for. A snapshot like the
+  Kostenstellenübersicht, so it takes no period, and its balance is derived per unit from the
+  figures its row shows, so the totals cannot disagree with the rows above them.
+- `klr.Repo.CostUnitFigures` reads every unit with what is booked on it in one query. A unit with
+  no records is a row of zeroes rather than a missing row: "nothing is booked on it yet" is a fact
+  about the unit, and leaving it out would read as if the unit did not exist. A record that names
+  no cost unit is counted on no unit.
+
 ## [0.90.0] - 2026-11-04
 
 The cost-type catalogue gets its screen.

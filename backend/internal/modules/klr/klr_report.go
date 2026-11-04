@@ -55,6 +55,55 @@ func CostCenterOverview(generatedAt time.Time, lines []CostCenterLine) report.Re
 	return report.Report{Definition: CostCenterOverviewDefinition, Rows: rows, GeneratedAt: generatedAt}
 }
 
+// CostUnitOverviewDefinition is the KLR's per-cost-unit view (Kostenträgerübersicht, docs/25):
+// every cost unit with what is booked on it. The second stage of the KLR — the Kostenstellen
+// say where a cost arose, the Kostenträger say what it was for — and like the
+// Kostenstellenübersicht it is a snapshot of the books, so it takes no period.
+var CostUnitOverviewDefinition = report.Definition{
+	ID:    "klr-cost-unit-overview",
+	Title: "Kostenträgerübersicht",
+	Columns: []report.Column{
+		{Key: "number", Title: "Kostenträger", Align: report.Left},
+		{Key: "name", Title: "Bezeichnung", Align: report.Left},
+		{Key: "costs", Title: "Kosten", Align: report.Right},
+		{Key: "revenues", Title: "Erlöse", Align: report.Right},
+		{Key: "balance", Title: "Saldo", Align: report.Right},
+	},
+}
+
+// CostUnitLine is one cost unit with what the books carry on it.
+type CostUnitLine struct {
+	CostUnit      CostUnit
+	CostsCents    int64
+	RevenuesCents int64
+}
+
+// CostUnitOverview builds the per-unit overview: one row per cost unit, then a totals row. The
+// balance is derived per unit from the figures its row shows, so the totals cannot disagree with
+// the rows above them.
+func CostUnitOverview(generatedAt time.Time, lines []CostUnitLine) report.Report {
+	rows := make([][]string, 0, len(lines)+1)
+	var costs, revenues int64
+	for _, l := range lines {
+		costs += l.CostsCents
+		revenues += l.RevenuesCents
+		rows = append(rows, []string{
+			l.CostUnit.Number,
+			l.CostUnit.Name,
+			klrCents(l.CostsCents),
+			klrCents(l.RevenuesCents),
+			klrCents(l.RevenuesCents - l.CostsCents),
+		})
+	}
+	rows = append(rows, []string{
+		"", "Summe",
+		klrCents(costs),
+		klrCents(revenues),
+		klrCents(revenues - costs),
+	})
+	return report.Report{Definition: CostUnitOverviewDefinition, Rows: rows, GeneratedAt: generatedAt}
+}
+
 // klrCents renders minor units as a decimal string ("125000" -> "1250.00"). Formatting belongs
 // to the domain that knows the meaning (docs/25), so each domain carries its own.
 func klrCents(cents int64) string {

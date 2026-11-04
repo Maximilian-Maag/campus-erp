@@ -43,11 +43,17 @@ type Centres interface {
 	Report(ctx context.Context, costCenterID int64) (klr.Report, error)
 }
 
+// CostUnits lists cost units with what is booked on them (klr.Service satisfies it).
+type CostUnits interface {
+	CostUnitFigures(ctx context.Context) ([]klr.CostUnitLine, error)
+}
+
 // DataSources is the read-only data the catalogue's reports collect from.
 type DataSources struct {
 	Bookings  Bookings
 	Positions Positions
 	Centres   Centres
+	Units     CostUnits
 }
 
 // Report is one catalogue entry: the definition a client asks for, and the collector that fills
@@ -74,6 +80,10 @@ func NewCatalogue(src DataSources) *Catalogue {
 		{
 			Definition: klr.CostCenterOverviewDefinition,
 			Collect:    collectCostCenterOverview(src.Centres),
+		},
+		{
+			Definition: klr.CostUnitOverviewDefinition,
+			Collect:    collectCostUnitOverview(src.Units),
 		},
 	}}
 }
@@ -164,6 +174,22 @@ func collectCostCenterOverview(centres Centres) func(context.Context, time.Time,
 			lines = append(lines, klr.CostCenterLine{CostCenter: c, Report: rep})
 		}
 		return klr.CostCenterOverview(generatedAt(), lines), nil
+	}
+}
+
+// collectCostUnitOverview builds the per-cost-unit overview (Kostenträgerübersicht). The figures
+// come from one query rather than one per unit: a unit the books have never seen still belongs in
+// the report, and the source decides that, not this loop.
+func collectCostUnitOverview(units CostUnits) func(context.Context, time.Time, time.Time) (report.Report, error) {
+	return func(ctx context.Context, _ time.Time, _ time.Time) (report.Report, error) {
+		if units == nil {
+			return report.Report{}, ErrNoSource
+		}
+		lines, err := units.CostUnitFigures(ctx)
+		if err != nil {
+			return report.Report{}, err
+		}
+		return klr.CostUnitOverview(generatedAt(), lines), nil
 	}
 }
 

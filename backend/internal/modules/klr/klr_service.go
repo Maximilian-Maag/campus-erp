@@ -110,6 +110,11 @@ func (s *Service) Report(ctx context.Context, costCenterID int64) (Report, error
 	return s.repo.Report(ctx, costCenterID)
 }
 
+// CostUnitFigures lists every cost unit with what the books carry on it (the Kostenträger view).
+func (s *Service) CostUnitFigures(ctx context.Context) ([]CostUnitLine, error) {
+	return s.repo.CostUnitFigures(ctx)
+}
+
 // GetCostCenter loads a cost centre.
 func (s *Service) GetCostCenter(ctx context.Context, id int64) (CostCenter, error) {
 	return s.repo.GetCostCenter(ctx, id)

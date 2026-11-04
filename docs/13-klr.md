@@ -142,7 +142,8 @@ receivers.
 ## Not yet done
 
 - The clearing tables (`cost_center_clearing`, `cost_unit_clearing`).
-- Distributing onto cost units (Kostenträgerrechnung); the engine refuses a
-  period it cannot reach rather than approximating one.
+- Distributing onto cost units (Kostenträgerrechnung): a unit is shown with what the books already
+  carry on it (`klr-cost-unit-overview`, docs/25), but the engine does not yet charge a centre's
+  costs to a unit by keys, and it refuses a period it cannot reach rather than approximating one.
 - Internal pricing (`overhead_calc*` rates): the engine distributes actual costs
   by keys, it does not yet price an internal service and charge it out.
