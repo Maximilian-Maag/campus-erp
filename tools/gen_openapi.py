@@ -21,7 +21,10 @@ import re
 import sys
 from pathlib import Path
 
-import yaml
+try:
+    import yaml  # only to render/check the spec; --selftest runs without it
+except ModuleNotFoundError:  # pragma: no cover - exercised by the stdlib-only step
+    yaml = None
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "backend" / "internal"
@@ -298,7 +301,7 @@ PKG_DIRS = {
 TYPE_RE = re.compile(r"^type\s+([A-Za-z_][A-Za-z0-9_]*)\s+struct\s*\{\s*$")
 NAMED_RE = re.compile(r"^type\s+([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z0-9_\[\]]+)\s*$")
 FIELD_RE = re.compile(
-    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s+([\[\]\*A-Za-z0-9_.]+)\s*(?:`([^`]*)`)?\s*$"
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s+([\[\]\*A-Za-z0-9_.]+)\s*(?:`([^`]*)`)?\s*(?://.*)?$"
 )
 TAG_JSON_RE = re.compile(r'json:"([^"]*)"')
 
@@ -721,6 +724,7 @@ def _problem(desc: str) -> dict:
 
 
 def render() -> str:
+    assert yaml is not None, "render() needs pyyaml"
     res = Resolver()
     doc = build_document(res)
     _localize_refs(doc, res)
@@ -733,11 +737,68 @@ def render() -> str:
     return header + text
 
 
+def selftest() -> int:
+    """Guard the Go-struct field parser, which the spec and the client both read.
+
+    The trap this exists for: a field whose line carries a trailing comment
+    (a date field annotated with "// YYYY-MM-DD") was silently dropped from both
+    the spec and the generated client, so a screen could not set a collection
+    date or a mandate's signature date. The parser must read such a field, and
+    only such a line as a field.
+    """
+    failures = 0
+
+    def check(cond: bool, msg: str) -> None:
+        nonlocal failures
+        if cond:
+            print(f"  ok    {msg}")
+        else:
+            print(f"  FAIL  {msg}")
+            failures += 1
+
+    tagged = FIELD_RE.match('\tDueDate          string `json:"due_date"` // YYYY-MM-DD')
+    tm = TAG_JSON_RE.search(tagged.group(3) or "") if tagged else None
+    check(
+        tagged is not None
+        and tagged.group(1) == "DueDate"
+        and tagged.group(2) == "string"
+        and tm is not None
+        and tm.group(1) == "due_date",
+        "a field with a json tag and a trailing comment is read",
+    )
+    commented = FIELD_RE.match("\tActive bool // still collectable")
+    check(
+        commented is not None and commented.group(1) == "Active" and commented.group(2) == "bool",
+        "a field with a trailing comment and no tag is read",
+    )
+    plain = FIELD_RE.match("\tLines []kasse.StatementLine")
+    check(plain is not None and plain.group(2) == "[]kasse.StatementLine", "a plain field is read")
+    check(
+        FIELD_RE.match("\t// a bare comment") is None
+        and FIELD_RE.match("\tActive bool extra") is None
+        and FIELD_RE.match("\tName string `json:\"-\"`") is not None,
+        "a comment line and a malformed field are not fields",
+    )
+
+    if failures:
+        print(f"\n{failures} check(s) failed")
+        return 1
+    print("\nall OpenAPI generator checks passed")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--stdout", action="store_true")
     ap.add_argument("--check", action="store_true", help="fail if the committed spec differs")
+    ap.add_argument("--selftest", action="store_true", help="self-test the Go-struct field parser")
     args = ap.parse_args()
+
+    if args.selftest:
+        return selftest()
+    if yaml is None:
+        print("error: pyyaml is required to render or check the spec (pip install pyyaml)", file=sys.stderr)
+        return 2
 
     text = render()
     if args.stdout:

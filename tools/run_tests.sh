@@ -94,6 +94,18 @@ if want fast && [[ -f $ROOT/tools/test_erm.py ]]; then
   fi
 fi
 
+# ── Tooling: OpenAPI generator self-test ────────────────────────────────────
+if want fast && [[ -f $ROOT/tools/gen_openapi.py ]]; then
+  say "== Tooling: OpenAPI generator self-test =="
+  if have python3; then
+    python3 "$ROOT/tools/gen_openapi.py" --selftest
+    rc=$?
+    if (( rc == 0 )); then ran=$((ran + 1)); else fail=1; say "FAIL  OpenAPI generator self-test"; fi
+  else
+    skip_or_fail python3 "install python3"
+  fi
+fi
+
 # ── Tooling: API contract (drift guard + generated client) ──────────────────
 if want fast && [[ -f $ROOT/tools/api_contract.py ]]; then
   say "== Tooling: API contract (drift guard) =="
