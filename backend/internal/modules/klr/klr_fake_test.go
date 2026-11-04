@@ -22,6 +22,7 @@ type fakeRepo struct {
 	links       []CostTypeAccount
 	unitLines   []CostUnitLine
 	unit        CostUnit
+	units       []CostUnit
 	unitKeys    []CostUnitKey
 	costs       int64
 	err         error
@@ -74,6 +75,7 @@ func (f *fakeRepo) CostUnitFigures(context.Context) ([]CostUnitLine, error) {
 	return f.unitLines, f.err
 }
 func (f *fakeRepo) GetCostUnit(context.Context, int64) (CostUnit, error) { return f.unit, f.err }
+func (f *fakeRepo) CostUnits(context.Context) ([]CostUnit, error)        { return f.units, f.err }
 func (f *fakeRepo) CreateCostUnitKey(_ context.Context, k CostUnitKey) (CostUnitKey, error) {
 	if f.err != nil {
 		return CostUnitKey{}, f.err

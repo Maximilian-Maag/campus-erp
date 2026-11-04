@@ -330,6 +330,10 @@ func (s stubKLR) CostUnitKeys(context.Context, int64) ([]klr.CostUnitKey, error)
 	return nil, s.err
 }
 
+func (s stubKLR) CostUnits(context.Context) ([]klr.CostUnit, error) {
+	return nil, s.err
+}
+
 func (s stubKLR) AllocateToCostUnits(context.Context, int64, time.Time, time.Time, string) (klr.Run, error) {
 	return klr.Run{}, s.err
 }

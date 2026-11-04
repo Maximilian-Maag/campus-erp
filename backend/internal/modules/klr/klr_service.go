@@ -115,6 +115,11 @@ func (s *Service) CostUnitFigures(ctx context.Context) ([]CostUnitLine, error) {
 	return s.repo.CostUnitFigures(ctx)
 }
 
+// CostUnits lists every cost unit, which is what a screen needs before it can pick one.
+func (s *Service) CostUnits(ctx context.Context) ([]CostUnit, error) {
+	return s.repo.CostUnits(ctx)
+}
+
 // GetCostCenter loads a cost centre.
 func (s *Service) GetCostCenter(ctx context.Context, id int64) (CostCenter, error) {
 	return s.repo.GetCostCenter(ctx, id)

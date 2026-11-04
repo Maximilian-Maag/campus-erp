@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.93.0] - 2026-11-04
+
+The Kostenträgerrechnung gets its screen, and the cost units get the list route a screen needs.
+
+### Added
+- `GET /api/klr/cost-units` — the cost units, by number. The KLR had a `POST` for them and no way
+  to read them, so no screen could offer one to pick.
+- `frontend`: *KLR: Kostenträgerrechnung* (`/klr/kostentraeger`) — picks a cost centre, shows its
+  keys, defines one (the share is typed as a percentage and stored as basis points) and runs a
+  period. What the shares must add up to stays with the API, as on the Umlage screen.
+
+### Fixed
+- The new screen shows dates through the shared `formatDay` ("01.04.2026"), not the ISO string the
+  API sent. `formatDay` existed for exactly this and was unused.
+- A reload now refreshes the keys of the centre that is already chosen. The first draft only
+  loaded them while *picking* a centre, so a reload left the table showing the previous keys.
+
 ## [0.92.0] - 2026-11-04
 
 The KLR's Kostenträgerrechnung: a cost centre's costs are attributed to its cost units, the other

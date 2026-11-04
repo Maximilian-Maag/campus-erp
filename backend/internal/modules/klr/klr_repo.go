@@ -31,6 +31,7 @@ type Repository interface {
 	Allocations(ctx context.Context, sourceCenterID int64) ([]Allocation, error)
 	CostUnitFigures(ctx context.Context) ([]CostUnitLine, error)
 	GetCostUnit(ctx context.Context, id int64) (CostUnit, error)
+	CostUnits(ctx context.Context) ([]CostUnit, error)
 	CreateCostUnitKey(ctx context.Context, k CostUnitKey) (CostUnitKey, error)
 	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]CostUnitKey, error)
 	RecordCostUnitRun(ctx context.Context, run Run, records []Record) (Run, error)

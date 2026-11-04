@@ -39,6 +39,28 @@ func TestHTTPKostentraegerRun(t *testing.T) {
 		t.Fatalf("key = %+v", key)
 	}
 
+	// The list a screen reads before it can pick a unit at all.
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-units", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list units = %d", resp.StatusCode)
+	}
+	var units []struct {
+		ID     int64
+		Number string
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&units); err != nil {
+		t.Fatalf("decode units: %v", err)
+	}
+	found := false
+	for _, u := range units {
+		if u.ID == unitID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("the new cost unit is missing from the list of %d", len(units))
+	}
+
 	// The list a screen reads before it can run anything.
 	resp = doJSON(t, http.MethodGet, keysURL, "alice", "")
 	if resp.StatusCode != http.StatusOK {
