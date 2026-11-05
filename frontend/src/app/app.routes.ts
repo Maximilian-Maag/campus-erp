@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { BudgetPositionsComponent } from './budget/positions.component';
 import { CashbookDayComponent } from './kasse/cashbook-day.component';
+import { CashAccountsComponent } from './kasse/cash-accounts.component';
 import { PaymentRunsComponent } from './kasse/payment-runs.component';
 import { EInvoicesComponent } from './einvoice/invoices.component';
 import { KlrAllocationComponent } from './klr/allocation.component';
@@ -15,6 +16,7 @@ import { ReceivablesComponent } from './kasse/receivables.component';
 
 export const routes: Routes = [
   { path: 'kasse/tag', component: CashbookDayComponent },
+  { path: 'kasse/konten', component: CashAccountsComponent },
   { path: 'budget/haushaltsstellen', component: BudgetPositionsComponent },
   { path: 'procurement/bestellungen', component: PurchaseOrdersComponent },
   { path: 'einvoice/rechnungen', component: EInvoicesComponent },

@@ -2,6 +2,16 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.98.0] - 2026-11-05
+
+The university's own accounts get a screen — the master data every other Kasse screen needs.
+
+### Added
+- `frontend`: *Kasse: Eigene Konten* (`/kasse/konten`) — lists the university's own bank accounts
+  and enters one (name, IBAN, BIC, currency). Every other Kasse screen offers one of these before
+  it can ask about one, so without this a fresh install dead-ended on "es ist kein eigenes Konto
+  angelegt". The IBAN and BIC are validated by the API (ISO 7064 mod-97, ISO 9362).
+
 ## [0.97.0] - 2026-11-05
 
 The payment run gets its screen — the credit-transfer counterpart of the collection run.

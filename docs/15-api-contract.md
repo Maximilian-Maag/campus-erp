@@ -162,6 +162,13 @@ each paid at most once — stays the API's decision: the screen offers what the 
 approved and reports a refusal (an unapproved order, an already-paid one, a duplicate reference)
 as it comes back rather than re-deriving the rule.
 
+`frontend/src/app/kasse/cash-accounts.component.ts` — *Kasse: Eigene Konten* (route
+`/kasse/konten`) — lists the university's own bank accounts and enters one. It is the master data
+every other Kasse screen offers before it can ask about one, and until it existed a fresh install
+dead-ended on "es ist kein eigenes Konto angelegt" with no way out. The IBAN and BIC are the API's
+to validate (ISO 7064 mod-97 and ISO 9362, shared with the rest of Kasse); the currency defaults
+to EUR.
+
 Every screen has a link in the shell's navigation (`app.html`), and `e2e/app.e2e.spec.ts` fails
 if the route table and those links disagree: a screen nobody can navigate to is not finished.
 
@@ -192,11 +199,11 @@ gate (`npx stryker run`, break 85) covers them too.
 
 ## Not yet done
 
-- Thirteen screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
-  `/kasse/zahlungslaeufe`, `/kasse/kontoauszuege`, `/kasse/offene-posten`, `/kasse/einzuege`),
-  Budget, Beschaffung, E-Rechnung and KLR (`/klr/umlage`, `/klr/kostenarten`, `/klr/kostentraeger`,
-  `/klr/verrechnungspreise`). The rest get theirs as their phases land, each one starting from the read
-  routes it needs — and the kasse/payments domain is where that bites: it had 32 operations and
-  one list route, so nearly every screen there needs its `GET` built first.
+- Fourteen screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
+  `/kasse/anordnungen`, `/kasse/zahlungslaeufe`, `/kasse/kontoauszuege`, `/kasse/offene-posten`,
+  `/kasse/einzuege`), Budget, Beschaffung, E-Rechnung and KLR (`/klr/umlage`, `/klr/kostenarten`,
+  `/klr/kostentraeger`, `/klr/verrechnungspreise`). The rest get theirs as their phases land, each
+  one starting from the read routes it needs — and the kasse/payments domain is where that bites:
+  it had 32 operations and one list route, so nearly every screen there needs its `GET` built first.
 - **No paging yet.** Every list route returns everything; a list big enough to need paging
   needs a page parameter on the route and on the screens that read it.
