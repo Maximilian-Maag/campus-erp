@@ -5417,6 +5417,9 @@ components:
     BudgetPositionRequest:
       type: object
       properties:
+        id:
+          type: integer
+          format: int64
         year:
           type: integer
           format: int64

@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.101.0] - 2026-11-05
+
+An order can draw on a budget position that already exists, instead of only describing one.
+
+### Added
+- The order body's `budget_position` takes an `id` (`docs/10`, `docs/15`), naming a position
+  created through the budget module rather than describing a new one inline. The position is used
+  as it stands — its Ansatz is not rewritten — and approving the order binds its amount on it like
+  any other position.
+- The two forms are alternatives: naming an id **and** describing a position is refused
+  (`422`, `budget_position_ambiguous`) rather than half-honoured, and an id nothing carries is a
+  `404` rather than a new position being created. An id on its own leaves every descriptive field
+  at its zero value, which is what tells the forms apart.
+
 ## [0.100.0] - 2026-11-05
 
 The Mahnwesen gets its screen, the percent/basis-points pair moves where the other converters

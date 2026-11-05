@@ -71,12 +71,56 @@ type recipientRequest struct {
 }
 
 type budgetPositionRequest struct {
+	// ID names an existing position — one created through the budget module — instead of
+	// describing a new one. It is the one field that is not part of a description.
+	ID             int64  `json:"id,omitempty"`
 	Year           int    `json:"year"`
 	Chapter        string `json:"chapter"`
 	Title          string `json:"title"`
 	CostCentre     string `json:"cost_centre"`
 	CostCarrier    string `json:"cost_carrier"`
 	AllocatedCents int64  `json:"allocated_cents"`
+}
+
+// describesAPosition reports whether the request carries the fields of a new position.
+// An allocation of zero on its own is not a description: a caller that only names an id
+// leaves every other field at its zero value.
+func (b budgetPositionRequest) describesAPosition() bool {
+	return b.Year != 0 || b.Chapter != "" || b.Title != "" || b.CostCentre != "" ||
+		b.CostCarrier != "" || b.AllocatedCents != 0
+}
+
+// errBudgetPositionAmbiguous is returned when an order both names an existing budget
+// position and describes a new one. The two are alternatives, and silently honouring one
+// would ignore what the caller wrote — so it is refused instead.
+var errBudgetPositionAmbiguous = errors.New("name an existing budget position or describe a new one, not both")
+
+// budgetPositionForOrder resolves the position an order draws on: an existing one by id,
+// or a new one described inline. Naming an existing position does not rewrite its Ansatz
+// (docs/10), so the caller names one or describes one — never both.
+func (s *Server) budgetPositionForOrder(ctx context.Context, req budgetPositionRequest) (int64, error) {
+	if req.ID > 0 {
+		if req.describesAPosition() {
+			return 0, errBudgetPositionAmbiguous
+		}
+		existing, err := s.budget.GetPosition(ctx, req.ID)
+		if err != nil {
+			return 0, err
+		}
+		return existing.ID, nil
+	}
+	created, err := s.orders.CreateBudgetPosition(ctx, kasse.BudgetPosition{
+		Year:           req.Year,
+		Chapter:        req.Chapter,
+		Title:          req.Title,
+		CostCentre:     req.CostCentre,
+		CostCarrier:    req.CostCarrier,
+		AllocatedCents: req.AllocatedCents,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return created.ID, nil
 }
 
 type createOrderRequest struct {
@@ -114,21 +158,20 @@ func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	position, err := s.orders.CreateBudgetPosition(r.Context(), kasse.BudgetPosition{
-		Year:           req.BudgetPosition.Year,
-		Chapter:        req.BudgetPosition.Chapter,
-		Title:          req.BudgetPosition.Title,
-		CostCentre:     req.BudgetPosition.CostCentre,
-		CostCarrier:    req.BudgetPosition.CostCarrier,
-		AllocatedCents: req.BudgetPosition.AllocatedCents,
-	})
+	positionID, err := s.budgetPositionForOrder(r.Context(), req.BudgetPosition)
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, err.Error())
+		if errors.Is(err, errBudgetPositionAmbiguous) {
+			writeProblemCode(w, http.StatusUnprocessableEntity, "budget_position_ambiguous", err.Error())
+			return
+		}
+		// A position that is not there is the budget module's to report, and it is a client
+		// error, not a server one.
+		writeProblem(w, statusForBudget(err), err.Error())
 		return
 	}
 
 	order, err := kasse.NewPaymentOrder(req.Reference, req.BusinessYear, req.AmountCents, req.Currency,
-		recipient.ID, position.ID, req.Purpose, due, actor(r))
+		recipient.ID, positionID, req.Purpose, due, actor(r))
 	if err != nil {
 		writeProblem(w, statusForOrder(err), err.Error())
 		return

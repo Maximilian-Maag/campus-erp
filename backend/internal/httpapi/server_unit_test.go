@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -239,7 +240,10 @@ func (s stubEInvoices) Invoices(context.Context) ([]einvoice.InvoiceSummary, err
 }
 
 // stubBudget satisfies the budget interface with a fixed result.
-type stubBudget struct{ err error }
+type stubBudget struct {
+	position budget.Position
+	err      error
+}
 
 func (s stubBudget) CreatePosition(context.Context, int, string, string, string, int64, string) (budget.Position, error) {
 	return budget.Position{}, s.err
@@ -250,7 +254,7 @@ func (s stubBudget) Post(context.Context, int64, budget.PostingKind, int64, stri
 }
 
 func (s stubBudget) GetPosition(context.Context, int64) (budget.Position, error) {
-	return budget.Position{}, s.err
+	return s.position, s.err
 }
 
 func (s stubBudget) Positions(context.Context) ([]budget.Position, error) {
@@ -451,6 +455,66 @@ func TestListDunningLevelsYearQuery(t *testing.T) {
 				if !strings.Contains(rec.Body.String(), `"Code":"1"`) {
 					t.Fatalf("body = %s, want the level", rec.Body.String())
 				}
+			}
+		})
+	}
+}
+
+// orderBodyWithPosition is a complete order body whose `budget_position` is the caller's.
+func orderBodyWithPosition(budgetPosition string) string {
+	return `{"reference":"AO-1","business_year":2026,"amount_cents":100,"currency":"EUR",` +
+		`"purpose":"x","due_date":"2026-04-01",` +
+		`"recipient":{"name":"n","account_holder":"h","iban":"DE02120300000000202051",` +
+		`"bic":"BYLADEM1001","bank_name":"b"},` +
+		`"budget_position":` + budgetPosition + `}`
+}
+
+// TestCreateOrderBudgetPositionWithoutDatabase covers how an order's budget position is
+// resolved without a database: an id names an existing one (through the budget module), a
+// description creates one inline, and a body that does both is refused.
+func TestCreateOrderBudgetPositionWithoutDatabase(t *testing.T) {
+	withBudget := func(p budget.Position, err error) httpapi.Deps {
+		return httpapi.Deps{Orders: stubOrders{}, Budget: stubBudget{position: p, err: err}}
+	}
+	named := withBudget(budget.Position{ID: 7}, nil)
+
+	cases := []struct {
+		name     string
+		position string
+		deps     httpapi.Deps
+		want     int
+		wantCode string
+	}{
+		{"names an existing position", `{"id":7}`, named, http.StatusCreated, ""},
+		{"describes a new position", `{"year":2026,"chapter":"0710","title":"6810","cost_centre":"KST","cost_carrier":"KT","allocated_cents":500000}`, withBudget(budget.Position{}, nil), http.StatusCreated, ""},
+		// Each field of a description counts on its own: naming an id and setting any one of
+		// them is the ambiguous body, not a description to be merged into the named position.
+		{"both: year", `{"id":7,"year":2026}`, named, http.StatusUnprocessableEntity, "budget_position_ambiguous"},
+		{"both: chapter", `{"id":7,"chapter":"0710"}`, named, http.StatusUnprocessableEntity, "budget_position_ambiguous"},
+		{"both: title", `{"id":7,"title":"6810"}`, named, http.StatusUnprocessableEntity, "budget_position_ambiguous"},
+		{"both: cost centre", `{"id":7,"cost_centre":"KST"}`, named, http.StatusUnprocessableEntity, "budget_position_ambiguous"},
+		{"both: cost carrier", `{"id":7,"cost_carrier":"KT"}`, named, http.StatusUnprocessableEntity, "budget_position_ambiguous"},
+		{"both: allocation", `{"id":7,"allocated_cents":1}`, named, http.StatusUnprocessableEntity, "budget_position_ambiguous"},
+		{"an id nothing carries", `{"id":7}`, withBudget(budget.Position{}, budget.ErrPositionNotFound), http.StatusNotFound, ""},
+		{"the budget module fails", `{"id":7}`, withBudget(budget.Position{}, errors.New("boom")), http.StatusInternalServerError, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			httpapi.New(c.deps).Handler().ServeHTTP(rec,
+				httptest.NewRequest(http.MethodPost, "/api/payment-orders", strings.NewReader(orderBodyWithPosition(c.position))))
+			if rec.Code != c.want {
+				t.Fatalf("status = %d, want %d (%s)", rec.Code, c.want, rec.Body.String())
+			}
+			if c.wantCode == "" {
+				return
+			}
+			var problem struct{ Code string }
+			if err := json.NewDecoder(rec.Body).Decode(&problem); err != nil {
+				t.Fatalf("decode problem: %v", err)
+			}
+			if problem.Code != c.wantCode {
+				t.Fatalf("code = %q, want %q", problem.Code, c.wantCode)
 			}
 		})
 	}
