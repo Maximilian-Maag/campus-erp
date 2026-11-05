@@ -144,10 +144,13 @@ is the API's decision at collection time, not the screen's.
 
 `frontend/src/app/kasse/collection-runs.component.ts` — *Kasse: Einzüge* (route `/kasse/einzuege`)
 — offers one of the university's own accounts, states a direct-debit run (reference, Gläubiger-ID,
-Einzugsdatum, Fälligkeit bis, Sequenztyp, Local Instrument) and creates it from the open
-receivables, then shows the pain.008 the run produced. What the run can gather stays the API's
-decision: the screen reports a refusal (nothing due, a foreign currency, a due-by after the
-collection date) as it comes back rather than re-deriving the rule.
+Einzugsdatum, Sequenztyp, Local Instrument) and creates it one of two ways: from the open
+receivables due by a date, or from mandates and amounts named by hand. Either way it shows the
+pain.008 the run produced. What the run can gather stays the API's decision: the screen reports a
+refusal (nothing due, a foreign currency, a due-by after the collection date) as it comes back
+rather than re-deriving the rule. The hand-picked flow loads only the mandates the run's sequence
+type can collect under (`?active=true&sequence_type=`, docs/21), so it does not offer a choice the
+API would refuse; changing the sequence type reloads them and drops an item no longer collectable.
 
 Every screen has a link in the shell's navigation (`app.html`), and `e2e/app.e2e.spec.ts` fails
 if the route table and those links disagree: a screen nobody can navigate to is not finished.

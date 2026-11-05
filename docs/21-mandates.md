@@ -25,7 +25,12 @@ convention; there are no hard deletes (ADR-0006).
 | method | path |
 |---|---|
 | `POST` | `/api/direct-debit/mandates` — register a mandate |
+| `GET` | `/api/direct-debit/mandates` — list them, `?active=true` and `?sequence_type=` to narrow |
 | `GET` | `/api/direct-debit/mandates/{reference}` — read one |
+
+The list's filters are the server's: a screen that offers the mandates a run can
+actually gather asks for the active ones collecting under the run's sequence type,
+rather than holding every mandate to show a few.
 
 Direct debit is a receivables process, so the routes sit behind the `erp-kasse`
 role like dunning (`docs/17`). The write is audited (`mandate.create`).
@@ -47,4 +52,5 @@ Kasse), `ErrDebtorBICInvalid` (ISO 9362, shared with `core/sepa`), and
   receivables (`docs/22`). What is still open there is EBICS transport.
 - No ETL dataset: the legacy mandate table (`kbs.mandat`) is empty in the Muster
   (`docs/legacy/kbs-payment-orders.md`), so the mapping cannot be validated.
-- No UI; the generated Angular client already exposes the two operations.
+- The list route feeds the collection-run screen (`docs/22`), which offers the mandates a run's
+  sequence type can collect under. Registering a mandate is still an API call, not a screen.

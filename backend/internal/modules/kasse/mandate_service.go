@@ -42,3 +42,10 @@ func (s *MandateService) CreateMandate(ctx context.Context, m Mandate, by string
 func (s *MandateService) Mandate(ctx context.Context, reference string) (Mandate, error) {
 	return s.repo.GetMandate(ctx, reference)
 }
+
+// Mandates lists the mandates, optionally only the active ones and optionally only
+// those collecting under one sequence type — what a screen needs to offer the
+// mandates a run can actually gather.
+func (s *MandateService) Mandates(ctx context.Context, activeOnly bool, seq MandateSequence) ([]Mandate, error) {
+	return s.repo.Mandates(ctx, activeOnly, seq)
+}

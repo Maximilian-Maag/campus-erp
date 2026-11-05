@@ -13,6 +13,7 @@ import (
 type MandateRepository interface {
 	CreateMandate(ctx context.Context, m Mandate, by string) (Mandate, error)
 	GetMandate(ctx context.Context, reference string) (Mandate, error)
+	Mandates(ctx context.Context, activeOnly bool, seq MandateSequence) ([]Mandate, error)
 }
 
 // MandateRepo is the PostgreSQL implementation.
@@ -57,6 +58,33 @@ func (r *MandateRepo) GetMandate(ctx context.Context, reference string) (Mandate
 	}
 	if err != nil {
 		return Mandate{}, fmt.Errorf("kasse: get mandate: %w", err)
+	}
+	return out, nil
+}
+
+// Mandates lists the mandates by reference. The filter is the store's, so a caller
+// that wants the live ones collecting under one sequence type never holds every
+// mandate to show a few: a false activeOnly ignores it, a blank seq ignores it.
+func (r *MandateRepo) Mandates(ctx context.Context, activeOnly bool, seq MandateSequence) ([]Mandate, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+mandateColumns+` FROM direct_debit_mandate
+		  WHERE ($1 = false OR active = $1)
+		    AND ($2 = '' OR sequence_type = $2)
+		  ORDER BY mandate_reference`, activeOnly, string(seq))
+	if err != nil {
+		return nil, fmt.Errorf("kasse: list mandates: %w", err)
+	}
+	defer rows.Close()
+	out := []Mandate{}
+	for rows.Next() {
+		m, err := scanMandate(rows)
+		if err != nil {
+			return nil, fmt.Errorf("kasse: scan mandate: %w", err)
+		}
+		out = append(out, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("kasse: list mandates: %w", err)
 	}
 	return out, nil
 }

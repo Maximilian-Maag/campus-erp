@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
@@ -14,6 +15,7 @@ import (
 type mandateService interface {
 	CreateMandate(ctx context.Context, m kasse.Mandate, by string) (kasse.Mandate, error)
 	Mandate(ctx context.Context, reference string) (kasse.Mandate, error)
+	Mandates(ctx context.Context, activeOnly bool, seq kasse.MandateSequence) ([]kasse.Mandate, error)
 }
 
 // statusForMandate maps a mandate error to an HTTP status.
@@ -78,4 +80,32 @@ func (s *Server) getMandate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, m)
+}
+
+// listMandates reads the mandates, by reference. The filters are the server's:
+// ?active=true narrows to the live ones and ?sequence_type= to those collecting
+// under one sequence type, so a screen that offers the mandates a run can gather
+// never holds every mandate to show a few.
+func (s *Server) listMandates(w http.ResponseWriter, r *http.Request) {
+	activeOnly := false
+	switch r.URL.Query().Get("active") {
+	case "":
+	case "true":
+		activeOnly = true
+	case "false":
+	default:
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_active", "active must be true or false")
+		return
+	}
+	seq := kasse.MandateSequence(strings.TrimSpace(r.URL.Query().Get("sequence_type")))
+	if seq != "" && !kasse.ValidSequenceType(seq) {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_sequence_type", "sequence_type must be FRST, RCUR, OOFF or FNAL")
+		return
+	}
+	mandates, err := s.mandates.Mandates(r.Context(), activeOnly, seq)
+	if err != nil {
+		writeProblem(w, statusForMandate(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, mandates)
 }

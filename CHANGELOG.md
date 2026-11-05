@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.96.0] - 2026-11-05
+
+The Einzüge screen can gather hand-picked items, not only the open receivables — and the mandate
+list it picks from is built first.
+
+### Added
+- `GET /api/direct-debit/mandates` — lists the mandates, `?active=true` and `?sequence_type=` to
+  narrow. The filters are the server's, so a screen that offers the mandates a run can collect
+  under never holds every mandate to show a few.
+- `frontend`: *Kasse: Einzüge* (`/kasse/einzuege`) now offers a second item source, "Aus gewählten
+  Mandaten": pick a mandate and an amount (typed in euros, stored in cents) and build the run's
+  items by hand, then create the run. It loads only the active mandates the run's sequence type
+  can collect under, so a choice the API would refuse is not offered; changing the sequence type
+  reloads them and drops a chosen item whose mandate is no longer collectable.
+
+The explicit-items half of the collection run (`docs/22`) had no screen; it does now.
+
 ## [0.95.0] - 2026-11-04
 
 The KLR thread closes: internal pricing gets its screen, and the money parser moves where both

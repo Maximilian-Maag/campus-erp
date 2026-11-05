@@ -80,3 +80,48 @@ test('Einzüge states that no own account exists and passes axe', async ({ page 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
+
+const mandates = [
+  { ID: 1, Reference: 'MAN-1', DebtorName: 'Max Mustermann', DebtorIBAN: 'DE89370400440532013000', DebtorBIC: '', SignatureDate: '2025-03-14T00:00:00Z', SequenceType: 'RCUR', Active: true },
+  { ID: 2, Reference: 'MAN-2', DebtorName: 'Erika Musterfrau', DebtorIBAN: 'DE89370400440532013000', DebtorBIC: '', SignatureDate: '2025-03-14T00:00:00Z', SequenceType: 'RCUR', Active: true },
+];
+
+test('Einzüge builds a run from hand-picked mandates and passes axe', async ({ page }) => {
+  const bodies: unknown[] = [];
+  await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: accounts }));
+  await page.route(/\/api\/direct-debit\/mandates\?active=true/, (route) => route.fulfill({ json: mandates }));
+  await page.route('**/api/direct-debit/runs', (route) => {
+    bodies.push(route.request().postDataJSON());
+    return route.fulfill({ status: 201, json: { ...run, ItemCount: 1, SumCents: 4250 } });
+  });
+
+  await page.goto('/kasse/einzuege');
+  await page.getByLabel('Referenz').fill('RUN-1');
+  await page.getByLabel('Gläubiger-ID').fill('DE98ZZZ09999999999');
+  await page.getByLabel('Einzugsdatum').fill('2026-11-01');
+  // The picker is only offered once the hand-picked source is chosen, and only the mandates the
+  // run's sequence type can collect under are loaded.
+  await page.getByLabel('Aus gewählten Mandaten').check();
+  await page.getByLabel('Mandat', { exact: true }).selectOption('MAN-1');
+  await page.getByLabel('Betrag', { exact: true }).fill('42,50');
+  await page.getByLabel('Verwendungszweck').fill('Semesterbeitrag');
+  await page.getByRole('button', { name: 'Posten hinzufügen' }).click();
+  await expect(page.getByTestId('item-MAN-1')).toContainText('42,50');
+
+  await page.getByRole('button', { name: 'Einzug erstellen' }).click();
+  await expect(page.getByText('Einzug erstellt.').first()).toBeVisible();
+  expect(bodies).toEqual([
+    {
+      reference: 'RUN-1',
+      account_id: 1,
+      creditor_id: 'DE98ZZZ09999999999',
+      collection_date: '2026-11-01',
+      sequence_type: 'RCUR',
+      local_instrument: 'CORE',
+      items: [{ mandate_reference: 'MAN-1', end_to_end_id: 'MAN-1', amount_cents: 4250, purpose: 'Semesterbeitrag' }],
+    },
+  ]);
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});

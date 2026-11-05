@@ -256,6 +256,7 @@ func (s *Server) Routes() http.Handler {
 
 	// SEPA direct-debit mandates (receivables — Kasse, like dunning).
 	mux.HandleFunc("POST /api/direct-debit/mandates", s.authorize(s.createMandate, auth.RoleKasse))
+	mux.HandleFunc("GET /api/direct-debit/mandates", s.authorizeRead(s.listMandates, auth.RoleKasse))
 	mux.HandleFunc("GET /api/direct-debit/mandates/{reference}", s.authorizeRead(s.getMandate, auth.RoleKasse))
 	mux.HandleFunc("POST /api/direct-debit/runs", s.authorize(s.createCollectionRun, auth.RoleKasse))
 	mux.HandleFunc("POST /api/direct-debit/runs/from-receivables", s.authorize(s.createCollectionRunFromReceivables, auth.RoleKasse))

@@ -266,6 +266,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/direct-debit/mandates": {
         "post": ("createMandate", "kasse", "Register a SEPA direct-debit mandate", "httpapi.mandateRequest", "kasse.Mandate", 201, "json"),
+        "get": ("listMandates", "kasse", "List SEPA direct-debit mandates, optionally only the active ones and those collecting under one sequence type", None, "[]kasse.Mandate", 200, "json", [("active", "string", False), ("sequence_type", "string", False)]),
     },
     "/api/direct-debit/mandates/{reference}": {
         "get": ("getMandate", "kasse", "Read a SEPA direct-debit mandate", None, "kasse.Mandate", 200, "json"),
