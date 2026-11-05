@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 )
@@ -15,6 +16,7 @@ import (
 type dunningService interface {
 	CreateLevel(ctx context.Context, l kasse.DunningLevel, by string) (kasse.DunningLevel, error)
 	Level(ctx context.Context, year int, code string) (kasse.DunningLevel, error)
+	Levels(ctx context.Context, year int) ([]kasse.DunningLevel, error)
 	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, by string) (kasse.DunningNotice, error)
 	Notice(ctx context.Context, id int64) (kasse.DunningNotice, error)
 }
@@ -112,6 +114,26 @@ func (s *Server) createDunningLevel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
+}
+
+// listDunningLevels reads the dunning levels with their bands. The year filter is the
+// server's: ?year=2026 narrows to one year, and no year lists every year.
+func (s *Server) listDunningLevels(w http.ResponseWriter, r *http.Request) {
+	year := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("year")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_year", "year must be an integer")
+			return
+		}
+		year = parsed
+	}
+	levels, err := s.dunning.Levels(r.Context(), year)
+	if err != nil {
+		writeProblem(w, statusForDunning(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, levels)
 }
 
 func (s *Server) getDunningLevel(w http.ResponseWriter, r *http.Request) {

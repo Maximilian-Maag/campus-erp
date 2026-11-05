@@ -245,6 +245,7 @@ func (s *Server) Routes() http.Handler {
 	// {account}" would be as specific as "/cost-types/{id}/accounts" and the mux refuses to guess.
 	mux.HandleFunc("GET /api/klr/accounts/{account}/cost-type", s.authorizeRead(s.getCostTypeByAccount, auth.RoleKLR))
 	mux.HandleFunc("POST /api/dunning/levels", s.authorize(s.createDunningLevel, auth.RoleKasse))
+	mux.HandleFunc("GET /api/dunning/levels", s.authorizeRead(s.listDunningLevels, auth.RoleKasse))
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.authorizeRead(s.getDunningLevel, auth.RoleKasse))
 	mux.HandleFunc("GET /api/dunning/notices/{id}/document", s.authorizeRead(s.getDunningNoticeDocument, auth.RoleKasse))
 	mux.HandleFunc("POST /api/dunning/notices", s.authorize(s.issueDunningNotice, auth.RoleKasse))

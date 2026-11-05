@@ -138,6 +138,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/dunning/levels": {
         "post": ("createDunningLevel", "kasse", "Create a dunning level", "httpapi.createLevelRequest", "kasse.DunningLevel", 201, "json"),
+        "get": ("listDunningLevels", "kasse", "List dunning levels with their bands, optionally for one year", None, "[]kasse.DunningLevel", 200, "json", [("year", "string", False)]),
     },
     "/api/dunning/levels/{year}/{code}": {
         "get": ("getDunningLevel", "kasse", "Read a dunning level", None, "kasse.DunningLevel", 200, "json"),

@@ -30,6 +30,7 @@ skeleton.
 | `docs/25-reports.md` | reports: a definition plus rows |
 | `docs/26-storage.md` | the artefact store (directory or S3) |
 | `docs/27-statistics-exports.md` | per-state statistics exports (the layout is data) |
+| `docs/28-dunning.md` | dunning levels and notices (Mahnwesen) |
 | `docs/glossary.md` | German domain terms |
 | `docs/requirements.md` | **target-system requirements** (parity, interfaces, compliance, NFRs) |
 | `docs/adr/` | **architecture decision records** 0001–0012 |

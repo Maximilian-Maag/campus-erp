@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.99.0] - 2026-11-05
+
+The dunning levels can be listed, and the Mahnwesen gets the doc it never had.
+
+### Added
+- `GET /api/dunning/levels` — lists the levels with their bands, by year then code, `?year=` to
+  narrow. The filter is the server's: no year lists every year, and a year nothing was entered for
+  is an empty list, not a 404.
+- `docs/28-dunning.md` — the dunning domain (level, bands, notice, the charge rule and the API),
+  which until now was documented only in the pilot plan, the legacy findings and the document
+  service.
+
 ## [0.98.0] - 2026-11-05
 
 The university's own accounts get a screen — the master data every other Kasse screen needs.

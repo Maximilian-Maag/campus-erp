@@ -64,6 +64,12 @@ func (s *DunningService) Level(ctx context.Context, year int, code string) (Dunn
 	return s.repo.GetLevel(ctx, year, code)
 }
 
+// Levels lists the dunning levels of one year, or of every year when year is zero —
+// what a screen needs to offer the level a notice is issued against.
+func (s *DunningService) Levels(ctx context.Context, year int) ([]DunningLevel, error) {
+	return s.repo.Levels(ctx, year)
+}
+
 // Issue computes the charge for a claim and records a dunning notice.
 func (s *DunningService) Issue(ctx context.Context, year int, levelCode, claimReference string,
 	outstandingCents int64, by string) (DunningNotice, error) {

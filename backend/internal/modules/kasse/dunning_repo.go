@@ -14,6 +14,7 @@ import (
 type DunningRepository interface {
 	CreateLevel(ctx context.Context, l DunningLevel) (DunningLevel, error)
 	GetLevel(ctx context.Context, year int, code string) (DunningLevel, error)
+	Levels(ctx context.Context, year int) ([]DunningLevel, error)
 	InsertNotice(ctx context.Context, n DunningNotice) (DunningNotice, error)
 	SetNoticeDocument(ctx context.Context, id int64, key string) error
 	GetNotice(ctx context.Context, id int64) (DunningNotice, error)
@@ -88,6 +89,55 @@ func (r *DunningRepo) GetLevel(ctx context.Context, year int, code string) (Dunn
 		l.Bands = append(l.Bands, b)
 	}
 	return l, rows.Err()
+}
+
+// Levels lists the dunning levels with their bands, by year then code. A zero year
+// lists every year, so a screen can show one year or the whole catalogue.
+func (r *DunningRepo) Levels(ctx context.Context, year int) ([]DunningLevel, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT l.id, l.year, l.code, l.description, l.days_allowed, l.active, l.next_code,
+		        b.up_to_cents, b.fee_cents, b.rate_basis_points
+		   FROM dunning_level l
+		   LEFT JOIN dunning_band b ON b.level_id = l.id
+		  WHERE ($1 = 0 OR l.year = $1)
+		  ORDER BY l.year, l.code, b.position`, year)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: list dunning levels: %w", err)
+	}
+	defer rows.Close()
+
+	// One row per band (a level with no bands still has its own row, with null band
+	// columns), so the levels are grouped here rather than with a second round trip.
+	levels := []DunningLevel{}
+	index := map[int64]int{}
+	for rows.Next() {
+		var (
+			l                       DunningLevel
+			upTo, fee, rateBasisPts *int64
+		)
+		if err := rows.Scan(&l.ID, &l.Year, &l.Code, &l.Description, &l.DaysAllowed, &l.Active,
+			&l.NextCode, &upTo, &fee, &rateBasisPts); err != nil {
+			return nil, fmt.Errorf("kasse: scan dunning level: %w", err)
+		}
+		i, ok := index[l.ID]
+		if !ok {
+			l.Bands = []DunningBand{}
+			i = len(levels)
+			index[l.ID] = i
+			levels = append(levels, l)
+		}
+		if upTo != nil && fee != nil && rateBasisPts != nil {
+			levels[i].Bands = append(levels[i].Bands, DunningBand{
+				UpToCents:       *upTo,
+				FeeCents:        *fee,
+				RateBasisPoints: *rateBasisPts,
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("kasse: list dunning levels: %w", err)
+	}
+	return levels, nil
 }
 
 // InsertNotice stores an issued notice.
