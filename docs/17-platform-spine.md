@@ -122,7 +122,8 @@ on Postgres (ADR-0007) — no extra broker. The runtime is `internal/platform/jo
 - The `sepa-export` kind (`SepaExportArgs{RunID, Actor}`) delivers a payment run's
   already-rendered pain.001 file to the bank channel. `SepaExportFunc` returns the file
   name and bytes; a name that is empty, nested or escaping is refused, so the outbox
-  cannot be written outside. `POST /api/payment-runs/{id}/exports` queues one.
+  cannot be written outside. `POST /api/payment-runs/{id}/exports` queues one — the
+  *Kasse: Zahlungsläufe* screen (docs/15) drives that route.
 - The `report-render` kind (`ReportRenderArgs{ReportID, From, To, Actor}`) builds a report
   by id over a period and stores its artefact. `ReportRenderFunc` keeps the package free of
   the domains that own the reports; the worker role knows `kasse-daily-close` and renders it

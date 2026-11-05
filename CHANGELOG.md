@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.97.0] - 2026-11-05
+
+The payment run gets its screen — the credit-transfer counterpart of the collection run.
+
+### Added
+- `frontend`: *Kasse: Zahlungsläufe* (`/kasse/zahlungslaeufe`) — offers one of the university's
+  own accounts, an execution date and the approved payment orders to gather (the server's filter,
+  `?status=approved`), sums what is chosen so the operator sees what the run will move, creates
+  the run and shows the pain.001 it produced. The file can be handed to the bank channel, which
+  queues the work and answers with the job. Which orders a run may gather — approved ones, each
+  paid at most once — stays the API's decision: the screen reports a refusal as it comes back.
+
 ## [0.96.0] - 2026-11-05
 
 The Einzüge screen can gather hand-picked items, not only the open receivables — and the mandate

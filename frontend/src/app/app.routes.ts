@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { BudgetPositionsComponent } from './budget/positions.component';
 import { CashbookDayComponent } from './kasse/cashbook-day.component';
+import { PaymentRunsComponent } from './kasse/payment-runs.component';
 import { EInvoicesComponent } from './einvoice/invoices.component';
 import { KlrAllocationComponent } from './klr/allocation.component';
 import { KlrCostTypesComponent } from './klr/cost-types.component';
@@ -22,6 +23,7 @@ export const routes: Routes = [
   { path: 'klr/kostentraeger', component: KlrCostUnitsComponent },
   { path: 'klr/verrechnungspreise', component: KlrServiceRatesComponent },
   { path: 'kasse/anordnungen', component: PaymentOrdersComponent },
+  { path: 'kasse/zahlungslaeufe', component: PaymentRunsComponent },
   { path: 'kasse/kontoauszuege', component: BankStatementsComponent },
   { path: 'kasse/offene-posten', component: ReceivablesComponent },
   { path: 'kasse/einzuege', component: CollectionRunsComponent },
