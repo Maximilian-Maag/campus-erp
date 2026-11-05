@@ -676,6 +676,41 @@ export interface SeedResult {
   seeded: number;
 }
 
+export interface ServiceCharge {
+  ID: number;
+  ProviderCenterID: number;
+  ReceiverCenterID: number;
+  CostTypeID: number;
+  Quantity: number;
+  AmountCents: number;
+  ChargedOn: string;
+  ChargedBy: string;
+}
+
+export interface ServiceChargeRequest {
+  provider_center_id: number;
+  receiver_center_id: number;
+  cost_type_id: number;
+  quantity: number;
+  charged_on: string;
+}
+
+export interface ServiceRate {
+  ID: number;
+  CostTypeID: number;
+  RateCents: number;
+  ValidFrom: string;
+  ValidTo: string | null;
+  CreatedBy: string;
+}
+
+export interface ServiceRateRequest {
+  cost_type_id: number;
+  rate_cents: number;
+  valid_from: string;
+  valid_to: string;
+}
+
 export interface Statement {
   ID: number;
   AccountID: number;

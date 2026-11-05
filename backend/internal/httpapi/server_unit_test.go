@@ -334,6 +334,18 @@ func (s stubKLR) CostUnits(context.Context) ([]klr.CostUnit, error) {
 	return nil, s.err
 }
 
+func (s stubKLR) DefineServiceRate(context.Context, int64, int64, time.Time, *time.Time, string) (klr.ServiceRate, error) {
+	return klr.ServiceRate{}, s.err
+}
+
+func (s stubKLR) ServiceRates(context.Context) ([]klr.ServiceRate, error) {
+	return nil, s.err
+}
+
+func (s stubKLR) ChargeService(context.Context, int64, int64, int64, int64, time.Time, string) (klr.ServiceCharge, error) {
+	return klr.ServiceCharge{}, s.err
+}
+
 func (s stubKLR) AllocateToCostUnits(context.Context, int64, time.Time, time.Time, string) (klr.Run, error) {
 	return klr.Run{}, s.err
 }

@@ -11,21 +11,24 @@ import (
 // the service's own decisions — validation, the audit call, the error it hands back — can be
 // read without a database.
 type fakeRepo struct {
-	center      CostCenter
-	centers     []CostCenter
-	record      Record
-	allocation  Allocation
-	allocations []Allocation
-	costTypes   []CostType
-	costType    CostType
-	link        CostTypeAccount
-	links       []CostTypeAccount
-	unitLines   []CostUnitLine
-	unit        CostUnit
-	units       []CostUnit
-	unitKeys    []CostUnitKey
-	costs       int64
-	err         error
+	center        CostCenter
+	centers       []CostCenter
+	record        Record
+	allocation    Allocation
+	allocations   []Allocation
+	costTypes     []CostType
+	costType      CostType
+	link          CostTypeAccount
+	links         []CostTypeAccount
+	unitLines     []CostUnitLine
+	unit          CostUnit
+	units         []CostUnit
+	unitKeys      []CostUnitKey
+	rate          ServiceRate
+	rates         []ServiceRate
+	chargeRecords []Record
+	costs         int64
+	err           error
 }
 
 func (f *fakeRepo) CreateCostCenter(context.Context, CostCenter) (CostCenter, error) {
@@ -92,6 +95,25 @@ func (f *fakeRepo) RecordCostUnitRun(_ context.Context, run Run, _ []Record) (Ru
 	}
 	run.ID = 1
 	return run, nil
+}
+func (f *fakeRepo) CreateServiceRate(_ context.Context, rate ServiceRate) (ServiceRate, error) {
+	if f.err != nil {
+		return ServiceRate{}, f.err
+	}
+	rate.ID = 1
+	return rate, nil
+}
+func (f *fakeRepo) ServiceRates(context.Context) ([]ServiceRate, error) { return f.rates, f.err }
+func (f *fakeRepo) RateFor(context.Context, int64, time.Time) (ServiceRate, error) {
+	return f.rate, f.err
+}
+func (f *fakeRepo) RecordServiceCharge(_ context.Context, charge ServiceCharge, records []Record) (ServiceCharge, error) {
+	if f.err != nil {
+		return ServiceCharge{}, f.err
+	}
+	f.chargeRecords = records
+	charge.ID = 1
+	return charge, nil
 }
 func (f *fakeRepo) CostTypes(context.Context) ([]CostType, error) { return f.costTypes, f.err }
 func (f *fakeRepo) MapAccount(_ context.Context, link CostTypeAccount) (CostTypeAccount, error) {

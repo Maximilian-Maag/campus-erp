@@ -243,6 +243,18 @@ export class CampusErpApi {
     return this.http.post<m.CostUnit>(this.base + `/api/klr/cost-units`, body);
   }
 
+  chargeService(body: m.ServiceChargeRequest): Observable<m.ServiceCharge> {
+    return this.http.post<m.ServiceCharge>(this.base + `/api/klr/service-charges`, body);
+  }
+
+  listServiceRates(): Observable<m.ServiceRate[]> {
+    return this.http.get<m.ServiceRate[]>(this.base + `/api/klr/service-rates`);
+  }
+
+  defineServiceRate(body: m.ServiceRateRequest): Observable<m.ServiceRate> {
+    return this.http.post<m.ServiceRate>(this.base + `/api/klr/service-rates`, body);
+  }
+
   requestLedgerExport(body: m.LedgerExportRequest): Observable<m.ExportQueuedResponse> {
     return this.http.post<m.ExportQueuedResponse>(this.base + `/api/ledger/exports`, body);
   }
