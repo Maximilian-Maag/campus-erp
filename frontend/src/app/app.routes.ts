@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { BudgetPositionsComponent } from './budget/positions.component';
 import { CashbookDayComponent } from './kasse/cashbook-day.component';
 import { CashAccountsComponent } from './kasse/cash-accounts.component';
+import { DunningComponent } from './kasse/dunning.component';
 import { PaymentRunsComponent } from './kasse/payment-runs.component';
 import { EInvoicesComponent } from './einvoice/invoices.component';
 import { KlrAllocationComponent } from './klr/allocation.component';
@@ -29,4 +30,5 @@ export const routes: Routes = [
   { path: 'kasse/kontoauszuege', component: BankStatementsComponent },
   { path: 'kasse/offene-posten', component: ReceivablesComponent },
   { path: 'kasse/einzuege', component: CollectionRunsComponent },
+  { path: 'kasse/mahnwesen', component: DunningComponent },
 ];

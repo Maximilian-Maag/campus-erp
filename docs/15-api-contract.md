@@ -169,6 +169,16 @@ dead-ended on "es ist kein eigenes Konto angelegt" with no way out. The IBAN and
 to validate (ISO 7064 mod-97 and ISO 9362, shared with the rest of Kasse); the currency defaults
 to EUR.
 
+`frontend/src/app/kasse/dunning.component.ts` — *Kasse: Mahnwesen* (route
+`/kasse/mahnwesen`) — lists the selected year's dunning levels with their bands, defines
+one (the bands are entered as rows: a bound, a fee and a rate) and issues a notice against
+a claim, showing the charge the API computed and stored. The year filter is the server's
+(`?year=`). Amounts are typed in euros and a band's rate in percent; the level's year and
+code travel from the picker, so a notice is only ever issued against a level that is on
+screen — and when no level exists for the year, no notice form is offered. A notice's PDF
+is linked by its document route rather than read through the generated client, which reads
+that route as text; the link appears only when the notice carries a document.
+
 Every screen has a link in the shell's navigation (`app.html`), and `e2e/app.e2e.spec.ts` fails
 if the route table and those links disagree: a screen nobody can navigate to is not finished.
 
@@ -197,13 +207,22 @@ gate (`npx stryker run`, break 85) covers them too.
 4. Commit all three (Go, spec, generated client). The guard fails until the
    spec matches Go, so a missing row is caught immediately.
 
+**Name the wire types.** A request body's nested structs — an object field or a slice of
+them — must be a named type, not an anonymous `struct{...}`: the generator flattens an
+anonymous struct into its parent, documenting top-level fields for a body the route does
+not accept. The drift guard cannot see this (the route still matches), so it is a
+contract defect that only shows up when a generated client is used. `createLevelRequest`
+and `createOrderRequest` are the two places this has been hit; both now name their
+nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`).
+
 ## Not yet done
 
-- Fourteen screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
+- Fifteen screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
   `/kasse/anordnungen`, `/kasse/zahlungslaeufe`, `/kasse/kontoauszuege`, `/kasse/offene-posten`,
-  `/kasse/einzuege`), Budget, Beschaffung, E-Rechnung and KLR (`/klr/umlage`, `/klr/kostenarten`,
-  `/klr/kostentraeger`, `/klr/verrechnungspreise`). The rest get theirs as their phases land, each
-  one starting from the read routes it needs — and the kasse/payments domain is where that bites:
-  it had 32 operations and one list route, so nearly every screen there needs its `GET` built first.
+  `/kasse/einzuege`, `/kasse/mahnwesen`), Budget, Beschaffung, E-Rechnung and KLR (`/klr/umlage`,
+  `/klr/kostenarten`, `/klr/kostentraeger`, `/klr/verrechnungspreise`). The rest get theirs as their
+  phases land, each one starting from the read routes it needs — and the kasse/payments domain is
+  where that bites: it had 32 operations and one list route, so nearly every screen there needs its
+  `GET` built first.
 - **No paging yet.** Every list route returns everything; a list big enough to need paging
   needs a page parameter on the route and on the screens that read it.

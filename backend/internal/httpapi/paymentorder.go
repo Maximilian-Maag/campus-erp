@@ -58,28 +58,36 @@ func statusForOrder(err error) int {
 	}
 }
 
+// recipientRequest and budgetPositionRequest are the nested bodies of a new order. They
+// are named types rather than anonymous structs so the contract generator keeps them
+// nested: an anonymous struct is flattened into its parent, which documents a body the
+// route does not accept.
+type recipientRequest struct {
+	Name          string `json:"name"`
+	AccountHolder string `json:"account_holder"`
+	IBAN          string `json:"iban"`
+	BIC           string `json:"bic"`
+	BankName      string `json:"bank_name"`
+}
+
+type budgetPositionRequest struct {
+	Year           int    `json:"year"`
+	Chapter        string `json:"chapter"`
+	Title          string `json:"title"`
+	CostCentre     string `json:"cost_centre"`
+	CostCarrier    string `json:"cost_carrier"`
+	AllocatedCents int64  `json:"allocated_cents"`
+}
+
 type createOrderRequest struct {
-	Reference    string `json:"reference"`
-	BusinessYear int    `json:"business_year"`
-	AmountCents  int64  `json:"amount_cents"`
-	Currency     string `json:"currency"`
-	Purpose      string `json:"purpose"`
-	DueDate      string `json:"due_date"`
-	Recipient    struct {
-		Name          string `json:"name"`
-		AccountHolder string `json:"account_holder"`
-		IBAN          string `json:"iban"`
-		BIC           string `json:"bic"`
-		BankName      string `json:"bank_name"`
-	} `json:"recipient"`
-	BudgetPosition struct {
-		Year           int    `json:"year"`
-		Chapter        string `json:"chapter"`
-		Title          string `json:"title"`
-		CostCentre     string `json:"cost_centre"`
-		CostCarrier    string `json:"cost_carrier"`
-		AllocatedCents int64  `json:"allocated_cents"`
-	} `json:"budget_position"`
+	Reference      string                `json:"reference"`
+	BusinessYear   int                   `json:"business_year"`
+	AmountCents    int64                 `json:"amount_cents"`
+	Currency       string                `json:"currency"`
+	Purpose        string                `json:"purpose"`
+	DueDate        string                `json:"due_date"`
+	Recipient      recipientRequest      `json:"recipient"`
+	BudgetPosition budgetPositionRequest `json:"budget_position"`
 }
 
 func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {

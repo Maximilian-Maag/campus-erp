@@ -4835,6 +4835,21 @@ components:
           x-nullable: true
         next_code:
           type: string
+        bands:
+          type: array
+          items:
+            $ref: '#/components/schemas/DunningBandRequest'
+      required:
+      - year
+      - code
+      - description
+      - days_allowed
+      - active
+      - next_code
+      - bands
+    DunningBandRequest:
+      type: object
+      properties:
         up_to_cents:
           type: integer
           format: int64
@@ -4845,12 +4860,6 @@ components:
           type: integer
           format: int64
       required:
-      - year
-      - code
-      - description
-      - days_allowed
-      - active
-      - next_code
       - up_to_cents
       - fee_cents
       - rate_basis_points
@@ -5392,16 +5401,22 @@ components:
           type: string
         due_date:
           type: string
-        name:
-          type: string
-        account_holder:
-          type: string
-        iban:
-          type: string
-        bic:
-          type: string
-        bank_name:
-          type: string
+        recipient:
+          $ref: '#/components/schemas/RecipientRequest'
+        budget_position:
+          $ref: '#/components/schemas/BudgetPositionRequest'
+      required:
+      - reference
+      - business_year
+      - amount_cents
+      - currency
+      - purpose
+      - due_date
+      - recipient
+      - budget_position
+    BudgetPositionRequest:
+      type: object
+      properties:
         year:
           type: integer
           format: int64
@@ -5417,23 +5432,31 @@ components:
           type: integer
           format: int64
       required:
-      - reference
-      - business_year
-      - amount_cents
-      - currency
-      - purpose
-      - due_date
-      - name
-      - account_holder
-      - iban
-      - bic
-      - bank_name
       - year
       - chapter
       - title
       - cost_centre
       - cost_carrier
       - allocated_cents
+    RecipientRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        account_holder:
+          type: string
+        iban:
+          type: string
+        bic:
+          type: string
+        bank_name:
+          type: string
+      required:
+      - name
+      - account_holder
+      - iban
+      - bic
+      - bank_name
     CashAccount:
       type: object
       properties:

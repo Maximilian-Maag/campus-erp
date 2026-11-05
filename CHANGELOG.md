@@ -2,6 +2,36 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.100.0] - 2026-11-05
+
+The Mahnwesen gets its screen, the percent/basis-points pair moves where the other converters
+live, and two request bodies were documented wrong.
+
+### Added
+- `frontend`: *Kasse: Mahnwesen* (`/kasse/mahnwesen`) — lists the selected year's dunning levels
+  with their bands, defines one (bands entered as rows: a bound, a fee and a rate) and issues a
+  notice against a claim, showing the charge the API computed and stored. The year filter is the
+  server's; the level's year and code travel from the picker, so a notice is only ever issued
+  against a level that is on screen. A notice's PDF is linked by its document route (the
+  generated client reads that route as text), and only when the notice carries a document.
+
+### Changed
+- `shareToBasisPoints` / `basisPointsToShare` moved from the KLR allocation component into
+  `core/format` and were renamed `percentToBasisPoints` / `basisPointsToPercent`. A second screen
+  (the Mahnwesen) needs the pair, the cost-unit screen already imported it out of a sibling
+  *component*, and importing a component for a pure conversion is the wrong coupling — the same
+  reason `euroToCents` moved there. The conversion is still defined for 0…100 %, and the two
+  directions are now tested as inverses.
+
+### Fixed
+- **Two request bodies were documented as flat fields the routes do not accept.**
+  `POST /api/dunning/levels` takes `bands` as an array and `POST /api/payment-orders` takes
+  `recipient` and `budget_position` as objects; the generator flattens a nested *anonymous*
+  struct into its parent, so the spec (and the generated client) showed hoisted fields — a body
+  the API rejects. The nested types are named now (`dunningBandRequest`, `recipientRequest`,
+  `budgetPositionRequest`), and `docs/15` records the rule. The drift guard cannot catch this: the
+  route still matches.
+
 ## [0.99.0] - 2026-11-05
 
 The dunning levels can be listed, and the Mahnwesen gets the doc it never had.

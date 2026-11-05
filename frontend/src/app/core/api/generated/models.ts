@@ -46,6 +46,15 @@ export interface Booking {
   Purpose: string;
 }
 
+export interface BudgetPositionRequest {
+  year: number;
+  chapter: string;
+  title: string;
+  cost_centre: string;
+  cost_carrier: string;
+  allocated_cents: number;
+}
+
 export interface BudgetPositionResponse {
   position: Position;
   balance: Balance;
@@ -193,9 +202,7 @@ export interface CreateLevelRequest {
   days_allowed: number;
   active: boolean | null;
   next_code: string;
-  up_to_cents: number;
-  fee_cents: number;
-  rate_basis_points: number;
+  bands: DunningBandRequest[];
 }
 
 export interface CreateOrderRequest {
@@ -205,17 +212,8 @@ export interface CreateOrderRequest {
   currency: string;
   purpose: string;
   due_date: string;
-  name: string;
-  account_holder: string;
-  iban: string;
-  bic: string;
-  bank_name: string;
-  year: number;
-  chapter: string;
-  title: string;
-  cost_centre: string;
-  cost_carrier: string;
-  allocated_cents: number;
+  recipient: RecipientRequest;
+  budget_position: BudgetPositionRequest;
 }
 
 export interface CreatePurchaseOrderRequest {
@@ -273,6 +271,12 @@ export interface DunningBand {
   UpToCents: number;
   FeeCents: number;
   RateBasisPoints: number;
+}
+
+export interface DunningBandRequest {
+  up_to_cents: number;
+  fee_cents: number;
+  rate_basis_points: number;
 }
 
 export interface DunningLevel {
@@ -637,6 +641,14 @@ export interface ReceivableRequest {
   due_date: string;
   purpose: string;
   source: string;
+}
+
+export interface RecipientRequest {
+  name: string;
+  account_holder: string;
+  iban: string;
+  bic: string;
+  bank_name: string;
 }
 
 export interface Record {

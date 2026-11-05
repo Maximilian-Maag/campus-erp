@@ -73,18 +73,24 @@ func statusForDunning(err error) int {
 	}
 }
 
+// dunningBandRequest is one band as it arrives on the wire. It is a named type rather
+// than an anonymous struct because the contract generator flattens an anonymous slice
+// into top-level fields — a body the API would reject. Naming it keeps the generated
+// spec (and the client) showing `bands` as the array the route accepts.
+type dunningBandRequest struct {
+	UpToCents       int64 `json:"up_to_cents"`
+	FeeCents        int64 `json:"fee_cents"`
+	RateBasisPoints int64 `json:"rate_basis_points"`
+}
+
 type createLevelRequest struct {
-	Year        int    `json:"year"`
-	Code        string `json:"code"`
-	Description string `json:"description"`
-	DaysAllowed int    `json:"days_allowed"`
-	Active      *bool  `json:"active"`
-	NextCode    string `json:"next_code"`
-	Bands       []struct {
-		UpToCents       int64 `json:"up_to_cents"`
-		FeeCents        int64 `json:"fee_cents"`
-		RateBasisPoints int64 `json:"rate_basis_points"`
-	} `json:"bands"`
+	Year        int                  `json:"year"`
+	Code        string               `json:"code"`
+	Description string               `json:"description"`
+	DaysAllowed int                  `json:"days_allowed"`
+	Active      *bool                `json:"active"`
+	NextCode    string               `json:"next_code"`
+	Bands       []dunningBandRequest `json:"bands"`
 }
 
 func (s *Server) createDunningLevel(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CampusErpApi, CostCenter, CostUnit, CostUnitKey } from '../core/api/generated';
-import { basisPointsToShare, shareToBasisPoints } from './allocation.component';
-import { formatCents, formatDay } from '../core/format';
+import { basisPointsToPercent, formatCents, formatDay, percentToBasisPoints } from '../core/format';
 
 /**
  * KLR — Kostenträgerrechnung.
@@ -207,7 +206,7 @@ export class KlrCostUnitsComponent implements OnInit {
 
   define(event: Event): void {
     event.preventDefault();
-    const shareBP = shareToBasisPoints(this.sharePercent());
+    const shareBP = percentToBasisPoints(this.sharePercent());
     if (shareBP === null) {
       this.actionError.set('Der Anteil muss eine Prozentzahl zwischen 0 und 100 sein.');
       return;
@@ -266,7 +265,7 @@ export class KlrCostUnitsComponent implements OnInit {
     return unit ? unit.Number + ' ' + unit.Name : String(id);
   }
 
-  readonly share = basisPointsToShare;
+  readonly share = basisPointsToPercent;
   readonly day = formatDay;
   readonly euro = formatCents;
 }
