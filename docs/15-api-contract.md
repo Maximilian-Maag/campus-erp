@@ -152,6 +152,16 @@ rather than re-deriving the rule. The hand-picked flow loads only the mandates t
 type can collect under (`?active=true&sequence_type=`, docs/21), so it does not offer a choice the
 API would refuse; changing the sequence type reloads them and drops an item no longer collectable.
 
+`frontend/src/app/kasse/payment-runs.component.ts` — *Kasse: Zahlungsläufe* (route
+`/kasse/zahlungslaeufe`) — the credit-transfer counterpart of the collection run: offers one of
+the university's own accounts, an execution date and the approved orders to gather (the server's
+filter, `?status=approved`), sums what is chosen so the operator sees what the run will move, and
+creates the run and shows the pain.001 it produced. The file can be handed to the bank channel,
+which queues the work and answers with the job. Which orders a run may gather — approved ones,
+each paid at most once — stays the API's decision: the screen offers what the server reports as
+approved and reports a refusal (an unapproved order, an already-paid one, a duplicate reference)
+as it comes back rather than re-deriving the rule.
+
 Every screen has a link in the shell's navigation (`app.html`), and `e2e/app.e2e.spec.ts` fails
 if the route table and those links disagree: a screen nobody can navigate to is not finished.
 
@@ -182,9 +192,9 @@ gate (`npx stryker run`, break 85) covers them too.
 
 ## Not yet done
 
-- Twelve screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
-  `/kasse/kontoauszuege`, `/kasse/offene-posten`, `/kasse/einzuege`), Budget, Beschaffung,
-  E-Rechnung and KLR (`/klr/umlage`, `/klr/kostenarten`, `/klr/kostentraeger`,
+- Thirteen screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/anordnungen`,
+  `/kasse/zahlungslaeufe`, `/kasse/kontoauszuege`, `/kasse/offene-posten`, `/kasse/einzuege`),
+  Budget, Beschaffung, E-Rechnung and KLR (`/klr/umlage`, `/klr/kostenarten`, `/klr/kostentraeger`,
   `/klr/verrechnungspreise`). The rest get theirs as their phases land, each one starting from the read
   routes it needs — and the kasse/payments domain is where that bites: it had 32 operations and
   one list route, so nearly every screen there needs its `GET` built first.
