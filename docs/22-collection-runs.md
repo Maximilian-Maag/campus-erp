@@ -37,6 +37,12 @@ same account the credit-transfer run debits.
 Behind `erp-kasse` like the mandate routes. Creating a run and recording an item
 are audited (`collection_run.create`, `receivable.create`).
 
+*Kasse: Einzüge* (`/kasse/einzuege`) offers both routes: it gathers the open
+receivables due by a date, or names the mandates and amounts by hand. The hand-picked
+flow loads the mandates the run's sequence type can collect under (the list route of
+`docs/21`), so a choice the run would refuse is not offered — changing the sequence
+type reloads them and drops a chosen item whose mandate is no longer collectable.
+
 ## Behaviour
 
 - **Idempotent on the reference**: re-issuing the same reference returns the
@@ -82,6 +88,4 @@ it is due. Selecting nothing is `ErrNoCollectionItems`, not an empty file.
   sequence types into several `PmtInf` blocks in one file is a later refinement.
 - **No EBICS transport**: the file is stored and downloadable; sending it over
   EBICS remains `planned` (`docs/14 §4.3`).
-- **A run with explicit items has no screen**: *Kasse: Einzüge* creates a run from the open
-  receivables; a run whose items are supplied by the caller is still created through the API.
 

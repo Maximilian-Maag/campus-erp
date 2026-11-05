@@ -83,6 +83,10 @@ export class CampusErpApi {
     return this.http.post<m.Day>(this.base + `/api/cashbook/days/${id}/close`, null);
   }
 
+  listMandates(active?: string, sequence_type?: string): Observable<m.Mandate[]> {
+    return this.http.get<m.Mandate[]>(this.base + `/api/direct-debit/mandates${this._query({ active, sequence_type })}`);
+  }
+
   createMandate(body: m.MandateRequest): Observable<m.Mandate> {
     return this.http.post<m.Mandate>(this.base + `/api/direct-debit/mandates`, body);
   }

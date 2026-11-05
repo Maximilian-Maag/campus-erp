@@ -17,8 +17,17 @@ var errBoom = errors.New("boom")
 
 // stubMandates satisfies the handler's mandate interface without a database.
 type stubMandates struct {
-	m   kasse.Mandate
-	err error
+	m    kasse.Mandate
+	all  []kasse.Mandate
+	err  error
+	seen *mandateFilter
+}
+
+// mandateFilter records the filter a list call was given, so a handler test can
+// assert the server parsed the query rather than the service guessing.
+type mandateFilter struct {
+	activeOnly bool
+	seq        kasse.MandateSequence
 }
 
 func (s stubMandates) CreateMandate(_ context.Context, m kasse.Mandate, _ string) (kasse.Mandate, error) {
@@ -34,6 +43,19 @@ func (s stubMandates) Mandate(context.Context, string) (kasse.Mandate, error) {
 		return kasse.Mandate{}, s.err
 	}
 	return s.m, nil
+}
+
+func (s stubMandates) Mandates(_ context.Context, activeOnly bool, seq kasse.MandateSequence) ([]kasse.Mandate, error) {
+	if s.seen != nil {
+		*s.seen = mandateFilter{activeOnly: activeOnly, seq: seq}
+	}
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.all != nil {
+		return s.all, nil
+	}
+	return []kasse.Mandate{}, nil
 }
 
 const validMandateBody = `{"reference":"MAN-1","debtor_name":"Max Mustermann",` +
@@ -81,5 +103,49 @@ func TestGetMandateHandler(t *testing.T) {
 	missing.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/direct-debit/mandates/NOPE", nil))
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("missing status = %d, want 404", rec.Code)
+	}
+}
+
+func TestListMandatesHandler(t *testing.T) {
+	cases := []struct {
+		name       string
+		query      string
+		err        error
+		want       int
+		wantActive bool
+		wantSeq    kasse.MandateSequence
+	}{
+		{"no filter", "", nil, http.StatusOK, false, ""},
+		{"active and sequence", "?active=true&sequence_type=RCUR", nil, http.StatusOK, true, kasse.SequenceRecurring},
+		{"inactive", "?active=false", nil, http.StatusOK, false, ""},
+		{"bad active", "?active=maybe", nil, http.StatusUnprocessableEntity, false, ""},
+		{"bad sequence", "?sequence_type=XX", nil, http.StatusUnprocessableEntity, false, ""},
+		{"unexpected error", "", errBoom, http.StatusInternalServerError, false, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var seen mandateFilter
+			stub := stubMandates{
+				all:  []kasse.Mandate{{Reference: "MAN-1"}, {Reference: "MAN-2"}},
+				err:  c.err,
+				seen: &seen,
+			}
+			srv := httpapi.New(httpapi.Deps{Mandates: stub})
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/direct-debit/mandates"+c.query, nil))
+			if rec.Code != c.want {
+				t.Fatalf("status = %d, want %d (%s)", rec.Code, c.want, rec.Body.String())
+			}
+			if c.want != http.StatusOK {
+				return
+			}
+			// The server parsed the query into the service's filter, not the screen's.
+			if seen.activeOnly != c.wantActive || seen.seq != c.wantSeq {
+				t.Fatalf("filter = {%t %q}, want {%t %q}", seen.activeOnly, seen.seq, c.wantActive, c.wantSeq)
+			}
+			if body := rec.Body.String(); !strings.Contains(body, "MAN-1") || !strings.HasPrefix(strings.TrimSpace(body), "[") {
+				t.Fatalf("body = %s, want a JSON array of mandates", body)
+			}
+		})
 	}
 }
