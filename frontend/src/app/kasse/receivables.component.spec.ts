@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ReceivablesComponent, euroToCents, stateLabel } from './receivables.component';
+import { ReceivablesComponent, stateLabel } from './receivables.component';
+import { euroToCents } from '../core/format';
 import { Receivable } from '../core/api/generated';
 
 describe('euroToCents', () => {

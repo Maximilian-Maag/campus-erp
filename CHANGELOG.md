@@ -2,6 +2,26 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.95.0] - 2026-11-04
+
+The KLR thread closes: internal pricing gets its screen, and the money parser moves where both
+directions of it live.
+
+### Added
+- `frontend`: *KLR: Verrechnungspreise* (`/klr/verrechnungspreise`) — lists the rates, defines one
+  (the price is typed in euros and stored in cents) and charges a service, naming both ends, the
+  quantity and the day it was rendered. A price needs one cost type and no second centre; the
+  charge form is only offered once there are two centres to charge between, since a centre cannot
+  charge itself.
+
+### Changed
+- `euroToCents` moved from the receivables component into `core/format`, next to `formatCents` it
+  is the inverse of. A KLR screen needed it, and importing a Kasse component from the KLR would
+  have been the wrong coupling; a second copy of the parsing rule is how the two directions drift
+  apart.
+- Removed a redundant `.trim()` before `Number(...)` in the charge form: `Number` already ignores
+  surrounding whitespace, so the trim was dead code that no test could distinguish.
+
 ## [0.94.0] - 2026-11-04
 
 Internal pricing: the KLR can price an internal service and charge it out, the last of the three
