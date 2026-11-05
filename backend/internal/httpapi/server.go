@@ -231,6 +231,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/klr/cost-centers/{id}/cost-unit-keys", s.authorizeRead(s.listCostUnitKeys, auth.RoleKLR))
 	mux.HandleFunc("POST /api/klr/cost-centers/{id}/cost-unit-keys/run", s.authorize(s.runCostUnitAllocation, auth.RoleKLR))
 
+	// Internal pricing: a rate per cost type, and the charges it prices.
+	mux.HandleFunc("POST /api/klr/service-rates", s.authorize(s.defineServiceRate, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/service-rates", s.authorizeRead(s.listServiceRates, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/service-charges", s.authorize(s.chargeService, auth.RoleKLR))
+
 	// Cost types (Kostenarten) and the account bridge from the ledger's accounts.
 	mux.HandleFunc("POST /api/klr/cost-types", s.authorize(s.createCostType, auth.RoleKLR))
 	mux.HandleFunc("GET /api/klr/cost-types", s.authorizeRead(s.listCostTypes, auth.RoleKLR))

@@ -91,6 +91,9 @@ column for it was added here.
 | `POST` | `/api/klr/cost-centers/{id}/cost-unit-keys` |
 | `GET`  | `/api/klr/cost-centers/{id}/cost-unit-keys` |
 | `POST` | `/api/klr/cost-centers/{id}/cost-unit-keys/run` |
+| `POST` | `/api/klr/service-rates` |
+| `GET`  | `/api/klr/service-rates` |
+| `POST` | `/api/klr/service-charges` |
 | `POST` | `/api/klr/cost-types` |
 | `GET`  | `/api/klr/cost-types` |
 | `POST` | `/api/klr/cost-types/{id}/accounts` |
@@ -139,7 +142,7 @@ the edge decides what "today" is, and the domain is always given a date. Every
 write is audited (`cost_center.create`, `cost_unit.create`,
 `accounting_record.create`, `allocation.define`, `allocation.run`,
 `cost_type.create`, `cost_type.map_account`, `cost_unit_key.define`,
-`cost_unit_run.run`), and
+`cost_unit_run.run`, `service_rate.define`, `service_charge.record`), and
 `allocation.run` names the period, the amount distributed and the number of
 receivers.
 
@@ -167,6 +170,23 @@ The frontend has one screen for this, *Kostenträgerrechnung* (`/klr/kostentraeg
 cost centre, shows its keys, defines one (the share is typed as a percentage and stored as basis
 points), and runs a period. What the shares must add up to stays with the API.
 
+## Internal pricing: pricing a service and charging it out
+
+The two engines above move *actual* costs: they take what a centre spent and hand it on. Internal
+pricing is the other way round — a service is **priced** and then charged out. `service_rate` is
+the price of one unit of a cost type's service over a period, and a charge prices a quantity at
+the rate **in force on the day the service was rendered**.
+
+Where several rates cover the day, the most recently started one wins. That is what lets a rate
+change take effect without deleting the old one: the old rate keeps its history, and a charge made
+under it is unaffected, because **the amount is computed once and stored** rather than re-derived
+from today's prices. A charge that was made is a fact about the books.
+
+The provider is relieved by exactly what the receiver is charged, so a charge moves cost between
+the two and changes no total — the same rule as the key-based engines. A charge for no units, a
+centre charging itself, and a day no rate covers are all refused. Its records carry the reference
+`LEI:<charge id>`.
+
 ## Why "clearing" is two things here
 
 `docs/08` lists the vendor's `cost_center_clearing` and `cost_unit_clearing` next to the
@@ -178,5 +198,4 @@ else in this package the mapping is data an operator can change rather than code
 
 ## Not yet done
 
-- Internal pricing (`overhead_calc*` rates): the engine distributes actual costs
-  by keys, it does not yet price an internal service and charge it out.
+- The KLR has no screen for internal pricing yet; the rates and charges are driven through the API.

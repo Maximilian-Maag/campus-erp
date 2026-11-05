@@ -2,6 +2,30 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.94.0] - 2026-11-04
+
+Internal pricing: the KLR can price an internal service and charge it out, the last of the three
+KLR engines.
+
+### Added
+- `service_rate` and `service_charge` (migration 0027), plus `POST/GET /api/klr/service-rates` and
+  `POST /api/klr/service-charges`. A rate is the price of one unit of a cost type's service over a
+  period; a charge prices a quantity at the rate **in force on the day the service was rendered**.
+- `klr.ServiceRate`, `klr.ServiceCharge` and `klr.Service.ChargeService`, with audit events
+  `service_rate.define` and `service_charge.record`. A charge's records carry the reference
+  `LEI:<charge id>`.
+
+### Notes
+- **The amount is computed once and stored**, not re-derived from today's prices: a rate can change
+  afterwards, and a charge that was made is a fact about the books. Where several rates cover the
+  day, the most recently started one wins, which is what lets a rate change take effect without
+  deleting the old one.
+- The provider is relieved by exactly what the receiver is charged, so a charge moves cost between
+  the two and changes no total — the same rule as the key-based engines.
+- The vendor's `overhead_calc*` shape is unpublished, so the mapping stays data (docs/13). The KLR
+  now has all three engines: distribution over centres by keys, attribution to cost units, and
+  internal pricing.
+
 ## [0.93.0] - 2026-11-04
 
 The Kostenträgerrechnung gets its screen, and the cost units get the list route a screen needs.

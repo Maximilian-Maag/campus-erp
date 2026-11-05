@@ -2459,6 +2459,100 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/klr/service-rates:
+    post:
+      tags:
+      - klr
+      operationId: defineServiceRate
+      summary: Define the rate of a cost type's service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRateRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - klr
+      operationId: listServiceRates
+      summary: List the service rates
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceRate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/klr/service-charges:
+    post:
+      tags:
+      - klr
+      operationId: chargeService
+      summary: Charge a cost centre for another's service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceChargeRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceCharge'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/klr/cost-types:
     post:
       tags:
@@ -3584,6 +3678,110 @@ components:
       required:
       - code
       - name
+    ServiceCharge:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        ProviderCenterID:
+          type: integer
+          format: int64
+        ReceiverCenterID:
+          type: integer
+          format: int64
+        CostTypeID:
+          type: integer
+          format: int64
+        Quantity:
+          type: integer
+          format: int64
+        AmountCents:
+          type: integer
+          format: int64
+        ChargedOn:
+          type: string
+          format: date-time
+        ChargedBy:
+          type: string
+      required:
+      - ID
+      - ProviderCenterID
+      - ReceiverCenterID
+      - CostTypeID
+      - Quantity
+      - AmountCents
+      - ChargedOn
+      - ChargedBy
+    ServiceChargeRequest:
+      type: object
+      properties:
+        provider_center_id:
+          type: integer
+          format: int64
+        receiver_center_id:
+          type: integer
+          format: int64
+        cost_type_id:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          format: int64
+        charged_on:
+          type: string
+      required:
+      - provider_center_id
+      - receiver_center_id
+      - cost_type_id
+      - quantity
+      - charged_on
+    ServiceRate:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        CostTypeID:
+          type: integer
+          format: int64
+        RateCents:
+          type: integer
+          format: int64
+        ValidFrom:
+          type: string
+          format: date-time
+        ValidTo:
+          type: string
+          format: date-time
+          x-nullable: true
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - CostTypeID
+      - RateCents
+      - ValidFrom
+      - ValidTo
+      - CreatedBy
+    ServiceRateRequest:
+      type: object
+      properties:
+        cost_type_id:
+          type: integer
+          format: int64
+        rate_cents:
+          type: integer
+          format: int64
+        valid_from:
+          type: string
+        valid_to:
+          type: string
+      required:
+      - cost_type_id
+      - rate_cents
+      - valid_from
+      - valid_to
     Run:
       type: object
       properties:

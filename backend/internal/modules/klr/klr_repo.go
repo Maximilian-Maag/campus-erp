@@ -35,6 +35,10 @@ type Repository interface {
 	CreateCostUnitKey(ctx context.Context, k CostUnitKey) (CostUnitKey, error)
 	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]CostUnitKey, error)
 	RecordCostUnitRun(ctx context.Context, run Run, records []Record) (Run, error)
+	CreateServiceRate(ctx context.Context, rate ServiceRate) (ServiceRate, error)
+	ServiceRates(ctx context.Context) ([]ServiceRate, error)
+	RateFor(ctx context.Context, costTypeID int64, on time.Time) (ServiceRate, error)
+	RecordServiceCharge(ctx context.Context, charge ServiceCharge, records []Record) (ServiceCharge, error)
 	CostsInPeriod(ctx context.Context, costCenterID int64, from, to time.Time) (int64, error)
 	RecordRun(ctx context.Context, run Run, records []Record) (Run, error)
 

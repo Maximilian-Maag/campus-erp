@@ -27,6 +27,9 @@ type klrService interface {
 	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]klr.CostUnitKey, error)
 	CostUnits(ctx context.Context) ([]klr.CostUnit, error)
 	AllocateToCostUnits(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (klr.Run, error)
+	DefineServiceRate(ctx context.Context, costTypeID, rateCents int64, validFrom time.Time, validTo *time.Time, by string) (klr.ServiceRate, error)
+	ServiceRates(ctx context.Context) ([]klr.ServiceRate, error)
+	ChargeService(ctx context.Context, providerCenterID, receiverCenterID, costTypeID, quantity int64, chargedOn time.Time, by string) (klr.ServiceCharge, error)
 	MapAccount(ctx context.Context, costTypeID int64, accountCode, by string) (klr.CostTypeAccount, error)
 	AccountsOf(ctx context.Context, costTypeID int64) ([]klr.CostTypeAccount, error)
 	CostTypeByAccount(ctx context.Context, accountCode string) (klr.CostType, error)
@@ -57,7 +60,12 @@ func statusForKLR(err error) int {
 		errors.Is(err, klr.ErrAllocationRunPeriod),
 		errors.Is(err, klr.ErrAllocationRunNoTargets),
 		errors.Is(err, klr.ErrSharesIncomplete),
-		errors.Is(err, klr.ErrNothingToAllocate):
+		errors.Is(err, klr.ErrNothingToAllocate),
+		errors.Is(err, klr.ErrRateNotPositive),
+		errors.Is(err, klr.ErrQuantityNotPositive),
+		errors.Is(err, klr.ErrServiceChargeSelf),
+		errors.Is(err, klr.ErrNoRateInForce),
+		errors.Is(err, klr.ErrChargeTooLarge):
 		return http.StatusUnprocessableEntity
 	default:
 		return http.StatusInternalServerError
@@ -344,6 +352,83 @@ func (s *Server) runCostUnitAllocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, run)
+}
+
+// ── Internal pricing: a rate per cost type, and the charges it prices ───────
+
+type serviceRateRequest struct {
+	CostTypeID int64  `json:"cost_type_id"`
+	RateCents  int64  `json:"rate_cents"`
+	ValidFrom  string `json:"valid_from"`
+	ValidTo    string `json:"valid_to"`
+}
+
+// defineServiceRate stores the price of one unit of a cost type's service.
+func (s *Server) defineServiceRate(w http.ResponseWriter, r *http.Request) {
+	var req serviceRateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	from, err := time.Parse(time.DateOnly, strings.TrimSpace(req.ValidFrom))
+	if err != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "valid_from must be a date (YYYY-MM-DD)")
+		return
+	}
+	var to *time.Time
+	if raw := strings.TrimSpace(req.ValidTo); raw != "" {
+		parsed, err := time.Parse(time.DateOnly, raw)
+		if err != nil {
+			writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "valid_to must be a date (YYYY-MM-DD)")
+			return
+		}
+		to = &parsed
+	}
+	rate, err := s.klr.DefineServiceRate(r.Context(), req.CostTypeID, req.RateCents, from, to, actor(r))
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, rate)
+}
+
+// listServiceRates reads every rate.
+func (s *Server) listServiceRates(w http.ResponseWriter, r *http.Request) {
+	rates, err := s.klr.ServiceRates(r.Context())
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, rates)
+}
+
+type serviceChargeRequest struct {
+	ProviderCenterID int64  `json:"provider_center_id"`
+	ReceiverCenterID int64  `json:"receiver_center_id"`
+	CostTypeID       int64  `json:"cost_type_id"`
+	Quantity         int64  `json:"quantity"`
+	ChargedOn        string `json:"charged_on"`
+}
+
+// chargeService charges one cost centre for another's service.
+func (s *Server) chargeService(w http.ResponseWriter, r *http.Request) {
+	var req serviceChargeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	on, err := time.Parse(time.DateOnly, strings.TrimSpace(req.ChargedOn))
+	if err != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "charged_on must be a date (YYYY-MM-DD)")
+		return
+	}
+	charge, err := s.klr.ChargeService(r.Context(), req.ProviderCenterID, req.ReceiverCenterID,
+		req.CostTypeID, req.Quantity, on, actor(r))
+	if err != nil {
+		writeProblem(w, statusForKLR(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, charge)
 }
 
 func (s *Server) getKLRReport(w http.ResponseWriter, r *http.Request) {
