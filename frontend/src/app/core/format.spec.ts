@@ -1,4 +1,9 @@
-import { formatCents, formatDay } from './format';
+import {
+  basisPointsToPercent,
+  formatCents,
+  formatDay,
+  percentToBasisPoints,
+} from './format';
 
 describe('formatCents', () => {
   it('renders minor units as a German amount', () => {
@@ -34,5 +39,60 @@ describe('formatDay', () => {
   it('shows a value it cannot parse as it came', () => {
     expect(formatDay('nonsense')).toBe('nonsense');
     expect(formatDay('')).toBe('');
+  });
+});
+
+describe('percentToBasisPoints', () => {
+  it('reads a whole percentage', () => {
+    expect(percentToBasisPoints('25')).toBe(2500);
+    expect(percentToBasisPoints('100')).toBe(10000);
+    expect(percentToBasisPoints('0')).toBe(0);
+  });
+
+  it('reads one and two decimals, with a dot or a comma', () => {
+    expect(percentToBasisPoints('12.5')).toBe(1250);
+    expect(percentToBasisPoints('12,5')).toBe(1250);
+    expect(percentToBasisPoints('0.01')).toBe(1);
+    expect(percentToBasisPoints('33,33')).toBe(3333);
+  });
+
+  it('tolerates surrounding spaces', () => {
+    expect(percentToBasisPoints('  7  ')).toBe(700);
+  });
+
+  it('refuses what is not a percentage between 0 and 100', () => {
+    expect(percentToBasisPoints('')).toBeNull();
+    expect(percentToBasisPoints('abc')).toBeNull();
+    expect(percentToBasisPoints('-5')).toBeNull();
+    expect(percentToBasisPoints('100.5')).toBeNull();
+    expect(percentToBasisPoints('12.345')).toBeNull();
+    expect(percentToBasisPoints('1234')).toBeNull();
+    expect(percentToBasisPoints('1.2.3')).toBeNull();
+  });
+});
+
+describe('basisPointsToPercent', () => {
+  it('renders whole percentages without a fraction', () => {
+    expect(basisPointsToPercent(2500)).toBe('25 %');
+    expect(basisPointsToPercent(10000)).toBe('100 %');
+    expect(basisPointsToPercent(0)).toBe('0 %');
+  });
+
+  it('renders one decimal where it is needed', () => {
+    expect(basisPointsToPercent(1250)).toBe('12,5 %');
+    expect(basisPointsToPercent(2550)).toBe('25,5 %');
+  });
+
+  it('renders a single basis point as two decimals', () => {
+    expect(basisPointsToPercent(1)).toBe('0,01 %');
+    expect(basisPointsToPercent(3333)).toBe('33,33 %');
+  });
+
+  it('round-trips with percentToBasisPoints', () => {
+    for (const typed of ['0,01', '12,5', '33,33', '100']) {
+      const bp = percentToBasisPoints(typed);
+      expect(bp).not.toBeNull();
+      expect(percentToBasisPoints(basisPointsToPercent(bp as number).replace(' %', ''))).toBe(bp);
+    }
   });
 });

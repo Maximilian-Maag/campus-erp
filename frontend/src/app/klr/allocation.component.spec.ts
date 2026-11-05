@@ -1,55 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { KlrAllocationComponent, basisPointsToShare, shareToBasisPoints } from './allocation.component';
+import { KlrAllocationComponent } from './allocation.component';
 import { Allocation, CostCenter } from '../core/api/generated';
-
-describe('shareToBasisPoints', () => {
-  it('reads a whole percentage', () => {
-    expect(shareToBasisPoints('25')).toBe(2500);
-    expect(shareToBasisPoints('100')).toBe(10000);
-    expect(shareToBasisPoints('0')).toBe(0);
-  });
-
-  it('reads one and two decimals, with a dot or a comma', () => {
-    expect(shareToBasisPoints('12.5')).toBe(1250);
-    expect(shareToBasisPoints('12,5')).toBe(1250);
-    expect(shareToBasisPoints('0.01')).toBe(1);
-    expect(shareToBasisPoints('33,33')).toBe(3333);
-  });
-
-  it('tolerates surrounding spaces', () => {
-    expect(shareToBasisPoints('  7  ')).toBe(700);
-  });
-
-  it('refuses what is not a share', () => {
-    expect(shareToBasisPoints('')).toBeNull();
-    expect(shareToBasisPoints('abc')).toBeNull();
-    expect(shareToBasisPoints('-5')).toBeNull();
-    expect(shareToBasisPoints('100.5')).toBeNull();
-    expect(shareToBasisPoints('12.345')).toBeNull();
-    expect(shareToBasisPoints('1234')).toBeNull();
-    expect(shareToBasisPoints('1.2.3')).toBeNull();
-  });
-});
-
-describe('basisPointsToShare', () => {
-  it('renders whole percentages without a fraction', () => {
-    expect(basisPointsToShare(2500)).toBe('25 %');
-    expect(basisPointsToShare(10000)).toBe('100 %');
-    expect(basisPointsToShare(0)).toBe('0 %');
-  });
-
-  it('renders one decimal where it is needed', () => {
-    expect(basisPointsToShare(1250)).toBe('12,5 %');
-    expect(basisPointsToShare(2550)).toBe('25,5 %');
-  });
-
-  it('renders a single basis point as two decimals', () => {
-    expect(basisPointsToShare(1)).toBe('0,01 %');
-    expect(basisPointsToShare(3333)).toBe('33,33 %');
-  });
-});
 
 describe('KlrAllocationComponent', () => {
   let http: HttpTestingController;

@@ -1,33 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { Allocation, CampusErpApi, CostCenter } from '../core/api/generated';
-import { formatCents } from '../core/format';
-
-/**
- * Turns a share typed as a percentage into basis points, or null when it is not one.
- *
- * Operators think in percent ("25 %"), the API stores basis points. The conversion is done on
- * the string, not through a float, so 0,01 % is exactly one basis point rather than something
- * that rounds to it. A comma is accepted as the decimal separator.
- */
-export function shareToBasisPoints(input: string): number | null {
-  const raw = input.trim().replace(',', '.');
-  if (!/^\d{1,3}(\.\d{1,2})?$/.test(raw)) {
-    return null;
-  }
-  const [whole, fraction = ''] = raw.split('.');
-  const basisPoints = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
-  return basisPoints > 10000 ? null : basisPoints;
-}
-
-/** The inverse, for showing a stored share: 2500 basis points read as "25 %". */
-export function basisPointsToShare(basisPoints: number): string {
-  const whole = Math.trunc(basisPoints / 100);
-  const fraction = basisPoints % 100;
-  if (fraction === 0) {
-    return whole + ' %';
-  }
-  return whole + ',' + String(fraction).padStart(2, '0').replace(/0$/, '') + ' %';
-}
+import { basisPointsToPercent, formatCents, percentToBasisPoints } from '../core/format';
 
 /**
  * KLR — Umlage (Kostenstellen-Umlage).
@@ -222,7 +195,7 @@ export class KlrAllocationComponent implements OnInit {
 
   define(event: Event): void {
     event.preventDefault();
-    const shareBP = shareToBasisPoints(this.sharePercent());
+    const shareBP = percentToBasisPoints(this.sharePercent());
     if (shareBP === null) {
       this.actionError.set('Der Anteil muss eine Prozentzahl zwischen 0 und 100 sein.');
       return;
@@ -281,7 +254,7 @@ export class KlrAllocationComponent implements OnInit {
     return center ? center.Number + ' ' + center.Name : String(id);
   }
 
-  readonly share = basisPointsToShare;
+  readonly share = basisPointsToPercent;
   readonly day = (value: string): string => value.slice(0, 10);
   readonly euro = formatCents;
 }

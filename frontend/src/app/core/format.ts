@@ -37,6 +37,36 @@ export function euroToCents(input: string): number | null {
 }
 
 /**
+ * A typed percentage as basis points ("25" -> 2500), or null when it is not one between 0 and
+ * 100. Rates and shares are stored as integer basis points (1/100 of a percent) so the arithmetic
+ * stays exact, while an operator types percent. The conversion is done on the string, not through
+ * a float, so "0,01" is exactly one basis point rather than something that rounds to it. A comma
+ * is accepted as the decimal separator.
+ *
+ * It sits with the cents pair because it is the same idea: what the operator types is not what the
+ * API stores, and a second copy of the rule is how the two directions drift apart.
+ */
+export function percentToBasisPoints(input: string): number | null {
+  const raw = input.trim().replace(',', '.');
+  if (!/^\d{1,3}(\.\d{1,2})?$/.test(raw)) {
+    return null;
+  }
+  const [whole, fraction = ''] = raw.split('.');
+  const basisPoints = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+  return basisPoints > 10000 ? null : basisPoints;
+}
+
+/** The inverse, for showing a stored rate or share: 2500 basis points read as "25 %". */
+export function basisPointsToPercent(basisPoints: number): string {
+  const whole = Math.trunc(basisPoints / 100);
+  const fraction = basisPoints % 100;
+  if (fraction === 0) {
+    return whole + ' %';
+  }
+  return whole + ',' + String(fraction).padStart(2, '0').replace(/0$/, '') + ' %';
+}
+
+/**
  * An ISO date as the screen shows it ("2026-04-01T00:00:00Z" -> "01.04.2026"). The date is read
  * in UTC because the API's issue date is a day, not an instant: a local reading would show the
  * previous day west of Greenwich.

@@ -64,10 +64,17 @@ order — including a level with none. The year filter is the server's, so a scr
 shows one year's levels rather than holding every year to sift: no `year` lists every
 year, and a year nothing was entered for is an empty list, not a 404.
 
+*Kasse: Mahnwesen* (`/kasse/mahnwesen`) drives all of it: it lists the selected year's
+levels with their bands, defines one (bands entered as rows) and issues a notice
+against a claim, showing the charge that came back. Amounts are typed in euros and a
+band's rate in percent — the two conversions sit in `core/format` with the cents
+pair — and the level's year and code travel from the picker, so a notice is always
+issued against a level that is on screen. A notice's PDF is linked by its document
+route rather than read through the generated client, which reads that route as text;
+the link appears only when the notice actually carries a document (`docs/24`).
+
 ## Not yet done
 
-- **No screen yet.** The routes are reachable from the API; a *Kasse: Mahnwesen*
-  screen is the follow-up.
 - **No dunning run**: notices are issued per claim, one at a time. Walking the open
   receivables and issuing the next level for each (`next_code`) is a later slice.
 - **No ETL dataset**: the legacy dunning tables are thin in the Muster
