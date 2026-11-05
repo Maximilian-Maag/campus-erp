@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,9 +89,10 @@ func (s stubOrders) Cancel(context.Context, int64, string) (kasse.PaymentOrder, 
 
 // stubDunning satisfies the dunning interface with a fixed result.
 type stubDunning struct {
-	level  kasse.DunningLevel
-	notice kasse.DunningNotice
-	err    error
+	level    kasse.DunningLevel
+	notice   kasse.DunningNotice
+	err      error
+	seenYear *int
 }
 
 func (s stubDunning) CreateLevel(context.Context, kasse.DunningLevel, string) (kasse.DunningLevel, error) {
@@ -99,6 +101,16 @@ func (s stubDunning) CreateLevel(context.Context, kasse.DunningLevel, string) (k
 
 func (s stubDunning) Level(context.Context, int, string) (kasse.DunningLevel, error) {
 	return s.level, s.err
+}
+
+func (s stubDunning) Levels(_ context.Context, year int) ([]kasse.DunningLevel, error) {
+	if s.seenYear != nil {
+		*s.seenYear = year
+	}
+	if s.err != nil {
+		return nil, s.err
+	}
+	return []kasse.DunningLevel{s.level}, nil
 }
 
 func (s stubDunning) Notice(context.Context, int64) (kasse.DunningNotice, error) {
@@ -400,6 +412,45 @@ func TestHTTPUnexpectedErrorsReturn500(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if resp := doJSON(t, c.method, srv.URL+c.path, "alice", c.body); resp.StatusCode != http.StatusInternalServerError {
 				t.Fatalf("%s %s = %d, want 500", c.method, c.path, resp.StatusCode)
+			}
+		})
+	}
+}
+
+// TestListDunningLevelsYearQuery covers the levels list without a database: the year is
+// the server's to parse, so a non-integer is the caller's mistake and no year means
+// every year.
+func TestListDunningLevelsYearQuery(t *testing.T) {
+	cases := []struct {
+		name     string
+		query    string
+		want     int
+		wantYear int
+	}{
+		{"no year lists every year", "", http.StatusOK, 0},
+		{"one year", "?year=2026", http.StatusOK, 2026},
+		{"a padded year is still that year", "?year=%202026", http.StatusOK, 2026},
+		{"a non-integer year is a client error", "?year=abc", http.StatusUnprocessableEntity, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var seen int
+			handler := httpapi.New(httpapi.Deps{
+				Dunning: stubDunning{level: kasse.DunningLevel{Code: "1"}, seenYear: &seen},
+			}).Handler()
+
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/dunning/levels"+c.query, nil))
+			if rec.Code != c.want {
+				t.Fatalf("status = %d, want %d (%s)", rec.Code, c.want, rec.Body.String())
+			}
+			if c.want == http.StatusOK {
+				if seen != c.wantYear {
+					t.Fatalf("service saw year %d, want %d", seen, c.wantYear)
+				}
+				if !strings.Contains(rec.Body.String(), `"Code":"1"`) {
+					t.Fatalf("body = %s, want the level", rec.Body.String())
+				}
 			}
 		})
 	}

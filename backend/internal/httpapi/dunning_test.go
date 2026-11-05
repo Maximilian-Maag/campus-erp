@@ -127,3 +127,62 @@ func TestHTTPDunningErrorBranches(t *testing.T) {
 		t.Fatalf("duplicate level = %d, want 409", resp.StatusCode)
 	}
 }
+
+// TestHTTPDunningLevelsList covers the levels list a screen picks a level from: no
+// year lists every year with each level's bands, ?year= narrows to one, a year with
+// nothing in it is an empty list rather than a 404, and a non-integer year is the
+// caller's mistake, not a server error.
+func TestHTTPDunningLevelsList(t *testing.T) {
+	srv, _ := newTestServer(t)
+	code := uniqueLevelCode(t)
+	createLevel(t, srv.URL, code)
+
+	listCodes := func(url string) []levelJSON {
+		t.Helper()
+		resp := doJSON(t, http.MethodGet, url, "alice", "")
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("list levels = %d", resp.StatusCode)
+		}
+		var levels []levelJSON
+		if err := json.NewDecoder(resp.Body).Decode(&levels); err != nil {
+			t.Fatalf("decode levels: %v", err)
+		}
+		return levels
+	}
+	find := func(levels []levelJSON, code string) (levelJSON, bool) {
+		for _, l := range levels {
+			if l.Code == code {
+				return l, true
+			}
+		}
+		return levelJSON{}, false
+	}
+
+	// No year: every year, and the level carries its two bands.
+	all := listCodes(srv.URL + "/api/dunning/levels")
+	got, ok := find(all, code)
+	if !ok {
+		t.Fatalf("level %q missing from the unfiltered list", code)
+	}
+	if len(got.Bands) != 2 {
+		t.Fatalf("bands = %d, want 2", len(got.Bands))
+	}
+	if got.Bands[0].FeeCents != 500 || got.Bands[1].RateBasisPoints != 200 {
+		t.Fatalf("bands = %+v, want the stored fee and rate", got.Bands)
+	}
+
+	// One year: the level is still there.
+	if _, ok := find(listCodes(srv.URL+"/api/dunning/levels?year=2026"), code); !ok {
+		t.Fatalf("level %q missing from the 2026 list", code)
+	}
+
+	// A year with no levels is empty, not a 404.
+	if levels := listCodes(srv.URL + "/api/dunning/levels?year=1999"); len(levels) != 0 {
+		t.Fatalf("year 1999 = %d levels, want 0", len(levels))
+	}
+
+	// A non-integer year is a client error.
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/dunning/levels?year=abc", "alice", ""); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("bad year = %d, want 422", resp.StatusCode)
+	}
+}

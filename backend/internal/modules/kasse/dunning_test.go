@@ -223,6 +223,9 @@ type fakeDunningRepo struct {
 	documentErr error
 	documentKey string
 	documentID  int64
+	// listYear records the year a list call was given, so a test can assert the
+	// service passes the caller's filter through rather than deciding it itself.
+	listYear int
 }
 
 func (f *fakeDunningRepo) CreateLevel(_ context.Context, l DunningLevel) (DunningLevel, error) {
@@ -239,6 +242,14 @@ func (f *fakeDunningRepo) GetLevel(context.Context, int, string) (DunningLevel, 
 		return DunningLevel{}, f.getErr
 	}
 	return f.level, nil
+}
+
+func (f *fakeDunningRepo) Levels(_ context.Context, year int) ([]DunningLevel, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	f.listYear = year
+	return []DunningLevel{f.level}, nil
 }
 
 func (f *fakeDunningRepo) InsertNotice(_ context.Context, n DunningNotice) (DunningNotice, error) {
@@ -338,5 +349,28 @@ func TestDunningServiceLevel(t *testing.T) {
 	}
 	if got.Code != "1" {
 		t.Fatalf("code = %q", got.Code)
+	}
+}
+
+func TestDunningServiceLevels(t *testing.T) {
+	ctx := context.Background()
+	repo := &fakeDunningRepo{level: validLevel()}
+	svc := NewDunningService(repo, &fakeAudit{})
+
+	got, err := svc.Levels(ctx, 2026)
+	if err != nil {
+		t.Fatalf("Levels: %v", err)
+	}
+	if len(got) != 1 || got[0].Code != "1" {
+		t.Fatalf("levels = %+v", got)
+	}
+	// The year is the caller's: the service hands it to the repo rather than deciding it.
+	if repo.listYear != 2026 {
+		t.Fatalf("repo saw year %d, want 2026", repo.listYear)
+	}
+
+	boom := errors.New("boom")
+	if _, err := NewDunningService(&fakeDunningRepo{getErr: boom}, &fakeAudit{}).Levels(ctx, 0); !errors.Is(err, boom) {
+		t.Fatalf("repo error: want boom, got %v", err)
 	}
 }

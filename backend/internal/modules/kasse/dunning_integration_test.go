@@ -169,3 +169,89 @@ func TestDunningDuplicateLevelIsRejected(t *testing.T) {
 		t.Fatalf("want ErrLevelExists, got %v", err)
 	}
 }
+
+// TestDunningLevelsList covers the levels list a screen reads: it carries each level's
+// bands (including none at all), it orders by year then code, and a year with nothing in
+// it is an empty list rather than an error.
+func TestDunningLevelsList(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	repo := kasse.NewDunningRepo(pool)
+
+	// Two years apart, so their order in an unfiltered list is decided by the year.
+	base := "L" + uniqueSuffix(t)
+	withBands, withoutBands := base+"a", base+"b"
+	if _, err := repo.CreateLevel(ctx, kasse.DunningLevel{
+		Year: 2026, Code: withBands, Description: "mit Staffeln", Active: true,
+		Bands: []kasse.DunningBand{
+			{UpToCents: 5000, FeeCents: 500, RateBasisPoints: 0},
+			{UpToCents: 0, FeeCents: 2500, RateBasisPoints: 200},
+		},
+	}); err != nil {
+		t.Fatalf("CreateLevel(%s): %v", withBands, err)
+	}
+	// A level with no bands still belongs in the list (the join gives it a null band row).
+	if _, err := repo.CreateLevel(ctx, kasse.DunningLevel{
+		Year: 2027, Code: withoutBands, Description: "ohne Staffeln", Active: false,
+	}); err != nil {
+		t.Fatalf("CreateLevel(%s): %v", withoutBands, err)
+	}
+
+	find := func(levels []kasse.DunningLevel, code string) (kasse.DunningLevel, int, bool) {
+		for i, l := range levels {
+			if l.Code == code {
+				return l, i, true
+			}
+		}
+		return kasse.DunningLevel{}, 0, false
+	}
+
+	all, err := repo.Levels(ctx, 0)
+	if err != nil {
+		t.Fatalf("Levels(all): %v", err)
+	}
+	banded, atBanded, ok := find(all, withBands)
+	if !ok {
+		t.Fatalf("level %q missing from the unfiltered list", withBands)
+	}
+	if len(banded.Bands) != 2 || banded.Bands[0].FeeCents != 500 || banded.Bands[1].RateBasisPoints != 200 {
+		t.Fatalf("bands = %+v, want the two stored bands in order", banded.Bands)
+	}
+	if banded.Description != "mit Staffeln" || !banded.Active || banded.Year != 2026 {
+		t.Fatalf("level = %+v", banded)
+	}
+	bare, atBare, ok := find(all, withoutBands)
+	if !ok {
+		t.Fatalf("level %q missing from the unfiltered list", withoutBands)
+	}
+	if len(bare.Bands) != 0 {
+		t.Fatalf("bands = %+v, want none", bare.Bands)
+	}
+	if bare.Active {
+		t.Fatal("active = true, want false")
+	}
+	if atBanded >= atBare {
+		t.Fatalf("2026 level at %d is not before the 2027 one at %d", atBanded, atBare)
+	}
+
+	// One year narrows to that year's levels only.
+	only2027, err := repo.Levels(ctx, 2027)
+	if err != nil {
+		t.Fatalf("Levels(2027): %v", err)
+	}
+	if _, _, ok := find(only2027, withoutBands); !ok {
+		t.Fatalf("level %q missing from the 2027 list", withoutBands)
+	}
+	if _, _, ok := find(only2027, withBands); ok {
+		t.Fatalf("level %q belongs to 2026, not 2027", withBands)
+	}
+
+	// A year nothing was entered for is an empty list.
+	none, err := repo.Levels(ctx, 1999)
+	if err != nil {
+		t.Fatalf("Levels(1999): %v", err)
+	}
+	if len(none) != 0 {
+		t.Fatalf("year 1999 = %d levels, want 0", len(none))
+	}
+}

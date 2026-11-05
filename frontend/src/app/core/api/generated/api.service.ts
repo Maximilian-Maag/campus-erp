@@ -107,6 +107,10 @@ export class CampusErpApi {
     return this.http.get(this.base + `/api/direct-debit/runs/${reference}/file`, { responseType: 'text' });
   }
 
+  listDunningLevels(year?: string): Observable<m.DunningLevel[]> {
+    return this.http.get<m.DunningLevel[]>(this.base + `/api/dunning/levels${this._query({ year })}`);
+  }
+
   createDunningLevel(body: m.CreateLevelRequest): Observable<m.DunningLevel> {
     return this.http.post<m.DunningLevel>(this.base + `/api/dunning/levels`, body);
   }
