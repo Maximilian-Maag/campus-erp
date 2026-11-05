@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,11 +10,18 @@ import (
 )
 
 func orderPayload(reference, dueDate string) string {
+	return orderPayloadWithPosition(reference, dueDate,
+		`{"year":2026,"chapter":"0710","title":"6810","cost_centre":"KST-1","cost_carrier":"KT-1","allocated_cents":500000}`)
+}
+
+// orderPayloadWithPosition builds an order whose `budget_position` is whatever the caller
+// says: either a description of a new position, or the id of an existing one.
+func orderPayloadWithPosition(reference, dueDate, budgetPosition string) string {
 	return `{"reference":"` + reference + `","business_year":2026,"amount_cents":125000,` +
 		`"currency":"EUR","purpose":"Stromabschlag","due_date":"` + dueDate + `",` +
 		`"recipient":{"name":"Stadtwerke","account_holder":"Stadtwerke","iban":"DE02120300000000202051",` +
 		`"bic":"BYLADEM1001","bank_name":"Musterbank"},` +
-		`"budget_position":{"year":2026,"chapter":"0710","title":"6810","cost_centre":"KST-1","cost_carrier":"KT-1","allocated_cents":500000}}`
+		`"budget_position":` + budgetPosition + `}`
 }
 
 type orderJSON struct {
@@ -139,5 +147,122 @@ func TestHTTPPaymentOrderErrorBranches(t *testing.T) {
 	draft := createOrder(t, srv.URL, "alice")
 	if resp := doJSON(t, http.MethodPost, fmt.Sprintf("%s/api/payment-orders/%d/cancel", srv.URL, draft.ID), "alice", ""); resp.StatusCode != http.StatusOK {
 		t.Fatalf("cancel = %d, want 200", resp.StatusCode)
+	}
+}
+
+// createBudgetPosition posts a position through the budget module and returns its id — the
+// position an order may name instead of describing one.
+func createBudgetPosition(t *testing.T, srv string, allocatedCents int64) int64 {
+	t.Helper()
+	resp := doJSON(t, http.MethodPost, srv+"/api/budget/positions", "carol",
+		fmt.Sprintf(`{"year":2026,"chapter":"0710","title":"T-%d","description":"Miete","allocated_cents":%d}`,
+			time.Now().UnixNano(), allocatedCents))
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create budget position = %d", resp.StatusCode)
+	}
+	var pos struct {
+		ID             int64 `json:"ID"`
+		AllocatedCents int64
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&pos); err != nil {
+		t.Fatalf("decode position: %v", err)
+	}
+	return pos.ID
+}
+
+// An order may draw on a position that already exists — one created through the budget
+// module — rather than describing a new one, and naming it must not rewrite its Ansatz.
+func TestHTTPOrderNamesAnExistingBudgetPosition(t *testing.T) {
+	srv, pool := newTestServer(t)
+	ctx := context.Background()
+	positionID := createBudgetPosition(t, srv.URL, 500000)
+
+	ref := fmt.Sprintf("AO-%d", time.Now().UnixNano())
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/payment-orders", "alice",
+		orderPayloadWithPosition(ref, "2026-04-01", fmt.Sprintf(`{"id":%d}`, positionID)))
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create order naming a position = %d (%s)", resp.StatusCode, resp.Body)
+	}
+	var order orderJSON
+	if err := json.NewDecoder(resp.Body).Decode(&order); err != nil {
+		t.Fatalf("decode order: %v", err)
+	}
+
+	// The order points at that position, and the position's Ansatz is untouched.
+	var linked int64
+	if err := pool.QueryRow(ctx, `SELECT budget_position_id FROM payment_order WHERE id = $1`, order.ID).Scan(&linked); err != nil {
+		t.Fatalf("read order: %v", err)
+	}
+	if linked != positionID {
+		t.Fatalf("order draws on position %d, want %d", linked, positionID)
+	}
+	var allocated int64
+	if err := pool.QueryRow(ctx, `SELECT allocated_cents FROM budget_position WHERE id = $1`, positionID).Scan(&allocated); err != nil {
+		t.Fatalf("read position: %v", err)
+	}
+	if allocated != 500000 {
+		t.Fatalf("allocated = %d, want the Ansatz left at 500000", allocated)
+	}
+
+	// Approving binds the amount on that position — through the budget module's own balance.
+	base := fmt.Sprintf("%s/api/payment-orders/%d", srv.URL, order.ID)
+	if resp := doJSON(t, http.MethodPost, base+"/submit", "alice", ""); resp.StatusCode != http.StatusOK {
+		t.Fatalf("submit = %d", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodPost, base+"/approve", "bob", ""); resp.StatusCode != http.StatusOK {
+		t.Fatalf("approve = %d", resp.StatusCode)
+	}
+	resp = doJSON(t, http.MethodGet, fmt.Sprintf("%s/api/budget/positions/%d/balance", srv.URL, positionID), "", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("balance = %d", resp.StatusCode)
+	}
+	var balance struct {
+		PositionID     int64
+		AllocatedCents int64
+		CommittedCents int64
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&balance); err != nil {
+		t.Fatalf("decode balance: %v", err)
+	}
+	if balance.PositionID != positionID || balance.AllocatedCents != 500000 || balance.CommittedCents != 125000 {
+		t.Fatalf("balance = %+v, want position %d committed 125000 off an Ansatz of 500000", balance, positionID)
+	}
+}
+
+// Naming an existing position and describing a new one are alternatives: a body that does
+// both is refused rather than half-honoured, and an id that does not exist is not found.
+func TestHTTPOrderRefusesAmbiguousOrUnknownBudgetPosition(t *testing.T) {
+	srv, _ := newTestServer(t)
+	positionID := createBudgetPosition(t, srv.URL, 500000)
+
+	// Both an id and a description: the caller's intent is ambiguous.
+	ref := fmt.Sprintf("AO-%d", time.Now().UnixNano())
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/payment-orders", "alice",
+		orderPayloadWithPosition(ref, "2026-04-01", fmt.Sprintf(`{"id":%d,"allocated_cents":1}`, positionID)))
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("naming and describing = %d, want 422", resp.StatusCode)
+	}
+	var problem struct{ Code string }
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+		t.Fatalf("decode problem: %v", err)
+	}
+	if problem.Code != "budget_position_ambiguous" {
+		t.Fatalf("code = %q, want budget_position_ambiguous", problem.Code)
+	}
+
+	// A description on its own is still how a new position is created.
+	ref = fmt.Sprintf("AO-%d", time.Now().UnixNano())
+	resp = doJSON(t, http.MethodPost, srv.URL+"/api/payment-orders", "alice",
+		orderPayload(ref, "2026-04-01"))
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("described position = %d, want 201", resp.StatusCode)
+	}
+
+	// An id nothing carries is a 404, not a new position.
+	ref = fmt.Sprintf("AO-%d", time.Now().UnixNano())
+	resp = doJSON(t, http.MethodPost, srv.URL+"/api/payment-orders", "alice",
+		orderPayloadWithPosition(ref, "2026-04-01", `{"id":9223372036854775807}`))
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown position = %d, want 404", resp.StatusCode)
 	}
 }

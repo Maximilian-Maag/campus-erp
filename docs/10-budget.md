@@ -51,5 +51,12 @@ Every write is audited (`budget_position.create`, `budget_posting.create`).
 - What follows from that: an order's position must carry Mittel. The order body's
   `budget_position` now takes an `allocated_cents` (docs/15), written when the position is first
   created — naming an existing position does not rewrite its Ansatz, because an order may not
-  change the budget it draws on. Referencing an existing position created through the budget
-  module (rather than creating one inline) is the follow-up.
+  change the budget it draws on.
+- ~~Referencing an existing position created through the budget module (rather than creating one
+  inline) is the follow-up~~ — done since: the order body's `budget_position` also takes an `id`,
+  which names a position created through the budget module. The position is then used as it
+  stands: its Ansatz is not rewritten, and approving the order binds its amount on it like any
+  other. The two forms are alternatives — naming an id and describing a position at once is
+  refused (`422`, `budget_position_ambiguous`) rather than half-honoured, and an id nothing
+  carries is a `404`, not a new position. An id on its own leaves every descriptive field at its
+  zero value, which is how the two are told apart.

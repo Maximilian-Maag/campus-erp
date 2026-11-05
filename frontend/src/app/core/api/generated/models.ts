@@ -47,6 +47,7 @@ export interface Booking {
 }
 
 export interface BudgetPositionRequest {
+  id?: number;
   year: number;
   chapter: string;
   title: string;
