@@ -187,6 +187,11 @@ the two and changes no total — the same rule as the key-based engines. A charg
 centre charging itself, and a day no rate covers are all refused. Its records carry the reference
 `LEI:<charge id>`.
 
+The frontend has one screen for this, *Verrechnungspreise* (`/klr/verrechnungspreise`): it lists
+the rates, defines one (the price is typed in euros and stored in cents) and charges a service,
+naming both ends, the quantity and the day it was rendered. A price needs one cost type and no
+second centre; the charge form is only offered once there are two centres to charge between.
+
 ## Why "clearing" is two things here
 
 `docs/08` lists the vendor's `cost_center_clearing` and `cost_unit_clearing` next to the
@@ -198,4 +203,6 @@ else in this package the mapping is data an operator can change rather than code
 
 ## Not yet done
 
-- The KLR has no screen for internal pricing yet; the rates and charges are driven through the API.
+- Nothing outstanding in the KLR itself. The vendor's print layouts for the KLR views are still to
+  come (docs/25), and the internal-pricing screen is new enough that no run has been reconciled
+  against the legacy system yet.

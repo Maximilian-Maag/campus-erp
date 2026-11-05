@@ -1,28 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CampusErpApi, Receivable } from '../core/api/generated';
-import { formatCents, formatDay } from '../core/format';
-
-/**
- * Turns an amount typed in euros into cents, or null when it is not a positive one.
- *
- * Operators type euros ("425,00" or "1.250,75"), the API stores cents. The conversion is done on
- * the string, not through a float, so 0,01 € is exactly one cent rather than something that
- * rounds to it. A comma is the decimal separator, as in German: when one is present the points
- * group thousands and are dropped; otherwise a point is the decimal separator. The API refuses a
- * non-positive amount, so one is refused here too rather than sent to be rejected.
- */
-export function euroToCents(input: string): number | null {
-  let raw = input.trim();
-  if (raw.includes(',')) {
-    raw = raw.replace(/\./g, '').replace(',', '.');
-  }
-  if (!/^\d{1,14}(\.\d{1,2})?$/.test(raw)) {
-    return null;
-  }
-  const [whole, fraction = ''] = raw.split('.');
-  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
-  return cents > 0 ? cents : null;
-}
+import { euroToCents, formatCents, formatDay } from '../core/format';
 
 /** The state as the screen shows it. */
 export function stateLabel(state: string): string {

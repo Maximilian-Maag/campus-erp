@@ -5,6 +5,7 @@ import { EInvoicesComponent } from './einvoice/invoices.component';
 import { KlrAllocationComponent } from './klr/allocation.component';
 import { KlrCostTypesComponent } from './klr/cost-types.component';
 import { KlrCostUnitsComponent } from './klr/cost-units.component';
+import { KlrServiceRatesComponent } from './klr/service-rates.component';
 import { BankStatementsComponent } from './kasse/bank-statements.component';
 import { CollectionRunsComponent } from './kasse/collection-runs.component';
 import { PaymentOrdersComponent } from './kasse/payment-orders.component';
@@ -19,6 +20,7 @@ export const routes: Routes = [
   { path: 'klr/umlage', component: KlrAllocationComponent },
   { path: 'klr/kostenarten', component: KlrCostTypesComponent },
   { path: 'klr/kostentraeger', component: KlrCostUnitsComponent },
+  { path: 'klr/verrechnungspreise', component: KlrServiceRatesComponent },
   { path: 'kasse/anordnungen', component: PaymentOrdersComponent },
   { path: 'kasse/kontoauszuege', component: BankStatementsComponent },
   { path: 'kasse/offene-posten', component: ReceivablesComponent },

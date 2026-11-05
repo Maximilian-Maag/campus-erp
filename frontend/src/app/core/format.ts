@@ -16,6 +16,27 @@ export function formatCents(cents: number): string {
 }
 
 /**
+ * A typed amount as minor units ("425,00" -> 42500), or null when it is not a positive amount.
+ * The parsing is done on the string, not through a float, so "0,01" is exactly one cent. A comma
+ * is accepted as the decimal separator, and thousands dots are tolerated in either style.
+ *
+ * It sits next to `formatCents` because the two are inverses: every screen that lets an operator
+ * type an amount needs this, and a second copy of the rule is how the two directions drift apart.
+ */
+export function euroToCents(input: string): number | null {
+  let raw = input.trim();
+  if (raw.includes(',')) {
+    raw = raw.replace(/\./g, '').replace(',', '.');
+  }
+  if (!/^\d{1,14}(\.\d{1,2})?$/.test(raw)) {
+    return null;
+  }
+  const [whole, fraction = ''] = raw.split('.');
+  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+  return cents > 0 ? cents : null;
+}
+
+/**
  * An ISO date as the screen shows it ("2026-04-01T00:00:00Z" -> "01.04.2026"). The date is read
  * in UTC because the API's issue date is a day, not an instant: a local reading would show the
  * previous day west of Greenwich.
