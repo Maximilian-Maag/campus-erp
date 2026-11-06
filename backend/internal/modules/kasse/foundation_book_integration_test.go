@@ -156,3 +156,83 @@ func TestFoundationBookValidation(t *testing.T) {
 		t.Fatalf("book unknown book: %v", err)
 	}
 }
+
+// TestBooksListIsScopedToTheFoundation is the read side of S6's isolation: asking for one
+// foundation's books never returns another's, and an unknown foundation is empty rather than an
+// error.
+func TestBooksListIsScopedToTheFoundation(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	store := audit.NewStore(pool)
+	tax := kasse.NewTaxService(kasse.NewTaxRepo(pool), store)
+	books := kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store)
+
+	fa := newFoundation(t, tax)
+	fb := newFoundation(t, tax)
+
+	first, err := books.CreateBook(ctx, fa.ID, "B-1-"+uniqueSuffix(t), "EUR", "alice")
+	if err != nil {
+		t.Fatalf("CreateBook first: %v", err)
+	}
+	second, err := books.CreateBook(ctx, fa.ID, "B-2-"+uniqueSuffix(t), "CHF", "alice")
+	if err != nil {
+		t.Fatalf("CreateBook second: %v", err)
+	}
+	other, err := books.CreateBook(ctx, fb.ID, "B-3-"+uniqueSuffix(t), "EUR", "alice")
+	if err != nil {
+		t.Fatalf("CreateBook other: %v", err)
+	}
+
+	listA, err := books.Books(ctx, fa.ID)
+	if err != nil {
+		t.Fatalf("Books(A): %v", err)
+	}
+	if len(listA) != 2 {
+		t.Fatalf("A = %d books, want its own two", len(listA))
+	}
+	for _, b := range listA {
+		if b.FoundationID != fa.ID {
+			t.Fatalf("A's list holds a book of foundation %d", b.FoundationID)
+		}
+	}
+	if !holdsBook(listA, first.ID) || !holdsBook(listA, second.ID) || holdsBook(listA, other.ID) {
+		t.Fatalf("A's list = %+v, want exactly %d and %d", listA, first.ID, second.ID)
+	}
+	if got := currencyOf(listA, second.ID); got != "CHF" {
+		t.Fatalf("currency = %q, want the one it was created with", got)
+	}
+
+	listB, err := books.Books(ctx, fb.ID)
+	if err != nil {
+		t.Fatalf("Books(B): %v", err)
+	}
+	if len(listB) != 1 || listB[0].ID != other.ID {
+		t.Fatalf("B's list = %+v, want only %d", listB, other.ID)
+	}
+
+	empty, err := books.Books(ctx, 9223372036854775807)
+	if err != nil {
+		t.Fatalf("Books(unknown foundation): %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("an unknown foundation has %d books, want none", len(empty))
+	}
+}
+
+func holdsBook(list []kasse.FoundationBook, id int64) bool {
+	for _, b := range list {
+		if b.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func currencyOf(list []kasse.FoundationBook, id int64) string {
+	for _, b := range list {
+		if b.ID == id {
+			return b.Currency
+		}
+	}
+	return ""
+}

@@ -54,7 +54,7 @@ workspace "university-ERP replacement" "As-is (legacy university ERP) and target
                 core_reg      = component "Regulatory adapters" "Per-Bundesland rules"
                 mod_personal  = component "Personal module" "Positions, pay, travel, time"
                 mod_finance   = component "Finance module" "Ledger, budget, invoices, procurement"
-                mod_kasse     = component "Kasse module" "Cash book, payments, dunning"
+                mod_kasse     = component "Kasse module" "Cash book, payments, dunning, foundations"
                 mod_klr       = component "KLR module" "Budget structure, apportionment"
                 core_etl      = component "ETL / anti-corruption" "Legacy schema -> new schema"
             }

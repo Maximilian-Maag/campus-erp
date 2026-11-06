@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 )
@@ -15,6 +17,7 @@ type taxService interface {
 	VATType(ctx context.Context, code string) (kasse.VATType, error)
 	CreateTaxOffice(ctx context.Context, t kasse.TaxOffice, by string) (kasse.TaxOffice, error)
 	CreateFoundation(ctx context.Context, f kasse.Foundation, by string) (kasse.Foundation, error)
+	Foundations(ctx context.Context, year int) ([]kasse.Foundation, error)
 }
 
 // statusForTax maps a tax-data error to an HTTP status.
@@ -133,4 +136,24 @@ func (s *Server) createFoundation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
+}
+
+// listFoundations reads the foundation references. The year filter is the server's: ?year=2026
+// narrows to one year, and no year lists every year.
+func (s *Server) listFoundations(w http.ResponseWriter, r *http.Request) {
+	year := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("year")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_year", "year must be an integer")
+			return
+		}
+		year = parsed
+	}
+	foundations, err := s.tax.Foundations(r.Context(), year)
+	if err != nil {
+		writeProblem(w, statusForTax(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, foundations)
 }

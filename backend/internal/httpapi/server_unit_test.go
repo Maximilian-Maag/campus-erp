@@ -124,10 +124,12 @@ func (s stubDunning) Issue(context.Context, int, string, string, int64, string) 
 
 // stubTax satisfies the tax-data interface with a fixed result.
 type stubTax struct {
-	vat        kasse.VATType
-	office     kasse.TaxOffice
-	foundation kasse.Foundation
-	err        error
+	vat         kasse.VATType
+	office      kasse.TaxOffice
+	foundation  kasse.Foundation
+	foundations []kasse.Foundation
+	seenYear    *int
+	err         error
 }
 
 func (s stubTax) CreateVATType(context.Context, kasse.VATType, string) (kasse.VATType, error) {
@@ -144,6 +146,16 @@ func (s stubTax) CreateTaxOffice(context.Context, kasse.TaxOffice, string) (kass
 
 func (s stubTax) CreateFoundation(context.Context, kasse.Foundation, string) (kasse.Foundation, error) {
 	return s.foundation, s.err
+}
+
+func (s stubTax) Foundations(_ context.Context, year int) ([]kasse.Foundation, error) {
+	if s.seenYear != nil {
+		*s.seenYear = year
+	}
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.foundations, nil
 }
 
 // stubRuns satisfies the payment-run interface with a fixed result.
@@ -194,7 +206,11 @@ func (s stubStatements) BankFile(context.Context, int64) (kasse.BankFile, error)
 }
 
 // stubFoundationBooks satisfies the foundation-book interface with a fixed result.
-type stubFoundationBooks struct{ err error }
+type stubFoundationBooks struct {
+	books          []kasse.FoundationBook
+	seenFoundation *int64
+	err            error
+}
 
 func (s stubFoundationBooks) CreateBook(context.Context, int64, string, string, string) (kasse.FoundationBook, error) {
 	return kasse.FoundationBook{}, s.err
@@ -210,6 +226,16 @@ func (s stubFoundationBooks) Bookings(context.Context, int64) ([]kasse.Foundatio
 
 func (s stubFoundationBooks) Balance(context.Context, int64) (kasse.FoundationBalance, error) {
 	return kasse.FoundationBalance{}, s.err
+}
+
+func (s stubFoundationBooks) Books(_ context.Context, foundationID int64) ([]kasse.FoundationBook, error) {
+	if s.seenFoundation != nil {
+		*s.seenFoundation = foundationID
+	}
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.books, nil
 }
 
 // stubEInvoices satisfies the e-invoice interface with a fixed result.
@@ -458,6 +484,100 @@ func TestListDunningLevelsYearQuery(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestListFoundationsAndBooksWithoutDatabase covers the two reads the Stiftungen screen opens
+// with, without a database: ?year= is parsed by the server (no year lists every year, a padded
+// one is read as its number, a non-number is refused by code), and a foundation's books are
+// read from the id in the path — never from anything a caller could vary.
+func TestListFoundationsAndBooksWithoutDatabase(t *testing.T) {
+	foundation := kasse.Foundation{ID: 4, Year: 2026, Number: "1"}
+	book := kasse.FoundationBook{ID: 9, FoundationID: 4, Reference: "B-1", Currency: "EUR"}
+
+	cases := []struct {
+		name     string
+		query    string
+		want     int
+		wantYear int
+	}{
+		{"no year lists every year", "", http.StatusOK, 0},
+		{"one year", "?year=2026", http.StatusOK, 2026},
+		{"a padded year is still that year", "?year=%202026", http.StatusOK, 2026},
+		{"a non-integer year is a client error", "?year=abc", http.StatusUnprocessableEntity, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var seenYear int
+			handler := httpapi.New(httpapi.Deps{
+				Tax: stubTax{foundations: []kasse.Foundation{foundation}, seenYear: &seenYear},
+			}).Handler()
+
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/foundations"+c.query, nil))
+			if rec.Code != c.want {
+				t.Fatalf("status = %d, want %d (%s)", rec.Code, c.want, rec.Body.String())
+			}
+			if c.want != http.StatusOK {
+				return
+			}
+			if seenYear != c.wantYear {
+				t.Fatalf("service saw year %d, want %d", seenYear, c.wantYear)
+			}
+			if !strings.Contains(rec.Body.String(), `"Number":"1"`) {
+				t.Fatalf("body = %s, want the foundation", rec.Body.String())
+			}
+		})
+	}
+
+	t.Run("books of the foundation in the path", func(t *testing.T) {
+		var seenFoundation int64
+		handler := httpapi.New(httpapi.Deps{
+			FoundationBooks: stubFoundationBooks{books: []kasse.FoundationBook{book}, seenFoundation: &seenFoundation},
+		}).Handler()
+
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/foundations/4/books", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (%s)", rec.Code, rec.Body.String())
+		}
+		if seenFoundation != 4 {
+			t.Fatalf("service saw foundation %d, want 4", seenFoundation)
+		}
+		if !strings.Contains(rec.Body.String(), `"Reference":"B-1"`) {
+			t.Fatalf("body = %s, want the book", rec.Body.String())
+		}
+	})
+
+	t.Run("a path that is not an id is refused before the service", func(t *testing.T) {
+		var seenFoundation int64
+		handler := httpapi.New(httpapi.Deps{
+			FoundationBooks: stubFoundationBooks{seenFoundation: &seenFoundation},
+		}).Handler()
+
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/foundations/abc/books", nil))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400", rec.Code)
+		}
+		if seenFoundation != 0 {
+			t.Fatalf("the service was asked for foundation %d", seenFoundation)
+		}
+	})
+
+	t.Run("a failing service is a server error", func(t *testing.T) {
+		handler := httpapi.New(httpapi.Deps{
+			Tax:             stubTax{err: errors.New("boom")},
+			FoundationBooks: stubFoundationBooks{err: errors.New("boom")},
+		}).Handler()
+
+		for _, url := range []string{"/api/foundations", "/api/foundations/4/books"} {
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, url, nil))
+			if rec.Code != http.StatusInternalServerError {
+				t.Fatalf("GET %s = %d, want 500", url, rec.Code)
+			}
+		}
+	})
 }
 
 // orderBodyWithPosition is a complete order body whose `budget_position` is the caller's.

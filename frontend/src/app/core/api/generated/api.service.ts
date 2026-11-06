@@ -179,8 +179,16 @@ export class CampusErpApi {
     return this.http.post<m.FoundationBooking>(this.base + `/api/foundation-books/${id}/bookings`, body);
   }
 
+  listFoundations(year?: string): Observable<m.Foundation[]> {
+    return this.http.get<m.Foundation[]>(this.base + `/api/foundations${this._query({ year })}`);
+  }
+
   createFoundation(body: m.FoundationRequest): Observable<m.Foundation> {
     return this.http.post<m.Foundation>(this.base + `/api/foundations`, body);
+  }
+
+  listFoundationBooks(id: number | string): Observable<m.FoundationBook[]> {
+    return this.http.get<m.FoundationBook[]>(this.base + `/api/foundations/${id}/books`);
   }
 
   getCostTypeByAccount(account: number | string): Observable<m.CostType> {

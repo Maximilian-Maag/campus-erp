@@ -14,6 +14,7 @@ type foundationBookService interface {
 	CreateBook(ctx context.Context, foundationID int64, reference, currency, by string) (kasse.FoundationBook, error)
 	Book(ctx context.Context, bookID, amountCents int64, kind kasse.BookingKind, purpose, by string) (kasse.FoundationBooking, error)
 	Bookings(ctx context.Context, bookID int64) ([]kasse.FoundationBooking, error)
+	Books(ctx context.Context, foundationID int64) ([]kasse.FoundationBook, error)
 	Balance(ctx context.Context, bookID int64) (kasse.FoundationBalance, error)
 }
 
@@ -108,4 +109,20 @@ func (s *Server) getFoundationBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, bal)
+}
+
+// listFoundationBooks reads one foundation's books. The foundation is a path segment rather
+// than a query, so a request cannot be read as asking for another foundation's books.
+func (s *Server) listFoundationBooks(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	books, err := s.foundationBooks.Books(r.Context(), id)
+	if err != nil {
+		writeProblem(w, statusForFoundationBook(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, books)
 }

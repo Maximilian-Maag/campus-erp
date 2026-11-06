@@ -14,7 +14,7 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 | S3 payment run + SEPA export | **done** — `cash_account`/`payment_run`/`payment_run_item`; ISO 20022 **pain.001.001.09** (DK/GBIC), byte-identical golden file (XSD validation is wired via `golden.ValidateXSD` but skipped — the vendor schema is proprietary and not committed); idempotent on reference; double-payment guard |
 | S4 statement import + reconciliation | **done** — `bank_file`/`bank_statement`/`bank_statement_line`; MT940 **and CAMT.053** parsers, lines reconciled against paid orders and classified `matched`/`returned`/`unmatched`; idempotent on the file |
 | S5 dunning | **done** — `dunning_level`/`dunning_band`/`dunning_notice`, any number of ordered bands, integer basis-point rates, stored charges, HTTP workflow |
-| S6 foundation books | **done** — `foundation_book`/`foundation_booking`; a separate book per foundation, append-only movements, derived balance; isolation tested |
+| S6 foundation books | **done** — `foundation_book`/`foundation_booking`; a separate book per foundation, append-only movements, derived balance; isolation tested; a foundation, its books and a book's movements are read by the *Stiftungen* screen (`docs/29`) |
 | S7 tax-office data + foundations | **done** — `vat_type`, `tax_office`, `foundation`; exact VAT arithmetic, ISO 7064 mod-97 IBAN validation, HTTP workflow |
 | S8 | **in progress** — ETL framework + pipelines (lookup catalogue, reference datasets) runnable from the API (`docs/19`); parallel run + cutover blocked on a production extract |
 

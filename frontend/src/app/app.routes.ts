@@ -5,6 +5,7 @@ import { CashAccountsComponent } from './kasse/cash-accounts.component';
 import { DunningComponent } from './kasse/dunning.component';
 import { PaymentRunsComponent } from './kasse/payment-runs.component';
 import { EInvoicesComponent } from './einvoice/invoices.component';
+import { FoundationsComponent } from './finanzen/foundations.component';
 import { KlrAllocationComponent } from './klr/allocation.component';
 import { KlrCostTypesComponent } from './klr/cost-types.component';
 import { KlrCostUnitsComponent } from './klr/cost-units.component';
@@ -31,4 +32,5 @@ export const routes: Routes = [
   { path: 'kasse/offene-posten', component: ReceivablesComponent },
   { path: 'kasse/einzuege', component: CollectionRunsComponent },
   { path: 'kasse/mahnwesen', component: DunningComponent },
+  { path: 'finanzen/stiftungen', component: FoundationsComponent },
 ];

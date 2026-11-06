@@ -267,10 +267,22 @@ func TestNewFoundation(t *testing.T) {
 // ── service level ───────────────────────────────────────────────────────────
 
 type fakeTaxRepo struct {
-	vat        VATType
-	office     TaxOffice
-	foundation Foundation
-	err        error
+	vat         VATType
+	office      TaxOffice
+	foundation  Foundation
+	foundations []Foundation
+	year        int
+	err         error
+}
+
+// Foundations returns the fixed list and records the year it was handed, so a test can prove
+// the filter travelled through the service rather than being applied by the fake.
+func (f *fakeTaxRepo) Foundations(_ context.Context, year int) ([]Foundation, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	f.year = year
+	return f.foundations, nil
 }
 
 func (f *fakeTaxRepo) CreateVATType(_ context.Context, v VATType) (VATType, error) {
@@ -418,5 +430,36 @@ func TestTaxServiceErrorPaths(t *testing.T) {
 	}
 	if _, err := NewTaxService(&fakeTaxRepo{}, failingAudit{err: boom}).CreateFoundation(ctx, Foundation{}, "a"); !errors.Is(err, boom) {
 		t.Fatalf("audit error: want boom, got %v", err)
+	}
+}
+
+// TestTaxServiceFoundationsCarriesTheFilter covers the read the Stiftungen screen opens with:
+// the year reaches the repository untouched (zero meaning every year), and a repository failure
+// comes back rather than being swallowed as an empty list.
+func TestTaxServiceFoundationsCarriesTheFilter(t *testing.T) {
+	ctx := context.Background()
+	repo := &fakeTaxRepo{foundations: []Foundation{{ID: 1, Year: 2025, Number: "1"}}}
+	svc := NewTaxService(repo, &fakeAudit{})
+
+	got, err := svc.Foundations(ctx, 2025)
+	if err != nil {
+		t.Fatalf("Foundations: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != 1 {
+		t.Fatalf("foundations = %+v, want the one the repository holds", got)
+	}
+	if repo.year != 2025 {
+		t.Fatalf("the repository saw year %d, want 2025", repo.year)
+	}
+
+	if _, err := svc.Foundations(ctx, 0); err != nil {
+		t.Fatalf("Foundations(all years): %v", err)
+	}
+	if repo.year != 0 {
+		t.Fatalf("the repository saw year %d, want 0 for every year", repo.year)
+	}
+
+	if _, err := NewTaxService(&fakeTaxRepo{err: errors.New("boom")}, &fakeAudit{}).Foundations(ctx, 2026); err == nil {
+		t.Fatal("want the repository error back")
 	}
 }

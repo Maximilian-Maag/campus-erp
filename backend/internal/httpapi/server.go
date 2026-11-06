@@ -185,6 +185,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/bank-files/{id}", s.authorizeRead(s.getBankFile, auth.RoleKasse))
 
 	mux.HandleFunc("POST /api/foundation-books", s.authorize(s.createFoundationBook, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/foundations/{id}/books", s.authorizeRead(s.listFoundationBooks, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/foundation-books/{id}/bookings", s.authorize(s.bookFoundation, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/foundation-books/{id}/bookings", s.authorizeRead(s.getFoundationBookings, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/foundation-books/{id}/balance", s.authorizeRead(s.getFoundationBalance, auth.RoleFinanzen))
@@ -254,6 +255,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/vat-types/{code}", s.authorizeRead(s.getVATType, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/tax-offices", s.authorize(s.createTaxOffice, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/foundations", s.authorize(s.createFoundation, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/foundations", s.authorizeRead(s.listFoundations, auth.RoleFinanzen))
 
 	// SEPA direct-debit mandates (receivables — Kasse, like dunning).
 	mux.HandleFunc("POST /api/direct-debit/mandates", s.authorize(s.createMandate, auth.RoleKasse))

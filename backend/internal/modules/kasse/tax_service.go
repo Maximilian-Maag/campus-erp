@@ -171,3 +171,9 @@ func (s *TaxService) CreateFoundation(ctx context.Context, f Foundation, by stri
 	}
 	return saved, nil
 }
+
+// Foundations lists foundation references, optionally narrowed to one year. Reading is the
+// server's: a year of zero lists every year.
+func (s *TaxService) Foundations(ctx context.Context, year int) ([]Foundation, error) {
+	return s.repo.Foundations(ctx, year)
+}
