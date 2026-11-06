@@ -13,7 +13,9 @@ type bookJSON struct {
 }
 
 type foundationJSON struct {
-	ID int64
+	ID     int64
+	Year   int
+	Number string
 }
 
 type balanceJSON struct {
@@ -150,4 +152,62 @@ func TestHTTPFoundationBookErrorBranches(t *testing.T) {
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/1/bookings", "a", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad booking body = %d, want 400", resp.StatusCode)
 	}
+}
+
+// TestHTTPFoundationBooksListIsScoped reads one foundation's books over HTTP: the ones created
+// for it, and none of another's.
+func TestHTTPFoundationBooksListIsScoped(t *testing.T) {
+	srv, _ := newTestServer(t)
+	mine := createFoundation(t, srv.URL)
+	theirs := createFoundation(t, srv.URL)
+
+	myBook := postBook(t, srv.URL, mine.ID)
+	theirBook := postBook(t, srv.URL, theirs.ID)
+
+	list := getBooks(t, srv.URL, mine.ID)
+	if len(list) != 1 || list[0].ID != myBook.ID || list[0].FoundationID != mine.ID {
+		t.Fatalf("mine = %+v, want only %d", list, myBook.ID)
+	}
+	other := getBooks(t, srv.URL, theirs.ID)
+	if len(other) != 1 || other[0].ID != theirBook.ID {
+		t.Fatalf("theirs = %+v, want only %d", other, theirBook.ID)
+	}
+
+	// a foundation nothing carries has no books, and it is not an error
+	if got := getBooks(t, srv.URL, 9223372036854775807); len(got) != 0 {
+		t.Fatalf("unknown foundation = %+v, want none", got)
+	}
+	// a path that is not an id never reaches the service
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/foundations/abc/books", "", ""); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad books id = %d, want 400", resp.StatusCode)
+	}
+}
+
+// postBook creates a book for a foundation over HTTP.
+func postBook(t *testing.T, srv string, foundationID int64) bookJSON {
+	t.Helper()
+	resp := doJSON(t, http.MethodPost, srv+"/api/foundation-books", "alice",
+		`{"foundation_id":`+itoa(foundationID)+`,"reference":"B-`+uniqueSuffix(t)+`","currency":"EUR"}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create book = %d", resp.StatusCode)
+	}
+	var b bookJSON
+	if err := json.NewDecoder(resp.Body).Decode(&b); err != nil {
+		t.Fatalf("decode book: %v", err)
+	}
+	return b
+}
+
+// getBooks reads a foundation's books over HTTP, failing the test on anything but 200.
+func getBooks(t *testing.T, srv string, foundationID int64) []bookJSON {
+	t.Helper()
+	resp := doJSON(t, http.MethodGet, srv+"/api/foundations/"+itoa(foundationID)+"/books", "", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list books = %d", resp.StatusCode)
+	}
+	var list []bookJSON
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode books: %v", err)
+	}
+	return list
 }

@@ -264,6 +264,10 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/foundations": {
         "post": ("createFoundation", "kasse", "Create a foundation", "httpapi.foundationRequest", "kasse.Foundation", 201, "json"),
+        "get": ("listFoundations", "kasse", "List foundations, optionally narrowed to one year", None, "[]kasse.Foundation", 200, "json", [("year", "integer", False)]),
+    },
+    "/api/foundations/{id}/books": {
+        "get": ("listFoundationBooks", "kasse", "List one foundation's books", None, "[]kasse.FoundationBook", 200, "json"),
     },
     "/api/direct-debit/mandates": {
         "post": ("createMandate", "kasse", "Register a SEPA direct-debit mandate", "httpapi.mandateRequest", "kasse.Mandate", 201, "json"),

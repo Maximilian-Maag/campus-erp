@@ -19,6 +19,7 @@ type TaxRepository interface {
 	UpsertTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, error)
 	CreateFoundation(ctx context.Context, f Foundation) (Foundation, error)
 	UpsertFoundation(ctx context.Context, f Foundation) (Foundation, error)
+	Foundations(ctx context.Context, year int) ([]Foundation, error)
 }
 
 // TaxRepo is the PostgreSQL implementation.
@@ -163,4 +164,27 @@ func (r *TaxRepo) UpsertFoundation(ctx context.Context, f Foundation) (Foundatio
 		return Foundation{}, fmt.Errorf("kasse: upsert foundation: %w", err)
 	}
 	return out, nil
+}
+
+// Foundations lists foundation references, newest year first. A year of zero lists every
+// year, so a caller that has not chosen one still sees what exists.
+func (r *TaxRepo) Foundations(ctx context.Context, year int) ([]Foundation, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, year, number, description, carry_over
+		   FROM foundation
+		  WHERE ($1 = 0 OR year = $1)
+		  ORDER BY year DESC, number`, year)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: list foundations: %w", err)
+	}
+	defer rows.Close()
+	out := []Foundation{}
+	for rows.Next() {
+		var f Foundation
+		if err := rows.Scan(&f.ID, &f.Year, &f.Number, &f.Description, &f.CarryOver); err != nil {
+			return nil, fmt.Errorf("kasse: scan foundation: %w", err)
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
 }

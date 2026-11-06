@@ -139,3 +139,85 @@ func TestHTTPTaxOfficeAndFoundation(t *testing.T) {
 		t.Fatalf("bad foundation body = %d, want 400", resp.StatusCode)
 	}
 }
+
+// TestHTTPFoundationsListNarrowsByYear is the read the Stiftungen screen opens with: every year,
+// one year, a year nothing carries, and a year that is not a number.
+func TestHTTPFoundationsListNarrowsByYear(t *testing.T) {
+	srv, _ := newTestServer(t)
+	current := foundationInYear(t, srv.URL, 2026)
+	previous := foundationInYear(t, srv.URL, 2025)
+
+	all := listFoundations(t, srv.URL+"/api/foundations")
+	if !holdsFoundation(all, current.ID) || !holdsFoundation(all, previous.ID) {
+		t.Fatalf("every year must hold %d and %d", current.ID, previous.ID)
+	}
+
+	only2025 := listFoundations(t, srv.URL+"/api/foundations?year=2025")
+	if !holdsFoundation(only2025, previous.ID) {
+		t.Fatalf("2025 must hold %d", previous.ID)
+	}
+	if holdsFoundation(only2025, current.ID) {
+		t.Fatalf("2025 must not hold %d, which is a 2026 foundation", current.ID)
+	}
+	for _, f := range only2025 {
+		if f.Year != 2025 {
+			t.Fatalf("listing 2025 returned %d/%s", f.Year, f.Number)
+		}
+	}
+
+	if got := listFoundations(t, srv.URL+"/api/foundations?year=2099"); len(got) != 0 {
+		t.Fatalf("2099 = %+v, want none", got)
+	}
+
+	// a year that is not a number is refused with a code, not read as every year
+	resp := doJSON(t, http.MethodGet, srv.URL+"/api/foundations?year=heuer", "", "")
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("bad year = %d, want 422", resp.StatusCode)
+	}
+	var problem struct{ Code string }
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+		t.Fatalf("decode problem: %v", err)
+	}
+	if problem.Code != "invalid_year" {
+		t.Fatalf("code = %q, want invalid_year", problem.Code)
+	}
+}
+
+// foundationInYear creates a foundation in the given year and returns what the API wrote.
+func foundationInYear(t *testing.T, srv string, year int) foundationJSON {
+	t.Helper()
+	body := `{"year":` + itoa(int64(year)) + `,"number":"STIFT-` + uniqueSuffix(t) +
+		`","description":"Stiftung","carry_over":false}`
+	resp := doJSON(t, http.MethodPost, srv+"/api/foundations", "alice", body)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create foundation %d = %d", year, resp.StatusCode)
+	}
+	var f foundationJSON
+	if err := json.NewDecoder(resp.Body).Decode(&f); err != nil {
+		t.Fatalf("decode foundation: %v", err)
+	}
+	return f
+}
+
+// listFoundations reads the foundations list, failing the test on anything but 200.
+func listFoundations(t *testing.T, url string) []foundationJSON {
+	t.Helper()
+	resp := doJSON(t, http.MethodGet, url, "", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s = %d", url, resp.StatusCode)
+	}
+	var list []foundationJSON
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode foundations: %v", err)
+	}
+	return list
+}
+
+func holdsFoundation(list []foundationJSON, id int64) bool {
+	for _, f := range list {
+		if f.ID == id {
+			return true
+		}
+	}
+	return false
+}

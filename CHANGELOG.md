@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.102.0] - 2026-11-05
+
+The Stiftungen can be found: a foundation lists, its books list, and a book's movements and
+derived balance are one screen away from the reference that owns them.
+
+### Added
+- `GET /api/foundations` — the foundation references, `?year=` narrowing to one year (`docs/29`).
+  The year is the server's, so no year lists every year and a year nothing was entered for is an
+  empty list, not a 404 (`TaxRepository.Foundations`).
+- `GET /api/foundations/{id}/books` — one foundation's books. The foundation is a path segment,
+  not a query, so one foundation's books are the only thing the route can answer and the isolation
+  cannot be lost to a forgotten filter (`FoundationBookRepository.Books`).
+- *Finanzen: Stiftungen* (`/finanzen/stiftungen`): pick a foundation, its books, then a book's
+  movements and its balance — the first screen for foundations, their books and their movements.
+  Amounts are typed in euro and converted once through the shared `euroToCents`.
+- `docs/29-foundations.md`: the slice's model, its reads and writes, and what is still open.
+
 ## [0.101.0] - 2026-11-05
 
 An order can draw on a budget position that already exists, instead of only describing one.

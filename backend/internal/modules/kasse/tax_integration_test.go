@@ -93,3 +93,62 @@ func TestTaxOfficeAndFoundationPersist(t *testing.T) {
 		t.Fatalf("want ErrFoundationExists, got %v", err)
 	}
 }
+
+// TestFoundationsListNarrowsByYear is the read behind the Stiftungen screen: a year narrows to
+// that year, no year lists every year, and a year nothing carries is empty rather than an error.
+func TestFoundationsListNarrowsByYear(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	svc := kasse.NewTaxService(kasse.NewTaxRepo(pool), audit.NewStore(pool))
+
+	current := newFoundation(t, svc) // carries 2026
+	previous, err := kasse.NewFoundation(2025, "STIFT-"+uniqueSuffix(t), "Stiftung alt", true)
+	if err != nil {
+		t.Fatalf("NewFoundation: %v", err)
+	}
+	savedPrevious, err := svc.CreateFoundation(ctx, previous, "alice")
+	if err != nil {
+		t.Fatalf("CreateFoundation(2025): %v", err)
+	}
+
+	all, err := svc.Foundations(ctx, 0)
+	if err != nil {
+		t.Fatalf("Foundations(all): %v", err)
+	}
+	if !holdsFoundation(all, current.ID) || !holdsFoundation(all, savedPrevious.ID) {
+		t.Fatalf("every year must hold %d and %d", current.ID, savedPrevious.ID)
+	}
+
+	only, err := svc.Foundations(ctx, 2025)
+	if err != nil {
+		t.Fatalf("Foundations(2025): %v", err)
+	}
+	if !holdsFoundation(only, savedPrevious.ID) {
+		t.Fatalf("2025 must hold %d", savedPrevious.ID)
+	}
+	if holdsFoundation(only, current.ID) {
+		t.Fatalf("2025 must not hold %d, which is a 2026 foundation", current.ID)
+	}
+	for _, f := range only {
+		if f.Year != 2025 {
+			t.Fatalf("listing 2025 returned %d/%s", f.Year, f.Number)
+		}
+	}
+
+	none, err := svc.Foundations(ctx, 2099)
+	if err != nil {
+		t.Fatalf("Foundations(2099): %v", err)
+	}
+	if len(none) != 0 {
+		t.Fatalf("2099 = %d foundations, want none", len(none))
+	}
+}
+
+func holdsFoundation(list []kasse.Foundation, id int64) bool {
+	for _, f := range list {
+		if f.ID == id {
+			return true
+		}
+	}
+	return false
+}

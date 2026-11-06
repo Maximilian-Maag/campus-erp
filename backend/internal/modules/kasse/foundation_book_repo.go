@@ -19,6 +19,7 @@ type FoundationBookRepository interface {
 	GetBook(ctx context.Context, id int64) (FoundationBook, error)
 	InsertBooking(ctx context.Context, b FoundationBooking, by string) (FoundationBooking, error)
 	Bookings(ctx context.Context, bookID int64) ([]FoundationBooking, error)
+	Books(ctx context.Context, foundationID int64) ([]FoundationBook, error)
 	Balance(ctx context.Context, bookID int64) (FoundationBalance, error)
 }
 
@@ -111,6 +112,26 @@ func (r *FoundationBookRepo) Bookings(ctx context.Context, bookID int64) ([]Foun
 		b, err := scanFoundationBooking(rows)
 		if err != nil {
 			return nil, fmt.Errorf("kasse: scan foundation booking: %w", err)
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+// Books lists a foundation's books, oldest first. It is scoped to the foundation id, so one
+// foundation's books never appear among another's.
+func (r *FoundationBookRepo) Books(ctx context.Context, foundationID int64) ([]FoundationBook, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+bookColumns+` FROM foundation_book WHERE foundation_id = $1 ORDER BY id`, foundationID)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: foundation books: %w", err)
+	}
+	defer rows.Close()
+	out := []FoundationBook{}
+	for rows.Next() {
+		b, err := scanBook(rows)
+		if err != nil {
+			return nil, fmt.Errorf("kasse: scan foundation book: %w", err)
 		}
 		out = append(out, b)
 	}

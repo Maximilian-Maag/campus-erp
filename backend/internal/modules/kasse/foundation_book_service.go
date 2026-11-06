@@ -77,4 +77,10 @@ func (s *FoundationBookService) Balance(ctx context.Context, bookID int64) (Foun
 	return s.repo.Balance(ctx, bookID)
 }
 
+// Books lists a foundation's books. The foundation is the scope, so a caller only ever sees
+// the books of the foundation it named.
+func (s *FoundationBookService) Books(ctx context.Context, foundationID int64) ([]FoundationBook, error) {
+	return s.repo.Books(ctx, foundationID)
+}
+
 func bookSubject(id int64) string { return fmt.Sprintf("foundation_book/%d", id) }

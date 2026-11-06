@@ -2888,6 +2888,76 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - kasse
+      operationId: listFoundations
+      summary: List foundations, optionally narrowed to one year
+      parameters:
+      - name: year
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Foundation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/foundations/{id}/books:
+    get:
+      tags:
+      - kasse
+      operationId: listFoundationBooks
+      summary: List one foundation's books
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FoundationBook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/direct-debit/mandates:
     post:
       tags:
@@ -3558,6 +3628,27 @@ components:
       - debtor_bic
       - signature_date
       - sequence_type
+    FoundationBook:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        FoundationID:
+          type: integer
+          format: int64
+        Reference:
+          type: string
+        Currency:
+          type: string
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - FoundationID
+      - Reference
+      - Currency
+      - CreatedBy
     Foundation:
       type: object
       properties:
@@ -5001,27 +5092,6 @@ components:
       - kind
       - amount_cents
       - purpose
-    FoundationBook:
-      type: object
-      properties:
-        ID:
-          type: integer
-          format: int64
-        FoundationID:
-          type: integer
-          format: int64
-        Reference:
-          type: string
-        Currency:
-          type: string
-        CreatedBy:
-          type: string
-      required:
-      - ID
-      - FoundationID
-      - Reference
-      - Currency
-      - CreatedBy
     CreateFoundationBookRequest:
       type: object
       properties:

@@ -179,6 +179,18 @@ screen — and when no level exists for the year, no notice form is offered. A n
 is linked by its document route rather than read through the generated client, which reads
 that route as text; the link appears only when the notice carries a document.
 
+`frontend/src/app/finanzen/foundations.component.ts` — *Finanzen: Stiftungen* (route
+`/finanzen/stiftungen`) — finds a foundation, its books and a book's movements (`docs/29`). The
+API could already create all three and read a book's movements and balance, but a foundation
+could not be listed and its books could not be read: a fresh install could open a book and then
+never reach it again. The screen reads in one direction, each level asked of the server for the
+level above it (`GET /api/foundations/{id}/books`), so one foundation's books are never sifted
+out of another's in the browser. The year filter is the server's (`?year=`), and a year the
+server will not read is a failed load rather than an empty list. After a foundation is created
+the list is read again — it is the server's answer to a filter the new row may not match — while
+a new book or movement joins the list it was read for, and a book's balance is read again after
+every movement rather than adjusted here, because the server derives it.
+
 Every screen has a link in the shell's navigation (`app.html`), and `e2e/app.e2e.spec.ts` fails
 if the route table and those links disagree: a screen nobody can navigate to is not finished.
 
