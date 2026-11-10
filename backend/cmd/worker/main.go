@@ -138,7 +138,20 @@ func main() {
 		if err != nil {
 			return 0, err
 		}
-		return len(exp.Postings), writeOutbox(ctx, artefacts, content)
+		return len(exp.Postings), writeOutbox(ctx, artefacts, "ledger-postings", content)
+	}
+	returnsSvc := kasse.NewReturnPostingsService(kasse.NewStatementRepo(pool),
+		audit.NewStore(pool), kasse.DefaultReturnsAccounts())
+	returnsExporter := func(ctx context.Context, from, to time.Time, by string) (int, error) {
+		exp, err := returnsSvc.Export(ctx, from, to, by)
+		if err != nil {
+			return 0, err
+		}
+		content, err := exp.Marshal()
+		if err != nil {
+			return 0, err
+		}
+		return len(exp.Postings), writeOutbox(ctx, artefacts, "return-postings", content)
 	}
 	runRepo := kasse.NewPaymentRunRepo(pool)
 	sepaExporter := func(ctx context.Context, runID int64, _ string) (string, string, error) {
@@ -185,7 +198,7 @@ func main() {
 		}
 		return name, content, nil
 	}
-	client, err := jobs.New(pool, registry, importer, exporter, sepaExporter, reportRenderer, statisticsExporter)
+	client, err := jobs.New(pool, registry, importer, exporter, returnsExporter, sepaExporter, reportRenderer, statisticsExporter)
 	if err != nil {
 		log.Fatalf("jobs: %v", err)
 	}
@@ -204,8 +217,8 @@ func main() {
 }
 
 // writeOutbox stores a ledger export in the artefact store.
-func writeOutbox(ctx context.Context, store storage.Store, content string) error {
-	name := fmt.Sprintf("ledger/ledger-postings-%s.csv", time.Now().UTC().Format("20060102T150405"))
+func writeOutbox(ctx context.Context, store storage.Store, kind, content string) error {
+	name := fmt.Sprintf("ledger/%s-%s.csv", kind, time.Now().UTC().Format("20060102T150405"))
 	return store.Save(ctx, name, []byte(content))
 }
 

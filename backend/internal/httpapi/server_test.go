@@ -87,6 +87,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
 		Mandates:        kasse.NewMandateService(kasse.NewMandateRepo(pool), store),
 		Receivables:     kasse.NewReceivableService(receivableRepo, store),
+		ReturnPostings:  kasse.NewReturnPostingsService(kasse.NewStatementRepo(pool), store, kasse.DefaultReturnsAccounts()),
 		EInvoices:       einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), procurementSvc, store),
 		Budget:          budgetSvc,
 		Lookups:         lookup.NewValueService(lookup.NewValueRepo(pool), store),

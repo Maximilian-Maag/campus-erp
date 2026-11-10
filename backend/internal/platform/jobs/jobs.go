@@ -88,12 +88,13 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 
 // StandardWorkers is the set of job kinds the worker role runs.
 func StandardWorkers(datasets DatasetRunner, importStatement StatementImportFunc,
-	exportLedger LedgerExportFunc, exportSepa SepaExportFunc, renderReport ReportRenderFunc,
-	exportStatistics StatisticsExportFunc) *river.Workers {
+	exportLedger LedgerExportFunc, exportReturns ReturnPostingsFunc, exportSepa SepaExportFunc,
+	renderReport ReportRenderFunc, exportStatistics StatisticsExportFunc) *river.Workers {
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &EtlWorker{Datasets: datasets})
 	river.AddWorker(workers, &StatementImportWorker{Import: importStatement})
 	river.AddWorker(workers, &LedgerExportWorker{Export: exportLedger})
+	river.AddWorker(workers, &ReturnPostingsWorker{Export: exportReturns})
 	river.AddWorker(workers, &SepaExportWorker{Export: exportSepa})
 	river.AddWorker(workers, &ReportRenderWorker{Render: renderReport})
 	river.AddWorker(workers, &StatisticsExportWorker{Export: exportStatistics})
@@ -103,11 +104,11 @@ func StandardWorkers(datasets DatasetRunner, importStatement StatementImportFunc
 // New builds a River client that works the standard job kinds over pool. The
 // caller owns the pool and must call Migrate before Start.
 func New(pool *pgxpool.Pool, datasets DatasetRunner, importStatement StatementImportFunc,
-	exportLedger LedgerExportFunc, exportSepa SepaExportFunc, renderReport ReportRenderFunc,
-	exportStatistics StatisticsExportFunc) (*river.Client[pgx.Tx], error) {
+	exportLedger LedgerExportFunc, exportReturns ReturnPostingsFunc, exportSepa SepaExportFunc,
+	renderReport ReportRenderFunc, exportStatistics StatisticsExportFunc) (*river.Client[pgx.Tx], error) {
 	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Queues:  map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: 4}},
-		Workers: StandardWorkers(datasets, importStatement, exportLedger, exportSepa, renderReport, exportStatistics),
+		Workers: StandardWorkers(datasets, importStatement, exportLedger, exportReturns, exportSepa, renderReport, exportStatistics),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("jobs: client: %w", err)

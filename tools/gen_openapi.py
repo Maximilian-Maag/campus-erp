@@ -124,6 +124,12 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/ledger/exports": {
         "post": ("requestLedgerExport", "kasse", "Queue a ledger posting export (renders on the worker role)", "httpapi.ledgerExportRequest", "httpapi.exportQueuedResponse", 202, "json"),
     },
+    "/api/ledger/return-postings": {
+        "post": ("requestReturnPostings", "kasse", "Queue the return-postings export to the ledger side (renders on the worker role)", "httpapi.ledgerExportRequest", "httpapi.exportQueuedResponse", 202, "json"),
+    },
+    "/api/bank-statement-returns": {
+        "get": ("listReturnedLines", "kasse", "List the returning bank-statement lines of a period, with the outcome of their reconciliation", None, "[]kasse.StatementLine", 200, "json", [("from", "string", True), ("to", "string", True)]),
+    },
     "/api/reports": {
         "get": ("listReports", "kasse", "List the reports this system renders", None, "[]report.Definition", 200, "json"),
     },

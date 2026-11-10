@@ -33,6 +33,11 @@ func (s *stubExports) EnqueueLedgerExport(_ context.Context, from, to, actor str
 	return s.id, s.err
 }
 
+func (s *stubExports) EnqueueReturnPostings(_ context.Context, from, to, actor string) (int64, error) {
+	s.record("returns", from, to, actor)
+	return s.id, s.err
+}
+
 func (s *stubExports) EnqueueReportRender(_ context.Context, reportID, from, to, actor string) (int64, error) {
 	s.record("report", reportID, from, to, actor)
 	return s.id, s.err

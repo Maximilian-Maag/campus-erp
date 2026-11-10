@@ -47,7 +47,7 @@ func TestWorkerRunsEtlJob(t *testing.T) {
 	}
 
 	stub := &stubDatasets{}
-	client, err := jobs.New(pool, stub, nil, nil, nil, nil, nil)
+	client, err := jobs.New(pool, stub, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("jobs.New: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestWorkerRunsStatisticsExportJob(t *testing.T) {
 		gotState, gotFrom, gotTo, gotActor = state, from, to, by
 		return "bw-20261101-20261130.csv", "Zweck;Einnahmen\nMensa;10.00\n", nil
 	}
-	client, err := jobs.New(pool, nil, nil, nil, nil, nil, export)
+	client, err := jobs.New(pool, nil, nil, nil, nil, nil, nil, export)
 	if err != nil {
 		t.Fatalf("jobs.New: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestEnqueueOnlyClientReachesTheWorker(t *testing.T) {
 		gotState, gotActor = state, by
 		return "bw-20261101-20261130.csv", "Zweck;Einnahmen\nMensa;10.00\n", nil
 	}
-	worker, err := jobs.New(pool, nil, nil, nil, nil, nil, export)
+	worker, err := jobs.New(pool, nil, nil, nil, nil, nil, nil, export)
 	if err != nil {
 		t.Fatalf("jobs.New: %v", err)
 	}

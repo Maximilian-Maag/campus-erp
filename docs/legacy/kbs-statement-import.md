@@ -76,8 +76,10 @@ line's client reference. A matched line whose direction is a return is classifie
 
 ## Still open
 
-- **Return postings to FiBu** (the `rueckfibu_*` format) are not produced; the
-  ledger is Phase 4 (the pilot keeps only the format in scope).
+- **Return postings to FiBu** — done since: the returning lines are rendered into the
+  `cash-returns/v1` file (docs/30) and handed to the ledger side through the artefact
+  store. The vendor's own `rueckfibu_*` layout is still unpublished, so the file is the
+  target system's; the reversal itself is the ledger's (Phase 4).
 
 ## CAMT.053 (added)
 

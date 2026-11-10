@@ -23,6 +23,10 @@ export class CampusErpApi {
     return this.http.get<m.BankFile>(this.base + `/api/bank-files/${id}`);
   }
 
+  listReturnedLines(from: string, to: string): Observable<m.StatementLine[]> {
+    return this.http.get<m.StatementLine[]>(this.base + `/api/bank-statement-returns${this._query({ from, to })}`);
+  }
+
   listBankStatements(account_id?: string): Observable<m.StatementSummary[]> {
     return this.http.get<m.StatementSummary[]>(this.base + `/api/bank-statements${this._query({ account_id })}`);
   }
@@ -277,6 +281,10 @@ export class CampusErpApi {
 
   requestLedgerExport(body: m.LedgerExportRequest): Observable<m.ExportQueuedResponse> {
     return this.http.post<m.ExportQueuedResponse>(this.base + `/api/ledger/exports`, body);
+  }
+
+  requestReturnPostings(body: m.LedgerExportRequest): Observable<m.ExportQueuedResponse> {
+    return this.http.post<m.ExportQueuedResponse>(this.base + `/api/ledger/return-postings`, body);
   }
 
   seedLookups(): Observable<m.SeedResult> {

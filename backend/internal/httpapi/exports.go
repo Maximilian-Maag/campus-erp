@@ -16,6 +16,7 @@ import (
 type exportQueue interface {
 	EnqueueStatisticsExport(ctx context.Context, state, from, to, actor string) (int64, error)
 	EnqueueLedgerExport(ctx context.Context, from, to, actor string) (int64, error)
+	EnqueueReturnPostings(ctx context.Context, from, to, actor string) (int64, error)
 	EnqueueReportRender(ctx context.Context, reportID, from, to, actor string) (int64, error)
 	EnqueueStatementImport(ctx context.Context, accountID int64, content, actor string) (int64, error)
 	EnqueueSepaExport(ctx context.Context, runID int64, actor string) (int64, error)

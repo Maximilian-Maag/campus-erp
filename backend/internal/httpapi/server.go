@@ -48,6 +48,7 @@ type Server struct {
 	orders          orderService
 	dunning         dunningService
 	dunningRun      dunningRunService
+	returns         returnPostingsService
 	tax             taxService
 	runs            paymentRunService
 	statements      statementService
@@ -78,6 +79,7 @@ type Deps struct {
 	Orders          orderService
 	Dunning         dunningService
 	DunningRun      dunningRunService
+	ReturnPostings  returnPostingsService
 	Tax             taxService
 	Runs            paymentRunService
 	Statements      statementService
@@ -106,6 +108,7 @@ func New(d Deps) *Server {
 		orders:          d.Orders,
 		dunning:         d.Dunning,
 		dunningRun:      d.DunningRun,
+		returns:         d.ReturnPostings,
 		tax:             d.Tax,
 		runs:            d.Runs,
 		statements:      d.Statements,
@@ -154,6 +157,8 @@ func (s *Server) Routes() http.Handler {
 	// Exports run on the worker role; the API only queues them (docs/27).
 	mux.HandleFunc("POST /api/statistics/exports", s.authorize(s.requestStatisticsExport, auth.RoleKasse))
 	mux.HandleFunc("POST /api/ledger/exports", s.authorize(s.requestLedgerExport, auth.RoleKasse))
+	mux.HandleFunc("POST /api/ledger/return-postings", s.authorize(s.requestReturnPostings, auth.RoleKasse))
+	mux.HandleFunc("GET /api/bank-statement-returns", s.authorizeRead(s.listReturnedLines, auth.RoleKasse))
 	mux.HandleFunc("POST /api/reports/renders", s.authorize(s.requestReportRender, auth.RoleKasse))
 	mux.HandleFunc("POST /api/bank-statements/imports", s.authorize(s.requestStatementImport, auth.RoleKasse))
 	mux.HandleFunc("POST /api/payment-runs/{id}/exports", s.authorize(s.requestSepaExport, auth.RoleKasse))

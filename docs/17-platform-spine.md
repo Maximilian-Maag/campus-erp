@@ -174,9 +174,9 @@ status then stays `planned` on purpose.
 
 - Interfaces are registered, not implemented: LBV, ELSTER, EBICS, the SOAP
   client and the rest remain `planned`.
-- Six job kinds are wired: `etl`, `statement-import`, `ledger-export`, `sepa-export`,
-  `report-render` and `statistics-export`. What remains for statistics is the offices' real
-  per-state layouts, which are project-defined placeholders today (docs/27).
+- Seven job kinds are wired: `etl`, `statement-import`, `ledger-export`, `return-postings`,
+  `sepa-export`, `report-render` and `statistics-export`. What remains for statistics is the
+  offices' real per-state layouts, which are project-defined placeholders today (docs/27).
 - The worker's artefact hand-over goes through the **artefact store** (`ERP_OUTBOX_DIR`;
   `ERP_S3_ENDPOINT` selects an S3 bucket), so a directory and object storage need no change to
   a job kind (ADR-0011, docs/26). What remains is SFTP/bank-channel *delivery*.

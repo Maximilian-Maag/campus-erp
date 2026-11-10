@@ -1087,6 +1087,79 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/ledger/return-postings:
+    post:
+      tags:
+      - kasse
+      operationId: requestReturnPostings
+      summary: Queue the return-postings export to the ledger side (renders on the worker role)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LedgerExportRequest'
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportQueuedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/bank-statement-returns:
+    get:
+      tags:
+      - kasse
+      operationId: listReturnedLines
+      summary: List the returning bank-statement lines of a period, with the outcome of their reconciliation
+      parameters:
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatementLine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/reports:
     get:
       tags:
@@ -5132,6 +5205,75 @@ components:
       - Key
       - Title
       - Align
+    StatementLine:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        LineNo:
+          type: integer
+          format: int64
+        ValueDate:
+          type: string
+          format: date-time
+        BookingDate:
+          type: string
+          format: date-time
+        Credit:
+          type: boolean
+        Return:
+          type: boolean
+        AmountCents:
+          type: integer
+          format: int64
+        Currency:
+          type: string
+        PostingKey:
+          type: string
+        ClientRef:
+          type: string
+        BankRef:
+          type: string
+        Purpose:
+          type: string
+        EndToEndRef:
+          type: string
+        CounterpartyName:
+          type: string
+        CounterpartyIBAN:
+          type: string
+        CounterpartyBIC:
+          type: string
+        UnclearedCents:
+          type: integer
+          format: int64
+        Status:
+          type: string
+        OrderID:
+          type: integer
+          format: int64
+          x-nullable: true
+      required:
+      - ID
+      - LineNo
+      - ValueDate
+      - BookingDate
+      - Credit
+      - Return
+      - AmountCents
+      - Currency
+      - PostingKey
+      - ClientRef
+      - BankRef
+      - Purpose
+      - EndToEndRef
+      - CounterpartyName
+      - CounterpartyIBAN
+      - CounterpartyBIC
+      - UnclearedCents
+      - Status
+      - OrderID
     LedgerExportRequest:
       type: object
       properties:
@@ -5303,75 +5445,6 @@ components:
       - LineCount
       - ImportedBy
       - Lines
-    StatementLine:
-      type: object
-      properties:
-        ID:
-          type: integer
-          format: int64
-        LineNo:
-          type: integer
-          format: int64
-        ValueDate:
-          type: string
-          format: date-time
-        BookingDate:
-          type: string
-          format: date-time
-        Credit:
-          type: boolean
-        Return:
-          type: boolean
-        AmountCents:
-          type: integer
-          format: int64
-        Currency:
-          type: string
-        PostingKey:
-          type: string
-        ClientRef:
-          type: string
-        BankRef:
-          type: string
-        Purpose:
-          type: string
-        EndToEndRef:
-          type: string
-        CounterpartyName:
-          type: string
-        CounterpartyIBAN:
-          type: string
-        CounterpartyBIC:
-          type: string
-        UnclearedCents:
-          type: integer
-          format: int64
-        Status:
-          type: string
-        OrderID:
-          type: integer
-          format: int64
-          x-nullable: true
-      required:
-      - ID
-      - LineNo
-      - ValueDate
-      - BookingDate
-      - Credit
-      - Return
-      - AmountCents
-      - Currency
-      - PostingKey
-      - ClientRef
-      - BankRef
-      - Purpose
-      - EndToEndRef
-      - CounterpartyName
-      - CounterpartyIBAN
-      - CounterpartyBIC
-      - UnclearedCents
-      - Status
-      - OrderID
     StatementSummary:
       type: object
       properties:

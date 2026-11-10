@@ -42,6 +42,12 @@ func (e Exports) EnqueueLedgerExport(ctx context.Context, from, to, actor string
 	return EnqueueLedgerExport(ctx, e.client, from, to, actor)
 }
 
+// EnqueueReturnPostings queues a return-postings export for the period [from, to] and
+// returns the job id (docs/30).
+func (e Exports) EnqueueReturnPostings(ctx context.Context, from, to, actor string) (int64, error) {
+	return EnqueueReturnPostings(ctx, e.client, from, to, actor)
+}
+
 // EnqueueReportRender queues a report render by id over [from, to] and returns the job id.
 func (e Exports) EnqueueReportRender(ctx context.Context, reportID, from, to, actor string) (int64, error) {
 	return EnqueueReportRender(ctx, e.client, reportID, from, to, actor)

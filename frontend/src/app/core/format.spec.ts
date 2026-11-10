@@ -2,6 +2,7 @@ import {
   basisPointsToPercent,
   formatCents,
   formatDay,
+  isoDay,
   percentToBasisPoints,
 } from './format';
 
@@ -68,6 +69,25 @@ describe('percentToBasisPoints', () => {
     expect(percentToBasisPoints('12.345')).toBeNull();
     expect(percentToBasisPoints('1234')).toBeNull();
     expect(percentToBasisPoints('1.2.3')).toBeNull();
+  });
+});
+
+describe('isoDay', () => {
+  it('formats a calendar day with two-digit month and day', () => {
+    // January 5th exercises both pads, which a day late in the year cannot.
+    expect(isoDay(new Date(2026, 0, 5))).toBe('2026-01-05');
+    expect(isoDay(new Date(2026, 11, 31))).toBe('2026-12-31');
+  });
+
+  it('names the local day, not the UTC one', () => {
+    // The API reads a day; toISOString would name the previous day east of Greenwich.
+    const local = new Date(2026, 5, 1, 0, 30, 0);
+    expect(isoDay(local)).toBe('2026-06-01');
+  });
+
+  it('round-trips with formatDay', () => {
+    const day = new Date(2026, 9, 15);
+    expect(formatDay(isoDay(day))).toBe('15.10.2026');
   });
 });
 

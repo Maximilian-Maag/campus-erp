@@ -12,7 +12,7 @@ smallest, most self-contained legacy module before touching HR or the ledger.
 | S1 cash-book core | **done** — day lifecycle (open / book / close), PostgreSQL repository, HTTP API, audit event on every write |
 | S2 payment orders + four-eyes | **done** — canonical `payment_order`/`payment_recipient`/`budget_position`, enforced four-eyes rule, decision trail, HTTP workflow |
 | S3 payment run + SEPA export | **done** — `cash_account`/`payment_run`/`payment_run_item`; ISO 20022 **pain.001.001.09** (DK/GBIC), byte-identical golden file (XSD validation is wired via `golden.ValidateXSD` but skipped — the vendor schema is proprietary and not committed); idempotent on reference; double-payment guard |
-| S4 statement import + reconciliation | **done** — `bank_file`/`bank_statement`/`bank_statement_line`; MT940 **and CAMT.053** parsers, lines reconciled against paid orders and classified `matched`/`returned`/`unmatched`; idempotent on the file |
+| S4 statement import + reconciliation | **done** — `bank_file`/`bank_statement`/`bank_statement_line`; MT940, CAMT.052/053/054 parsers, lines reconciled against paid orders and classified `matched`/`returned`/`unmatched`; idempotent on the file; the `returned` lines are rendered to the ledger side as return postings (`docs/30`) |
 | S5 dunning | **done** — `dunning_level`/`dunning_band`/`dunning_notice`, any number of ordered bands, integer basis-point rates, stored charges, HTTP workflow; the *Mahnlauf* screen walks the open receivables and advances each claim one step (`docs/28`) |
 | S6 foundation books | **done** — `foundation_book`/`foundation_booking`; a separate book per foundation, append-only movements, derived balance; isolation tested; a foundation, its books and a book's movements are read by the *Stiftungen* screen (`docs/29`) |
 | S7 tax-office data + foundations | **done** — `vat_type`, `tax_office`, `foundation`; exact VAT arithmetic, ISO 7064 mod-97 IBAN validation, HTTP workflow |
@@ -70,7 +70,7 @@ Legacy findings: `docs/legacy/kbs-payment-orders.md` (S2),
 | SEPA direct debit (pain.008) | out | mandates + collection run (`docs/20`–`22`) — **implemented** | golden files |
 | Bank statement (MT940 / CAMT.052/053/054) | in | reconciliation — **implemented** | golden files |
 | EBICS transport | both | via `connectors` — **planned** | sandbox/contract |
-| Return postings to FiBu | out | `rueckfibu_*` format — **not implemented** | golden files |
+| Return postings to FiBu | out | `cash-returns/v1` — the target system's own layout (`docs/30`); the vendor's `rueckfibu_*` layout is unpublished, so the format is data | golden files |
 
 Every interface: versioned contract, golden-file tests, idempotent re-processing.
 

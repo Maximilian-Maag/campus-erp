@@ -228,6 +228,35 @@ func (r *StatementRepo) GetStatement(ctx context.Context, id int64) (Statement, 
 	return s, rows.Err()
 }
 
+// ReturnedLines lists the statement lines the bank took back in [from, to], in
+// (effective date, id) order so the return export is deterministic. The effective date
+// is the value date, falling back to the booking date when the bank sent none: a
+// returning line that carried neither cannot be dated and does not belong to a period.
+func (r *StatementRepo) ReturnedLines(ctx context.Context, from, to time.Time) ([]StatementLine, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+lineColumns+`
+		   FROM bank_statement_line
+		  WHERE status = 'returned'
+		    AND coalesce(value_date, booking_date) BETWEEN $1 AND $2
+		  ORDER BY coalesce(value_date, booking_date), id`, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: returned lines: %w", err)
+	}
+	defer rows.Close()
+	out := []StatementLine{}
+	for rows.Next() {
+		line, err := scanLine(rows)
+		if err != nil {
+			return nil, fmt.Errorf("kasse: scan returned line: %w", err)
+		}
+		out = append(out, line)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("kasse: returned lines: %w", err)
+	}
+	return out, nil
+}
+
 // PaidOrdersByReference returns the ids of paid orders (those that belong to a
 // payment run) keyed by their reference.
 func (r *StatementRepo) PaidOrdersByReference(ctx context.Context, refs []string) (map[string]int64, error) {

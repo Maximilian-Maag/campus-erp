@@ -67,6 +67,18 @@ export function basisPointsToPercent(basisPoints: number): string {
 }
 
 /**
+ * A local calendar day as the API reads it ("2026-04-01"), built from the date's own local
+ * parts rather than through `toISOString` — which shifts to UTC and so names the previous day
+ * east of Greenwich. It is the inverse of `formatDay` and sits with it, because every screen
+ * that defaults a period field needs the same day and a second copy is how the two drift apart.
+ */
+export function isoDay(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
  * An ISO date as the screen shows it ("2026-04-01T00:00:00Z" -> "01.04.2026"). The date is read
  * in UTC because the API's issue date is a day, not an instant: a local reading would show the
  * previous day west of Greenwich.
