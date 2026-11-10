@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
 )
@@ -19,6 +20,12 @@ type dunningService interface {
 	Levels(ctx context.Context, year int) ([]kasse.DunningLevel, error)
 	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, by string) (kasse.DunningNotice, error)
 	Notice(ctx context.Context, id int64) (kasse.DunningNotice, error)
+}
+
+// dunningRunService is the dunning run surface the HTTP layer needs. It is a
+// separate interface so the existing dunning fakes need not grow a method.
+type dunningRunService interface {
+	Run(ctx context.Context, year int, asOf time.Time, by string) (kasse.DunningRunResult, error)
 }
 
 // getDunningNoticeDocument serves the stored PDF of a dunning notice (docs/24). The
@@ -175,4 +182,48 @@ func (s *Server) issueDunningNotice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, notice)
+}
+
+type runDunningRequest struct {
+	Year int    `json:"year"`
+	AsOf string `json:"as_of"` // YYYY-MM-DD
+}
+
+// runDunning walks the open receivables due by as_of and advances each claim one
+// step along the year's dunning chain (docs/28). The response is the run's report:
+// what was issued, what was skipped and why, and what failed — the run does not
+// abort on a single failed notice.
+func (s *Server) runDunning(w http.ResponseWriter, r *http.Request) {
+	var req runDunningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	asOf, err := time.Parse(time.DateOnly, req.AsOf)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "as_of must be YYYY-MM-DD")
+		return
+	}
+	result, err := s.dunningRun.Run(r.Context(), req.Year, asOf, actor(r))
+	if err != nil {
+		writeProblem(w, statusForDunningRun(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// statusForDunningRun maps a run error to an HTTP status. A chain configuration the
+// run cannot walk is a conflict — the levels exist but do not form one chain — while
+// the run's own inputs are unprocessable.
+func statusForDunningRun(err error) int {
+	switch {
+	case errors.Is(err, kasse.ErrDunningChainHead), errors.Is(err, kasse.ErrDunningChainBroken):
+		return http.StatusConflict
+	case errors.Is(err, kasse.ErrRunYearInvalid),
+		errors.Is(err, kasse.ErrRunDateRequired),
+		errors.Is(err, kasse.ErrActorRequired):
+		return http.StatusUnprocessableEntity
+	default:
+		return http.StatusInternalServerError
+	}
 }

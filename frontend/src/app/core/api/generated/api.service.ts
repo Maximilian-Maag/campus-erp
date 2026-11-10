@@ -127,6 +127,10 @@ export class CampusErpApi {
     return this.http.get(this.base + `/api/dunning/notices/${id}/document`, { responseType: 'text' });
   }
 
+  runDunning(body: m.RunDunningRequest): Observable<m.DunningRunResult> {
+    return this.http.post<m.DunningRunResult>(this.base + `/api/dunning/runs`, body);
+  }
+
   listEInvoices(): Observable<m.InvoiceSummary[]> {
     return this.http.get<m.InvoiceSummary[]>(this.base + `/api/e-invoices`);
   }

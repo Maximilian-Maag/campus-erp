@@ -146,6 +146,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/dunning/notices": {
         "post": ("issueDunningNotice", "kasse", "Issue a dunning notice", "httpapi.issueNoticeRequest", "kasse.DunningNotice", 201, "json"),
     },
+    "/api/dunning/runs": {
+        "post": ("runDunning", "kasse", "Advance every open receivable due by a date one step along the dunning chain", "httpapi.runDunningRequest", "kasse.DunningRunResult", 200, "json"),
+    },
     # ── E-invoicing ──────────────────────────────────────────────────────────
     "/api/e-invoices": {
         "get": ("listEInvoices", "einvoice", "List e-invoices, matched or not", None, "[]einvoice.InvoiceSummary", 200, "json"),

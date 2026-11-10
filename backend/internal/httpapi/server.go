@@ -47,6 +47,7 @@ type Server struct {
 	kasse           cashBook
 	orders          orderService
 	dunning         dunningService
+	dunningRun      dunningRunService
 	tax             taxService
 	runs            paymentRunService
 	statements      statementService
@@ -76,6 +77,7 @@ type Deps struct {
 	Kasse           cashBook
 	Orders          orderService
 	Dunning         dunningService
+	DunningRun      dunningRunService
 	Tax             taxService
 	Runs            paymentRunService
 	Statements      statementService
@@ -103,6 +105,7 @@ func New(d Deps) *Server {
 		kasse:           d.Kasse,
 		orders:          d.Orders,
 		dunning:         d.Dunning,
+		dunningRun:      d.DunningRun,
 		tax:             d.Tax,
 		runs:            d.Runs,
 		statements:      d.Statements,
@@ -250,6 +253,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/dunning/levels/{year}/{code}", s.authorizeRead(s.getDunningLevel, auth.RoleKasse))
 	mux.HandleFunc("GET /api/dunning/notices/{id}/document", s.authorizeRead(s.getDunningNoticeDocument, auth.RoleKasse))
 	mux.HandleFunc("POST /api/dunning/notices", s.authorize(s.issueDunningNotice, auth.RoleKasse))
+	mux.HandleFunc("POST /api/dunning/runs", s.authorize(s.runDunning, auth.RoleKasse))
 
 	mux.HandleFunc("POST /api/vat-types", s.authorize(s.createVATType, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/vat-types/{code}", s.authorizeRead(s.getVATType, auth.RoleFinanzen))

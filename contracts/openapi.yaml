@@ -1355,6 +1355,39 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/dunning/runs:
+    post:
+      tags:
+      - kasse
+      operationId: runDunning
+      summary: Advance every open receivable due by a date one step along the dunning chain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunDunningRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DunningRunResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/e-invoices:
     get:
       tags:
@@ -4809,6 +4842,91 @@ components:
       - GrossCents
       - Direction
       - MatchedOrderID
+    DunningRunResult:
+      type: object
+      properties:
+        Year:
+          type: integer
+          format: int64
+        AsOf:
+          type: string
+          format: date-time
+        Issued:
+          type: integer
+          format: int64
+        Skipped:
+          type: integer
+          format: int64
+        Failed:
+          type: integer
+          format: int64
+        Outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DunningRunOutcome'
+      required:
+      - Year
+      - AsOf
+      - Issued
+      - Skipped
+      - Failed
+      - Outcomes
+    DunningRunOutcome:
+      type: object
+      properties:
+        ReceivableID:
+          type: integer
+          format: int64
+        ClaimReference:
+          type: string
+        MandateReference:
+          type: string
+        AmountCents:
+          type: integer
+          format: int64
+        DueDate:
+          type: string
+          format: date-time
+        LevelCode:
+          type: string
+        ChargeCents:
+          type: integer
+          format: int64
+        NoticeID:
+          type: integer
+          format: int64
+        DocumentKey:
+          type: string
+        Issued:
+          type: boolean
+        Reason:
+          type: string
+        Detail:
+          type: string
+      required:
+      - ReceivableID
+      - ClaimReference
+      - MandateReference
+      - AmountCents
+      - DueDate
+      - LevelCode
+      - ChargeCents
+      - NoticeID
+      - DocumentKey
+      - Issued
+      - Reason
+      - Detail
+    RunDunningRequest:
+      type: object
+      properties:
+        year:
+          type: integer
+          format: int64
+        as_of:
+          type: string
+      required:
+      - year
+      - as_of
     DunningNotice:
       type: object
       properties:

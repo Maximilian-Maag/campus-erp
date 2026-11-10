@@ -97,6 +97,33 @@ func (r *ReceivableRepo) Receivables(ctx context.Context, state ReceivableState)
 	return out, nil
 }
 
+// OpenReceivablesDueBy selects the open items a dunning run walks: still open and
+// due on or before asOf. It does not require an active mandate or a sequence type —
+// dunning happens when collection did not — so the debt is chased whatever its
+// collection status. Due date first, the order an operator chases them in.
+func (r *ReceivableRepo) OpenReceivablesDueBy(ctx context.Context, asOf time.Time) ([]Receivable, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+receivableColumns+` FROM receivable
+		  WHERE state = 'open' AND due_date <= $1
+		  ORDER BY due_date, id`, asOf)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: select receivables for dunning: %w", err)
+	}
+	defer rows.Close()
+	out := []Receivable{}
+	for rows.Next() {
+		rec, err := scanReceivable(rows)
+		if err != nil {
+			return nil, fmt.Errorf("kasse: scan receivable: %w", err)
+		}
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("kasse: select receivables for dunning: %w", err)
+	}
+	return out, nil
+}
+
 // OpenReceivablesForCollection selects the open items a run can gather: due on
 // or before dueBy, under an active mandate whose sequence type is the run's. A
 // receivable whose mandate is inactive or whose sequence type differs is not
