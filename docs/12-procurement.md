@@ -51,6 +51,46 @@ plus an `actual` of the same amount, in one step, so the position's available Mi
 become `received` (`purchase_order.match` on the audit stream). A refusal leaves the order
 and the budget exactly as they were.
 
+## Goods receipts (Wareneingang)
+
+A delivery arrives line by line, in parts, and often before any invoice — the whole-order match
+cannot express that, because an inbound invoice states one amount for one order.
+`goods_receipt` / `goods_receipt_line` record the **quantities** that arrived per order line,
+append-only; the received quantity of an order line is derived from them rather than stored on the
+line, so the two cannot disagree.
+
+`RecordReceipt(ctx, orderID, reference, receivedOn, lines, by)` records one delivery:
+
+- the order must be **approved** — a draft committed nothing, a received order has arrived in
+  full, a cancelled one is no longer a liability — anything else is `ErrBadTransition`;
+- the delivery note is the idempotency key (`goods_receipt_key` is unique per order): recording
+  the same note twice is `ErrReceiptExists` rather than a second receipt;
+- per line the quantity must be positive (`ErrReceiptQuantity`), must name a line the order
+  carries (`ErrReceiptLineUnknown`), may not appear twice (`ErrReceiptLineDuplicate`), and may not
+  exceed what is still open on that line (`ErrOverReceipt` — a delivery of more than was ordered is
+  a different transaction, not a silent clamp);
+- the value it converts is the price of the quantities it carries (net at the line's unit price
+  plus the line's own VAT) — **except** on the receipt that completes the order, which converts the
+  remaining commitment instead. Rounding a group's VAT once (the order, `ComputeTotals`) and a
+  part's VAT per part cannot agree in general, so the residual belongs to the last part; that is
+  what makes the receipts of an order add up to its gross **to the cent**;
+- the conversion is a `release` plus an `actual` of that value in one step, so the position's
+  available Mittel are **unchanged** by it. A delivery of goods that cost nothing (a unit price of
+  zero) is recorded without a budget movement, because there is nothing to convert;
+- the order becomes `received` once every line has arrived in full;
+- one `purchase_order.receipt` audit event carries the delivery note, the value and the state.
+
+The order's state is `ReceiptState`: every line's ordered / received / open quantity, whether the
+order is complete, and the receipts recorded so far. A line that nothing arrived of is wholly open,
+so a state with no receipt at all is the same shape as the tenth delivery rather than a special
+case.
+
+**Why the invoice match converts the remainder.** `MatchReceipt` now converts what is *left* of
+the commitment (the order's gross less what its receipts already converted) rather than the whole
+gross. That is what lets a delivery and an invoice coexist: an order that was partly delivered and
+then invoiced in full consumes its gross exactly once instead of twice, and an order whose
+commitment is fully converted is no longer matchable.
+
 ## API
 
 | method | path |
@@ -61,8 +101,26 @@ and the budget exactly as they were.
 | `POST` | `/api/purchase-orders/{id}/approve` |
 | `POST` | `/api/purchase-orders/{id}/receive` |
 | `POST` | `/api/purchase-orders/{id}/cancel` |
+| `POST` | `/api/purchase-orders/{id}/receipts` (a delivery; `201`, the receipt and the state) |
+| `GET`  | `/api/purchase-orders/{id}/receipts` (the order's receipt state) |
+
+Every write is audited (`purchase_order.receipt` as well as the lifecycle events above).
+
+## Screen — *Beschaffung: Wareneingang* (`/procurement/wareneingang`)
+
+Picks one of the approved orders (the picker is the server's own `?status=approved` filter), lists
+every line's ordered, received and open quantity as the server derived it, and books what arrived.
+A quantity is typed in units and sent in milli-units (`quantityToMilli`), like an amount typed in
+euro and sent in cents; only the lines that are still open get an input, and a blank input means
+"nothing of this line", so a delivery of one line of a three-line order is one number rather than
+three. An order that arrived in full says so and offers no further booking, and after a booking the
+picker is read again because a completed order leaves the approved list.
 
 ## Not yet done
 
-- Goods-receipt lines (partial receipts). Matching covers the invoice in full; a partial
-  receipt would need per-line matching.
+- ~~Goods-receipt lines (partial receipts)~~ — done since: `goods_receipt` records what arrived per
+  line, the order is complete when every line has arrived, and the invoice match converts the
+  remainder (`docs/12`, above).
+- What remains on the invoice side: an inbound invoice is still matched against the order's gross
+  in full. An invoice that bills a single delivery (a partial invoice) would need the same per-line
+  treatment on the invoice side.

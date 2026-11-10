@@ -341,6 +341,14 @@ func (s stubProcurement) Orders(context.Context, procurement.Status) ([]procurem
 	return nil, s.err
 }
 
+func (s stubProcurement) RecordReceipt(context.Context, int64, string, time.Time, []procurement.ReceiptLine, string) (procurement.ReceiptResult, error) {
+	return procurement.ReceiptResult{}, s.err
+}
+
+func (s stubProcurement) ReceiptState(context.Context, int64) (procurement.ReceiptState, error) {
+	return procurement.ReceiptState{}, s.err
+}
+
 // stubKLR satisfies the KLR interface with a fixed result.
 type stubKLR struct{ err error }
 

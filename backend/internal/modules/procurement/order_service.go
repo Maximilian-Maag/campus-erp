@@ -97,10 +97,21 @@ func (s *OrderService) MatchReceipt(ctx context.Context, orderNumber string, gro
 	if grossCents != order.GrossCents {
 		return Order{}, fmt.Errorf("%w: order=%d invoice=%d", ErrMatchAmountMismatch, order.GrossCents, grossCents)
 	}
-	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Release, order.GrossCents, reference+":release", by); err != nil {
+	// Deliveries may have converted part of the commitment already (docs/12): the invoice
+	// converts what is *left* of it, so a partial receipt followed by the invoice consumes the
+	// gross exactly once rather than twice.
+	_, converted, err := s.repo.GoodsReceived(ctx, order.ID)
+	if err != nil {
 		return Order{}, err
 	}
-	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Actual, order.GrossCents, reference, by); err != nil {
+	remaining := remainingCommitment(order.GrossCents, converted)
+	if remaining == 0 {
+		return Order{}, fmt.Errorf("%w: order %s has no commitment left to convert", ErrBadTransition, order.Number)
+	}
+	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Release, remaining, reference+":release", by); err != nil {
+		return Order{}, err
+	}
+	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Actual, remaining, reference, by); err != nil {
 		return Order{}, err
 	}
 	saved, err := s.repo.SetStatus(ctx, order.ID, StatusReceived, by)

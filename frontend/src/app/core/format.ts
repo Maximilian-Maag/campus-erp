@@ -67,6 +67,30 @@ export function basisPointsToPercent(basisPoints: number): string {
 }
 
 /**
+ * A typed quantity as milli-units ("0,5" -> 500), or null when it is not a positive quantity of
+ * at most three decimals. Quantities are stored as integer milli-units so the arithmetic stays
+ * exact (a line's net is quantity x unit price / 1000), while an operator types units. Like the
+ * amount and the rate, the conversion is done on the string rather than through a float, so
+ * "0,001" is exactly one milli-unit. A comma is accepted as the decimal separator.
+ */
+export function quantityToMilli(input: string): number | null {
+  const raw = input.trim().replace(',', '.');
+  if (!/^\d{1,10}(\.\d{1,3})?$/.test(raw)) {
+    return null;
+  }
+  const [whole, fraction = ''] = raw.split('.');
+  const milli = Number(whole) * 1000 + Number(fraction.padEnd(3, '0'));
+  return milli > 0 ? milli : null;
+}
+
+/** The inverse, for showing a stored quantity: 500 milli-units read as "0,5". */
+export function formatMilli(milli: number): string {
+  const whole = Math.trunc(milli / 1000);
+  const fraction = String(Math.abs(milli) % 1000).padStart(3, '0').replace(/0+$/, '');
+  return fraction === '' ? String(whole) : `${whole},${fraction}`;
+}
+
+/**
  * A local calendar day as the API reads it ("2026-04-01"), built from the date's own local
  * parts rather than through `toISOString` — which shifts to UTC and so names the previous day
  * east of Greenwich. It is the inverse of `formatDay` and sits with it, because every screen

@@ -22,6 +22,13 @@ type OrderRepository interface {
 	// List returns the order summaries, optionally narrowed to one status ("" for every status).
 	List(ctx context.Context, status Status) ([]OrderSummary, error)
 	SetStatus(ctx context.Context, id int64, status Status, by string) (Order, error)
+	// InsertReceipt stores a goods receipt with its lines atomically.
+	InsertReceipt(ctx context.Context, r Receipt) (Receipt, error)
+	// Receipts lists an order's goods receipts, oldest first.
+	Receipts(ctx context.Context, orderID int64) ([]Receipt, error)
+	// GoodsReceived returns what an order's receipts have received per line number and the
+	// value they have converted so far — the two quantities a new receipt is checked against.
+	GoodsReceived(ctx context.Context, orderID int64) (map[int]int64, int64, error)
 }
 
 // OrderRepo is the PostgreSQL implementation.

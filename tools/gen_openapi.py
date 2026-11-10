@@ -214,6 +214,10 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/purchase-orders/{id}/cancel": {
         "post": ("cancelPurchaseOrder", "procurement", "Cancel a purchase order", None, "procurement.Order", 200, "json"),
     },
+    "/api/purchase-orders/{id}/receipts": {
+        "post": ("recordGoodsReceipt", "procurement", "Record a goods receipt (a delivery) against an approved order", "httpapi.recordGoodsReceiptRequest", "procurement.ReceiptResult", 201, "json"),
+        "get": ("listGoodsReceipts", "procurement", "Read an order's goods-receipt state: line progress and the receipts so far", None, "procurement.ReceiptState", 200, "json"),
+    },
     # ── KLR ──────────────────────────────────────────────────────────────────
     "/api/klr/cost-centers": {
         "post": ("createCostCenter", "klr", "Create a cost centre", "httpapi.klrNamedRequest", "klr.CostCenter", 201, "json"),

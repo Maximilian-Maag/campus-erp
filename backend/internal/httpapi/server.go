@@ -224,6 +224,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/purchase-orders/{id}/approve", s.authorize(s.approvePurchaseOrder, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/purchase-orders/{id}/receive", s.authorize(s.receivePurchaseOrder, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/purchase-orders/{id}/cancel", s.authorize(s.cancelPurchaseOrder, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/purchase-orders/{id}/receipts", s.authorize(s.recordGoodsReceipt, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/purchase-orders/{id}/receipts", s.authorizeRead(s.listGoodsReceipts, auth.RoleFinanzen))
 
 	mux.HandleFunc("POST /api/klr/cost-centers", s.authorize(s.createCostCenter, auth.RoleKLR))
 	mux.HandleFunc("GET /api/klr/cost-centers", s.authorizeRead(s.listCostCenters, auth.RoleKLR))
