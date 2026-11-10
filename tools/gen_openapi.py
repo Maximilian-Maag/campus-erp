@@ -183,6 +183,17 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/budget/positions/{id}/postings": {
         "post": ("postBudgetMovement", "budget", "Post a budget movement", "httpapi.budgetPostingRequest", "budget.Posting", 201, "json"),
     },
+    "/api/budget/sources": {
+        "post": ("createBudgetSource", "budget", "Create a budget source (Mittelquelle)", "httpapi.budgetSourceRequest", "budget.Source", 201, "json"),
+        "get": ("listBudgetSources", "budget", "List the budget sources", None, "[]budget.Source", 200, "json"),
+    },
+    "/api/budget/centers": {
+        "post": ("createBudgetCenter", "budget", "Create a budget centre (Bewirtschaftungsstelle)", "httpapi.budgetCenterRequest", "budget.Center", 201, "json"),
+        "get": ("listBudgetCenters", "budget", "List the budget centres", None, "[]budget.Center", 200, "json"),
+    },
+    "/api/budget/positions/{id}/assignment": {
+        "post": ("assignBudgetPosition", "budget", "Assign a position its source and its centre", "httpapi.assignBudgetPositionRequest", "budget.Position", 200, "json"),
+    },
     "/api/budget/positions/{id}/balance": {
         "get": ("getBudgetBalance", "budget", "Read a budget position balance", None, "budget.Balance", 200, "json"),
     },

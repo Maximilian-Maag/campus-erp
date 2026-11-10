@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { BudgetPositionsComponent } from './budget/positions.component';
+import { BudgetSourcesComponent } from './budget/sources.component';
 import { CashbookDayComponent } from './kasse/cashbook-day.component';
 import { CashAccountsComponent } from './kasse/cash-accounts.component';
 import { DunningComponent } from './kasse/dunning.component';
@@ -24,6 +25,7 @@ export const routes: Routes = [
   { path: 'kasse/tag', component: CashbookDayComponent },
   { path: 'kasse/konten', component: CashAccountsComponent },
   { path: 'budget/haushaltsstellen', component: BudgetPositionsComponent },
+  { path: 'budget/mittelherkunft', component: BudgetSourcesComponent },
   { path: 'procurement/bestellungen', component: PurchaseOrdersComponent },
   { path: 'procurement/wareneingang', component: GoodsReceiptsComponent },
   { path: 'einvoice/rechnungen', component: EInvoicesComponent },

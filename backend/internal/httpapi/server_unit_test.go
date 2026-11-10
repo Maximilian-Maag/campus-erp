@@ -291,6 +291,26 @@ func (s stubBudget) Balance(context.Context, int64) (budget.Balance, error) {
 	return budget.Balance{}, s.err
 }
 
+func (s stubBudget) CreateSource(context.Context, string, string, string, string) (budget.Source, error) {
+	return budget.Source{}, s.err
+}
+
+func (s stubBudget) Sources(context.Context) ([]budget.Source, error) {
+	return nil, s.err
+}
+
+func (s stubBudget) CreateCenter(context.Context, string, string, string) (budget.Center, error) {
+	return budget.Center{}, s.err
+}
+
+func (s stubBudget) Centers(context.Context) ([]budget.Center, error) {
+	return nil, s.err
+}
+
+func (s stubBudget) AssignPosition(context.Context, int64, *int64, *int64, string) (budget.Position, error) {
+	return s.position, s.err
+}
+
 // stubLookups satisfies the lookup interface with a fixed result.
 type stubLookups struct{ err error }
 
