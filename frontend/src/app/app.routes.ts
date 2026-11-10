@@ -4,6 +4,7 @@ import { CashbookDayComponent } from './kasse/cashbook-day.component';
 import { CashAccountsComponent } from './kasse/cash-accounts.component';
 import { DunningComponent } from './kasse/dunning.component';
 import { DunningRunComponent } from './kasse/dunning-run.component';
+import { ReturnPostingsComponent } from './kasse/return-postings.component';
 import { PaymentRunsComponent } from './kasse/payment-runs.component';
 import { EInvoicesComponent } from './einvoice/invoices.component';
 import { FoundationsComponent } from './finanzen/foundations.component';
@@ -34,5 +35,6 @@ export const routes: Routes = [
   { path: 'kasse/einzuege', component: CollectionRunsComponent },
   { path: 'kasse/mahnwesen', component: DunningComponent },
   { path: 'kasse/mahnlauf', component: DunningRunComponent },
+  { path: 'kasse/ruecklaeufer', component: ReturnPostingsComponent },
   { path: 'finanzen/stiftungen', component: FoundationsComponent },
 ];

@@ -2,6 +2,40 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.104.0] - 2026-11-10
+
+The movements the bank took back reach the ledger side: a period's returning statement lines are
+rendered into the counterpart posting file the ledger reverses against, and the last interface the
+Kasse pilot left unimplemented is now live.
+
+### Added
+- `POST /api/ledger/return-postings` — `{ "from", "to" }` queues the return-postings export for a
+  period; the file lands under `ledger/return-postings-<timestamp>.csv` through the artefact store
+  (docs/30). The `return-postings` worker kind renders it on the worker role.
+- Format **`cash-returns/v1`** (`internal/core/ledger`, `ledger.ReturnExport`): one row per
+  returning line, sorted by value date and then reference, so the same set is byte-identical
+  whatever order it was collected in — golden-file tested. A row carries the reference
+  (`RT-<statement line id>`, the idempotency key), the bank's value and booking dates, the
+  counterpart account, the direction of the cash movement, the amount in minor units, the bank's
+  return posting key (`009` / `059`) and the order reference the return belonged to.
+- `GET /api/bank-statement-returns?from=&to=` — the returning lines of a period with their
+  reconciliation outcome: the read the screen lists, and the same set the export is built from.
+  The period is required and the server's; an empty answer means none came back and a period the
+  server will not read is a `422`, so the two never look alike.
+- *Kasse: Rückläufer* (`/kasse/ruecklaeufer`): states a period, lists the returning lines with
+  their direction (eingehend / ausgehend), and queues the hand-over to FiBu for the stated period —
+  the export follows the fields, not the rows on screen.
+- `ReturnPostingsService` refuses a blank actor, incomplete accounts, an inverted period and a
+  period nothing came back in, and validates the rendered file before it records the run; one
+  `ledger.return-postings` audit event carries the counts. `StatementRepo.ReturnedLines` selects
+  the period by the line's effective date (value date, falling back to the booking date), so a
+  line the bank sent without a value date is not silently dropped.
+
+### Changed
+- `isoDay` moved from the Mahnlauf component into `core/format`, next to `formatDay` it is the
+  inverse of: two screens now default a period field from it, and a second copy is how the two
+  directions drift apart.
+
 ## [0.103.0] - 2026-11-06
 
 The Mahnwesen gets its run: the open receivables are walked and each claim advances one step

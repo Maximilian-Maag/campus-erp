@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { DunningRunComponent, isoDay, skipReasonLabel } from './dunning-run.component';
+import { DunningRunComponent, skipReasonLabel } from './dunning-run.component';
 import { DunningRunOutcome, DunningRunResult } from '../core/api/generated';
 
 describe('DunningRunComponent', () => {
@@ -206,12 +206,6 @@ describe('DunningRunComponent', () => {
       'Frist nicht verstrichen'
     );
     expect(fixture.nativeElement.querySelector('a[href^="/api/dunning/notices/"]')).toBeNull();
-  });
-
-  it('formats a calendar day with two-digit month and day', () => {
-    // January 5th exercises both pads, which a run in November cannot.
-    expect(isoDay(new Date(2026, 0, 5))).toBe('2026-01-05');
-    expect(isoDay(new Date(2026, 11, 31))).toBe('2026-12-31');
   });
 
   it('formats amounts and days for the operator', () => {

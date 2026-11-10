@@ -1,0 +1,6 @@
+# cash-returns/v1
+# period: 2026-10-01..2026-10-31
+# cash_account: 1200
+reference,value_date,booking_date,account,cash_account,direction,amount_cents,currency,posting_key,order_reference,purpose
+RT-000001,2026-10-01,,1300,1200,credit,4999,EUR,059,ANORD-2026-4,Rückläufer Zahlung
+RT-000002,2026-10-02,2026-10-03,1300,1200,debit,12500,EUR,009,ANORD-2026-9,Rückläufer Lastschrift

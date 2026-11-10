@@ -32,6 +32,7 @@ skeleton.
 | `docs/27-statistics-exports.md` | per-state statistics exports (the layout is data) |
 | `docs/28-dunning.md` | dunning levels, notices and the run (Mahnwesen / Mahnlauf) |
 | `docs/29-foundations.md` | foundations, their books and their movements (Stiftungen) |
+| `docs/30-return-postings.md` | the return postings to FiBu (`cash-returns/v1`) |
 | `docs/glossary.md` | German domain terms |
 | `docs/requirements.md` | **target-system requirements** (parity, interfaces, compliance, NFRs) |
 | `docs/adr/` | **architecture decision records** 0001–0012 |

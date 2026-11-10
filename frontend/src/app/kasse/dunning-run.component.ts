@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { CampusErpApi, DunningRunOutcome, DunningRunResult } from '../core/api/generated';
-import { formatCents, formatDay } from '../core/format';
+import { formatCents, formatDay, isoDay } from '../core/format';
 
 /** The German label of the reason a claim did not advance in a run. */
 export function skipReasonLabel(reason: string): string {
@@ -20,13 +20,6 @@ export function skipReasonLabel(reason: string): string {
     default:
       return reason;
   }
-}
-
-/** A local calendar date as YYYY-MM-DD, the form the API reads. */
-export function isoDay(d: Date): string {
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${month}-${day}`;
 }
 
 /**

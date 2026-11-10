@@ -112,6 +112,7 @@ func main() {
 			KLR:             klrSvc,
 			Mandates:        kasse.NewMandateService(kasse.NewMandateRepo(pool), store),
 			Receivables:     kasse.NewReceivableService(receivableRepo, store),
+			ReturnPostings:  kasse.NewReturnPostingsService(kasse.NewStatementRepo(pool), store, kasse.DefaultReturnsAccounts()),
 			CollectionRuns:  kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), receivableRepo, store),
 			ETL:             etlRegistry,
 			Audit:           store,

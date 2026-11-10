@@ -55,6 +55,8 @@ with the job id (docs/27 describes the queueing seam).
 
 - Hand the file to the ledger/bank channel over SFTP (the artefact store is the swap point:
   the file is already written through it, so only the *delivery* is missing).
+- The movements the bank sends *back* travel in the counterpart file
+  (`cash-returns/v1`, `docs/30`), which this export's rows are reversed against.
 - ~~The tie-back reconciliation~~ — done since: `ledger.Reconcile` runs on every export, the
   service **refuses** an export that does not balance its bookings, and the audit detail
   records `matched`/`missing`/`extra`/`balanced`, so a booking that did not export is visible
