@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -68,6 +69,44 @@ func (r *Repo) CostTypes(ctx context.Context) ([]CostType, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("klr: list cost types: %w", err)
+	}
+	return out, nil
+}
+
+// CostTypeFigures lists every cost type with the accounts bridged to it and what the books carry
+// on it — the Kostenarten print view (docs/25). A cost type with no record is listed with zeroes
+// and whatever accounts were bridged to it, for the reason the cost-unit figures are: "nothing is
+// booked on it yet" is a fact about the type, and hiding it would read as if it did not exist.
+func (r *Repo) CostTypeFigures(ctx context.Context) ([]CostTypeLine, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT t.id, t.code, t.name, t.created_by,
+		        COALESCE((SELECT string_agg(a.account_code, ',' ORDER BY a.account_code)
+		                    FROM cost_type_account a WHERE a.cost_type_id = t.id), ''),
+		        COALESCE(SUM(CASE WHEN rec.kind = $1 THEN rec.amount_cents ELSE 0 END), 0),
+		        COALESCE(SUM(CASE WHEN rec.kind = $2 THEN rec.amount_cents ELSE 0 END), 0)
+		   FROM cost_type t
+		   LEFT JOIN accounting_record rec ON rec.cost_type_id = t.id
+		  GROUP BY t.id, t.code, t.name, t.created_by
+		  ORDER BY t.code`, Cost, Revenue)
+	if err != nil {
+		return nil, fmt.Errorf("klr: cost type figures: %w", err)
+	}
+	defer rows.Close()
+	out := []CostTypeLine{}
+	for rows.Next() {
+		var line CostTypeLine
+		var accounts string
+		if err := rows.Scan(&line.CostType.ID, &line.CostType.Code, &line.CostType.Name,
+			&line.CostType.CreatedBy, &accounts, &line.CostsCents, &line.RevenuesCents); err != nil {
+			return nil, fmt.Errorf("klr: scan cost type figure: %w", err)
+		}
+		if accounts != "" {
+			line.Accounts = strings.Split(accounts, ",")
+		}
+		out = append(out, line)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("klr: cost type figures: %w", err)
 	}
 	return out, nil
 }

@@ -55,6 +55,31 @@ func (r *Repo) Allocations(ctx context.Context, sourceCenterID int64) ([]Allocat
 	return out, nil
 }
 
+// AllocationRules lists every allocation rule, ordered by source centre and id, so a print view
+// reads them the way the Umlage screen shows one centre's.
+func (r *Repo) AllocationRules(ctx context.Context) ([]Allocation, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, source_center_id, target_center_id, share_bp, valid_from, valid_to, created_by
+		   FROM allocation ORDER BY source_center_id, id`)
+	if err != nil {
+		return nil, fmt.Errorf("klr: list allocation rules: %w", err)
+	}
+	defer rows.Close()
+	out := []Allocation{}
+	for rows.Next() {
+		var a Allocation
+		if err := rows.Scan(&a.ID, &a.SourceCenterID, &a.TargetCenterID, &a.ShareBP,
+			&a.ValidFrom, &a.ValidTo, &a.CreatedBy); err != nil {
+			return nil, fmt.Errorf("klr: scan allocation rule: %w", err)
+		}
+		out = append(out, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("klr: list allocation rules: %w", err)
+	}
+	return out, nil
+}
+
 // CostsInPeriod sums a cost centre's costs booked in the period, counting the closing day in
 // full. Revenues are not distributed: they are the Leistungsseite, not a cost to pass on.
 func (r *Repo) CostsInPeriod(ctx context.Context, costCenterID int64, from, to time.Time) (int64, error) {

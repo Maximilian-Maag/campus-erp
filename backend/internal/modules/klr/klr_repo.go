@@ -29,6 +29,9 @@ type Repository interface {
 
 	CreateAllocation(ctx context.Context, a Allocation) (Allocation, error)
 	Allocations(ctx context.Context, sourceCenterID int64) ([]Allocation, error)
+	// AllocationRules lists every allocation rule, whatever its source centre — the read a
+	// Umlage print view needs, where Allocations is the read one centre's screen needs.
+	AllocationRules(ctx context.Context) ([]Allocation, error)
 	CostUnitFigures(ctx context.Context) ([]CostUnitLine, error)
 	GetCostUnit(ctx context.Context, id int64) (CostUnit, error)
 	CostUnits(ctx context.Context) ([]CostUnit, error)
@@ -48,6 +51,9 @@ type Repository interface {
 	MapAccount(ctx context.Context, link CostTypeAccount) (CostTypeAccount, error)
 	AccountsOf(ctx context.Context, costTypeID int64) ([]CostTypeAccount, error)
 	CostTypeByAccount(ctx context.Context, accountCode string) (CostType, error)
+	// CostTypeFigures lists every cost type with the accounts bridged to it and what the books
+	// carry on it, which is the Kostenarten print view (docs/25).
+	CostTypeFigures(ctx context.Context) ([]CostTypeLine, error)
 }
 
 // Repo is the PostgreSQL implementation.

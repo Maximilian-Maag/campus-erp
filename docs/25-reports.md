@@ -39,6 +39,9 @@ render instead of a hardcoded list.
 | `budget-position-overview` | Mittelübersicht: every position with Ansatz, Verpflichtet, Ist and Verfügbar, plus totals |
 | `klr-cost-center-overview` | Kostenstellenübersicht: every cost centre with its Kosten, Erlöse and Saldo, plus totals |
 | `klr-cost-unit-overview` | Kostenträgerübersicht: every cost unit with its Kosten, Erlöse and Saldo, plus totals |
+| `klr-cost-type-overview` | Kostenartenübersicht: every cost type with its bridged accounts, its Kosten, Erlöse and Saldo, plus totals |
+| `klr-service-rate-overview` | Verrechnungspreise: every internal price with the cost type it prices and its validity |
+| `klr-allocation-overview` | Umlageregeln: every apportionment rule with both centres named and its share |
 
 The Mittelübersicht and the two KLR overviews are snapshots, so they take no period: they
 read every position (or centre, or unit) and the balance booked against each. The Mittelübersicht's
@@ -46,6 +49,15 @@ available column is derived per position from the same balance the guard uses, s
 cannot disagree with what the budget will allow; the KLR overviews' balances are derived
 the same way from the figures their rows show, so the totals cannot disagree with the rows above
 them.
+
+The three KLR print views are the **rules** side of the same module, next to the two overviews
+that are its **books** side: the Kostenartenübersicht says which general-ledger accounts a cost
+type stands for and what the books carry on it, the Verrechnungspreise say what a service costs and
+from when to when, and the Umlageregeln say which centre apportions what share to which other
+centre. All three are snapshots of configuration and books, so they take no period either. A price
+or a rule names its cost type or its centres by id in the database; the collector resolves the code
+and the names, because a print view that printed ids would not be readable — and a validity with no
+end is printed as `offen` rather than as an empty cell that reads like a missing value.
 
 The two KLR overviews are the two stages of the KLR: the Kostenstellen say where a cost arose,
 the Kostenträger say what it was for. A cost unit nothing is booked on is still a row of zeroes —
@@ -72,9 +84,22 @@ with the job id, and the PDF is then reachable through `GET /api/artefacts/repor
 3. Register it in `internal/platform/reports` — the one list — with the collector that reads
    its data. The API then offers it and the worker renders it, without either being told twice.
 
+## Screen — *Auswertungen* (`/auswertungen`)
+
+Lists the catalogue (`GET /api/reports`, definitions and columns included, so the screen offers
+what actually renders), and queues a render of the chosen report over a stated period
+(`POST /api/reports/renders`). The render runs on the worker role and stores a PDF, so the screen
+reports the job it was queued as and links the file it will produce
+(`/api/artefacts/reports/<report id>-<from>-<to>.pdf`) rather than waiting for a document it cannot
+see. The period is validated at the edge, so a malformed one never becomes a doomed job.
+
 ## Not yet done
 
-- More of the print views: the Mittelübersicht and the Kostenstellenübersicht are the centre
-  views; the print layouts the vendor ships are still to come.
+- ~~More of the print views: the Mittelübersicht and the Kostenstellenübersicht are the centre
+  views~~ — done since: the three KLR print views (Kostenarten, Verrechnungspreise, Umlageregeln)
+  are catalogue entries like the overviews, and the *Auswertungen* screen renders any of them
+  (`docs/25`, above).
+- The vendor's own print layouts are still unpublished: the columns here are the target system's
+  own. A layout change is a definition change in the owning domain, not a change to the renderer.
 - The statistics exports are their own mechanism (a per-state layout over aggregated figures),
   not a report definition — see docs/27 and ADR-0012.

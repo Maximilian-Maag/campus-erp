@@ -91,6 +91,9 @@ func main() {
 			Positions: budgetSvc,
 			Centres:   klrSvc,
 			Units:     klrSvc,
+			CostTypes: klrSvc,
+			Prices:    klrSvc,
+			Rules:     klrSvc,
 		})
 		// The e-invoice service matches an inbound invoice to a purchase order, so it needs the
 		// procurement service (which owns the order and the budget conversion).

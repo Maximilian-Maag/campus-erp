@@ -69,9 +69,15 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	}
 	budgetSvc := budget.NewPositionService(budget.NewPositionRepo(pool), store)
 	procurementSvc := procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store)
+	klrSvc := klr.NewService(klr.NewRepo(pool), store)
 	reportCatalogue := reports.NewCatalogue(reports.DataSources{
 		Bookings:  kasse.NewLedgerRepo(pool),
 		Positions: budgetSvc,
+		Centres:   klrSvc,
+		Units:     klrSvc,
+		CostTypes: klrSvc,
+		Prices:    klrSvc,
+		Rules:     klrSvc,
 	})
 	dunningRepo := kasse.NewDunningRepo(pool)
 	dunningSvc := kasse.NewDunningService(dunningRepo, store)
@@ -93,7 +99,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		Lookups:         lookup.NewValueService(lookup.NewValueRepo(pool), store),
 		Procurement:     procurementSvc,
 		Reports:         reportCatalogue,
-		KLR:             klr.NewService(klr.NewRepo(pool), store),
+		KLR:             klrSvc,
 		Audit:           store,
 		Artefacts:       artefactStore,
 	}).Handler())

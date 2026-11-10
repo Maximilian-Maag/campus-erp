@@ -33,6 +33,13 @@ func (s *Service) PostCostType(ctx context.Context, code, name, by string) (Cost
 	return saved, nil
 }
 
+// CostTypeFigures lists every cost type with the accounts bridged to it and what the books carry
+// on it — the read the Kostenartenübersicht print view is built from (docs/25). It is a read, so
+// it is not audited.
+func (s *Service) CostTypeFigures(ctx context.Context) ([]CostTypeLine, error) {
+	return s.repo.CostTypeFigures(ctx)
+}
+
 // CostTypes lists every cost type.
 func (s *Service) CostTypes(ctx context.Context) ([]CostType, error) {
 	return s.repo.CostTypes(ctx)
