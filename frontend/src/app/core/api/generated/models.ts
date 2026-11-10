@@ -302,6 +302,30 @@ export interface DunningNotice {
   DocumentKey: string;
 }
 
+export interface DunningRunOutcome {
+  ReceivableID: number;
+  ClaimReference: string;
+  MandateReference: string;
+  AmountCents: number;
+  DueDate: string;
+  LevelCode: string;
+  ChargeCents: number;
+  NoticeID: number;
+  DocumentKey: string;
+  Issued: boolean;
+  Reason: string;
+  Detail: string;
+}
+
+export interface DunningRunResult {
+  Year: number;
+  AsOf: string;
+  Issued: number;
+  Skipped: number;
+  Failed: number;
+  Outcomes: DunningRunOutcome[];
+}
+
 export interface EinvoiceLine {
   LineNo: number;
   Description: string;
@@ -683,6 +707,11 @@ export interface Run {
 export interface RunAllocationRequest {
   from: string;
   to: string;
+}
+
+export interface RunDunningRequest {
+  year: number;
+  as_of: string;
 }
 
 export interface SeedResult {

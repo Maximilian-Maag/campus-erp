@@ -2,6 +2,27 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.103.0] - 2026-11-06
+
+The Mahnwesen gets its run: the open receivables are walked and each claim advances one step
+along the year's dunning chain, with every skipped claim saying why.
+
+### Added
+- `POST /api/dunning/runs` — `{ "year", "as_of" }` walks the open receivables due by the date
+  and advances each claim one step (`docs/28`). The year's levels are resolved into one chain
+  (`next_code`); a chain with several first levels, a cycle or an unreachable level is refused
+  (`409`) rather than guessed at, while a `next_code` naming no level ends the chain.
+- A claim's step is due when its grace period (`days_allowed`, counted from the item's due date
+  or the previous notice) has elapsed, and at most once per as-of date — a second run the same
+  day skips every claim as `already_dunned` instead of issuing a second notice.
+- The report lists every receivable the run looked at: the issued notice (level, charge,
+  document) or the reason it was skipped (`not_due`, `already_dunned`, `unknown_level`,
+  `no_next_level`, `next_level_missing`, `issue_failed`); a failed issue does not abort the run.
+  One `dunning.run` audit event records the counts.
+- *Kasse: Mahnlauf* (`/kasse/mahnlauf`): states a year and an as-of date, starts the run and
+  renders the report, including the reason for every skipped claim and the notice's PDF link.
+- `DunningRepo.LatestNoticeByClaim` and `ReceivableRepo.OpenReceivablesDueBy` back the run.
+
 ## [0.102.0] - 2026-11-05
 
 The Stiftungen can be found: a foundation lists, its books list, and a book's movements and

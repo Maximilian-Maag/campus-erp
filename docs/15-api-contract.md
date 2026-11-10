@@ -229,10 +229,11 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
 
 ## Not yet done
 
-- Fifteen screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
+- Seventeen screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
   `/kasse/anordnungen`, `/kasse/zahlungslaeufe`, `/kasse/kontoauszuege`, `/kasse/offene-posten`,
-  `/kasse/einzuege`, `/kasse/mahnwesen`), Budget, Beschaffung, E-Rechnung and KLR (`/klr/umlage`,
-  `/klr/kostenarten`, `/klr/kostentraeger`, `/klr/verrechnungspreise`). The rest get theirs as their
+  `/kasse/einzuege`, `/kasse/mahnwesen`, `/kasse/mahnlauf`), Budget, Beschaffung, E-Rechnung,
+  KLR (`/klr/umlage`, `/klr/kostenarten`, `/klr/kostentraeger`, `/klr/verrechnungspreise`) and
+  Finanzen (`/finanzen/stiftungen`). The rest get theirs as their
   phases land, each one starting from the read routes it needs — and the kasse/payments domain is
   where that bites: it had 32 operations and one list route, so nearly every screen there needs its
   `GET` built first.

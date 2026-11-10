@@ -176,6 +176,23 @@ func (r *DunningRepo) GetNotice(ctx context.Context, id int64) (DunningNotice, e
 	return n, nil
 }
 
+// LatestNoticeByClaim reads the most recent notice issued for a claim reference —
+// the step a dunning run advances from. The bool is false when the claim has never
+// been dunned. Ties on the same day resolve to the newest row, so two notices issued
+// on one day advance from the later one.
+func (r *DunningRepo) LatestNoticeByClaim(ctx context.Context, claimReference string) (DunningNotice, bool, error) {
+	n, err := scanNotice(r.pool.QueryRow(ctx,
+		`SELECT `+noticeColumns+` FROM dunning_notice
+		  WHERE claim_reference = $1 ORDER BY issued_on DESC, id DESC LIMIT 1`, claimReference))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return DunningNotice{}, false, nil
+	}
+	if err != nil {
+		return DunningNotice{}, false, fmt.Errorf("kasse: latest dunning notice: %w", err)
+	}
+	return n, true, nil
+}
+
 // SetNoticeDocument records the stored document of a notice.
 func (r *DunningRepo) SetNoticeDocument(ctx context.Context, id int64, key string) error {
 	tag, err := r.pool.Exec(ctx,

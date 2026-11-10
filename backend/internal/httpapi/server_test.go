@@ -73,8 +73,29 @@ func newTestServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 		Bookings:  kasse.NewLedgerRepo(pool),
 		Positions: budgetSvc,
 	})
-	srv := httptest.NewServer(httpapi.New(httpapi.Deps{Kasse: kasse.NewService(kasse.NewRepo(pool), store), Orders: kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetSvc, store), Dunning: kasse.NewDunningService(kasse.NewDunningRepo(pool), store), Tax: kasse.NewTaxService(kasse.NewTaxRepo(pool), store), Runs: kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store), Statements: kasse.NewStatementService(kasse.NewStatementRepo(pool), store), FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store), EInvoices: einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), procurementSvc, store), Budget: budgetSvc, Lookups: lookup.NewValueService(lookup.NewValueRepo(pool), store), Procurement: procurementSvc,
-		Reports: reportCatalogue, KLR: klr.NewService(klr.NewRepo(pool), store), Audit: store, Artefacts: artefactStore}).Handler())
+	dunningRepo := kasse.NewDunningRepo(pool)
+	dunningSvc := kasse.NewDunningService(dunningRepo, store)
+	receivableRepo := kasse.NewReceivableRepo(pool)
+	srv := httptest.NewServer(httpapi.New(httpapi.Deps{
+		Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
+		Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetSvc, store),
+		Dunning:         dunningSvc,
+		DunningRun:      kasse.NewDunningRunService(dunningRepo, dunningRepo, receivableRepo, dunningSvc, store),
+		Tax:             kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
+		Runs:            kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
+		Statements:      kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
+		FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
+		Mandates:        kasse.NewMandateService(kasse.NewMandateRepo(pool), store),
+		Receivables:     kasse.NewReceivableService(receivableRepo, store),
+		EInvoices:       einvoice.NewInvoiceService(einvoice.NewInvoiceRepo(pool), procurementSvc, store),
+		Budget:          budgetSvc,
+		Lookups:         lookup.NewValueService(lookup.NewValueRepo(pool), store),
+		Procurement:     procurementSvc,
+		Reports:         reportCatalogue,
+		KLR:             klr.NewService(klr.NewRepo(pool), store),
+		Audit:           store,
+		Artefacts:       artefactStore,
+	}).Handler())
 	t.Cleanup(srv.Close)
 	return srv, pool
 }

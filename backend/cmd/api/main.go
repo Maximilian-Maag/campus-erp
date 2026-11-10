@@ -63,10 +63,13 @@ func main() {
 		}
 		etlRunner := etl.NewRunner(store).WithLedger(etl.NewAuditLedger(store))
 		etlRegistry := etl.NewRegistry(etlRunner, lookup.StandardDatasets(srcPool, lookupSvc)...)
-		dunningSvc := kasse.NewDunningService(kasse.NewDunningRepo(pool), store)
+		dunningRepo := kasse.NewDunningRepo(pool)
+		dunningSvc := kasse.NewDunningService(dunningRepo, store)
 		if issuer := dunningDocumentsFromEnv(); issuer != nil {
 			dunningSvc = dunningSvc.WithDocuments(issuer)
 		}
+		receivableRepo := kasse.NewReceivableRepo(pool)
+		dunningRunSvc := kasse.NewDunningRunService(dunningRepo, dunningRepo, receivableRepo, dunningSvc, store)
 		artefactStore, storeErr := storage.FromEnv(ctx, strings.TrimSpace(os.Getenv("ERP_DOCUMENTS_DIR")))
 		if storeErr != nil {
 			log.Fatalf("api: artefact store: %v", storeErr)
@@ -96,6 +99,7 @@ func main() {
 			Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
 			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetSvc, store),
 			Dunning:         dunningSvc,
+			DunningRun:      dunningRunSvc,
 			Artefacts:       artefactStore,
 			Tax:             kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
 			Runs:            kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
@@ -107,8 +111,8 @@ func main() {
 			Procurement:     procurementSvc,
 			KLR:             klrSvc,
 			Mandates:        kasse.NewMandateService(kasse.NewMandateRepo(pool), store),
-			Receivables:     kasse.NewReceivableService(kasse.NewReceivableRepo(pool), store),
-			CollectionRuns:  kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), kasse.NewReceivableRepo(pool), store),
+			Receivables:     kasse.NewReceivableService(receivableRepo, store),
+			CollectionRuns:  kasse.NewCollectionRunService(kasse.NewCollectionRunRepo(pool), kasse.NewPaymentRunRepo(pool), kasse.NewMandateRepo(pool), receivableRepo, store),
 			ETL:             etlRegistry,
 			Audit:           store,
 			Health:          pool,

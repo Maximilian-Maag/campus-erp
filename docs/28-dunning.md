@@ -53,11 +53,12 @@ an unknown level is `ErrNotFound`; against an inactive level, `ErrLevelInactive`
 | `GET` | `/api/dunning/levels` — list them with their bands, `?year=` to narrow |
 | `GET` | `/api/dunning/levels/{year}/{code}` — read one |
 | `POST` | `/api/dunning/notices` — issue a notice for a claim (201) |
+| `POST` | `/api/dunning/runs` — advance the open receivables due by a date one step (200) |
 | `GET` | `/api/dunning/notices/{id}/document` — the notice's stored PDF |
 
 Behind the `erp-kasse` role (`docs/17`). Writes are audited (`dunning.level.create`,
-`dunning.notice.issue`); the issue records the document key, so the artefact and the
-case are tied together.
+`dunning.notice.issue`, `dunning.run`); the issue records the document key, so the
+artefact and the case are tied together.
 
 The list reads by year then code, and carries each level's bands in their stored
 order — including a level with none. The year filter is the server's, so a screen
@@ -73,9 +74,45 @@ issued against a level that is on screen. A notice's PDF is linked by its docume
 route rather than read through the generated client, which reads that route as text;
 the link appears only when the notice actually carries a document (`docs/24`).
 
+## The run
+
+`POST /api/dunning/runs` `{ "year": 2026, "as_of": "2026-03-01" }` walks the open
+receivables and advances each claim **one** step along the year's chain:
+
+1. The year's levels are resolved into one chain: a level names its successor in
+   `next_code`. Exactly one level must be the first (no other level names it). A
+   `next_code` that names no level of the year ends the chain there, so a level can
+   be configured before its successor; several first levels, a cycle, or a level the
+   first cannot reach is refused (`409`) rather than guessed at.
+2. The open receivables due on or before `as_of` are selected
+   (`OpenReceivablesDueBy`), and each claim's most recent notice is read. A claim
+   that has never been dunned starts at the chain's first level; otherwise the next
+   level is its latest notice's level's `next_code`.
+3. A level's `days_allowed` is its grace period, counted from the previous step —
+   the item's due date for the first level, the notice's `issued_on` afterwards. A
+   step whose grace period has not elapsed is skipped as `not_due`.
+4. A claim is dunned at most once per as-of date: a notice issued on or after it is
+   skipped as `already_dunned`, so running the same day again is a no-op rather than
+   a second notice.
+5. The notice goes through the same dunning service the screen uses, so it is
+   charged, rendered to a PDF and audited exactly like a hand-issued one. A failed
+   issue is reported as `issue_failed` with its detail, and the run continues with
+   the other claims.
+
+The report lists every receivable the run looked at: for an issued one the level,
+charge, document and notice id; for a skipped one the reason (`not_due`,
+`already_dunned`, `unknown_level`, `no_next_level`, `next_level_missing`,
+`issue_failed`). The run appends one `dunning.run` audit event with the counts.
+
+A run's notices carry the claim reference `receivable/<id>`: the open item's id is
+stable and unique, so the notice stays traceable to the item without a second
+identifier on it.
+
+*Kasse: Mahnlauf* (`/kasse/mahnlauf`) takes the year and the as-of date, starts the
+run and renders the report — what the run returned is what the operator sees, no
+browser-side filtering.
+
 ## Not yet done
 
-- **No dunning run**: notices are issued per claim, one at a time. Walking the open
-  receivables and issuing the next level for each (`next_code`) is a later slice.
 - **No ETL dataset**: the legacy dunning tables are thin in the Muster
   (`docs/legacy/kbs-dunning.md`), so the mapping cannot be validated against it.
