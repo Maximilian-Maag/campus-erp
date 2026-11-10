@@ -2,6 +2,35 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.105.0] - 2026-11-10
+
+A delivery is recorded line by line: what actually arrived is booked against an approved order as
+a goods receipt, so a partially delivered order can be converted part of the way instead of not at
+all.
+
+### Added
+- `goods_receipt` / `goods_receipt_line` — the delivery side of an order, append-only. A line's
+  received quantity is derived from its receipts rather than stored on the line, so the two cannot
+  disagree, and the delivery note is unique per order (the idempotency key).
+- `POST /api/purchase-orders/{id}/receipts` — `{reference, received_on, lines:[{line_no,
+  quantity_milli}]}` records one delivery (`201`, the receipt and the order's state) against an
+  approved order; `GET /api/purchase-orders/{id}/receipts` reads the state: every line's ordered /
+  received / open quantity, whether the order is complete, and the receipts so far (`docs/12`).
+- `RecordReceipt` converts the value of what arrived from a reservation into a consumption
+  (`release` + `actual`, so the position's available Mittel are unchanged), refuses a blank actor,
+  a wrong state, an unknown line, a duplicate line, a non-positive quantity and an over-receipt,
+  and marks the order `received` once every line has arrived in full. The **receipt that completes
+  the order converts the remaining commitment**, so the receipts of an order add up to its gross to
+  the cent; a delivery of goods that cost nothing is recorded without a budget movement.
+- `MatchReceipt` (the invoice-driven match) now converts what is **left** of the commitment rather
+  than the whole gross, so a partial delivery and an invoice together consume the gross exactly
+  once; an order whose commitment is fully converted is no longer matchable.
+- *Beschaffung: Wareneingang* (`/procurement/wareneingang`): picks an approved order, lists each
+  line's ordered / received / open quantity as the server derived it, and books the quantities that
+  arrived — an input only for the open lines, a blank input meaning "nothing of this line".
+- `quantityToMilli` / `formatMilli` in `core/format`: a quantity typed in units and stored in
+  integer milli-units, exactly, next to the euro/cent and percent/basis-point pairs.
+
 ## [0.104.0] - 2026-11-10
 
 The movements the bank took back reach the ledger side: a period's returning statement lines are

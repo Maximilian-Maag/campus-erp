@@ -367,6 +367,14 @@ export class CampusErpApi {
     return this.http.post<m.Order>(this.base + `/api/purchase-orders/${id}/cancel`, null);
   }
 
+  listGoodsReceipts(id: number | string): Observable<m.ReceiptState> {
+    return this.http.get<m.ReceiptState>(this.base + `/api/purchase-orders/${id}/receipts`);
+  }
+
+  recordGoodsReceipt(id: number | string, body: m.RecordGoodsReceiptRequest): Observable<m.ReceiptResult> {
+    return this.http.post<m.ReceiptResult>(this.base + `/api/purchase-orders/${id}/receipts`, body);
+  }
+
   receivePurchaseOrder(id: number | string): Observable<m.Order> {
     return this.http.post<m.Order>(this.base + `/api/purchase-orders/${id}/receive`, null);
   }

@@ -16,6 +16,7 @@ import { BankStatementsComponent } from './kasse/bank-statements.component';
 import { CollectionRunsComponent } from './kasse/collection-runs.component';
 import { PaymentOrdersComponent } from './kasse/payment-orders.component';
 import { PurchaseOrdersComponent } from './procurement/orders.component';
+import { GoodsReceiptsComponent } from './procurement/goods-receipts.component';
 import { ReceivablesComponent } from './kasse/receivables.component';
 
 export const routes: Routes = [
@@ -23,6 +24,7 @@ export const routes: Routes = [
   { path: 'kasse/konten', component: CashAccountsComponent },
   { path: 'budget/haushaltsstellen', component: BudgetPositionsComponent },
   { path: 'procurement/bestellungen', component: PurchaseOrdersComponent },
+  { path: 'procurement/wareneingang', component: GoodsReceiptsComponent },
   { path: 'einvoice/rechnungen', component: EInvoicesComponent },
   { path: 'klr/umlage', component: KlrAllocationComponent },
   { path: 'klr/kostenarten', component: KlrCostTypesComponent },

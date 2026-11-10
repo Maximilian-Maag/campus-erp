@@ -2173,6 +2173,79 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/purchase-orders/{id}/receipts:
+    post:
+      tags:
+      - procurement
+      operationId: recordGoodsReceipt
+      summary: Record a goods receipt (a delivery) against an approved order
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordGoodsReceiptRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - procurement
+      operationId: listGoodsReceipts
+      summary: 'Read an order''s goods-receipt state: line progress and the receipts so far'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptState'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/klr/cost-centers:
     post:
       tags:
@@ -4319,6 +4392,126 @@ components:
       - Number
       - Name
       - CreatedBy
+    ReceiptState:
+      type: object
+      properties:
+        OrderID:
+          type: integer
+          format: int64
+        Progress:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineProgress'
+        Complete:
+          type: boolean
+        Receipts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Receipt'
+      required:
+      - OrderID
+      - Progress
+      - Complete
+      - Receipts
+    Receipt:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        OrderID:
+          type: integer
+          format: int64
+        Reference:
+          type: string
+        ReceivedOn:
+          type: string
+          format: date-time
+        ReceivedBy:
+          type: string
+        Lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptLine'
+        ReceivedCents:
+          type: integer
+          format: int64
+      required:
+      - ID
+      - OrderID
+      - Reference
+      - ReceivedOn
+      - ReceivedBy
+      - Lines
+      - ReceivedCents
+    ReceiptLine:
+      type: object
+      properties:
+        LineNo:
+          type: integer
+          format: int64
+        QuantityMilli:
+          type: integer
+          format: int64
+      required:
+      - LineNo
+      - QuantityMilli
+    LineProgress:
+      type: object
+      properties:
+        LineNo:
+          type: integer
+          format: int64
+        Description:
+          type: string
+        OrderedMilli:
+          type: integer
+          format: int64
+        ReceivedMilli:
+          type: integer
+          format: int64
+      required:
+      - LineNo
+      - Description
+      - OrderedMilli
+      - ReceivedMilli
+    ReceiptResult:
+      type: object
+      properties:
+        Receipt:
+          $ref: '#/components/schemas/Receipt'
+        State:
+          $ref: '#/components/schemas/ReceiptState'
+      required:
+      - Receipt
+      - State
+    RecordGoodsReceiptRequest:
+      type: object
+      properties:
+        reference:
+          type: string
+        received_on:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoodsReceiptLineRequest'
+      required:
+      - reference
+      - received_on
+      - lines
+    GoodsReceiptLineRequest:
+      type: object
+      properties:
+        line_no:
+          type: integer
+          format: int64
+        quantity_milli:
+          type: integer
+          format: int64
+      required:
+      - line_no
+      - quantity_milli
     Order:
       type: object
       properties:

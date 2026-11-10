@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/procurement"
@@ -19,6 +20,10 @@ type procurementService interface {
 	Cancel(ctx context.Context, id int64, by string) (procurement.Order, error)
 	Get(ctx context.Context, id int64) (procurement.Order, error)
 	Orders(ctx context.Context, status procurement.Status) ([]procurement.OrderSummary, error)
+	// RecordReceipt records a delivery (a goods receipt) against an approved order (docs/12).
+	RecordReceipt(ctx context.Context, orderID int64, reference string, receivedOn time.Time, lines []procurement.ReceiptLine, by string) (procurement.ReceiptResult, error)
+	// ReceiptState is the order's goods-receipt state: every line's progress and the receipts.
+	ReceiptState(ctx context.Context, orderID int64) (procurement.ReceiptState, error)
 }
 
 // listPurchaseOrders returns the order summaries, optionally narrowed to one status. An
@@ -45,9 +50,10 @@ func (s *Server) listPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 // statusForProcurement maps a procurement error to an HTTP status.
 func statusForProcurement(err error) int {
 	switch {
-	case errors.Is(err, procurement.ErrOrderNotFound):
+	case errors.Is(err, procurement.ErrOrderNotFound), errors.Is(err, procurement.ErrReceiptNotFound):
 		return http.StatusNotFound
 	case errors.Is(err, procurement.ErrOrderExists),
+		errors.Is(err, procurement.ErrReceiptExists),
 		errors.Is(err, procurement.ErrBadTransition),
 		errors.Is(err, budget.ErrBudgetExceeded):
 		return http.StatusConflict
@@ -61,7 +67,14 @@ func statusForProcurement(err error) int {
 		errors.Is(err, procurement.ErrLineQuantity),
 		errors.Is(err, procurement.ErrLineAmount),
 		errors.Is(err, procurement.ErrVATCategoryRequired),
-		errors.Is(err, procurement.ErrLineNetMismatch):
+		errors.Is(err, procurement.ErrLineNetMismatch),
+		errors.Is(err, procurement.ErrReceiptReferenceRequired),
+		errors.Is(err, procurement.ErrReceiptDateRequired),
+		errors.Is(err, procurement.ErrNoReceiptLines),
+		errors.Is(err, procurement.ErrReceiptQuantity),
+		errors.Is(err, procurement.ErrReceiptLineUnknown),
+		errors.Is(err, procurement.ErrReceiptLineDuplicate),
+		errors.Is(err, procurement.ErrOverReceipt):
 		return http.StatusUnprocessableEntity
 	default:
 		return http.StatusInternalServerError
@@ -132,6 +145,66 @@ func (s *Server) receivePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) cancelPurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	s.purchaseOrderStep(w, r, s.procurement.Cancel)
+}
+
+// goodsReceiptLineRequest is one line of a delivery: how much of an order line arrived.
+type goodsReceiptLineRequest struct {
+	LineNo        int   `json:"line_no"`
+	QuantityMilli int64 `json:"quantity_milli"`
+}
+
+// recordGoodsReceiptRequest is the payload of POST /api/purchase-orders/{id}/receipts.
+type recordGoodsReceiptRequest struct {
+	Reference  string                    `json:"reference"`
+	ReceivedOn string                    `json:"received_on"`
+	Lines      []goodsReceiptLineRequest `json:"lines"`
+}
+
+// recordGoodsReceipt records a delivery against an approved order (docs/12). The date is read at
+// the edge like every other period, so a malformed one is a problem with the request rather than
+// a domain refusal.
+func (s *Server) recordGoodsReceipt(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var req recordGoodsReceiptRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	receivedOn, err := time.Parse(time.DateOnly, strings.TrimSpace(req.ReceivedOn))
+	if err != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_receipt_date", "received_on must be YYYY-MM-DD")
+		return
+	}
+	lines := make([]procurement.ReceiptLine, 0, len(req.Lines))
+	for _, l := range req.Lines {
+		lines = append(lines, procurement.ReceiptLine{LineNo: l.LineNo, QuantityMilli: l.QuantityMilli})
+	}
+	result, err := s.procurement.RecordReceipt(r.Context(), id, req.Reference, receivedOn, lines, actor(r))
+	if err != nil {
+		writeProblem(w, statusForProcurement(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, result)
+}
+
+// listGoodsReceipts reads an order's goods-receipt state: every line's progress and the receipts
+// recorded so far. An order with no delivery is a state with nothing received, not a 404.
+func (s *Server) listGoodsReceipts(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	state, err := s.procurement.ReceiptState(r.Context(), id)
+	if err != nil {
+		writeProblem(w, statusForProcurement(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, state)
 }
 
 func (s *Server) purchaseOrderStep(w http.ResponseWriter, r *http.Request, step func(context.Context, int64, string) (procurement.Order, error)) {

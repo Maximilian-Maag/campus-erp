@@ -2,8 +2,10 @@ import {
   basisPointsToPercent,
   formatCents,
   formatDay,
+  formatMilli,
   isoDay,
   percentToBasisPoints,
+  quantityToMilli,
 } from './format';
 
 describe('formatCents', () => {
@@ -69,6 +71,41 @@ describe('percentToBasisPoints', () => {
     expect(percentToBasisPoints('12.345')).toBeNull();
     expect(percentToBasisPoints('1234')).toBeNull();
     expect(percentToBasisPoints('1.2.3')).toBeNull();
+  });
+});
+
+describe('quantityToMilli and formatMilli', () => {
+  it('converts a typed quantity into milli-units, exactly', () => {
+    expect(quantityToMilli('1')).toBe(1000);
+    expect(quantityToMilli('0,5')).toBe(500);
+    expect(quantityToMilli('0.5')).toBe(500);
+    expect(quantityToMilli('1,5')).toBe(1500);
+    expect(quantityToMilli('0,001')).toBe(1);
+    expect(quantityToMilli('  12,25  ')).toBe(12250);
+    expect(quantityToMilli('1234567890')).toBe(1234567890000);
+  });
+
+  it('refuses a quantity that is not positive or carries too many decimals', () => {
+    for (const bad of ['', '0', '0,0', '0,000', '-1', '1,2345', 'zwei', '1,2,3', '1.', '1,2.', ',5']) {
+      expect(quantityToMilli(bad)).toBeNull();
+    }
+  });
+
+  it('renders milli-units as a quantity without trailing zeros', () => {
+    expect(formatMilli(1000)).toBe('1');
+    expect(formatMilli(500)).toBe('0,5');
+    expect(formatMilli(1500)).toBe('1,5');
+    expect(formatMilli(1)).toBe('0,001');
+    expect(formatMilli(12250)).toBe('12,25');
+    expect(formatMilli(0)).toBe('0');
+  });
+
+  it('round-trips with quantityToMilli', () => {
+    for (const typed of ['1', '0,5', '1,5', '0,001', '12,25']) {
+      const milli = quantityToMilli(typed);
+      expect(milli).not.toBeNull();
+      expect(quantityToMilli(formatMilli(milli as number))).toBe(milli);
+    }
   });
 });
 

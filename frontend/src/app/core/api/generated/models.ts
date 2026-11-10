@@ -413,6 +413,11 @@ export interface FoundationRequest {
   carry_over: boolean;
 }
 
+export interface GoodsReceiptLineRequest {
+  line_no: number;
+  quantity_milli: number;
+}
+
 export interface ImportStatementRequest {
   account_id: number;
   content: string;
@@ -499,6 +504,13 @@ export interface KlrReport {
 export interface LedgerExportRequest {
   from: string;
   to: string;
+}
+
+export interface LineProgress {
+  LineNo: number;
+  Description: string;
+  OrderedMilli: number;
+  ReceivedMilli: number;
 }
 
 export interface LookupValueRequest {
@@ -646,6 +658,33 @@ export interface PurchaseOrderLineRequest {
   vat_rate_bp: number;
 }
 
+export interface Receipt {
+  ID: number;
+  OrderID: number;
+  Reference: string;
+  ReceivedOn: string;
+  ReceivedBy: string;
+  Lines: ReceiptLine[];
+  ReceivedCents: number;
+}
+
+export interface ReceiptLine {
+  LineNo: number;
+  QuantityMilli: number;
+}
+
+export interface ReceiptResult {
+  Receipt: Receipt;
+  State: ReceiptState;
+}
+
+export interface ReceiptState {
+  OrderID: number;
+  Progress: LineProgress[];
+  Complete: boolean;
+  Receipts: Receipt[];
+}
+
 export interface Receivable {
   ID: number;
   MandateReference: string;
@@ -686,6 +725,12 @@ export interface Record {
   BusinessDate: string;
   Reference: string;
   BookedBy: string;
+}
+
+export interface RecordGoodsReceiptRequest {
+  reference: string;
+  received_on: string;
+  lines: GoodsReceiptLineRequest[];
 }
 
 export interface ReportRenderRequest {

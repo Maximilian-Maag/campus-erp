@@ -316,6 +316,15 @@ func TestStatusForProcurement(t *testing.T) {
 		{"line amount", procurement.ErrLineAmount, http.StatusUnprocessableEntity},
 		{"vat category", procurement.ErrVATCategoryRequired, http.StatusUnprocessableEntity},
 		{"line net mismatch", procurement.ErrLineNetMismatch, http.StatusUnprocessableEntity},
+		{"receipt not found", procurement.ErrReceiptNotFound, http.StatusNotFound},
+		{"receipt exists", procurement.ErrReceiptExists, http.StatusConflict},
+		{"receipt reference required", procurement.ErrReceiptReferenceRequired, http.StatusUnprocessableEntity},
+		{"receipt date required", procurement.ErrReceiptDateRequired, http.StatusUnprocessableEntity},
+		{"no receipt lines", procurement.ErrNoReceiptLines, http.StatusUnprocessableEntity},
+		{"receipt quantity", procurement.ErrReceiptQuantity, http.StatusUnprocessableEntity},
+		{"receipt line unknown", procurement.ErrReceiptLineUnknown, http.StatusUnprocessableEntity},
+		{"receipt line duplicate", procurement.ErrReceiptLineDuplicate, http.StatusUnprocessableEntity},
+		{"over receipt", procurement.ErrOverReceipt, http.StatusUnprocessableEntity},
 		{"anything else", errors.New("boom"), http.StatusInternalServerError},
 	}
 	for _, c := range cases {
