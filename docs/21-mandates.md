@@ -35,6 +35,23 @@ rather than holding every mandate to show a few.
 Direct debit is a receivables process, so the routes sit behind the `erp-kasse`
 role like dunning (`docs/17`). The write is audited (`mandate.create`).
 
+## Screen — *Kasse: Mandate* (`/kasse/mandate`)
+
+Lists the mandates and registers one. The **filters are the server's** — the state (*alle* / *nur
+aktive*) and the sequence type are asked for, not narrowed on screen — exactly as the collection-run
+screen asks for the mandates a run can gather, so both read the same route the same way.
+
+The sequence types come from **one list** the collection run and this screen share
+(`frontend/src/app/core/direct-debit.ts`): a run that collects `RCUR` may only gather mandates that
+carry `RCUR`, so the two screens must not drift apart, and the code stays the value while the German
+word is only a label.
+
+The screen refuses what it can see is missing — a mandate without a reference, a debtor, an IBAN or
+a signature date authorises nothing — and leaves the checks it cannot make to the server: the IBAN's
+checksum (ISO 7064) and the BIC's shape are validated once, in Kasse, and a refusal is shown as it
+comes back rather than replaced by a second implementation here. A refused mandate keeps what was
+typed, so it can be corrected rather than retyped.
+
 ## Validation
 
 `kasse.NewMandate` validates before any write and returns a sentinel error matchable
@@ -52,5 +69,7 @@ Kasse), `ErrDebtorBICInvalid` (ISO 9362, shared with `core/sepa`), and
   receivables (`docs/22`). What is still open there is EBICS transport.
 - No ETL dataset: the legacy mandate table (`kbs.mandat`) is empty in the Muster
   (`docs/legacy/kbs-payment-orders.md`), so the mapping cannot be validated.
-- The list route feeds the collection-run screen (`docs/22`), which offers the mandates a run's
-  sequence type can collect under. Registering a mandate is still an API call, not a screen.
+- ~~Registering a mandate is still an API call, not a screen~~ — done since: the *Kasse: Mandate*
+  screen lists the mandates under the same filters the collection-run screen uses and registers one
+  (above). What it does not do is **retire** one: `active` is soft state the model carries, and a
+  screen that retires a mandate is still to come.

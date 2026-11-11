@@ -2,6 +2,25 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.110.0] - 2026-11-11
+
+A SEPA direct-debit mandate can be registered from the UI — until now that was an API call.
+
+### Added
+- *Kasse: Mandate* (`/kasse/mandate`): lists the mandates and registers one. The filters (state and
+  sequence type) are asked for, not narrowed on screen, exactly as the collection-run screen asks
+  for the mandates a run can gather; a refused mandate keeps what was typed so it can be corrected
+  rather than retyped.
+- `frontend/src/app/core/direct-debit.ts` — the sequence types as **one list** both screens read,
+  with the code as the value and the German word only a label. A run that collects `RCUR` may only
+  gather `RCUR` mandates, so the two screens must not drift apart; the collection-run screen now
+  renders its select from that list instead of its own copy.
+- The screen refuses what it can see is missing (reference, debtor, IBAN, signature date) and leaves
+  the checks it cannot make — the IBAN's checksum, the BIC's shape — to the server, whose refusal is
+  shown as it comes back rather than duplicated in a second implementation.
+- Still open, and now named as such in docs/21: **retiring** a mandate. `active` is soft state the
+  model carries, but no screen and no route sets it.
+
 ## [0.109.0] - 2026-11-11
 
 The second e-invoice syntax exists: the same invoice can now be emitted as ZUGFeRD/Factur-X (CII)

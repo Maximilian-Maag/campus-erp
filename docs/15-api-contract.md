@@ -229,9 +229,10 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
 
 ## Not yet done
 
-- Twenty-one screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
+- Twenty-two screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
   `/kasse/anordnungen`, `/kasse/zahlungslaeufe`, `/kasse/kontoauszuege`, `/kasse/offene-posten`,
-  `/kasse/einzuege`, `/kasse/mahnwesen`, `/kasse/mahnlauf`, `/kasse/ruecklaeufer`),
+  `/kasse/einzuege`, `/kasse/mahnwesen`, `/kasse/mahnlauf`, `/kasse/ruecklaeufer`,
+  `/kasse/mandate`),
   Budget (`/budget/haushaltsstellen`, `/budget/mittelherkunft`),
   Beschaffung (`/procurement/bestellungen`, `/procurement/wareneingang`), E-Rechnung,
   KLR (`/klr/umlage`, `/klr/kostenarten`, `/klr/kostentraeger`, `/klr/verrechnungspreise`),
