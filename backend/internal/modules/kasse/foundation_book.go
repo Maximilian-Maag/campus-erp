@@ -17,7 +17,29 @@ var (
 	ErrFoundationBookNotFound = errors.New("kasse: foundation book not found")
 	// ErrFoundationRequired is returned when the foundation is missing.
 	ErrFoundationRequired = errors.New("kasse: a foundation is required")
+	// ErrCarryOverNotAllowed is returned when the foundation's record does not allow its money to be
+	// carried into the next year.
+	ErrCarryOverNotAllowed = errors.New("kasse: the foundation does not carry its money over")
+	// ErrCarryOverNothing is returned when a book's balance is zero: there is nothing to carry.
+	ErrCarryOverNothing = errors.New("kasse: the book has no balance to carry over")
+	// ErrCarryOverTargetMissing is returned when the next year's foundation record does not exist.
+	// Master data is not a side effect of a posting, so the operator opens the year first.
+	ErrCarryOverTargetMissing = errors.New("kasse: the next year's foundation does not exist")
+	// ErrCarryOverTargetNotEmpty is returned when the next year's book already carries movements, so
+	// posting an opening balance into it would count the money twice.
+	ErrCarryOverTargetNotEmpty = errors.New("kasse: the next year's book already carries movements")
 )
+
+// CarryOver is the result of closing one year's book into the next: the book that was closed, the
+// book that was opened, the opening movement, and the net that moved.
+type CarryOver struct {
+	Source  FoundationBook
+	Target  FoundationBook
+	Booking FoundationBooking
+	// Year is the year that was closed; the target book belongs to Year+1.
+	Year  int
+	Cents int64
+}
 
 // FoundationBook is one foundation's own book.
 type FoundationBook struct {

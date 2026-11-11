@@ -219,6 +219,10 @@ export class CampusErpApi {
     return this.http.post<m.FoundationBooking>(this.base + `/api/foundation-books/${id}/bookings`, body);
   }
 
+  carryOverFoundationBook(id: number | string, body: m.CarryOverRequest): Observable<m.CarryOverResponse> {
+    return this.http.post<m.CarryOverResponse>(this.base + `/api/foundation-books/${id}/carry-over`, body);
+  }
+
   listFoundations(year?: string): Observable<m.Foundation[]> {
     return this.http.get<m.Foundation[]>(this.base + `/api/foundations${this._query({ year })}`);
   }

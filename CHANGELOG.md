@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.119.0] - 2026-11-11
+
+A foundation's year can be closed: `POST /api/foundation-books/{id}/carry-over` posts the book's net
+as the opening movement of the same foundation's book in the following year, and the *Stiftungen*
+screen offers it per book. The four refusals each carry their own machine code — the foundation does
+not carry, there is nothing to carry, the next year is not open, the next book already carries
+movements — so the screen names what to do next instead of a generic failure. The next year's
+foundation record is not created as a side effect: master data stays the operator's decision, and the
+refusal names the year and number that are missing. A deficit carries as an expense of the absolute
+amount, so the next book opens with the same net the source closed with. `docs/29`.
+
 ## [0.118.0] - 2026-11-11
 
 An inbound invoice is read whichever syntax the counterpart sent: UBL (XRechnung) or CII

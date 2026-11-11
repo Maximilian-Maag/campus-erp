@@ -239,6 +239,10 @@ func (s stubFoundationBooks) Book(context.Context, int64, int64, kasse.BookingKi
 	return kasse.FoundationBooking{}, s.err
 }
 
+func (s stubFoundationBooks) CarryOver(context.Context, int64, string, string) (kasse.CarryOver, error) {
+	return kasse.CarryOver{}, s.err
+}
+
 func (s stubFoundationBooks) Bookings(context.Context, int64) ([]kasse.FoundationBooking, error) {
 	return nil, s.err
 }

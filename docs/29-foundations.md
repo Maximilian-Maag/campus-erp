@@ -77,10 +77,33 @@ same reason it is derived server-side. Amounts are typed in euros and converted 
 `euroToCents` — the inverse of the `formatCents` every figure is shown with (`core/format.ts`) —
 and a movement is always booked against the book that is on screen.
 
+## Closing a year
+
+`POST /api/foundation-books/{id}/carry-over` posts a book's net as the opening movement of the same
+foundation's book in the following year. The body may name the next book's reference; an empty one
+reuses the source's.
+
+The rules, in the order they refuse, each with its own machine code so a client can say what to do:
+
+| refusal | code | why |
+| --- | --- | --- |
+| the foundation does not carry | `kasse.carry_over_not_allowed` | `carry_over` is false: the money is spent in its year |
+| nothing to carry | `kasse.carry_over_nothing` | the net is zero |
+| the next year is not open | `kasse.carry_over_target_missing` | no `foundation` row for `year + 1` with the same number |
+| the next book already carries movements | `kasse.carry_over_target_not_empty` | a second carry-over would count the money twice |
+
+Two decisions are worth stating. **The next year's foundation record is not created here**: master
+data is not a side effect of a posting, so the operator opens the year first and the refusal names
+the year and number that are missing. And **the source book is not touched**: the years' books are
+append-only records of what happened, so closing a year means opening the next with the net, not
+editing the one that ended. A deficit carries as an `expense` of the absolute amount, so the next
+book opens with the same net the source closed with.
+
+The screen offers it per book (*Ins Folgejahr übertragen*) and names the refusal it gets back
+rather than a generic failure, because the four refusals ask for four different things.
+
 ## Not yet done
 
-- **No carry-over posting.** `carry_over` records that a foundation's money may be carried into
-  the next year, but nothing closes a year's balance and opens the next with it.
 - **No correction path.** Movements are append-only, so a wrong movement is answered by a
   counter-movement; there is no reversal that marks the original as cancelled.
 - **No ETL dataset.** The legacy foundation tables are thin in the Muster

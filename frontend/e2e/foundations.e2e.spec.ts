@@ -128,6 +128,65 @@ test('Stiftungen finds a foundation, its books and the movements of a book, and 
   expect(results.violations).toEqual([]);
 });
 
+test('Stiftungen closes a year into the next and names what moved, and passes axe', async ({ page }) => {
+  const carryBodies: unknown[] = [];
+  const carrying = { ...stiftung, CarryOver: true };
+
+  await page.route('**/api/foundations', (route) => route.fulfill({ json: [carrying] }));
+  await page.route('**/api/foundations/1/books', (route) => route.fulfill({ json: [book] }));
+  await page.route('**/api/foundation-books/7/carry-over', (route) => {
+    carryBodies.push(route.request().postDataJSON());
+    return route.fulfill({
+      status: 201,
+      json: {
+        source_book_id: 7,
+        source_reference: 'B-1',
+        year: 2026,
+        target_book_id: 12,
+        target_reference: 'B-1',
+        booking_id: 40,
+        cents: 42500,
+      },
+    });
+  });
+
+  await page.goto('/finanzen/stiftungen');
+  await page.getByTestId('foundation-1').getByRole('button', { name: 'Bücher anzeigen' }).click();
+  await expect(page.getByTestId('book-7')).toBeVisible();
+
+  await page.getByTestId('carry-over-7').click();
+  await expect(
+    page.getByText('425,00 € aus 2026 übertragen — Buch B-1 im Jahr 2027 angelegt.'),
+  ).toBeVisible();
+  expect(carryBodies).toEqual([{ reference: '' }]);
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('Stiftungen names the refusal when a year cannot be closed, and passes axe', async ({ page }) => {
+  const carrying = { ...stiftung, CarryOver: true };
+  await page.route('**/api/foundations', (route) => route.fulfill({ json: [carrying] }));
+  await page.route('**/api/foundations/1/books', (route) => route.fulfill({ json: [book] }));
+  await page.route('**/api/foundation-books/7/carry-over', (route) =>
+    route.fulfill({
+      status: 422,
+      json: { error: 'kasse: the next year\'s foundation does not exist', code: 'kasse.carry_over_target_missing' },
+    })
+  );
+
+  await page.goto('/finanzen/stiftungen');
+  await page.getByTestId('foundation-1').getByRole('button', { name: 'Bücher anzeigen' }).click();
+  await page.getByTestId('carry-over-7').click();
+
+  // The refusal names what to do next, not just that something failed.
+  await expect(page.getByText('Für das Folgejahr ist noch keine Stiftung angelegt.')).toBeVisible();
+  await expect(page.getByTestId('carry-over-7')).toBeEnabled();
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
 test('Stiftungen refuses an incomplete foundation and reports an unreadable year, and passes axe', async ({ page }) => {
   await page.route('**/api/foundations', (route) =>
     route.request().method() === 'POST'

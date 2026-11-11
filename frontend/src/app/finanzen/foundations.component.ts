@@ -159,6 +159,7 @@ import { euroToCents, formatCents } from '../core/format';
                   <th scope="col">Währung</th>
                   <th scope="col">Angelegt von</th>
                   <th scope="col">Buchungen</th>
+                  <th scope="col">Abschluss</th>
                 </tr>
               </thead>
               <tbody>
@@ -169,6 +170,16 @@ import { euroToCents, formatCents } from '../core/format';
                     <td>{{ book.CreatedBy }}</td>
                     <td>
                       <button type="button" (click)="selectBook(book)">Buchungen anzeigen</button>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        [attr.data-testid]="'carry-over-' + book.ID"
+                        [disabled]="carryingOver() === book.ID"
+                        (click)="carryOver(book)"
+                      >
+                        {{ carryingOver() === book.ID ? 'Übertrage …' : 'Ins Folgejahr übertragen' }}
+                      </button>
                     </td>
                   </tr>
                 }
@@ -307,6 +318,8 @@ export class FoundationsComponent implements OnInit {
   readonly bookingKind = signal('income');
   readonly bookingAmount = signal('');
   readonly purpose = signal('');
+  /** The book whose carry-over is in flight, so its button says so and cannot be pressed twice. */
+  readonly carryingOver = signal<number | null>(null);
 
   readonly euro = formatCents;
 
@@ -392,6 +405,30 @@ export class FoundationsComponent implements OnInit {
       error: () => {
         this.actionError.set('Konnte die Bücher nicht laden.');
         this.booksLoading.set(false);
+      },
+    });
+  }
+
+  /**
+   * Closes a year's book into the next: the net becomes the opening movement of the same
+   * foundation's book in the following year. The server decides whether that is allowed — the
+   * foundation must carry, the book must have a balance, and the next year must be open — so the
+   * screen only names the refusal it gets back.
+   */
+  carryOver(book: FoundationBook): void {
+    this.actionError.set(null);
+    this.notice.set(null);
+    this.carryingOver.set(book.ID);
+    this.api.carryOverFoundationBook(book.ID, { reference: '' }).subscribe({
+      next: (res) => {
+        this.carryingOver.set(null);
+        this.notice.set(
+          `${formatCents(res.cents)} € aus ${res.year} übertragen — Buch ${res.target_reference} im Jahr ${res.year + 1} angelegt.`,
+        );
+      },
+      error: (err: unknown) => {
+        this.carryingOver.set(null);
+        this.actionError.set(carryOverMessage(err));
       },
     });
   }
@@ -497,5 +534,25 @@ export class FoundationsComponent implements OnInit {
       next: (balance) => this.balance.set(balance),
       error: () => this.actionError.set('Konnte den Saldo nicht laden.'),
     });
+  }
+}
+
+/**
+ * Names the refusal a carry-over came back with, so the operator knows what to do next rather than
+ * reading "Konnte das Jahr nicht abschließen" for four different reasons.
+ */
+function carryOverMessage(err: unknown): string {
+  const code = (err as { error?: { code?: string } })?.error?.code ?? '';
+  switch (code) {
+    case 'kasse.carry_over_not_allowed':
+      return 'Diese Stiftung trägt ihr Vermögen nicht ins Folgejahr.';
+    case 'kasse.carry_over_nothing':
+      return 'Das Buch hat keinen Saldo — es gibt nichts zu übertragen.';
+    case 'kasse.carry_over_target_missing':
+      return 'Für das Folgejahr ist noch keine Stiftung angelegt.';
+    case 'kasse.carry_over_target_not_empty':
+      return 'Das Buch des Folgejahres hat bereits Buchungen.';
+    default:
+      return 'Konnte das Jahr nicht abschließen.';
   }
 }

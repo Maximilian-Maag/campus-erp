@@ -112,6 +112,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/foundation-books/{id}/balance": {
         "get": ("getFoundationBalance", "kasse", "Read a foundation balance", None, "kasse.FoundationBalance", 200, "json"),
     },
+    "/api/foundation-books/{id}/carry-over": {
+        "post": ("carryOverFoundationBook", "kasse", "Close a year's book into the next year's", "httpapi.carryOverRequest", "httpapi.carryOverResponse", 201, "json"),
+    },
     "/api/dunning/notices/{id}/document": {
         "get": ("getDunningNoticeDocument", "kasse", "Read a dunning notice's stored PDF", None, None, 200, "pdf"),
     },
