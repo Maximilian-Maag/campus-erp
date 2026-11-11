@@ -17,7 +17,7 @@ test('Mandate lists the mandates, narrows them and registers one, and passes axe
   const created: unknown[] = [];
   let mandates = [mandate];
 
-  await page.route('**/api/direct-debit/mandates*', (route) => {
+  await page.route('**/api/direct-debit/mandates**', (route) => {
     const request = route.request();
     calls.push(request.url());
     if (request.method() === 'POST') {
@@ -63,8 +63,50 @@ test('Mandate lists the mandates, narrows them and registers one, and passes axe
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
+test('Mandate asks twice before retiring one, and passes axe', async ({ page }) => {
+  const retires: string[] = [];
+  let mandates = [mandate, { ...mandate, ID: 2, Reference: 'MND-2' }];
+
+  await page.route('**/api/direct-debit/mandates**', (route) => {
+    const request = route.request();
+    if (request.method() === 'POST') {
+      const reference = request.url().split('/').at(-2)!;
+      retires.push(reference);
+      mandates = mandates.map((m) => (m.Reference === reference ? { ...m, Active: false } : m));
+      return route.fulfill({ status: 200, json: { ...mandate, Reference: reference, Active: false } });
+    }
+    return route.fulfill({ status: 200, json: mandates });
+  });
+
+  await page.goto('/kasse/mandate');
+  await expect(page.getByTestId('mandate-MND-1')).toContainText('aktiv');
+
+  // The first click asks; nothing is sent.
+  await page.getByRole('button', { name: 'Mandat MND-1 zurückziehen' }).click();
+  await expect(page.getByRole('button', { name: 'Mandat MND-1 wirklich zurückziehen' })).toBeVisible();
+  expect(retires).toEqual([]);
+
+  // Abandoning it leaves the mandate alone.
+  await page.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(page.getByRole('button', { name: 'Mandat MND-1 zurückziehen' })).toBeVisible();
+  expect(retires).toEqual([]);
+
+  // Answering the question revokes it, and the row says so without a reload.
+  await page.getByRole('button', { name: 'Mandat MND-1 zurückziehen' }).click();
+  await page.getByRole('button', { name: 'Mandat MND-1 wirklich zurückziehen' }).click();
+  await expect(page.getByText('Mandat MND-1 zurückgezogen.')).toBeVisible();
+  await expect(page.getByTestId('mandate-MND-1')).toContainText('zurückgezogen');
+  expect(retires).toEqual(['MND-1']);
+
+  // The retired mandate no longer offers the action; the other one still does.
+  await expect(page.getByRole('button', { name: 'Mandat MND-1 zurückziehen' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Mandat MND-2 zurückziehen' })).toBeVisible();
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 test('Mandate refuses an incomplete mandate and reports a refused one, and passes axe', async ({ page }) => {
-  await page.route('**/api/direct-debit/mandates*', (route) =>
+  await page.route('**/api/direct-debit/mandates**', (route) =>
     route.request().method() === 'POST'
       ? route.fulfill({ status: 422, json: { error: 'invalid IBAN' } })
       : route.fulfill({ status: 200, json: [] })

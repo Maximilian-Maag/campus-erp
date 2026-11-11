@@ -3370,6 +3370,39 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/direct-debit/mandates/{reference}/retire:
+    post:
+      tags:
+      - kasse
+      operationId: retireMandate
+      summary: Retire a SEPA direct-debit mandate (the debtor revoked it)
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mandate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/direct-debit/mandates:
     post:
       tags:

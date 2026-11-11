@@ -143,6 +143,59 @@ describe('MandatesComponent', () => {
     expect(component.sequenceType()).toBe('FRST');
   });
 
+  it('asks twice before retiring a mandate, then shows it as retired', () => {
+    screen([mandate(), mandate({ ID: 2, Reference: 'MND-2' })]);
+    component.askRetire(component.mandates()[0]);
+    fixture.detectChanges();
+
+    // The row turned into the question, and nothing was sent yet.
+    expect(el.textContent).toContain('Ja, zurückziehen');
+    expect(component.confirming()).toBe('MND-1');
+    http.expectNone((r) => r.method === 'POST');
+
+    component.retire(component.mandates()[0]);
+    expect(component.retiring()).toBe('MND-1');
+    const req = http.expectOne('/api/direct-debit/mandates/MND-1/retire');
+    expect(req.request.method).toBe('POST');
+    req.flush(mandate({ Active: false }));
+    fixture.detectChanges();
+
+    expect(component.notice()).toBe('Mandat MND-1 zurückgezogen.');
+    expect(component.confirming()).toBeNull();
+    expect(component.retiring()).toBeNull();
+    const cells = el.querySelector('[data-testid="mandate-MND-1"]')!.querySelectorAll('td');
+    expect(cells[6].textContent).toContain('zurückgezogen');
+    // The retired row no longer offers the action, the other one still does.
+    expect(el.querySelector('[data-testid="mandate-MND-1"]')!.querySelectorAll('button').length).toBe(0);
+    expect(el.querySelector('[data-testid="mandate-MND-2"]')!.querySelectorAll('button').length).toBe(1);
+  });
+
+  it('lets a revocation be abandoned before anything is sent', () => {
+    screen();
+    component.askRetire(component.mandates()[0]);
+    expect(component.confirming()).toBe('MND-1');
+    component.cancelRetire();
+    expect(component.confirming()).toBeNull();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="mandate-MND-1"]')!.querySelectorAll('button').length).toBe(1);
+    http.expectNone((r) => r.method === 'POST');
+  });
+
+  it('reports a refused revocation and keeps the question open', () => {
+    screen();
+    component.askRetire(component.mandates()[0]);
+    component.retire(component.mandates()[0]);
+    http
+      .expectOne('/api/direct-debit/mandates/MND-1/retire')
+      .flush({ error: 'already retired' }, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+
+    expect(component.actionError()).toBe('Mandat MND-1 konnte nicht zurückgezogen werden.');
+    expect(component.retiring()).toBeNull();
+    // The question stays open, so the operator can retry or abandon it deliberately.
+    expect(component.confirming()).toBe('MND-1');
+  });
+
   it('refuses a mandate the screen can see is incomplete, without asking the API', () => {
     screen();
     for (const incomplete of [

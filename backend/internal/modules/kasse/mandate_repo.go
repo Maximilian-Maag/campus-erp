@@ -14,6 +14,8 @@ type MandateRepository interface {
 	CreateMandate(ctx context.Context, m Mandate, by string) (Mandate, error)
 	GetMandate(ctx context.Context, reference string) (Mandate, error)
 	Mandates(ctx context.Context, activeOnly bool, seq MandateSequence) ([]Mandate, error)
+	// RetireMandate withdraws a mandate's authorisation, keeping the row.
+	RetireMandate(ctx context.Context, reference string) (Mandate, error)
 }
 
 // MandateRepo is the PostgreSQL implementation.
@@ -58,6 +60,23 @@ func (r *MandateRepo) GetMandate(ctx context.Context, reference string) (Mandate
 	}
 	if err != nil {
 		return Mandate{}, fmt.Errorf("kasse: get mandate: %w", err)
+	}
+	return out, nil
+}
+
+// RetireMandate clears a mandate's active flag and returns the row as it now stands. The reference
+// is the identity, so nothing is deleted: the mandate stays readable, which is what a revocation
+// trail needs.
+func (r *MandateRepo) RetireMandate(ctx context.Context, reference string) (Mandate, error) {
+	out, err := scanMandate(r.pool.QueryRow(ctx,
+		`UPDATE direct_debit_mandate SET active = false
+		  WHERE mandate_reference = $1
+		  RETURNING `+mandateColumns, reference))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Mandate{}, fmt.Errorf("kasse: mandate %q: %w", reference, ErrMandateNotFound)
+	}
+	if err != nil {
+		return Mandate{}, fmt.Errorf("kasse: retire mandate: %w", err)
 	}
 	return out, nil
 }

@@ -68,6 +68,7 @@ import { formatDay } from '../core/format';
               <th scope="col">Unterschrieben</th>
               <th scope="col">Sequenztyp</th>
               <th scope="col">Bestand</th>
+              <th scope="col">Aktion</th>
             </tr>
           </thead>
           <tbody>
@@ -82,6 +83,30 @@ import { formatDay } from '../core/format';
                   {{ sequence(mandate.SequenceType) }}
                 </td>
                 <td>{{ mandate.Active ? 'aktiv' : 'zurückgezogen' }}</td>
+                <td>
+                  @if (mandate.Active) {
+                    @if (confirming() === mandate.Reference) {
+                      <button
+                        type="button"
+                        [disabled]="retiring() !== null"
+                        [attr.aria-label]="'Mandat ' + mandate.Reference + ' wirklich zurückziehen'"
+                        (click)="retire(mandate)"
+                      >
+                        Ja, zurückziehen
+                      </button>
+                      <button type="button" (click)="cancelRetire()">Abbrechen</button>
+                    } @else {
+                      <button
+                        type="button"
+                        [disabled]="retiring() !== null"
+                        [attr.aria-label]="'Mandat ' + mandate.Reference + ' zurückziehen'"
+                        (click)="askRetire(mandate)"
+                      >
+                        Zurückziehen
+                      </button>
+                    }
+                  }
+                </td>
               </tr>
             }
           </tbody>
@@ -150,6 +175,10 @@ export class MandatesComponent implements OnInit {
   readonly active = signal('true');
   readonly sequenceFilter = signal('');
 
+  /** The mandate a revocation is being confirmed for, and the one whose revocation is in flight. */
+  readonly confirming = signal<string | null>(null);
+  readonly retiring = signal<string | null>(null);
+
   readonly reference = signal('');
   readonly debtorName = signal('');
   readonly debtorIBAN = signal('');
@@ -161,6 +190,43 @@ export class MandatesComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+  }
+
+  /**
+   * A revocation is effectively final, so it is asked for twice: the row turns into the question
+   * and the answer names the mandate again. The mandate that is being revoked is not the one being
+   * confirmed, so two rows cannot be in the same state by accident.
+   */
+  askRetire(mandate: Mandate): void {
+    this.actionError.set(null);
+    this.notice.set(null);
+    this.confirming.set(mandate.Reference);
+  }
+
+  cancelRetire(): void {
+    this.confirming.set(null);
+  }
+
+  retire(mandate: Mandate): void {
+    this.retiring.set(mandate.Reference);
+    this.actionError.set(null);
+    this.notice.set(null);
+    this.api.retireMandate(mandate.Reference).subscribe({
+      next: (retired) => {
+        // The row stays where it is and now says it is retired: the mandate is soft state, so a
+        // revocation is visible on the screen that caused it rather than only after a reload.
+        this.mandates.update((list) =>
+          list.map((m) => (m.Reference === retired.Reference ? retired : m))
+        );
+        this.confirming.set(null);
+        this.retiring.set(null);
+        this.notice.set(`Mandat ${retired.Reference} zurückgezogen.`);
+      },
+      error: () => {
+        this.retiring.set(null);
+        this.actionError.set(`Mandat ${mandate.Reference} konnte nicht zurückgezogen werden.`);
+      },
+    });
   }
 
   /** Reads the mandates under the current filters — the server narrows, the screen does not. */

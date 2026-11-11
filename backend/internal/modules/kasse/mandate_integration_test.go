@@ -58,6 +58,77 @@ func TestMandatePersistsAndIsAudited(t *testing.T) {
 	}
 }
 
+// Retiring a mandate is a decision with a paper trail: the flag goes, the row stays, the event
+// carries the state it came from — and a second revocation is refused without a second event.
+func TestMandateRetireIsAuditedAndRefusedTwice(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	store := audit.NewStore(pool)
+	svc := kasse.NewMandateService(kasse.NewMandateRepo(pool), store)
+	ref := "RT-" + uniqueSuffix(t)
+	sig := time.Date(2025, 3, 14, 0, 0, 0, 0, time.UTC)
+
+	m, err := kasse.NewMandate(ref, "Max Mustermann", "DE89370400440532013000", "", sig, kasse.SequenceRecurring)
+	if err != nil {
+		t.Fatalf("NewMandate: %v", err)
+	}
+	if _, err := svc.CreateMandate(ctx, m, "alice"); err != nil {
+		t.Fatalf("CreateMandate: %v", err)
+	}
+
+	retired, err := svc.RetireMandate(ctx, ref, "bob")
+	if err != nil {
+		t.Fatalf("RetireMandate: %v", err)
+	}
+	if retired.Active {
+		t.Fatalf("retired = %+v, want it inactive", retired)
+	}
+	// The row is still readable and now says it is retired.
+	again, err := svc.Mandate(ctx, ref)
+	if err != nil {
+		t.Fatalf("Mandate after retiring: %v", err)
+	}
+	if again.Active {
+		t.Fatal("the stored mandate is still active after retiring it")
+	}
+
+	event, ok, err := store.LastEvent(ctx, "mandate.retire", "mandate/"+ref)
+	if err != nil || !ok {
+		t.Fatalf("last retire event: %v, found = %v", err, ok)
+	}
+	if event.Actor != "bob" || event.Before != "active=true" || event.After != "active=false" {
+		t.Fatalf("audit event = %+v, want bob retiring it from active to inactive", event)
+	}
+
+	// A second revocation is a conflict, and it leaves no second event.
+	if _, err := svc.RetireMandate(ctx, ref, "bob"); !errors.Is(err, kasse.ErrMandateRetired) {
+		t.Fatalf("second retire = %v, want ErrMandateRetired", err)
+	}
+	if last, ok, err := store.LastEvent(ctx, "mandate.retire", "mandate/"+ref); err != nil || !ok || last.Seq != event.Seq {
+		t.Fatalf("a refused revocation wrote an event: %+v (err = %v)", last, err)
+	}
+	// An unknown reference is a not-found, and a blank actor is refused before any read.
+	if _, err := svc.RetireMandate(ctx, ref+"-absent", "bob"); !errors.Is(err, kasse.ErrMandateNotFound) {
+		t.Fatalf("unknown reference = %v, want ErrMandateNotFound", err)
+	}
+	if _, err := svc.RetireMandate(ctx, ref, "  "); !errors.Is(err, kasse.ErrActorRequired) {
+		t.Fatalf("blank actor = %v, want ErrActorRequired", err)
+	}
+	// A retired mandate no longer appears among the active ones.
+	active, err := svc.Mandates(ctx, true, "")
+	if err != nil {
+		t.Fatalf("Mandates(active): %v", err)
+	}
+	for _, candidate := range active {
+		if candidate.Reference == ref {
+			t.Fatal("the retired mandate is still listed as active")
+		}
+	}
+	if err := store.Verify(ctx); err != nil {
+		t.Fatalf("audit verify: %v", err)
+	}
+}
+
 func TestMandatesListFilters(t *testing.T) {
 	ctx := context.Background()
 	pool := testPool(t)
