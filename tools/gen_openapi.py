@@ -329,7 +329,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
         "get": ("listETLDatasets", "etl", "List the registered ETL datasets", None, "httpapi.datasetsResponse", 200, "json"),
     },
     "/api/etl/runs": {
-        "get": ("listETLRuns", "etl", "List recent ETL runs (by dataset, read from the audit stream)", None, "httpapi.etlRunsResponse", 200, "json"),
+        "get": ("listETLRuns", "etl", "List recent ETL runs (by dataset, read from the audit stream)", None, "httpapi.etlRunsResponse", 200, "json", [("dataset", "string", False), ("limit", "string", False)]),
         "post": ("runETLDataset", "etl", "Run a named ETL dataset", "httpapi.etlRunRequest", "etl.Report", 200, "json"),
     },
 }
@@ -361,6 +361,7 @@ PKG_DIRS = {
     "report": [BACKEND / "core" / "report"],
     "finance": [BACKEND / "modules" / "finance"],
     "personal": [BACKEND / "modules" / "personal"],
+    "etl": [BACKEND / "platform" / "etl"],
 }
 
 TYPE_RE = re.compile(r"^type\s+([A-Za-z_][A-Za-z0-9_]*)\s+struct\s*\{\s*$")
@@ -447,6 +448,17 @@ def parse_named(dirpath: Path) -> dict[str, str]:
     return out
 
 
+class UnresolvedType(Exception):
+    """A name the contract carries that this generator cannot resolve.
+
+    It must **not** fall back to "any object" or "string": a schema that says less than the API
+    returns is a schema that lies, and the client generated from it is typed wrongly in silence —
+    which is how `GET /api/etl/runs` came to promise `string[]` for a list of run objects, because
+    the `etl` package was missing from PKG_DIRS and nothing said so. The fix is always a PKG_DIRS
+    entry or a SYNTHETIC declaration, never a looser schema.
+    """
+
+
 def camel(name: str) -> str:
     if not name:
         return name
@@ -489,6 +501,24 @@ class Resolver:
         pkg, name = qualified.split(".", 1)
         return self.pkgs.get(pkg, {}).get(name)
 
+    def qualified_for(self, component_name: str) -> str | None:
+        """The qualified type a component name came from, or None when it is not exactly one.
+
+        A nested `$ref` carries the component name, not the qualified one, so collector loops that
+        follow `$ref`s need the way back. Refusing an ambiguous or unknown name is deliberate: the
+        alternative is a document that references a component nothing emits — a dangling `$ref` and
+        a client that imports a type it does not have.
+        """
+        found: str | None = None
+        for pkg, types in list(self.pkgs.items()) + list(self.named.items()):
+            for name in types:
+                if self.component(f"{pkg}.{name}") != component_name:
+                    continue
+                if found is not None:
+                    return None
+                found = f"{pkg}.{name}"
+        return found
+
     def schema(self, qualified: str, depth: int = 0) -> dict:
         if qualified.startswith("[]"):
             return {"type": "array", "items": self.schema(qualified[2:], depth)}
@@ -502,7 +532,7 @@ class Resolver:
             }
         st = self.struct_of(qualified)
         if st is None:
-            return {"type": "object", "additionalProperties": True}
+            raise UnresolvedType(qualified)
         return self._schema_for_fields(st["fields"], depth, pkg)
 
     def _schema_for_fields(self, fields: list[dict], depth: int, pkg: str = "") -> dict:
@@ -578,12 +608,23 @@ def _go_type_schema_inner(t: str, res: Resolver, pkg: str) -> dict:
             return res.ref_for(t)
         if name in res.named.get(qual, {}):
             return _scalar(res.named[qual][name])
-        return {"type": "string"}
+        # The qualifier is an import alias this generator cannot know: `core.Direction` is written
+        # where the file imports the einvoice core package as `core`, and another file's `core` is
+        # a different package. Fall back to the type's own name when exactly one package carries it
+        # — struct or named scalar — and refuse when the name is ambiguous, because guessing would
+        # pick another package's shape and render a schema that looks right and is not.
+        struct_owners = res.names.get(name, [])
+        scalar_owners = [p for p, types in res.named.items() if name in types]
+        if len(struct_owners) + len(scalar_owners) == 1:
+            if struct_owners:
+                return {"$ref": f"#/components/schemas/{struct_owners[0]}.{name}"}
+            return _scalar(res.named[scalar_owners[0]][name])
+        raise UnresolvedType(t)
     if len(res.names.get(t, [])) == 1:
         return {"$ref": f"#/components/schemas/{res.names[t][0]}.{t}"}
     if t in res.named.get(pkg, {}):
         return _scalar(res.named[pkg][t])
-    return {"type": "string"}
+    raise UnresolvedType(t)
 
 
 def build_document(res: Resolver) -> dict:
@@ -681,7 +722,15 @@ def build_document(res: Resolver) -> dict:
     schemas: dict = {}
     while queue:
         qualified = queue.pop()
-        if qualified in seen or "." not in qualified:
+        if "." not in qualified:
+            # A nested $ref names the component, not the type. Map it back — and fail rather than
+            # drop it, which is how EtlRun came to be referenced by EtlRunsResponse while no
+            # component (and no client type) existed for it.
+            back = res.qualified_for(qualified)
+            if back is None:
+                raise UnresolvedType(qualified)
+            qualified = back
+        if qualified in seen:
             continue
         seen.add(qualified)
         schema = res.schema(qualified)
@@ -845,6 +894,35 @@ def selftest() -> int:
         "a comment line and a malformed field are not fields",
     )
 
+    # The resolution guard, which the spec and the generated client both depend on. The trap this
+    # exists for: a type the generator could not resolve used to degrade to "an open object" or to
+    # "string", so `GET /api/etl/runs` promised `string[]` for a list of run objects and
+    # `EtlReport` documented nothing — a contract that lies in silence.
+    res = Resolver()
+    check(res.struct_of("etl.Report") is not None, "a registered package's struct resolves (etl.Report)")
+    check(res.qualified_for("EtlRun") == "etl.Run", "a nested $ref maps back to its qualified type")
+    check(res.qualified_for("NoSuchComponent") is None, "a component name nothing carries is refused")
+    check(
+        _go_type_schema_inner("core.Direction", res, "einvoice") == {"type": "string"},
+        "an import alias resolves by the type's own name",
+    )
+
+    def raises(fn) -> bool:
+        try:
+            fn()
+        except UnresolvedType:
+            return True
+        return False
+
+    check(
+        raises(lambda: res.schema("etl.NoSuchStruct")),
+        "an unresolvable type raises instead of degrading to an open object",
+    )
+    check(
+        raises(lambda: _go_type_schema_inner("core.Record", res, "httpapi")),
+        "an ambiguous alias is refused rather than guessed at",
+    )
+
     if failures:
         print(f"\n{failures} check(s) failed")
         return 1
@@ -865,7 +943,16 @@ def main() -> int:
         print("error: pyyaml is required to render or check the spec (pip install pyyaml)", file=sys.stderr)
         return 2
 
-    text = render()
+    try:
+        text = render()
+    except UnresolvedType as exc:
+        print(
+            f"error: the contract names a type this generator cannot resolve: {exc}\n"
+            "       add its package to PKG_DIRS (or declare it in SYNTHETIC) — do not loosen the\n"
+            "       schema: a contract that says less than the API returns is wrong in silence.",
+            file=sys.stderr,
+        )
+        return 1
     if args.stdout:
         sys.stdout.write(text)
         return 0

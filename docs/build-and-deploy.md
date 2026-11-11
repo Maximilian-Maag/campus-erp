@@ -19,6 +19,13 @@ frontend, and `tectonic` for the architecture report PDF.
 | Overview | `help`, `version`, `check-tools` |
 | Everything | `all` (report PDF + build backend & frontend + images) |
 | Quality | `test`, `quality`, `test-tools`, `policy`, `policy-ci`, `hooks` |
+
+`make test-tools` self-tests the *tooling*: the ER-model generator (`tools/test_erm.py` — one entity
+per canonical table, with the newest tables named so a dropped one fails by name) and the API
+contract tooling (`tools/api_contract.py selftest`, which CI also runs). It is **not wired into CI**:
+the `quality` workflow runs the contract selftests but not `test_erm.py`, so a migration that adds or
+removes a table must be followed by `make test-tools` by hand — the expected entity count lives in
+`tools/test_erm.py` and is meant to be read and updated with the migration, not guessed.
 | C4 & report | `c4-validate`, `c4-export`, `c4-pdf`, `c4-pdf-no-erm`, `c4-view` |
 | ER models | `erm`, `erm-gen`, `erm-export` |
 | Backend | `backend`, `backend-build`, `backend-vet`, `backend-fmt`, `backend-tidy`, `backend-test`, `backend-test-integration`, `backend-mutation`, `backend-run-api` |

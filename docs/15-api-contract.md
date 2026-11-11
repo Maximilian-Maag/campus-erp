@@ -211,6 +211,30 @@ gate (`npx stryker run`, break 85) covers them too.
 - The generated directory is excluded from the mutation/policy gates
   (`frontend/stryker.conf.json`, `policy.json`): generated, not authored.
 
+## The generator refuses to guess
+
+A generator that cannot resolve a type has a choice, and one of the two is wrong: degrade the schema
+(`additionalProperties: true`, or a plain `string`) and keep going, or stop. Degrading keeps the
+build green while the contract quietly says less than the API returns — and the client generated from
+it is typed wrongly in silence. That is what had happened:
+
+- `etl` was missing from the generator's package list, so `POST /api/etl/runs` documented its
+  response as an open object and `GET /api/etl/runs` promised **`string[]`** for a list of run
+  objects (`{at, actor, summary}`). Building a screen on that client cannot work;
+- `_refs_in` collected nested `$ref`s as *component names* while the collector wanted *qualified*
+  names, so a nested type was dropped from the component set: `GET /api/etl/runs` then referenced
+  `EtlRun` while no `EtlRun` schema existed — a dangling reference and a client type that is not
+  there;
+- `core.Direction` never resolved either (the file imports the einvoice core package as `core`, an
+  alias the generator cannot know). It degraded to `string`, which happened to be right — a silent
+  fallback that is right by luck is still a fallback that will be wrong the next time.
+
+`tools/gen_openapi.py` now **raises** on an unresolvable type (`UnresolvedType`) and on a nested
+`$ref` it cannot map back, naming what to fix: a package in `PKG_DIRS`, or a `SYNTHETIC` declaration.
+For an import alias it falls back to the type's *own name* when exactly one package carries it — and
+refuses when the name is ambiguous, because guessing would render another package's shape and look
+right. This is the same rule the drift guard follows: say less loudly, never quietly.
+
 ## Adding a route (the workflow)
 
 1. Add the handler and register it in `httpapi/server.go`.
@@ -229,14 +253,15 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
 
 ## Not yet done
 
-- Twenty-two screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
+- Twenty-three screens over five domains so far: Kasse (`/kasse/tag`, `/kasse/konten`,
   `/kasse/anordnungen`, `/kasse/zahlungslaeufe`, `/kasse/kontoauszuege`, `/kasse/offene-posten`,
   `/kasse/einzuege`, `/kasse/mahnwesen`, `/kasse/mahnlauf`, `/kasse/ruecklaeufer`,
   `/kasse/mandate`),
   Budget (`/budget/haushaltsstellen`, `/budget/mittelherkunft`),
   Beschaffung (`/procurement/bestellungen`, `/procurement/wareneingang`), E-Rechnung,
   KLR (`/klr/umlage`, `/klr/kostenarten`, `/klr/kostentraeger`, `/klr/verrechnungspreise`),
-  Finanzen (`/finanzen/stiftungen`) and `/auswertungen` (the report catalogue). The rest get theirs as their
+  Finanzen (`/finanzen/stiftungen`), `/auswertungen` (the report catalogue) and `/importe` (the ETL
+  runs). The rest get theirs as their
   phases land, each one starting from the read routes it needs — and the kasse/payments domain is
   where that bites: it had 32 operations and one list route, so nearly every screen there needs its
   `GET` built first.

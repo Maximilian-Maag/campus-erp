@@ -85,6 +85,27 @@ selects a dataset's runs (or, with no `dataset`, every dataset's), and the handl
 run's history needs no second store. `limit` must be a positive integer when given; the store
 bounds it (default 20, max 200).
 
+## Screen — *Importe* (`/importe`)
+
+Lists the datasets the server registers (`GET /api/etl/datasets` — the screen carries no list of its
+own, so it can only offer what exists), narrows the history to one dataset or shows every dataset's,
+and starts a run of the chosen one.
+
+- **The history is the audit stream read back.** A run's `etl.run` event *is* its record, so the
+  screen shows what the run recorded — the source row count, the loaded count, the checksum, and
+  whether the source drifted from the previous run — rather than a second bookkeeping of it
+  (`docs/19` above, `GET /api/etl/runs`). The times are shown in **UTC and labelled as such**: the
+  API records runs in UTC, so rendering them in a viewer's own zone would let two people read two
+  different histories of one import.
+- **Prevention over refusal.** The run button is disabled until a dataset is chosen, with the reason
+  next to it, instead of sending an empty name and reporting the refusal back. The service still
+  refuses an empty name (a caller that is not this screen must be told), but the screen does not
+  route a person through that error.
+- **The run is read back, not assumed.** After a successful run the screen reloads the history, so
+  the newest entry is what the audit stream holds rather than what the response claimed.
+- The routes behind this screen are the `erp-admin` ones (an import changes canonical data), which is
+  the role this screen needs — unlike the domain screens, which sit behind their own module's role.
+
 The datasets read from the **legacy** database; the sink writes the canonical one.
 Set `ERP_LEGACY_DATABASE_URL` to point the source at the legacy DSN — when unset the
 source is the canonical pool (dev / seed, where the synthetic source tables live).
@@ -128,6 +149,12 @@ cash-book group (`kbs.bu` the ledger-side bookings, `kbs.kass` the denomination
 count, `kbs.geing`) stays out of scope: it is **empty** in the Muster (measured —
 `docs/legacy/kbs-cashbook.md`), so no mapping can be validated, and `kbs.bu`
 belongs to the ledger (Phase 4, `mbs`).
+
+- ~~The run history was API-only~~ — done since: the *Importe* screen (above) lists the datasets, the
+  runs and their recorded results, and starts a run. Reading it also fixed the contract it reads:
+  `GET /api/etl/runs` documented `string[]` for a list of run objects and `EtlReport` an open object,
+  because the `etl` package was missing from the generator's package list. The generator now refuses
+  an unresolvable type instead of degrading the schema (`docs/15`).
 
 ## Not yet done
 
