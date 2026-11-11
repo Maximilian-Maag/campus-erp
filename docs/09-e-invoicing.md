@@ -72,9 +72,35 @@ Two things the CII syntax says differently, and how this build treats them:
 live outside the repo, exactly as the XRechnung one does — so the guard is the golden file, a
 well-formedness test that walks every token, and the business terms the document must carry.
 
+### Reading either syntax
+
+Both directions exist now, and they are two halves of one thing: what this package emits must read
+back into the model it was built from.
+
+- `ParseXRechnung` reads UBL 2.1 — what a public body is sent.
+- `ParseCII` reads UN/CEFACT CII — what a supplier's ERP often sends. Its element paths mirror the
+  writer element for element, and it runs the same `Validate`, so a document that would be refused
+  as an outbound invoice is refused here too.
+- `ParseReceived` decides between them by the **root element** (`Invoice` or
+  `CrossIndustryInvoice`) and refuses anything else, a PDF container included. The caller —
+  `POST /api/e-invoices/import` — therefore does not have to know which syntax arrived; that is the
+  whole point, since the counterpart, not this system, chooses it.
+
+A round-trip test renders the sample invoice in CII, reads it back and compares every field that
+carries business meaning; the import is covered end to end as well, and both syntaxes of one invoice
+are checked to produce the same totals. Two details this reader decides on purpose:
+
+- the **date** must be format `102` (YYYYMMDD), which is what EN 16931 documents carry — another
+  format is refused rather than guessed at;
+- only the **VAT registration** (`schemeID="VA"`, or none) becomes the party's VAT id: a commercial
+  register number under `SpecifiedTaxRegistration` is a different identifier and is not read as a
+  VAT number. A seller that carries only the latter is refused, because the seller VAT id is
+  required.
+
 ## Inbound (Eingangsrechnung)
 
-`core.ParseXRechnung` reads a received XRechnung 3.0 (UBL 2.1) `Invoice` back
+`core.ParseReceived` reads a received invoice back — UBL 2.1 (XRechnung) or CII (ZUGFeRD/Factur-X),
+whichever the counterpart sent (see *Reading either syntax*) —
 into the same model and runs the same `Validate`, so a document we accept is held
 to the rules we emit. `InvoiceService.ImportReceived` stores it (audited,
 `einvoice.receive`) and `POST /api/e-invoices/received` takes the raw XML.
@@ -108,5 +134,8 @@ to `inbound`. That is what the trail is for.
 - The full KoSIT Schematron ruleset (we enforce the subset we can satisfy).
 - **No KoSIT Schematron.** The rules enforced are the ones this package can satisfy (docs/09
   above); the full ruleset is a separate body of work, and it is the same gap for both syntaxes.
-- Reading a received **CII** document back is not implemented: `ParseXRechnung` reads UBL, which is
-  what a public body is sent. A counterpart that sends ZUGFeRD would need its own parser.
+- ~~Reading a received **CII** document back is not implemented~~ — done since: `ParseCII` reads the
+  CII syntax and `ParseReceived` dispatches on the root element, so an inbound document is read
+  whichever syntax arrives (see *Reading either syntax*). What is still missing for a ZUGFeRD
+  *file* is unwrapping the PDF/A-3 container to get at the data part — the same gap as the
+  embedding above, from the other side.
