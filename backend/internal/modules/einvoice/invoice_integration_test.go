@@ -167,6 +167,36 @@ func TestInvoiceImportReceived(t *testing.T) {
 	if _, err := svc.ImportReceived(ctx, doc, "  "); !errors.Is(err, einvoice.ErrActorRequired) {
 		t.Fatalf("actor = %v", err)
 	}
+
+	// The same invoice in CII syntax imports too: a supplier that sends ZUGFeRD/Factur-X rather than
+	// UBL is sending the same document, so the route does not need a second one (docs/09). The number
+	// is the document's identity and must be unique, so this one carries its own.
+	ciiInv := inv
+	ciiInv.Number = inv.Number + "-CII"
+	cii, err := core.GenerateCII(ciiInv)
+	if err != nil {
+		t.Fatalf("GenerateCII: %v", err)
+	}
+	fromCII, err := svc.ImportReceived(ctx, cii, "bob")
+	if err != nil {
+		t.Fatalf("ImportReceived(CII): %v", err)
+	}
+	if fromCII.Number != ciiInv.Number || fromCII.Direction != core.Inbound {
+		t.Fatalf("CII import = %+v", fromCII)
+	}
+	gotCII, err := svc.Get(ctx, fromCII.ID)
+	if err != nil {
+		t.Fatalf("Get(CII): %v", err)
+	}
+	if gotCII.Seller.Name != inv.Seller.Name || len(gotCII.Lines) != 2 || gotCII.Lines[1].NetCents != 2608 {
+		t.Fatalf("CII round-trip = %+v", gotCII)
+	}
+	// Both syntaxes of one invoice carry the same figures — the point of reading either.
+	ublNet, _, ublGross, _ := core.ComputeTotals(got)
+	ciiNet, _, ciiGross, _ := core.ComputeTotals(gotCII)
+	if ublNet != ciiNet || ublGross != ciiGross {
+		t.Fatalf("totals differ by syntax: UBL %d/%d, CII %d/%d", ublNet, ublGross, ciiNet, ciiGross)
+	}
 }
 
 // TestInvoiceSummariesList: the list a screen reads — every invoice as a summary, ordered by

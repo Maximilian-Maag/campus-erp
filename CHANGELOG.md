@@ -2,6 +2,31 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.118.0] - 2026-11-11
+
+An inbound invoice is read whichever syntax the counterpart sent: UBL (XRechnung) or CII
+(ZUGFeRD/Factur-X). The other half of the two-syntax writer, from the other side.
+
+### Added
+- **`core.ParseCII`** — reads a UN/CEFACT CrossIndustryInvoice into the same model and runs the same
+  `Validate`, so a document that would be refused as an outbound invoice is refused as an inbound
+  one too. Its element paths mirror the writer in `cii.go` element for element.
+- **`core.ParseReceived`** — decides between the two syntaxes by the root element (`Invoice` or
+  `CrossIndustryInvoice`) and refuses anything else, a PDF container included. `POST
+  /api/e-invoices/import` uses it, so the caller does not have to know which syntax arrived — the
+  counterpart, not this system, chooses that.
+- A round-trip test: the sample invoice is rendered as CII, read back and compared field by field,
+  and both syntaxes of one invoice are checked to produce the same totals. The import is covered end
+  to end as well.
+
+### Notes
+- Two decisions the CII reader makes on purpose: the issue date must be format `102` (YYYYMMDD),
+  which EN 16931 documents carry, and only the VAT registration (`schemeID="VA"`, or no scheme)
+  becomes the party's VAT id — a commercial register number is a different identifier and is not
+  read as a VAT number, which is why a seller carrying only the latter is refused.
+- Still open for a ZUGFeRD *file*: unwrapping the PDF/A-3 container to reach the data part, the same
+  gap as the embedding, from the other side.
+
 ## [0.117.0] - 2026-11-11
 
 Every refusal a client can receive now carries a machine code of its own, generated from the

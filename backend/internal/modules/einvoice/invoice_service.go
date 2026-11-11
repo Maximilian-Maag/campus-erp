@@ -134,7 +134,7 @@ func (s *InvoiceService) ImportReceived(ctx context.Context, doc, by string) (co
 	if strings.TrimSpace(by) == "" {
 		return core.Invoice{}, ErrActorRequired
 	}
-	inv, err := core.ParseXRechnung(doc)
+	inv, err := core.ParseReceived(doc)
 	if err != nil {
 		return core.Invoice{}, err
 	}
