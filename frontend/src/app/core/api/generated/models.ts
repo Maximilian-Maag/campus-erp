@@ -11,6 +11,11 @@ export interface Allocation {
   CreatedBy: string;
 }
 
+export interface AssignBudgetPositionRequest {
+  source_id: number | null;
+  center_id: number | null;
+}
+
 export interface Balance {
   PositionID: number;
   AllocatedCents: number;
@@ -46,6 +51,11 @@ export interface Booking {
   Purpose: string;
 }
 
+export interface BudgetCenterRequest {
+  code: string;
+  name: string;
+}
+
 export interface BudgetPositionRequest {
   id?: number;
   year: number;
@@ -68,12 +78,26 @@ export interface BudgetPostingRequest {
   reference: string;
 }
 
+export interface BudgetSourceRequest {
+  code: string;
+  name: string;
+  chapter: string;
+}
+
 export interface CashAccount {
   ID: number;
   Name: string;
   IBAN: string;
   BIC: string;
   Currency: string;
+}
+
+export interface Center {
+  ID: number;
+  Code: string;
+  Name: string;
+  Active: boolean;
+  CreatedBy: string;
 }
 
 export interface CollectionItemRequest {
@@ -609,6 +633,8 @@ export interface Position {
   Description: string;
   AllocatedCents: number;
   CreatedBy: string;
+  SourceID: number | null;
+  CenterID: number | null;
 }
 
 export interface Posting {
@@ -796,6 +822,15 @@ export interface ServiceRateRequest {
   rate_cents: number;
   valid_from: string;
   valid_to: string;
+}
+
+export interface Source {
+  ID: number;
+  Code: string;
+  Name: string;
+  Chapter: string;
+  Active: boolean;
+  CreatedBy: string;
 }
 
 export interface Statement {

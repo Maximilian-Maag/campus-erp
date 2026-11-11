@@ -43,6 +43,14 @@ export class CampusErpApi {
     return this.http.get<m.Statement>(this.base + `/api/bank-statements/${id}`);
   }
 
+  listBudgetCenters(): Observable<m.Center[]> {
+    return this.http.get<m.Center[]>(this.base + `/api/budget/centers`);
+  }
+
+  createBudgetCenter(body: m.BudgetCenterRequest): Observable<m.Center> {
+    return this.http.post<m.Center>(this.base + `/api/budget/centers`, body);
+  }
+
   listBudgetPositions(): Observable<m.BudgetPositionResponse[]> {
     return this.http.get<m.BudgetPositionResponse[]>(this.base + `/api/budget/positions`);
   }
@@ -55,12 +63,24 @@ export class CampusErpApi {
     return this.http.get<m.BudgetPositionResponse>(this.base + `/api/budget/positions/${id}`);
   }
 
+  assignBudgetPosition(id: number | string, body: m.AssignBudgetPositionRequest): Observable<m.Position> {
+    return this.http.post<m.Position>(this.base + `/api/budget/positions/${id}/assignment`, body);
+  }
+
   getBudgetBalance(id: number | string): Observable<m.Balance> {
     return this.http.get<m.Balance>(this.base + `/api/budget/positions/${id}/balance`);
   }
 
   postBudgetMovement(id: number | string, body: m.BudgetPostingRequest): Observable<m.Posting> {
     return this.http.post<m.Posting>(this.base + `/api/budget/positions/${id}/postings`, body);
+  }
+
+  listBudgetSources(): Observable<m.Source[]> {
+    return this.http.get<m.Source[]>(this.base + `/api/budget/sources`);
+  }
+
+  createBudgetSource(body: m.BudgetSourceRequest): Observable<m.Source> {
+    return this.http.post<m.Source>(this.base + `/api/budget/sources`, body);
   }
 
   listCashAccounts(): Observable<m.CashAccount[]> {

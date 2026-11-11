@@ -210,6 +210,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/budget/positions/{id}", s.authorizeRead(s.getBudgetPosition, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/budget/positions/{id}/postings", s.authorize(s.postBudget, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/budget/positions/{id}/balance", s.authorizeRead(s.getBudgetBalance, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/budget/sources", s.authorize(s.createBudgetSource, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/budget/sources", s.authorizeRead(s.listBudgetSources, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/budget/centers", s.authorize(s.createBudgetCenter, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/budget/centers", s.authorizeRead(s.listBudgetCenters, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/budget/positions/{id}/assignment", s.authorize(s.assignBudgetPosition, auth.RoleFinanzen))
 
 	// The lookup catalogue is shared reference data: reads are open to any
 	// authenticated caller, writes are administrative.

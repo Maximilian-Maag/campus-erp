@@ -1796,6 +1796,168 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/budget/sources:
+    post:
+      tags:
+      - budget
+      operationId: createBudgetSource
+      summary: Create a budget source (Mittelquelle)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetSourceRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - budget
+      operationId: listBudgetSources
+      summary: List the budget sources
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Source'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/budget/centers:
+    post:
+      tags:
+      - budget
+      operationId: createBudgetCenter
+      summary: Create a budget centre (Bewirtschaftungsstelle)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetCenterRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Center'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+    get:
+      tags:
+      - budget
+      operationId: listBudgetCenters
+      summary: List the budget centres
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Center'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
+  /api/budget/positions/{id}/assignment:
+    post:
+      tags:
+      - budget
+      operationId: assignBudgetPosition
+      summary: Assign a position its source and its centre
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignBudgetPositionRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Position'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/budget/positions/{id}/balance:
     get:
       tags:
@@ -4746,6 +4908,124 @@ components:
       - AllocatedCents
       - CommittedCents
       - ActualCents
+    Position:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Year:
+          type: integer
+          format: int64
+        Chapter:
+          type: string
+        Title:
+          type: string
+        Description:
+          type: string
+        AllocatedCents:
+          type: integer
+          format: int64
+        CreatedBy:
+          type: string
+        SourceID:
+          type: integer
+          format: int64
+          x-nullable: true
+        CenterID:
+          type: integer
+          format: int64
+          x-nullable: true
+      required:
+      - ID
+      - Year
+      - Chapter
+      - Title
+      - Description
+      - AllocatedCents
+      - CreatedBy
+      - SourceID
+      - CenterID
+    AssignBudgetPositionRequest:
+      type: object
+      properties:
+        source_id:
+          type: integer
+          format: int64
+          x-nullable: true
+        center_id:
+          type: integer
+          format: int64
+          x-nullable: true
+      required:
+      - source_id
+      - center_id
+    Center:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Code:
+          type: string
+        Name:
+          type: string
+        Active:
+          type: boolean
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - Code
+      - Name
+      - Active
+      - CreatedBy
+    BudgetCenterRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+      required:
+      - code
+      - name
+    Source:
+      type: object
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Code:
+          type: string
+        Name:
+          type: string
+        Chapter:
+          type: string
+        Active:
+          type: boolean
+        CreatedBy:
+          type: string
+      required:
+      - ID
+      - Code
+      - Name
+      - Chapter
+      - Active
+      - CreatedBy
+    BudgetSourceRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        chapter:
+          type: string
+      required:
+      - code
+      - name
+      - chapter
     Posting:
       type: object
       properties:
@@ -4799,34 +5079,6 @@ components:
       - position
       - balance
       - available_cents
-    Position:
-      type: object
-      properties:
-        ID:
-          type: integer
-          format: int64
-        Year:
-          type: integer
-          format: int64
-        Chapter:
-          type: string
-        Title:
-          type: string
-        Description:
-          type: string
-        AllocatedCents:
-          type: integer
-          format: int64
-        CreatedBy:
-          type: string
-      required:
-      - ID
-      - Year
-      - Chapter
-      - Title
-      - Description
-      - AllocatedCents
-      - CreatedBy
     CreateBudgetPositionRequest:
       type: object
       properties:

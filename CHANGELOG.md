@@ -2,6 +2,35 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.107.0] - 2026-11-10
+
+A budget title now says where its money comes from and who administers it: the Mittelquellen and
+Bewirtschaftungsstellen of the vendor's model exist, and a position is assigned both.
+
+### Added
+- `budget_source` (Mittelquelle: code, name, optional chapter) and `budget_center`
+  (Bewirtschaftungsstelle: code, name), with a unique code each — the identity an import and a
+  person share, so a duplicate is refused rather than merged. `budget_position.source_id` /
+  `center_id` name the two halves and are both **optional** (a position may exist before its
+  funding is settled); the vendor's two join tables are flattened onto the position (docs/10).
+- `POST /api/budget/positions/{id}/assignment` — `{source_id, center_id}`, a `null` half **clearing**
+  it, so naming one and clearing the other is one operation. The position is read first (an unknown
+  position is a `404` before the foreign keys are asked), an unknown source or centre is refused as
+  `422` naming the constraint, and the write is audited with a cleared half stated as `none`.
+- `POST`/`GET /api/budget/sources` and `POST`/`GET /api/budget/centers` — the create and the list,
+  the lists in code order.
+- `budget.Position` carries `SourceID` / `CenterID` (`null` when unassigned) and `Position.Named()`;
+  the position's read, the Mittelübersicht and the report collectors see the assignment without a
+  second query.
+- *Budget: Mittelherkunft* (`/budget/mittelherkunft`): lists the sources, the centres and the
+  positions they name, creates the first two, and assigns the chosen position its two halves — one
+  form for the position rather than a form per row. An unnamed position reads as `keine`, and a
+  source or centre not in the loaded lists falls back to its id rather than showing nothing.
+
+### Still not done
+- The **budget import** from the vendor model: the vendor's `budget_import` layout is unpublished
+  (open question Q8), so what is missing is the importer, not the model (docs/10).
+
 ## [0.106.0] - 2026-11-10
 
 The KLR's print views exist, and every report the system renders can be produced from the UI: the

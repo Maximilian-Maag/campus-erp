@@ -21,6 +21,7 @@ describe('BudgetPositionsComponent', () => {
     position: {
       ID: 1, Year: 2026, Chapter: '0710', Title: '6810',
       Description: 'Beschaffung', AllocatedCents: 100000, CreatedBy: 'alice',
+      SourceID: null, CenterID: null,
     },
     balance: { PositionID: 1, AllocatedCents: 100000, CommittedCents: 25000, ActualCents: 5000 },
     available_cents: 70000,
