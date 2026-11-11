@@ -2,6 +2,35 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.116.0] - 2026-11-11
+
+An order can be billed in parts: an invoice that bills one delivery is matched on its own amount
+instead of having to be the whole order.
+
+### Added
+- **`purchase_order.invoiced_cents`** (`migrations/0031_order_invoiced.sql`) — how much of an
+  order's commitment has been invoiced. Each invoice is checked against what is left rather than
+  against the gross again, so a second invoice cannot over-convert the commitment.
+- **Partial invoice matching**: an invoice below what is left converts its own amount and leaves the
+  order `approved`; the invoice that completes it converts the remainder and closes the order. An
+  invoice above the order's gross, or one that states nothing, is refused
+  (`ErrMatchAmountMismatch` / `ErrMatchAmountNotPositive`).
+- `procurement.Order` and `procurement.OrderSummary` carry `InvoicedCents`, so the contract and the
+  client can tell an order waiting for its invoice from one that is partly or fully billed.
+- *Bestellungen* shows the invoiced amount per order: `—`, `5.000,00 von 11.900,00`, or
+  `11.900,00 (vollständig)`.
+
+### Changed
+- **A delivery recorded after a partial invoice converts only what is left.** The receipt's value is
+  clamped to the remaining commitment, which now subtracts the invoiced total as well as the
+  receipts' own — so the gross is never consumed twice, whichever document arrives first.
+- The match's audit event records `invoiced_cents`, `converted_cents` and `remaining_cents`, so a
+  partial match is legible in the trail rather than looking like a full one.
+
+### Notes
+- The running total is a column, not a sum over the invoices that matched: those live in the
+  e-invoice module, and procurement must not read another module's tables to know its own state.
+
 ## [0.115.0] - 2026-11-11
 
 The KLR's cost centres have a screen: the catalogue every accounting record, allocation and

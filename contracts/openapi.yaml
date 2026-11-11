@@ -4917,6 +4917,9 @@ components:
         GrossCents:
           type: integer
           format: int64
+        InvoicedCents:
+          type: integer
+          format: int64
         Status:
           type: string
         CreatedBy:
@@ -4931,6 +4934,7 @@ components:
       - NetCents
       - VatCents
       - GrossCents
+      - InvoicedCents
       - Status
       - CreatedBy
     ProcurementLine:
@@ -5039,6 +5043,9 @@ components:
         GrossCents:
           type: integer
           format: int64
+        InvoicedCents:
+          type: integer
+          format: int64
         Status:
           type: string
       required:
@@ -5050,6 +5057,7 @@ components:
       - NetCents
       - VatCents
       - GrossCents
+      - InvoicedCents
       - Status
     Value:
       type: object

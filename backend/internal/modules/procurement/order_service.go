@@ -77,15 +77,22 @@ func (s *OrderService) Orders(ctx context.Context, status Status) ([]OrderSummar
 }
 
 // MatchReceipt is the two-way match: it finds the order an inbound invoice names (its buyer
-// reference is the order number), requires that order to be approved and to amount to the same
-// gross, then turns the commitment into an actual and marks the order received.
+// reference is the order number), requires that order to be approved, and converts what the invoice
+// bills from the commitment into an actual.
 //
-// The commitment is released and the actual posted in one step, so the position's available
-// Mittel are unchanged by the conversion rather than being counted twice (docs/10). A mismatch
-// or a wrong state leaves the order and the budget untouched.
+// An invoice may bill the order in parts (docs/12): it converts its own amount, the order records
+// how much has been invoiced, and it becomes `received` only when nothing is left. An invoice that
+// bills more than is left is refused, so the commitment is never over-converted.
+//
+// The commitment is released and the actual posted in one step, so the position's available Mittel
+// are unchanged by the conversion rather than being counted twice (docs/10). A refusal leaves the
+// order and the budget untouched.
 func (s *OrderService) MatchReceipt(ctx context.Context, orderNumber string, grossCents int64, reference, by string) (Order, error) {
 	if strings.TrimSpace(by) == "" {
 		return Order{}, ErrActorRequired
+	}
+	if grossCents <= 0 {
+		return Order{}, fmt.Errorf("%w: invoice=%d", ErrMatchAmountNotPositive, grossCents)
 	}
 	order, err := s.repo.GetByNumber(ctx, strings.TrimSpace(orderNumber))
 	if err != nil {
@@ -94,35 +101,49 @@ func (s *OrderService) MatchReceipt(ctx context.Context, orderNumber string, gro
 	if order.Status != StatusApproved {
 		return Order{}, fmt.Errorf("%w: order %s is %s", ErrBadTransition, order.Number, order.Status)
 	}
-	if grossCents != order.GrossCents {
+	if grossCents > order.GrossCents {
 		return Order{}, fmt.Errorf("%w: order=%d invoice=%d", ErrMatchAmountMismatch, order.GrossCents, grossCents)
 	}
-	// Deliveries may have converted part of the commitment already (docs/12): the invoice
-	// converts what is *left* of it, so a partial receipt followed by the invoice consumes the
-	// gross exactly once rather than twice.
+	// Deliveries and earlier invoices may have converted part of the commitment already (docs/12).
+	// An invoice may state up to the order's gross — a supplier bills the order, not the remainder —
+	// so it converts what is *left*: a full-gross invoice after a partial delivery converts only the
+	// remainder, and a partial invoice converts only what it bills.
 	_, converted, err := s.repo.GoodsReceived(ctx, order.ID)
 	if err != nil {
 		return Order{}, err
 	}
-	remaining := remainingCommitment(order.GrossCents, converted)
+	remaining := remainingCommitment(order.GrossCents, converted+order.InvoicedCents)
 	if remaining == 0 {
 		return Order{}, fmt.Errorf("%w: order %s has no commitment left to convert", ErrBadTransition, order.Number)
 	}
-	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Release, remaining, reference+":release", by); err != nil {
+	convert := grossCents
+	if convert > remaining {
+		convert = remaining
+	}
+	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Release, convert, reference+":release", by); err != nil {
 		return Order{}, err
 	}
-	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Actual, remaining, reference, by); err != nil {
+	if _, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Actual, convert, reference, by); err != nil {
 		return Order{}, err
 	}
-	saved, err := s.repo.SetStatus(ctx, order.ID, StatusReceived, by)
+	saved, err := s.repo.AddInvoiced(ctx, order.ID, convert)
 	if err != nil {
 		return Order{}, err
+	}
+	// Only the invoice that completes the order closes it; a partial invoice leaves it open for the
+	// rest, which is the whole point of billing in parts.
+	if convert == remaining {
+		saved, err = s.repo.SetStatus(ctx, order.ID, StatusReceived, by)
+		if err != nil {
+			return Order{}, err
+		}
 	}
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
 		Action:  "purchase_order.match",
 		Subject: orderSubject(order.ID),
-		After:   fmt.Sprintf("number=%s gross_cents=%d invoice=%s status=%s", saved.Number, saved.GrossCents, reference, saved.Status),
+		After: fmt.Sprintf("number=%s gross_cents=%d invoiced_cents=%d converted_cents=%d remaining_cents=%d invoice=%s status=%s",
+			saved.Number, saved.GrossCents, saved.InvoicedCents, convert, remaining-convert, reference, saved.Status),
 	}); err != nil {
 		return Order{}, err
 	}

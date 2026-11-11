@@ -19,7 +19,7 @@ describe('PurchaseOrdersComponent', () => {
 
   const order = (ID: number, Number: string, Status: string, GrossCents: number): ProcurementOrderSummary => ({
     ID, Number, Supplier: 'Lieferant GmbH', BudgetPositionID: 1, Currency: 'EUR',
-    NetCents: GrossCents, VatCents: 0, GrossCents, Status,
+    NetCents: GrossCents, VatCents: 0, GrossCents, InvoicedCents: 0, Status,
   });
   const draft = order(1, 'PO-1', 'draft', 11900);
   const approved = order(2, 'PO-2', 'approved', 23800);
@@ -40,6 +40,26 @@ describe('PurchaseOrdersComponent', () => {
     expect(fixture.componentInstance.orders().length).toBe(2);
     expect(fixture.componentInstance.loading()).toBeFalse();
     expect(fixture.componentInstance.loadError()).toBeNull();
+  });
+
+  it('says how much of an order has been billed, so a part-billed order is not mistaken for an open one', () => {
+    const fixture = TestBed.createComponent(PurchaseOrdersComponent);
+    fixture.detectChanges();
+    const billed = (ID: number, Number: string, GrossCents: number, InvoicedCents: number) => ({
+      ...order(ID, Number, 'approved', GrossCents),
+      InvoicedCents,
+    });
+    http
+      .expectOne('/api/purchase-orders')
+      .flush([billed(1, 'PO-1', 11900, 0), billed(2, 'PO-2', 11900, 5000), billed(3, 'PO-3', 11900, 11900)]);
+    fixture.detectChanges();
+
+    const cell = (number: string): string =>
+      ((fixture.nativeElement as HTMLElement).querySelector(`[data-testid="billed-${number}"]`)?.textContent ?? '').trim();
+    // Nothing billed yet, a part of it, and all of it — three different facts, three different words.
+    expect(cell('PO-1')).toBe('—');
+    expect(cell('PO-2')).toBe('50,00 von 119,00');
+    expect(cell('PO-3')).toBe('119,00 (vollständig)');
   });
 
   it('renders each order with its amount and the German status word', () => {

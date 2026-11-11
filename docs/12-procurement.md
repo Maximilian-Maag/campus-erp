@@ -43,7 +43,9 @@ the supplier echoes back is the order number — and requires:
 
 - the order to be **approved** (a draft never committed anything, a received one is already
   matched, a cancelled one is no longer a liability) — anything else is `ErrBadTransition`;
-- the invoice's gross to equal the order's (`ErrMatchAmountMismatch` otherwise).
+- the invoice's gross to be **positive** (`ErrMatchAmountNotPositive`) and **no more than the
+  order's gross** (`ErrMatchAmountMismatch` otherwise). It need not be the whole order: an invoice
+  that bills one delivery is matched on its own amount (see *Billing in parts* below).
 
 When both hold it converts the commitment into an actual: a `release` of the commitment
 plus an `actual` of the same amount, in one step, so the position's available Mittel are
@@ -85,11 +87,34 @@ order is complete, and the receipts recorded so far. A line that nothing arrived
 so a state with no receipt at all is the same shape as the tenth delivery rather than a special
 case.
 
-**Why the invoice match converts the remainder.** `MatchReceipt` now converts what is *left* of
-the commitment (the order's gross less what its receipts already converted) rather than the whole
-gross. That is what lets a delivery and an invoice coexist: an order that was partly delivered and
-then invoiced in full consumes its gross exactly once instead of twice, and an order whose
-commitment is fully converted is no longer matchable.
+**Why the invoice match converts the remainder.** `MatchReceipt` converts what is *left* of the
+commitment (the order's gross less what its receipts and earlier invoices already converted) rather
+than the whole gross. That is what lets a delivery and an invoice coexist: an order that was partly
+delivered and then invoiced in full consumes its gross exactly once instead of twice, and an order
+whose commitment is fully converted is no longer matchable.
+
+## Billing in parts
+
+An order may be billed in more than one invoice. The order records how much of its commitment has
+been invoiced (`purchase_order.invoiced_cents`), so each invoice is checked against what is left
+rather than against the gross again:
+
+- an invoice **below** what is left converts its own amount and leaves the order `approved` — the
+  rest is still expected;
+- an invoice that **completes** what is left converts the remainder and closes the order
+  (`received`);
+- an invoice **above the order's gross** is refused, and so is one that states nothing;
+- an invoice after the order is fully converted is refused (`ErrBadTransition`): there is nothing
+  left to convert.
+
+The running total is a column rather than a sum over the invoices that matched, because those live
+in the e-invoice module and procurement must not read another module's tables to know its own state.
+Receipts keep their own total, and the two together may never exceed the gross: a delivery recorded
+after a partial invoice converts only what is left, so the commitment is never consumed twice.
+
+*Bestellungen* (`/procurement/bestellungen`) shows the invoiced amount per order — `—` for nothing
+billed, `5.000,00 von 11.900,00` for a part, `11.900,00 (vollständig)` for all of it — because
+"approved" alone no longer says whether money is still expected.
 
 ## API
 
@@ -121,6 +146,7 @@ picker is read again because a completed order leaves the approved list.
 - ~~Goods-receipt lines (partial receipts)~~ — done since: `goods_receipt` records what arrived per
   line, the order is complete when every line has arrived, and the invoice match converts the
   remainder (`docs/12`, above).
-- What remains on the invoice side: an inbound invoice is still matched against the order's gross
-  in full. An invoice that bills a single delivery (a partial invoice) would need the same per-line
-  treatment on the invoice side.
+- ~~What remains on the invoice side: an inbound invoice is still matched against the order's gross
+  in full.~~ — done since: an order may be billed in parts (`purchase_order.invoiced_cents`), each
+  invoice converts what it bills, and the order closes only when nothing is left (see *Billing in
+  parts*).

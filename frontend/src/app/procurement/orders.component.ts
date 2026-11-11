@@ -50,6 +50,7 @@ import { formatCents } from '../core/format';
               <th scope="col">Nummer</th>
               <th scope="col">Lieferant</th>
               <th scope="col" class="amount">Betrag</th>
+              <th scope="col" class="amount">Abgerechnet</th>
               <th scope="col">Status</th>
               <th scope="col">Aktion</th>
             </tr>
@@ -60,6 +61,7 @@ import { formatCents } from '../core/format';
                 <td>{{ order.Number }}</td>
                 <td>{{ order.Supplier }}</td>
                 <td class="amount">{{ euro(order.GrossCents) }}</td>
+                <td class="amount" [attr.data-testid]="'billed-' + order.Number">{{ billedLabel(order) }}</td>
                 <td [attr.data-testid]="'status-' + order.Number">{{ statusLabel(order.Status) }}</td>
                 <td>
                   @if (order.Status === 'draft') {
@@ -152,4 +154,19 @@ export class PurchaseOrdersComponent implements OnInit {
 
   /** Amounts are rendered by the shared formatter, not by each screen's own. */
   readonly euro = formatCents;
+
+  /**
+   * What has been invoiced of an order, in words: nothing yet, a part of it, or all of it. An order
+   * may be billed in parts (docs/12), so "approved" alone no longer says whether money is still
+   * expected — this column does.
+   */
+  billedLabel(order: ProcurementOrderSummary): string {
+    if (order.InvoicedCents === 0) {
+      return '—';
+    }
+    if (order.InvoicedCents >= order.GrossCents) {
+      return formatCents(order.InvoicedCents) + ' (vollständig)';
+    }
+    return formatCents(order.InvoicedCents) + ' von ' + formatCents(order.GrossCents);
+  }
 }

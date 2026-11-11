@@ -50,7 +50,9 @@ func (s *OrderService) RecordReceipt(ctx context.Context, orderID int64, referen
 	if err != nil {
 		return ReceiptResult{}, err
 	}
-	receipt, value, complete, err := NewReceipt(order, reference, receivedOn, lines, received, converted)
+	// Invoices may have converted part of the commitment already (docs/12): a delivery converts what
+	// it is worth out of what is left, so the gross is never consumed twice.
+	receipt, value, complete, err := NewReceipt(order, reference, receivedOn, lines, received, converted+order.InvoicedCents)
 	if err != nil {
 		return ReceiptResult{}, err
 	}
