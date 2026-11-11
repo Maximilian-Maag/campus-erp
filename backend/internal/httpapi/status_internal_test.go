@@ -402,6 +402,7 @@ func TestStatusForMandate(t *testing.T) {
 	}{
 		{"not found", kasse.ErrMandateNotFound, http.StatusNotFound},
 		{"duplicate", kasse.ErrMandateReferenceExists, http.StatusConflict},
+		{"already retired", kasse.ErrMandateRetired, http.StatusConflict},
 		{"reference required", kasse.ErrMandateReferenceRequired, http.StatusUnprocessableEntity},
 		{"reference too long", kasse.ErrMandateReferenceTooLong, http.StatusUnprocessableEntity},
 		{"name required", kasse.ErrNameRequired, http.StatusUnprocessableEntity},

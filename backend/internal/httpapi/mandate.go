@@ -16,6 +16,7 @@ type mandateService interface {
 	CreateMandate(ctx context.Context, m kasse.Mandate, by string) (kasse.Mandate, error)
 	Mandate(ctx context.Context, reference string) (kasse.Mandate, error)
 	Mandates(ctx context.Context, activeOnly bool, seq kasse.MandateSequence) ([]kasse.Mandate, error)
+	RetireMandate(ctx context.Context, reference, by string) (kasse.Mandate, error)
 }
 
 // statusForMandate maps a mandate error to an HTTP status.
@@ -23,7 +24,7 @@ func statusForMandate(err error) int {
 	switch {
 	case errors.Is(err, kasse.ErrMandateNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, kasse.ErrMandateReferenceExists):
+	case errors.Is(err, kasse.ErrMandateReferenceExists), errors.Is(err, kasse.ErrMandateRetired):
 		return http.StatusConflict
 	case errors.Is(err, kasse.ErrMandateReferenceRequired),
 		errors.Is(err, kasse.ErrMandateReferenceTooLong),
@@ -80,6 +81,17 @@ func (s *Server) getMandate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, m)
+}
+
+// retireMandate withdraws a mandate's authorisation: the debtor revoked it. Nothing is deleted —
+// the mandate keeps its history and its reference, and the state is `active = false` (docs/21).
+func (s *Server) retireMandate(w http.ResponseWriter, r *http.Request) {
+	retired, err := s.mandates.RetireMandate(r.Context(), r.PathValue("reference"), actor(r))
+	if err != nil {
+		writeProblem(w, statusForMandate(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, retired)
 }
 
 // listMandates reads the mandates, by reference. The filters are the server's:

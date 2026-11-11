@@ -38,6 +38,28 @@ func TestNewMandate(t *testing.T) {
 	}
 }
 
+// Retiring is soft state: the row stays, the flag goes, and a second revocation is refused rather
+// than repeated as if it had taken effect.
+func TestMandateRetire(t *testing.T) {
+	active := Mandate{Reference: "MAN-1", Active: true, SequenceType: SequenceRecurring}
+	retired, err := active.Retire()
+	if err != nil {
+		t.Fatalf("Retire: %v", err)
+	}
+	if retired.Active {
+		t.Fatalf("retired = %+v, want it inactive", retired)
+	}
+	if !active.Active {
+		t.Fatal("Retire changed the mandate it was called on instead of returning a retired copy")
+	}
+	if retired.Reference != active.Reference || retired.SequenceType != active.SequenceType {
+		t.Fatalf("retired = %+v, want everything but the flag", retired)
+	}
+	if _, err := retired.Retire(); !errors.Is(err, ErrMandateRetired) {
+		t.Fatalf("retiring a retired mandate = %v, want ErrMandateRetired", err)
+	}
+}
+
 func TestNewMandateValidation(t *testing.T) {
 	sig := time.Date(2025, 3, 14, 0, 0, 0, 0, time.UTC)
 	cases := []struct {

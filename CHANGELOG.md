@@ -2,6 +2,30 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.111.0] - 2026-11-11
+
+A mandate can be retired — the debtor revoked the authorisation — and the revocation is a decision
+with a paper trail, not a flag flipped quietly.
+
+### Added
+- `POST /api/direct-debit/mandates/{reference}/retire` — withdraws a mandate's authorisation. The
+  mandate is read first, so a reference nothing carries is a `404` **before** the state is asked
+  about, and a mandate that is already retired is refused (`ErrMandateRetired`, a `409`) rather than
+  quietly repeated: the revocation happened once, and a silent no-op would read like one that took
+  effect. The write is audited (`mandate.retire`) with the state it came from, so a revocation is
+  readable in the trail and not only in the flag it left behind. The contract is 111 operations.
+- The *Kasse: Mandate* screen retires a mandate in **two steps**: the first click turns the row into
+  the question, the second answers it — a revocation is effectively final (no route re-activates a
+  mandate), so a one-click destructive action is a mis-click away from a mandate nobody may collect
+  under. A retired row says so and no longer offers the action, without a reload.
+- `Mandate.Retire()` is a method on the model, so "a mandate that is already retired cannot be
+  retired again" is one rule in one place rather than a condition per caller.
+
+### Deliberately not added
+- Re-activating a retired mandate. A revoked authorisation stays revoked: a mandate that should be
+  collected under again is a new authorisation with its own signature date and reference, not a flag
+  turned back on (docs/21).
+
 ## [0.110.0] - 2026-11-11
 
 A SEPA direct-debit mandate can be registered from the UI — until now that was an API call.

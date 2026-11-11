@@ -27,6 +27,7 @@ convention; there are no hard deletes (ADR-0006).
 | `POST` | `/api/direct-debit/mandates` — register a mandate |
 | `GET` | `/api/direct-debit/mandates` — list them, `?active=true` and `?sequence_type=` to narrow |
 | `GET` | `/api/direct-debit/mandates/{reference}` — read one |
+| `POST` | `/api/direct-debit/mandates/{reference}/retire` — withdraw the authorisation |
 
 The list's filters are the server's: a screen that offers the mandates a run can
 actually gather asks for the active ones collecting under the run's sequence type,
@@ -52,6 +53,17 @@ checksum (ISO 7064) and the BIC's shape are validated once, in Kasse, and a refu
 comes back rather than replaced by a second implementation here. A refused mandate keeps what was
 typed, so it can be corrected rather than retyped.
 
+**Retiring** a mandate (the debtor revoked the authorisation) is a soft state: the row stays, the
+flag goes, and the revocation is in the trail. The screen asks for it **twice** — the first click
+turns the row into the question, the second answers it — because a revocation is effectively final
+(no route re-activates a mandate), and a destructive action taken on one click is a mis-click away
+from a mandate nobody may collect under. Once retired, the row says so and no longer offers the
+action, without a reload: the mandate is soft state, so the change is visible where it was made.
+
+A second revocation is refused (`ErrMandateRetired`, a `409`) rather than quietly repeated: the
+revocation happened once, and a silent no-op would read like one that took effect. A reference
+nothing carries is a `404`, and a blank actor is refused before the mandate is even read.
+
 ## Validation
 
 `kasse.NewMandate` validates before any write and returns a sentinel error matchable
@@ -71,5 +83,8 @@ Kasse), `ErrDebtorBICInvalid` (ISO 9362, shared with `core/sepa`), and
   (`docs/legacy/kbs-payment-orders.md`), so the mapping cannot be validated.
 - ~~Registering a mandate is still an API call, not a screen~~ — done since: the *Kasse: Mandate*
   screen lists the mandates under the same filters the collection-run screen uses and registers one
-  (above). What it does not do is **retire** one: `active` is soft state the model carries, and a
-  screen that retires a mandate is still to come.
+  (above).
+- ~~Retiring a mandate~~ — done since: `POST /api/direct-debit/mandates/{reference}/retire` and the
+  screen's two-step revocation (above). What deliberately does **not** exist is re-activating one: a
+  revoked mandate stays revoked, and a mandate that should be collected under again is a new
+  authorisation with its own signature date and reference, not a flag turned back on.

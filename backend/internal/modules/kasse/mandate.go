@@ -2,6 +2,7 @@ package kasse
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -28,6 +29,10 @@ var (
 	ErrSequenceTypeUnknown = errors.New("kasse: sequence type must be FRST, RCUR, OOFF or FNAL")
 	// ErrDebtorBICInvalid is returned for a debtor BIC that is not an ISO 9362 code.
 	ErrDebtorBICInvalid = errors.New("kasse: invalid debtor BIC")
+	// ErrMandateRetired is returned when a mandate is retired although it already is: a debtor can
+	// revoke an authorisation once, and a second revocation is a mistake worth naming rather than a
+	// silent no-op that reads like a success.
+	ErrMandateRetired = errors.New("kasse: mandate is already retired")
 )
 
 // maxMandateRefLen matches the ISO 20022 Max35Text limit on MndtId.
@@ -68,6 +73,17 @@ type Mandate struct {
 	SignatureDate time.Time
 	SequenceType  MandateSequence
 	Active        bool
+}
+
+// Retire withdraws the authorisation: a mandate is soft state, so the row stays and the audit trail
+// keeps the decision (ADR-0006). Retiring a mandate that is already retired is refused, because a
+// silent no-op would read like a revocation that took effect.
+func (m Mandate) Retire() (Mandate, error) {
+	if !m.Active {
+		return Mandate{}, fmt.Errorf("kasse: mandate %q: %w", m.Reference, ErrMandateRetired)
+	}
+	m.Active = false
+	return m, nil
 }
 
 // NewMandate validates and builds an active mandate.

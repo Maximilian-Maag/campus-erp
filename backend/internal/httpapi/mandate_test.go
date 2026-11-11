@@ -58,6 +58,15 @@ func (s stubMandates) Mandates(_ context.Context, activeOnly bool, seq kasse.Man
 	return []kasse.Mandate{}, nil
 }
 
+func (s stubMandates) RetireMandate(context.Context, string, string) (kasse.Mandate, error) {
+	if s.err != nil {
+		return kasse.Mandate{}, s.err
+	}
+	m := s.m
+	m.Active = false
+	return m, nil
+}
+
 const validMandateBody = `{"reference":"MAN-1","debtor_name":"Max Mustermann",` +
 	`"debtor_iban":"DE89370400440532013000","debtor_bic":"COBADEFFXXX",` +
 	`"signature_date":"2025-03-14","sequence_type":"RCUR"}`
@@ -103,6 +112,34 @@ func TestGetMandateHandler(t *testing.T) {
 	missing.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/direct-debit/mandates/NOPE", nil))
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("missing status = %d, want 404", rec.Code)
+	}
+}
+
+func TestRetireMandateHandler(t *testing.T) {
+	cases := []struct {
+		name string
+		m    kasse.Mandate
+		err  error
+		want int
+	}{
+		{"retired", kasse.Mandate{Reference: "MAN-1", Active: false}, nil, http.StatusOK},
+		{"unknown reference", kasse.Mandate{}, kasse.ErrMandateNotFound, http.StatusNotFound},
+		{"already retired", kasse.Mandate{}, kasse.ErrMandateRetired, http.StatusConflict},
+		{"unexpected error", kasse.Mandate{}, errBoom, http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			srv := httpapi.New(httpapi.Deps{Mandates: stubMandates{m: c.m, err: c.err}})
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec,
+				httptest.NewRequest(http.MethodPost, "/api/direct-debit/mandates/MAN-1/retire", nil))
+			if rec.Code != c.want {
+				t.Fatalf("status = %d, want %d (%s)", rec.Code, c.want, rec.Body.String())
+			}
+			if c.want == http.StatusOK && !strings.Contains(rec.Body.String(), `"Active":false`) {
+				t.Fatalf("body = %s, want the mandate as it now stands", rec.Body.String())
+			}
+		})
 	}
 }
 
