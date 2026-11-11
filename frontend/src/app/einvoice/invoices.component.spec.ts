@@ -59,6 +59,27 @@ describe('EInvoicesComponent', () => {
     expect(html.querySelector('[data-testid="match-RE-2"]')?.textContent).toContain('Bestellung 7');
   });
 
+  it('offers both syntaxes of the document: XRechnung (UBL) and ZUGFeRD (CII)', () => {
+    const fixture = TestBed.createComponent(EInvoicesComponent);
+    fixture.detectChanges();
+    http.expectOne('/api/e-invoices').flush([unmatched]);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    expect(component.documentUrl(1, 'xrechnung')).toBe('/api/e-invoices/1/xrechnung');
+    expect(component.documentUrl(7, 'cii')).toBe('/api/e-invoices/7/cii');
+
+    const cell = fixture.nativeElement.querySelector('[data-testid="documents-RE-1"]') as HTMLElement;
+    const links = Array.from(cell.querySelectorAll('a')).map((a) => [
+      a.textContent!.trim(),
+      a.getAttribute('href'),
+    ]);
+    expect(links).toEqual([
+      ['XRechnung (UBL)', '/api/e-invoices/1/xrechnung'],
+      ['ZUGFeRD (CII)', '/api/e-invoices/1/cii'],
+    ]);
+  });
+
   it('offers a match only for a received invoice that is still open', () => {
     const fixture = TestBed.createComponent(EInvoicesComponent);
     fixture.detectChanges();

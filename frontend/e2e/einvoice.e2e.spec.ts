@@ -32,6 +32,16 @@ test('Eingangsrechnungen lists the invoices, matches one and passes axe', async 
   await expect(page.getByTestId('direction-RE-3')).toContainText('Ausgang');
   await expect(page.getByTestId('invoice-RE-3').getByRole('button')).toHaveCount(0);
 
+  // Both syntaxes of the document are reachable from the row: XRechnung (UBL) and ZUGFeRD (CII).
+  await expect(page.getByTestId('documents-RE-1').getByRole('link', { name: 'XRechnung (UBL)' })).toHaveAttribute(
+    'href',
+    '/api/e-invoices/1/xrechnung'
+  );
+  await expect(page.getByTestId('documents-RE-1').getByRole('link', { name: 'ZUGFeRD (CII)' })).toHaveAttribute(
+    'href',
+    '/api/e-invoices/1/cii'
+  );
+
   // BITV 2.0 / WCAG is a legal requirement (ADR-0003, CR-7): no axe violations.
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
