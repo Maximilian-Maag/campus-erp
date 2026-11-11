@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BudgetSourcesComponent } from './sources.component';
-import { BudgetPositionResponse, Center, Position, Source } from '../core/api/generated';
+import { BudgetPositionResponse, Center, ImportResult, Position, Source } from '../core/api/generated';
 
 describe('BudgetSourcesComponent', () => {
   let http: HttpTestingController;
@@ -46,6 +46,18 @@ describe('BudgetSourcesComponent', () => {
     CreatedBy: 'alice',
     SourceID: null,
     CenterID: null,
+    ...over,
+  });
+
+  const importResult = (over: Partial<ImportResult> = {}): ImportResult => ({
+    Layout: 'budget-import/v1',
+    SourcesCreated: 0,
+    SourcesKept: 0,
+    CentersCreated: 0,
+    CentersKept: 0,
+    PositionsCreated: 0,
+    PositionsKept: 0,
+    PositionsNamed: 0,
     ...over,
   });
 
@@ -241,6 +253,66 @@ describe('BudgetSourcesComponent', () => {
     fixture.detectChanges();
     expect(component.actionError()).toBe('Die Zuordnung konnte nicht gespeichert werden.');
     expect(component.busy()).toBeFalse();
+  });
+
+  it('reads a budget file and states what it did, then loads the lists again', () => {
+    screen([], [], []);
+    component.file.set('source_code;source_name;...\nLHH;Landesmittel;...');
+    component.runImport(new Event('submit'));
+
+    expect(component.busy()).toBeTrue();
+    const req = http.expectOne('/api/budget/imports');
+    expect(req.request.method).toBe('POST');
+    // An untouched format field means the standard layout, which the API fills in.
+    expect(req.request.body).toEqual({ layout: '', content: 'source_code;source_name;...\nLHH;Landesmittel;...' });
+    req.flush(importResult({ SourcesCreated: 1, CentersCreated: 1, PositionsCreated: 2, PositionsNamed: 2 }));
+    fixture.detectChanges();
+
+    expect(component.notice()).toBe(
+      '1 Mittelquellen, 1 Bewirtschaftungsstellen und 2 Haushaltsstellen angelegt; ' +
+        '0 Mittelquellen und 0 Haushaltsstellen waren schon vorhanden; ' +
+        '2 Haushaltsstellen sind zugeordnet.'
+    );
+    expect(component.file()).toBe('');
+    // The three lists are read again: the file may have added to every one of them.
+    http.expectOne('/api/budget/sources').flush([source({ ID: 9, Code: 'LHH' })]);
+    http.expectOne('/api/budget/centers').flush([center({ ID: 9 })]);
+    http.expectOne('/api/budget/positions').flush([row()]);
+    expect(component.sources().length).toBe(1);
+    expect(component.loading()).toBeFalse();
+  });
+
+  it('reads a file in a named format', () => {
+    screen();
+    component.layout.set('vendor-import/v9');
+    component.file.set('x');
+    component.runImport(new Event('submit'));
+    const req = http.expectOne('/api/budget/imports');
+    expect(req.request.body).toEqual({ layout: 'vendor-import/v9', content: 'x' });
+    req.flush(importResult());
+    http.expectOne('/api/budget/sources').flush([]);
+    http.expectOne('/api/budget/centers').flush([]);
+    http.expectOne('/api/budget/positions').flush([]);
+  });
+
+  it('refuses an empty file and reports a refused one', () => {
+    screen();
+    component.runImport(new Event('submit'));
+    expect(component.actionError()).toBe('Es ist keine Budgetdatei eingelesen.');
+    http.expectNone('/api/budget/imports');
+
+    component.file.set('kaputt');
+    component.runImport(new Event('submit'));
+    http.expectOne('/api/budget/imports').flush(
+      { error: 'cannot read row 3' },
+      { status: 422, statusText: 'Unprocessable Entity' }
+    );
+    fixture.detectChanges();
+
+    expect(component.actionError()).toBe('Die Budgetdatei konnte nicht eingelesen werden.');
+    expect(component.busy()).toBeFalse();
+    // A refused file keeps what was typed, so it can be corrected instead of retyped.
+    expect(component.file()).toBe('kaputt');
   });
 
   it('falls back to the id when a named source or centre is not in the lists', () => {

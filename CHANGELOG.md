@@ -2,6 +2,35 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.108.0] - 2026-11-11
+
+A budget year can be read in: one file brings the Mittelquellen, the Bewirtschaftungsstellen and the
+Haushaltsstellen of the year, with every position already saying where its money comes from.
+
+### Added
+- `POST /api/budget/imports` — reads a budget file and writes it in **one transaction**: the sources
+  and centres the file names, the positions it carries, and each position's naming from its own
+  line. The answer distinguishes creating from finding (`SourcesCreated`/`SourcesKept`,
+  `CentersCreated`/`CentersKept`, `PositionsCreated`/`PositionsKept`, `PositionsNamed`), because a
+  second run of the same file must read as "already there"; one `budget_import.run` audit event
+  carries those counts and the layout read.
+- `internal/core/budgetimport` — the layout as **data**: a `Layout` names the delimiter, the header
+  line and which column carries which field, with `testdata/budget-import-v1.csv` as that layout
+  written down. The vendor's `budget_import` layout is unpublished (open question Q8), so replacing
+  it for the vendor's export means replacing the `Layout` value and the sample, not the logic. An
+  unknown layout id is refused rather than guessed at.
+- The import **creates and names; it does not edit**: a code already taken is found, not duplicated,
+  and the file's name is used only when the row is created, so a name or an assignment a person has
+  set is never overwritten by the next import of an older file.
+- The file is read **whole before anything is written**: one unreadable line refuses the whole file
+  (`422`, naming the line — `cannot read row 37: the Ansatz "zuviel": the amount is not a number`),
+  as does a position that appears twice. The Ansatz reads euros in both the German (`1.234,56`) and
+  the machine (`1234.56`) form.
+- The *Budget: Mittelherkunft* screen gains the *Budgetdatei einlesen* form: the format field stays
+  empty for the standard layout (an empty format is the standard, and the placeholder names it), an
+  empty file is refused before the API is asked, a refused file stays in the textarea to be
+  corrected rather than retyped, and the three lists are read again after a successful import.
+
 ## [0.107.0] - 2026-11-10
 
 A budget title now says where its money comes from and who administers it: the Mittelquellen and

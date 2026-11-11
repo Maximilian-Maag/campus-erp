@@ -183,6 +183,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/budget/positions/{id}/postings": {
         "post": ("postBudgetMovement", "budget", "Post a budget movement", "httpapi.budgetPostingRequest", "budget.Posting", 201, "json"),
     },
+    "/api/budget/imports": {
+        "post": ("importBudget", "budget", "Import a budget file (sources, centres and positions)", "httpapi.budgetImportRequest", "budget.ImportResult", 201, "json"),
+    },
     "/api/budget/sources": {
         "post": ("createBudgetSource", "budget", "Create a budget source (Mittelquelle)", "httpapi.budgetSourceRequest", "budget.Source", 201, "json"),
         "get": ("listBudgetSources", "budget", "List the budget sources", None, "[]budget.Source", 200, "json"),

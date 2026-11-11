@@ -53,6 +53,49 @@ it is named in the error. Every write is audited (`budget_source.create`, `budge
 `budget_position.assign`), and the audit detail of an assignment states a cleared half as `none`
 rather than leaving it out, so "nothing" and "not mentioned" do not read alike.
 
+## Der Budgetimport
+
+A budget year arrives as a file: the Mittelquellen, the Bewirtschaftungsstellen and the
+Haushaltsstellen of a year, with each position already saying where its money comes from. `POST
+/api/budget/imports` reads such a file and writes it.
+
+**The layout is data, not code** (`internal/core/budgetimport`). The vendor's `budget_import` layout
+is unpublished (open question Q8), so the layout shipped here is the target system's own:
+`budget-import/v1`, semicolon-separated, with a header line, carrying
+`source_code; source_name; source_chapter; center_code; center_name; year; chapter; title;
+description; ansatz`. `budgetimport.Layout` names the delimiter, whether there is a header line and
+which column carries which field, and `internal/core/budgetimport/testdata/budget-import-v1.csv` is
+that layout written down — **replacing the layout for the vendor's export means replacing the
+`Layout` value and that sample, not the importing logic.** An operator may name another layout with
+the request's `layout`; a layout this build cannot read is refused rather than guessed at.
+
+The rules an import follows:
+
+- **The file is read whole before anything is written.** A file with one unreadable line imports
+  nothing and answers `422` naming the line (`cannot read row 37: the Ansatz "zuviel": the amount is
+  not a number`), because a half-imported budget is worse than a refused one. A duplicate position
+  in one file is refused the same way.
+- **The import creates and names; it does not edit.** A code that is already taken is *found*, not
+  duplicated, and the name the file carries is used only when the row is created — a name a person
+  has corrected is not overwritten by the next import of an older file. The same holds for a
+  position's Ansatz and description, and for its assignment: the import names a position that has no
+  source or centre, and never replaces one a person set.
+- **The codes are the identity**, which is why they are unique and why the file's two codes carry
+  their names: the code is what an import and a person share.
+- **The Ansatz is euros** in the form a German file writes it (`1.234,56`) or a machine writes it
+  (`1234.56`): a comma is the decimal mark, and with no comma a single dot followed by one or two
+  digits is one too.
+- **One transaction**: sources, centres, positions and their naming land together or not at all.
+- The answer distinguishes creating from finding (`SourcesCreated` / `SourcesKept`,
+  `CentersCreated` / `CentersKept`, `PositionsCreated` / `PositionsKept`, `PositionsNamed`), because
+  a second run of the same file must read as "already there" rather than as fifteen new rows. One
+  `budget_import.run` audit event carries those counts and the layout that was read.
+
+The screen's *Budgetdatei einlesen* form does the same: it leaves the format empty (the API reads an
+empty format as the standard layout, and the field's placeholder names it), refuses an empty file
+before asking, keeps a refused file in the textarea so it can be corrected rather than retyped, and
+reads the three lists again after a successful import.
+
 ## API
 
 | method | path |
@@ -61,6 +104,7 @@ rather than leaving it out, so "nothing" and "not mentioned" do not read alike.
 | `GET`  | `/api/budget/positions/{id}` (position + balance) |
 | `POST` | `/api/budget/positions/{id}/postings` |
 | `GET`  | `/api/budget/positions/{id}/balance` |
+| `POST` | `/api/budget/imports` (a budget file; `201` with the counts of the run) |
 | `POST` | `/api/budget/sources` |
 | `GET`  | `/api/budget/sources` |
 | `POST` | `/api/budget/centers` |
@@ -84,10 +128,11 @@ Every write is audited (`budget_position.create`, `budget_posting.create`,
 
 - ~~`budget_source` / `budget_center`~~ — done since: the two are stored, listed and assigned to a
   position, and the *Mittelherkunft* screen drives them (above).
-- **The budget import from the vendor model** is still open. The vendor's `budget_import` fills
-  sources, centres and positions from its own tables, and that layout is unpublished (open question
-  Q8); what is missing is the importer, not the model — the two codes are the identity such an
-  import keys on, which is why a code that is already taken is refused rather than merged.
+- ~~The budget import from the vendor model~~ — done since: `POST /api/budget/imports` reads a file
+  in the `budget-import/v1` layout, which is **data** (above), so the vendor's own export is a
+  `Layout` value plus a sample file away. Reading the vendor's *tables* directly rather than a file
+  would go through the ETL datasets (`docs/17-platform-spine.md`), which is a different road to the
+  same writes.
 - ~~Automatic commitment when a payment order is approved~~ — done since: approving one binds
   its amount on the position it names (`kasse.OrderService.Approve` posts a `commitment` named
   `ANORD:<reference>`), and the binding is refused with `ErrBudgetExceeded` when it exceeds the

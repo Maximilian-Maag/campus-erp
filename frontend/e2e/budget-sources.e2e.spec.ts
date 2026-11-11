@@ -87,6 +87,50 @@ test('Mittelherkunft creates a source and a centre and names a position, and pas
   expect(results.violations).toEqual([]);
 });
 
+test('Mittelherkunft reads a budget file and states what it did, and passes axe', async ({ page }) => {
+  const imports: unknown[] = [];
+  await page.route('**/api/budget/imports', (route) => {
+    imports.push(route.request().postDataJSON());
+    return route.fulfill({
+      status: 201,
+      json: {
+        Layout: 'budget-import/v1',
+        SourcesCreated: 1,
+        SourcesKept: 0,
+        CentersCreated: 1,
+        CentersKept: 1,
+        PositionsCreated: 2,
+        PositionsKept: 0,
+        PositionsNamed: 2,
+      },
+    });
+  });
+  await page.route('**/api/budget/sources', (route) => route.fulfill({ status: 200, json: [source] }));
+  await page.route('**/api/budget/centers', (route) => route.fulfill({ status: 200, json: [center] }));
+  await page.route('**/api/budget/positions', (route) =>
+    route.fulfill({ status: 200, json: [positionRow] })
+  );
+
+  await page.goto('/budget/mittelherkunft');
+  const file = 'source_code;source_name;source_chapter;center_code;center_name;year;chapter;title;description;ansatz\nLHH;Landesmittel;05;BW-1;Fakultaet 1;2026;05;1234;Beschaffung;10.000,00\n';
+
+  // An empty textarea is refused before the API is asked.
+  await page.getByRole('button', { name: 'Einlesen' }).click();
+  await expect(page.getByRole('alert')).toContainText('Es ist keine Budgetdatei eingelesen.');
+
+  await page.getByLabel('Inhalt der Budgetdatei').fill(file);
+  await page.getByRole('button', { name: 'Einlesen' }).click();
+
+  await expect(page.getByRole('status')).toContainText('1 Mittelquellen, 1 Bewirtschaftungsstellen und 2 Haushaltsstellen angelegt');
+  // The format field is left empty, which the API reads as the standard layout.
+  expect(imports).toEqual([{ layout: '', content: file }]);
+  // The file is cleared for the next one.
+  await expect(page.getByLabel('Inhalt der Budgetdatei')).toHaveValue('');
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
 test('Mittelherkunft reports a refused create and an empty budget, and passes axe', async ({ page }) => {
   await page.route('**/api/budget/sources', (route) =>
     route.request().method() === 'POST'

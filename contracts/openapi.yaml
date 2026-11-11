@@ -1796,6 +1796,39 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/budget/imports:
+    post:
+      tags:
+      - budget
+      operationId: importBudget
+      summary: Import a budget file (sources, centres and positions)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetImportRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/budget/sources:
     post:
       tags:
@@ -5026,6 +5059,51 @@ components:
       - code
       - name
       - chapter
+    ImportResult:
+      type: object
+      properties:
+        Layout:
+          type: string
+        SourcesCreated:
+          type: integer
+          format: int64
+        SourcesKept:
+          type: integer
+          format: int64
+        CentersCreated:
+          type: integer
+          format: int64
+        CentersKept:
+          type: integer
+          format: int64
+        PositionsCreated:
+          type: integer
+          format: int64
+        PositionsKept:
+          type: integer
+          format: int64
+        PositionsNamed:
+          type: integer
+          format: int64
+      required:
+      - Layout
+      - SourcesCreated
+      - SourcesKept
+      - CentersCreated
+      - CentersKept
+      - PositionsCreated
+      - PositionsKept
+      - PositionsNamed
+    BudgetImportRequest:
+      type: object
+      properties:
+        layout:
+          type: string
+        content:
+          type: string
+      required:
+      - layout
+      - content
     Posting:
       type: object
       properties:

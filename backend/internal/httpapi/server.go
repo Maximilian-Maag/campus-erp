@@ -210,6 +210,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/budget/positions/{id}", s.authorizeRead(s.getBudgetPosition, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/budget/positions/{id}/postings", s.authorize(s.postBudget, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/budget/positions/{id}/balance", s.authorizeRead(s.getBudgetBalance, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/budget/imports", s.authorize(s.importBudget, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/budget/sources", s.authorize(s.createBudgetSource, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/budget/sources", s.authorizeRead(s.listBudgetSources, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/budget/centers", s.authorize(s.createBudgetCenter, auth.RoleFinanzen))

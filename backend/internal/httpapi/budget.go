@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/budgetimport"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 )
 
@@ -16,12 +17,39 @@ type budgetService interface {
 	GetPosition(ctx context.Context, id int64) (budget.Position, error)
 	Positions(ctx context.Context) ([]budget.Position, error)
 	Balance(ctx context.Context, id int64) (budget.Balance, error)
+	// Import reads a budget file — Mittelquellen, Bewirtschaftungsstellen and Haushaltsstellen in
+	// one pass — and writes it (docs/10).
+	Import(ctx context.Context, layoutID, content, by string) (budget.ImportResult, error)
 	// The Mittelquellen and Bewirtschaftungsstellen a position is assigned to (docs/10).
 	CreateSource(ctx context.Context, code, name, chapter, by string) (budget.Source, error)
 	Sources(ctx context.Context) ([]budget.Source, error)
 	CreateCenter(ctx context.Context, code, name, by string) (budget.Center, error)
 	Centers(ctx context.Context) ([]budget.Center, error)
 	AssignPosition(ctx context.Context, positionID int64, sourceID, centerID *int64, by string) (budget.Position, error)
+}
+
+// budgetImportRequest is the payload of POST /api/budget/imports. The layout is optional: an
+// operator who does not name one gets the standard layout, and a layout this build cannot read is
+// refused rather than guessed at.
+type budgetImportRequest struct {
+	Layout  string `json:"layout"`
+	Content string `json:"content"`
+}
+
+// importBudget reads a budget file and writes it. A file with an unreadable line is refused whole
+// (422, naming the line), so a refusal never leaves half a budget behind.
+func (s *Server) importBudget(w http.ResponseWriter, r *http.Request) {
+	var req budgetImportRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	res, err := s.budget.Import(r.Context(), req.Layout, req.Content, actor(r))
+	if err != nil {
+		writeProblem(w, statusForBudget(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, res)
 }
 
 // statusForBudget maps a budget error to an HTTP status.
@@ -31,6 +59,10 @@ func statusForBudget(err error) int {
 		errors.Is(err, budget.ErrSourceNotFound),
 		errors.Is(err, budget.ErrCenterNotFound):
 		return http.StatusNotFound
+	case errors.Is(err, budgetimport.ErrUnknownLayout),
+		errors.Is(err, budgetimport.ErrEmpty),
+		errors.Is(err, budgetimport.ErrBadRow):
+		return http.StatusUnprocessableEntity
 	case errors.Is(err, budget.ErrPositionExists),
 		errors.Is(err, budget.ErrSourceExists),
 		errors.Is(err, budget.ErrCenterExists),

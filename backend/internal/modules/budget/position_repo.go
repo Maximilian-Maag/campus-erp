@@ -2,8 +2,10 @@ package budget
 
 import (
 	"context"
+
 	"errors"
 	"fmt"
+	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/budgetimport"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -29,6 +31,9 @@ type PositionRepository interface {
 	Centers(ctx context.Context) ([]Center, error)
 	// AssignPosition sets which source a position draws on and which centre administers it.
 	AssignPosition(ctx context.Context, positionID int64, sourceID, centerID *int64) (Position, error)
+	// ImportBudget writes a parsed budget file in one transaction — the sources and centres it
+	// names, the positions it carries, and each position's naming from its own line (import_repo.go).
+	ImportBudget(ctx context.Context, rows []budgetimport.Row, layout, by string) (ImportResult, error)
 }
 
 // PositionRepo is the PostgreSQL implementation.

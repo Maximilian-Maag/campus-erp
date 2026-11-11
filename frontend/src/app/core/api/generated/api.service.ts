@@ -51,6 +51,10 @@ export class CampusErpApi {
     return this.http.post<m.Center>(this.base + `/api/budget/centers`, body);
   }
 
+  importBudget(body: m.BudgetImportRequest): Observable<m.ImportResult> {
+    return this.http.post<m.ImportResult>(this.base + `/api/budget/imports`, body);
+  }
+
   listBudgetPositions(): Observable<m.BudgetPositionResponse[]> {
     return this.http.get<m.BudgetPositionResponse[]>(this.base + `/api/budget/positions`);
   }
