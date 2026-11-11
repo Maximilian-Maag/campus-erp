@@ -66,7 +66,7 @@ func (s *Server) createReceivable(w http.ResponseWriter, r *http.Request) {
 	saved, err := s.receivables.Post(r.Context(), req.MandateReference, req.AmountCents, req.Currency,
 		dueDate, req.Purpose, req.Source, actor(r))
 	if err != nil {
-		writeProblem(w, statusForReceivable(err), err.Error())
+		writeDomainProblem(w, statusForReceivable(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -85,7 +85,7 @@ func (s *Server) listReceivables(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := s.receivables.Receivables(r.Context(), state)
 	if err != nil {
-		writeProblem(w, statusForReceivable(err), err.Error())
+		writeDomainProblem(w, statusForReceivable(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, items)
@@ -99,7 +99,7 @@ func (s *Server) getReceivable(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := s.receivables.Receivable(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForReceivable(err), err.Error())
+		writeDomainProblem(w, statusForReceivable(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, item)

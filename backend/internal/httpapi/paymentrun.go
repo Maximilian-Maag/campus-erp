@@ -47,7 +47,7 @@ func statusForRun(err error) int {
 func (s *Server) listCashAccounts(w http.ResponseWriter, r *http.Request) {
 	accounts, err := s.runs.CashAccounts(r.Context())
 	if err != nil {
-		writeProblem(w, statusForRun(err), err.Error())
+		writeDomainProblem(w, statusForRun(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, accounts)
@@ -68,7 +68,7 @@ func (s *Server) createCashAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	account, err := s.runs.CreateCashAccount(r.Context(), req.Name, req.IBAN, req.BIC, req.Currency)
 	if err != nil {
-		writeProblem(w, statusForRun(err), err.Error())
+		writeDomainProblem(w, statusForRun(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, account)
@@ -94,7 +94,7 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	}
 	run, err := s.runs.CreateRun(r.Context(), req.Reference, req.AccountID, executionDate, req.OrderIDs, actor(r))
 	if err != nil {
-		writeProblem(w, statusForRun(err), err.Error())
+		writeDomainProblem(w, statusForRun(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, run)
@@ -108,7 +108,7 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	}
 	run, err := s.runs.Run(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForRun(err), err.Error())
+		writeDomainProblem(w, statusForRun(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, run)
@@ -122,7 +122,7 @@ func (s *Server) getRunFile(w http.ResponseWriter, r *http.Request) {
 	}
 	file, err := s.runs.RunFile(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForRun(err), err.Error())
+		writeDomainProblem(w, statusForRun(err), err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")

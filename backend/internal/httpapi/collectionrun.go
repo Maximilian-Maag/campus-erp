@@ -94,7 +94,7 @@ func (s *Server) createCollectionRun(w http.ResponseWriter, r *http.Request) {
 	run, err := s.collectionRuns.CreateCollectionRun(r.Context(), req.Reference, req.AccountID, req.CreditorID,
 		collectionDate, kasse.MandateSequence(req.SequenceType), req.LocalInstrument, items, actor(r))
 	if err != nil {
-		writeProblem(w, statusForCollectionRun(err), err.Error())
+		writeDomainProblem(w, statusForCollectionRun(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, run)
@@ -131,7 +131,7 @@ func (s *Server) createCollectionRunFromReceivables(w http.ResponseWriter, r *ht
 	run, err := s.collectionRuns.CreateCollectionRunFromReceivables(r.Context(), req.Reference, req.AccountID,
 		req.CreditorID, collectionDate, kasse.MandateSequence(req.SequenceType), req.LocalInstrument, dueBy, actor(r))
 	if err != nil {
-		writeProblem(w, statusForCollectionRun(err), err.Error())
+		writeDomainProblem(w, statusForCollectionRun(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, run)
@@ -140,7 +140,7 @@ func (s *Server) createCollectionRunFromReceivables(w http.ResponseWriter, r *ht
 func (s *Server) getCollectionRunFile(w http.ResponseWriter, r *http.Request) {
 	file, err := s.collectionRuns.CollectionRunFile(r.Context(), r.PathValue("reference"))
 	if err != nil {
-		writeProblem(w, statusForCollectionRun(err), err.Error())
+		writeDomainProblem(w, statusForCollectionRun(err), err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")

@@ -85,7 +85,7 @@ func (s *Server) createCostCenter(w http.ResponseWriter, r *http.Request) {
 	}
 	center, err := s.klr.CreateCostCenter(r.Context(), req.Number, req.Name, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, center)
@@ -96,7 +96,7 @@ func (s *Server) createCostCenter(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listCostCenters(w http.ResponseWriter, r *http.Request) {
 	centers, err := s.klr.CostCenters(r.Context())
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, centers)
@@ -110,7 +110,7 @@ func (s *Server) createCostUnit(w http.ResponseWriter, r *http.Request) {
 	}
 	unit, err := s.klr.CreateCostUnit(r.Context(), req.Number, req.Name, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, unit)
@@ -158,7 +158,7 @@ func (s *Server) postAccountingRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	rec, err := s.klr.Post(r.Context(), id, req.CostUnitID, req.CostTypeID, klr.Kind(req.Kind), req.AmountCents, date, req.Reference, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, rec)
@@ -201,7 +201,7 @@ func (s *Server) defineAllocation(w http.ResponseWriter, r *http.Request) {
 	}
 	key, err := s.klr.DefineAllocation(r.Context(), sourceID, req.TargetCenterID, req.ShareBP, from, to, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, key)
@@ -215,7 +215,7 @@ func (s *Server) listAllocations(w http.ResponseWriter, r *http.Request) {
 	}
 	keys, err := s.klr.Allocations(r.Context(), sourceID)
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, keys)
@@ -250,7 +250,7 @@ func (s *Server) runAllocation(w http.ResponseWriter, r *http.Request) {
 	}
 	run, err := s.klr.Allocate(r.Context(), sourceID, from, to, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, run)
@@ -293,7 +293,7 @@ func (s *Server) defineCostUnitKey(w http.ResponseWriter, r *http.Request) {
 	}
 	key, err := s.klr.DefineCostUnitKey(r.Context(), sourceID, req.TargetUnitID, req.ShareBP, from, to, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, key)
@@ -303,7 +303,7 @@ func (s *Server) defineCostUnitKey(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listCostUnits(w http.ResponseWriter, r *http.Request) {
 	units, err := s.klr.CostUnits(r.Context())
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, units)
@@ -318,7 +318,7 @@ func (s *Server) listCostUnitKeys(w http.ResponseWriter, r *http.Request) {
 	}
 	keys, err := s.klr.CostUnitKeys(r.Context(), sourceID)
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, keys)
@@ -348,7 +348,7 @@ func (s *Server) runCostUnitAllocation(w http.ResponseWriter, r *http.Request) {
 	}
 	run, err := s.klr.AllocateToCostUnits(r.Context(), sourceID, from, to, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, run)
@@ -386,7 +386,7 @@ func (s *Server) defineServiceRate(w http.ResponseWriter, r *http.Request) {
 	}
 	rate, err := s.klr.DefineServiceRate(r.Context(), req.CostTypeID, req.RateCents, from, to, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, rate)
@@ -396,7 +396,7 @@ func (s *Server) defineServiceRate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listServiceRates(w http.ResponseWriter, r *http.Request) {
 	rates, err := s.klr.ServiceRates(r.Context())
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, rates)
@@ -425,7 +425,7 @@ func (s *Server) chargeService(w http.ResponseWriter, r *http.Request) {
 	charge, err := s.klr.ChargeService(r.Context(), req.ProviderCenterID, req.ReceiverCenterID,
 		req.CostTypeID, req.Quantity, on, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, charge)
@@ -439,7 +439,7 @@ func (s *Server) getKLRReport(w http.ResponseWriter, r *http.Request) {
 	}
 	rep, err := s.klr.Report(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, rep)
@@ -460,7 +460,7 @@ func (s *Server) createCostType(w http.ResponseWriter, r *http.Request) {
 	}
 	ct, err := s.klr.PostCostType(r.Context(), req.Code, req.Name, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, ct)
@@ -470,7 +470,7 @@ func (s *Server) createCostType(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listCostTypes(w http.ResponseWriter, r *http.Request) {
 	types, err := s.klr.CostTypes(r.Context())
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, types)
@@ -494,7 +494,7 @@ func (s *Server) mapCostTypeAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	link, err := s.klr.MapAccount(r.Context(), id, req.AccountCode, actor(r))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, link)
@@ -509,7 +509,7 @@ func (s *Server) listCostTypeAccounts(w http.ResponseWriter, r *http.Request) {
 	}
 	accounts, err := s.klr.AccountsOf(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, accounts)
@@ -521,7 +521,7 @@ func (s *Server) listCostTypeAccounts(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getCostTypeByAccount(w http.ResponseWriter, r *http.Request) {
 	ct, err := s.klr.CostTypeByAccount(r.Context(), r.PathValue("account"))
 	if err != nil {
-		writeProblem(w, statusForKLR(err), err.Error())
+		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, ct)

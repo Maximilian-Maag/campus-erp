@@ -52,7 +52,7 @@ func (s *Server) createFoundationBook(w http.ResponseWriter, r *http.Request) {
 	}
 	book, err := s.foundationBooks.CreateBook(r.Context(), req.FoundationID, req.Reference, req.Currency, actor(r))
 	if err != nil {
-		writeProblem(w, statusForFoundationBook(err), err.Error())
+		writeDomainProblem(w, statusForFoundationBook(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, book)
@@ -77,7 +77,7 @@ func (s *Server) bookFoundation(w http.ResponseWriter, r *http.Request) {
 	}
 	booking, err := s.foundationBooks.Book(r.Context(), id, req.AmountCents, kasse.BookingKind(req.Kind), req.Purpose, actor(r))
 	if err != nil {
-		writeProblem(w, statusForFoundationBook(err), err.Error())
+		writeDomainProblem(w, statusForFoundationBook(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, booking)
@@ -91,7 +91,7 @@ func (s *Server) getFoundationBookings(w http.ResponseWriter, r *http.Request) {
 	}
 	bookings, err := s.foundationBooks.Bookings(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForFoundationBook(err), err.Error())
+		writeDomainProblem(w, statusForFoundationBook(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, bookings)
@@ -105,7 +105,7 @@ func (s *Server) getFoundationBalance(w http.ResponseWriter, r *http.Request) {
 	}
 	bal, err := s.foundationBooks.Balance(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForFoundationBook(err), err.Error())
+		writeDomainProblem(w, statusForFoundationBook(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, bal)
@@ -121,7 +121,7 @@ func (s *Server) listFoundationBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	books, err := s.foundationBooks.Books(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForFoundationBook(err), err.Error())
+		writeDomainProblem(w, statusForFoundationBook(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, books)

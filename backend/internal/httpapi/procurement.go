@@ -41,7 +41,7 @@ func (s *Server) listPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	orders, err := s.procurement.Orders(r.Context(), status)
 	if err != nil {
-		writeProblem(w, statusForProcurement(err), err.Error())
+		writeDomainProblem(w, statusForProcurement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, orders)
@@ -115,7 +115,7 @@ func (s *Server) createPurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	order, err := s.procurement.Create(r.Context(), req.Number, req.Supplier, req.BudgetPositionID, req.Currency, lines, actor(r))
 	if err != nil {
-		writeProblem(w, statusForProcurement(err), err.Error())
+		writeDomainProblem(w, statusForProcurement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, order)
@@ -129,7 +129,7 @@ func (s *Server) getPurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	order, err := s.procurement.Get(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForProcurement(err), err.Error())
+		writeDomainProblem(w, statusForProcurement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, order)
@@ -185,7 +185,7 @@ func (s *Server) recordGoodsReceipt(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := s.procurement.RecordReceipt(r.Context(), id, req.Reference, receivedOn, lines, actor(r))
 	if err != nil {
-		writeProblem(w, statusForProcurement(err), err.Error())
+		writeDomainProblem(w, statusForProcurement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, result)
@@ -201,7 +201,7 @@ func (s *Server) listGoodsReceipts(w http.ResponseWriter, r *http.Request) {
 	}
 	state, err := s.procurement.ReceiptState(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForProcurement(err), err.Error())
+		writeDomainProblem(w, statusForProcurement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, state)
@@ -215,7 +215,7 @@ func (s *Server) purchaseOrderStep(w http.ResponseWriter, r *http.Request, step 
 	}
 	order, err := step(r.Context(), id, actor(r))
 	if err != nil {
-		writeProblem(w, statusForProcurement(err), err.Error())
+		writeDomainProblem(w, statusForProcurement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, order)

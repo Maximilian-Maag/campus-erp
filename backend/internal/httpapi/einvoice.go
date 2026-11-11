@@ -135,7 +135,7 @@ func (s *Server) createEInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := s.einvoices.Create(r.Context(), inv, actor(r))
 	if err != nil {
-		writeProblem(w, statusForEInvoice(err), err.Error())
+		writeDomainProblem(w, statusForEInvoice(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -150,7 +150,7 @@ func (s *Server) receiveEInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := s.einvoices.ImportReceived(r.Context(), string(body), actor(r))
 	if err != nil {
-		writeProblem(w, statusForEInvoice(err), err.Error())
+		writeDomainProblem(w, statusForEInvoice(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -161,7 +161,7 @@ func (s *Server) receiveEInvoice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listEInvoices(w http.ResponseWriter, r *http.Request) {
 	invoices, err := s.einvoices.Invoices(r.Context())
 	if err != nil {
-		writeProblem(w, statusForEInvoice(err), err.Error())
+		writeDomainProblem(w, statusForEInvoice(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, invoices)
@@ -178,7 +178,7 @@ func (s *Server) matchEInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	inv, err := s.einvoices.Match(r.Context(), id, actor(r))
 	if err != nil {
-		writeProblem(w, statusForEInvoice(err), err.Error())
+		writeDomainProblem(w, statusForEInvoice(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, inv)
@@ -192,7 +192,7 @@ func (s *Server) getEInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	inv, err := s.einvoices.Get(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForEInvoice(err), err.Error())
+		writeDomainProblem(w, statusForEInvoice(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, inv)
@@ -206,7 +206,7 @@ func (s *Server) getEInvoiceXML(w http.ResponseWriter, r *http.Request) {
 	}
 	doc, err := s.einvoices.Render(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForEInvoice(err), err.Error())
+		writeDomainProblem(w, statusForEInvoice(err), err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -224,7 +224,7 @@ func (s *Server) getEInvoiceCII(w http.ResponseWriter, r *http.Request) {
 	}
 	doc, err := s.einvoices.RenderCII(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForEInvoice(err), err.Error())
+		writeDomainProblem(w, statusForEInvoice(err), err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")

@@ -245,10 +245,12 @@ contracts-validate: ## Lint contracts/openapi.yaml
 contracts-check: ## Verify the OpenAPI spec matches the Go routes (drift guard)
 	@python3 $(ROOT)/tools/api_contract.py selftest
 	@python3 $(ROOT)/tools/api_contract.py check
+	@python3 $(ROOT)/tools/gen_domaincodes.py --check
 
-contracts-gen: ## Regenerate contracts/openapi.yaml and the Angular client
+contracts-gen: ## Regenerate contracts/openapi.yaml, the Angular client and the domain codes
 	@/usr/bin/python3 $(ROOT)/tools/gen_openapi.py
 	@python3 $(ROOT)/tools/api_contract.py gen
+	@python3 $(ROOT)/tools/gen_domaincodes.py
 
 # ════════════════════════════════════════════════════════════════════════════
 # Container images

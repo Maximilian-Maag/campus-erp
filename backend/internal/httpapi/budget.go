@@ -46,7 +46,7 @@ func (s *Server) importBudget(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := s.budget.Import(r.Context(), req.Layout, req.Content, actor(r))
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, res)
@@ -104,7 +104,7 @@ func (s *Server) createBudgetPosition(w http.ResponseWriter, r *http.Request) {
 	}
 	pos, err := s.budget.CreatePosition(r.Context(), req.Year, req.Chapter, req.Title, req.Description, req.AllocatedCents, actor(r))
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, pos)
@@ -127,12 +127,12 @@ func (s *Server) getBudgetPosition(w http.ResponseWriter, r *http.Request) {
 	}
 	pos, err := s.budget.GetPosition(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	bal, err := s.budget.Balance(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, budgetPositionResponse{Position: pos, Balance: bal, AvailableCents: bal.AvailableCents()})
@@ -145,14 +145,14 @@ func (s *Server) getBudgetPosition(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listBudgetPositions(w http.ResponseWriter, r *http.Request) {
 	positions, err := s.budget.Positions(r.Context())
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	out := make([]budgetPositionResponse, 0, len(positions))
 	for _, pos := range positions {
 		bal, err := s.budget.Balance(r.Context(), pos.ID)
 		if err != nil {
-			writeProblem(w, statusForBudget(err), err.Error())
+			writeDomainProblem(w, statusForBudget(err), err)
 			return
 		}
 		out = append(out, budgetPositionResponse{Position: pos, Balance: bal, AvailableCents: bal.AvailableCents()})
@@ -179,7 +179,7 @@ func (s *Server) postBudget(w http.ResponseWriter, r *http.Request) {
 	}
 	posting, err := s.budget.Post(r.Context(), id, budget.PostingKind(req.Kind), req.AmountCents, req.Reference, actor(r))
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, posting)
@@ -193,7 +193,7 @@ func (s *Server) getBudgetBalance(w http.ResponseWriter, r *http.Request) {
 	}
 	bal, err := s.budget.Balance(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, bal)
@@ -228,7 +228,7 @@ func (s *Server) createBudgetSource(w http.ResponseWriter, r *http.Request) {
 	}
 	src, err := s.budget.CreateSource(r.Context(), req.Code, req.Name, req.Chapter, actor(r))
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, src)
@@ -238,7 +238,7 @@ func (s *Server) createBudgetSource(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listBudgetSources(w http.ResponseWriter, r *http.Request) {
 	sources, err := s.budget.Sources(r.Context())
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, sources)
@@ -252,7 +252,7 @@ func (s *Server) createBudgetCenter(w http.ResponseWriter, r *http.Request) {
 	}
 	center, err := s.budget.CreateCenter(r.Context(), req.Code, req.Name, actor(r))
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, center)
@@ -262,7 +262,7 @@ func (s *Server) createBudgetCenter(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listBudgetCenters(w http.ResponseWriter, r *http.Request) {
 	centers, err := s.budget.Centers(r.Context())
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, centers)
@@ -282,7 +282,7 @@ func (s *Server) assignBudgetPosition(w http.ResponseWriter, r *http.Request) {
 	}
 	pos, err := s.budget.AssignPosition(r.Context(), id, req.SourceID, req.CenterID, actor(r))
 	if err != nil {
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, pos)

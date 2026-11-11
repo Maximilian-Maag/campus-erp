@@ -76,7 +76,7 @@ func (s *Server) runETLDataset(w http.ResponseWriter, r *http.Request) {
 	}
 	report, err := s.etl.Run(r.Context(), req.Dataset, actor(r))
 	if err != nil {
-		writeProblem(w, statusForETL(err), err.Error())
+		writeDomainProblem(w, statusForETL(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, report)

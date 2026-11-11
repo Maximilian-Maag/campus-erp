@@ -48,7 +48,7 @@ type upsertLookupsRequest struct {
 func (s *Server) listLookups(w http.ResponseWriter, r *http.Request) {
 	values, err := s.lookups.List(r.Context(), r.PathValue("namespace"))
 	if err != nil {
-		writeProblem(w, statusForLookup(err), err.Error())
+		writeDomainProblem(w, statusForLookup(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, values)
@@ -57,7 +57,7 @@ func (s *Server) listLookups(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getLookup(w http.ResponseWriter, r *http.Request) {
 	v, err := s.lookups.Get(r.Context(), r.PathValue("namespace"), r.PathValue("code"))
 	if err != nil {
-		writeProblem(w, statusForLookup(err), err.Error())
+		writeDomainProblem(w, statusForLookup(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, v)
@@ -79,7 +79,7 @@ func (s *Server) upsertLookups(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := s.lookups.UpsertMany(r.Context(), values, actor(r))
 	if err != nil {
-		writeProblem(w, statusForLookup(err), err.Error())
+		writeDomainProblem(w, statusForLookup(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, saved)
@@ -88,7 +88,7 @@ func (s *Server) upsertLookups(w http.ResponseWriter, r *http.Request) {
 func (s *Server) seedLookups(w http.ResponseWriter, r *http.Request) {
 	n, err := s.lookups.Seed(r.Context(), actor(r))
 	if err != nil {
-		writeProblem(w, statusForLookup(err), err.Error())
+		writeDomainProblem(w, statusForLookup(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"seeded": n})
