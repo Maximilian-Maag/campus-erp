@@ -102,9 +102,10 @@ test-all: ## Full suite: the fast checks + the mutation gates
 quality: policy contracts-check test-all ## Policy check + contract + full quality suite
 
 .PHONY: test-tools
-test-tools: ## Self-test the tooling (ER-model generator + API contract)
+test-tools: ## Self-test the tooling (ER-model generator + API contract + domain codes)
 	@python3 $(ROOT)/tools/test_erm.py
 	@python3 $(ROOT)/tools/api_contract.py selftest
+	@python3 $(ROOT)/tools/test_domaincodes.py
 
 .PHONY: policy
 policy: ## Run the policy checker (changed files)
