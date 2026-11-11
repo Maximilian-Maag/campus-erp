@@ -2,6 +2,30 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.106.0] - 2026-11-10
+
+The KLR's print views exist, and every report the system renders can be produced from the UI: the
+missing layouts are catalogue entries like the overviews, and one screen renders any of them.
+
+### Added
+- Three KLR print views (`internal/modules/klr/klr_printviews.go`, `docs/25`), all snapshots like
+  the existing overviews, so they take no period:
+  - **Kostenartenübersicht** (`klr-cost-type-overview`) — every cost type with the general-ledger
+    accounts bridged to it, its Kosten, Erlöse and Saldo, plus totals;
+  - **Verrechnungspreise** (`klr-service-rate-overview`) — every internal price with the cost type
+    it prices, ordered by that cost type and then by validity, an open end printed as `offen`;
+  - **Umlageregeln** (`klr-allocation-overview`) — every apportionment rule with **both** centres
+    named (the collector resolves the ids) and its share as the operator typed it.
+- `klr.Repo.CostTypeFigures` (a cost type with nothing booked on it is still a row, with whatever
+  accounts it owns) and `klr.Repo.AllocationRules` (every rule, not one centre's), both behind
+  service reads; `klrPercent` / `klrDay` / `klrValidUntil` format the domain's own values, next to
+  `klrCents`.
+- The catalogue grew from four reports to seven, and the API's `GET /api/reports` offers them from
+  the same list the worker renders from.
+- *Auswertungen* (`/auswertungen`): lists the catalogue with each report's columns and queues a
+  render of the chosen report over a stated period, reporting the job it was queued as and linking
+  the file it will produce (`/api/artefacts/reports/<report id>-<from>-<to>.pdf`).
+
 ## [0.105.0] - 2026-11-10
 
 A delivery is recorded line by line: what actually arrived is booked against an approved order as

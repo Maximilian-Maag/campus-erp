@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/report"
@@ -48,12 +49,35 @@ type CostUnits interface {
 	CostUnitFigures(ctx context.Context) ([]klr.CostUnitLine, error)
 }
 
+// CostTypes lists the cost types with their bridged accounts and what the books carry on them
+// (klr.Service satisfies it) — the Kostenarten print view (docs/25).
+type CostTypes interface {
+	CostTypeFigures(ctx context.Context) ([]klr.CostTypeLine, error)
+}
+
+// Prices lists the internal prices with the cost types they price (klr.Service satisfies it) —
+// the Verrechnungspreise print view (docs/25).
+type Prices interface {
+	ServiceRates(ctx context.Context) ([]klr.ServiceRate, error)
+	CostTypes(ctx context.Context) ([]klr.CostType, error)
+}
+
+// Rules lists the apportionment rules with the centres they name (klr.Service satisfies it) —
+// the Umlageregeln print view (docs/25).
+type Rules interface {
+	AllocationRules(ctx context.Context) ([]klr.Allocation, error)
+	CostCenters(ctx context.Context) ([]klr.CostCenter, error)
+}
+
 // DataSources is the read-only data the catalogue's reports collect from.
 type DataSources struct {
 	Bookings  Bookings
 	Positions Positions
 	Centres   Centres
 	Units     CostUnits
+	CostTypes CostTypes
+	Prices    Prices
+	Rules     Rules
 }
 
 // Report is one catalogue entry: the definition a client asks for, and the collector that fills
@@ -84,6 +108,18 @@ func NewCatalogue(src DataSources) *Catalogue {
 		{
 			Definition: klr.CostUnitOverviewDefinition,
 			Collect:    collectCostUnitOverview(src.Units),
+		},
+		{
+			Definition: klr.CostTypeOverviewDefinition,
+			Collect:    collectCostTypeOverview(src.CostTypes),
+		},
+		{
+			Definition: klr.ServiceRateOverviewDefinition,
+			Collect:    collectServiceRateOverview(src.Prices),
+		},
+		{
+			Definition: klr.AllocationOverviewDefinition,
+			Collect:    collectAllocationOverview(src.Rules),
 		},
 	}}
 }
@@ -190,6 +226,91 @@ func collectCostUnitOverview(units CostUnits) func(context.Context, time.Time, t
 			return report.Report{}, err
 		}
 		return klr.CostUnitOverview(generatedAt(), lines), nil
+	}
+}
+
+// collectCostTypeOverview builds the Kostenartenübersicht from the cost types with their accounts
+// and what the books carry on them.
+func collectCostTypeOverview(costTypes CostTypes) func(context.Context, time.Time, time.Time) (report.Report, error) {
+	return func(ctx context.Context, _ time.Time, _ time.Time) (report.Report, error) {
+		if costTypes == nil {
+			return report.Report{}, ErrNoSource
+		}
+		lines, err := costTypes.CostTypeFigures(ctx)
+		if err != nil {
+			return report.Report{}, err
+		}
+		return klr.CostTypeOverview(generatedAt(), lines), nil
+	}
+}
+
+// collectServiceRateOverview builds the Verrechnungspreise view. The prices name a cost type by
+// id, so the collector resolves the code and the name — the print view states which service a
+// price belongs to, not which row it is. The rows are ordered by cost type and then by validity,
+// so a price change reads as a column rather than as an accident of insertion order.
+func collectServiceRateOverview(prices Prices) func(context.Context, time.Time, time.Time) (report.Report, error) {
+	return func(ctx context.Context, _ time.Time, _ time.Time) (report.Report, error) {
+		if prices == nil {
+			return report.Report{}, ErrNoSource
+		}
+		rates, err := prices.ServiceRates(ctx)
+		if err != nil {
+			return report.Report{}, err
+		}
+		types, err := prices.CostTypes(ctx)
+		if err != nil {
+			return report.Report{}, err
+		}
+		byID := make(map[int64]klr.CostType, len(types))
+		for _, t := range types {
+			byID[t.ID] = t
+		}
+		lines := make([]klr.ServiceRateLine, 0, len(rates))
+		for _, r := range rates {
+			t := byID[r.CostTypeID]
+			lines = append(lines, klr.ServiceRateLine{Rate: r, CostTypeCode: t.Code, CostTypeName: t.Name})
+		}
+		sort.SliceStable(lines, func(i, j int) bool {
+			if lines[i].CostTypeCode != lines[j].CostTypeCode {
+				return lines[i].CostTypeCode < lines[j].CostTypeCode
+			}
+			return lines[i].Rate.ValidFrom.Before(lines[j].Rate.ValidFrom)
+		})
+		return klr.ServiceRateOverview(generatedAt(), lines), nil
+	}
+}
+
+// collectAllocationOverview builds the Umlageregeln view. A rule names its two ends by id, so the
+// collector resolves both — a print view that only printed ids would not be readable.
+func collectAllocationOverview(rules Rules) func(context.Context, time.Time, time.Time) (report.Report, error) {
+	return func(ctx context.Context, _ time.Time, _ time.Time) (report.Report, error) {
+		if rules == nil {
+			return report.Report{}, ErrNoSource
+		}
+		list, err := rules.AllocationRules(ctx)
+		if err != nil {
+			return report.Report{}, err
+		}
+		centres, err := rules.CostCenters(ctx)
+		if err != nil {
+			return report.Report{}, err
+		}
+		byID := make(map[int64]klr.CostCenter, len(centres))
+		for _, c := range centres {
+			byID[c.ID] = c
+		}
+		lines := make([]klr.AllocationLine, 0, len(list))
+		for _, a := range list {
+			source, target := byID[a.SourceCenterID], byID[a.TargetCenterID]
+			lines = append(lines, klr.AllocationLine{
+				Allocation:   a,
+				SourceNumber: source.Number,
+				SourceName:   source.Name,
+				TargetNumber: target.Number,
+				TargetName:   target.Name,
+			})
+		}
+		return klr.AllocationOverview(generatedAt(), lines), nil
 	}
 }
 

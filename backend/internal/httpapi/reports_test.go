@@ -26,12 +26,18 @@ func TestListReportsRoute(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&defs); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(defs) != 4 {
-		t.Fatalf("reports = %d, want 4", len(defs))
+	want := []string{
+		"kasse-daily-close", "budget-position-overview", "klr-cost-center-overview",
+		"klr-cost-unit-overview", "klr-cost-type-overview", "klr-service-rate-overview",
+		"klr-allocation-overview",
 	}
-	if defs[0].ID != "kasse-daily-close" || defs[1].ID != "budget-position-overview" ||
-		defs[2].ID != "klr-cost-center-overview" || defs[3].ID != "klr-cost-unit-overview" {
-		t.Fatalf("ids = %q, %q, %q, %q", defs[0].ID, defs[1].ID, defs[2].ID, defs[3].ID)
+	if len(defs) != len(want) {
+		t.Fatalf("reports = %d, want %d", len(defs), len(want))
+	}
+	for i, id := range want {
+		if defs[i].ID != id {
+			t.Fatalf("report %d = %q, want %q", i, defs[i].ID, id)
+		}
 	}
 	// The definitions carry their columns, so a client can offer the report without guessing.
 	if defs[1].Title != "Mittelübersicht" || len(defs[1].Columns) != 8 {

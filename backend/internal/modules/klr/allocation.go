@@ -79,6 +79,13 @@ func (s *Service) DefineAllocation(ctx context.Context, sourceCenterID, targetCe
 	return saved, nil
 }
 
+// AllocationRules lists every distribution key, whatever its source centre — the read the
+// Umlageregeln print view is built from (docs/25), where Allocations is the read one centre's
+// screen needs. It is a read, so it is not audited.
+func (s *Service) AllocationRules(ctx context.Context) ([]Allocation, error) {
+	return s.repo.AllocationRules(ctx)
+}
+
 // Allocations lists a cost centre's distribution keys. An unknown centre is a not-found rather
 // than an empty list, exactly as reading its report is.
 func (s *Service) Allocations(ctx context.Context, sourceCenterID int64) ([]Allocation, error) {

@@ -99,6 +99,9 @@ func main() {
 		Positions: budget.NewPositionService(budget.NewPositionRepo(pool), audit.NewStore(pool)),
 		Centres:   klrSvc,
 		Units:     klrSvc,
+		CostTypes: klrSvc,
+		Prices:    klrSvc,
+		Rules:     klrSvc,
 	})
 	reportRenderer := func(ctx context.Context, reportID string, from, to time.Time, by string) (string, error) {
 		if docRenderer == nil {

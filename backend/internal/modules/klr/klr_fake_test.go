@@ -21,6 +21,7 @@ type fakeRepo struct {
 	link          CostTypeAccount
 	links         []CostTypeAccount
 	unitLines     []CostUnitLine
+	costTypeLines []CostTypeLine
 	unit          CostUnit
 	units         []CostUnit
 	unitKeys      []CostUnitKey
@@ -54,6 +55,12 @@ func (f *fakeRepo) CreateAllocation(_ context.Context, a Allocation) (Allocation
 }
 func (f *fakeRepo) Allocations(context.Context, int64) ([]Allocation, error) {
 	return f.allocations, f.err
+}
+func (f *fakeRepo) AllocationRules(context.Context) ([]Allocation, error) {
+	return f.allocations, f.err
+}
+func (f *fakeRepo) CostTypeFigures(context.Context) ([]CostTypeLine, error) {
+	return f.costTypeLines, f.err
 }
 func (f *fakeRepo) CostsInPeriod(context.Context, int64, time.Time, time.Time) (int64, error) {
 	return f.costs, f.err

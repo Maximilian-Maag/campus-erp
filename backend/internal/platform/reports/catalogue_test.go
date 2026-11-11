@@ -79,18 +79,67 @@ func (f *fakeCostUnits) CostUnitFigures(context.Context) ([]klr.CostUnitLine, er
 	return f.lines, f.err
 }
 
+type fakeCostTypes struct {
+	lines []klr.CostTypeLine
+	err   error
+}
+
+func (f *fakeCostTypes) CostTypeFigures(context.Context) ([]klr.CostTypeLine, error) {
+	return f.lines, f.err
+}
+
+type fakePrices struct {
+	rates    []klr.ServiceRate
+	types    []klr.CostType
+	ratesErr error
+	typesErr error
+}
+
+func (f *fakePrices) ServiceRates(context.Context) ([]klr.ServiceRate, error) {
+	return f.rates, f.ratesErr
+}
+
+func (f *fakePrices) CostTypes(context.Context) ([]klr.CostType, error) {
+	return f.types, f.typesErr
+}
+
+type fakeRules struct {
+	rules      []klr.Allocation
+	centres    []klr.CostCenter
+	rulesErr   error
+	centresErr error
+}
+
+func (f *fakeRules) AllocationRules(context.Context) ([]klr.Allocation, error) {
+	return f.rules, f.rulesErr
+}
+
+func (f *fakeRules) CostCenters(context.Context) ([]klr.CostCenter, error) {
+	return f.centres, f.centresErr
+}
+
 // TestCatalogueIsTheSingleList: the catalogue's definitions are the domains' own, in catalogue
 // order, so the API offering a report and the worker rendering it cannot disagree.
 func TestCatalogueIsTheSingleList(t *testing.T) {
 	c := reports.NewCatalogue(reports.DataSources{})
 
 	defs := c.Definitions()
-	if len(defs) != 4 {
-		t.Fatalf("definitions = %d, want 4", len(defs))
+	want := []string{
+		kasse.DailyCloseDefinition.ID,
+		budget.PositionOverviewDefinition.ID,
+		klr.CostCenterOverviewDefinition.ID,
+		klr.CostUnitOverviewDefinition.ID,
+		klr.CostTypeOverviewDefinition.ID,
+		klr.ServiceRateOverviewDefinition.ID,
+		klr.AllocationOverviewDefinition.ID,
 	}
-	if defs[0].ID != kasse.DailyCloseDefinition.ID || defs[1].ID != budget.PositionOverviewDefinition.ID ||
-		defs[2].ID != klr.CostCenterOverviewDefinition.ID || defs[3].ID != klr.CostUnitOverviewDefinition.ID {
-		t.Fatalf("definitions = %q, %q, %q, %q", defs[0].ID, defs[1].ID, defs[2].ID, defs[3].ID)
+	if len(defs) != len(want) {
+		t.Fatalf("definitions = %d, want %d", len(defs), len(want))
+	}
+	for i, id := range want {
+		if defs[i].ID != id {
+			t.Fatalf("definition %d = %q, want %q", i, defs[i].ID, id)
+		}
 	}
 	if defs[1].Title != budget.PositionOverviewDefinition.Title || len(defs[1].Columns) != len(budget.PositionOverviewDefinition.Columns) {
 		t.Fatalf("second definition is not the budget overview: %+v", defs[1])
@@ -103,8 +152,13 @@ func TestCatalogueIsTheSingleList(t *testing.T) {
 	}
 
 	ids := c.IDs()
-	if len(ids) != len(defs) || ids[0] != defs[0].ID || ids[1] != defs[1].ID || ids[2] != defs[2].ID || ids[3] != defs[3].ID {
+	if len(ids) != len(defs) {
 		t.Fatalf("ids = %v, want %v", ids, defs)
+	}
+	for i := range ids {
+		if ids[i] != defs[i].ID {
+			t.Fatalf("ids = %v, want the definitions' own", ids)
+		}
 	}
 
 	// An empty catalogue has no definitions rather than a nil panic.
@@ -237,6 +291,110 @@ func TestRenderCostUnitOverview(t *testing.T) {
 	}
 }
 
+func TestRenderCostTypeOverview(t *testing.T) {
+	from, to := period()
+	types := &fakeCostTypes{lines: []klr.CostTypeLine{
+		{
+			CostType: klr.CostType{ID: 1, Code: "4000", Name: "Personalkosten"},
+			Accounts: []string{"4000", "4010"}, CostsCents: 100000, RevenuesCents: 25000,
+		},
+		// A cost type nothing is booked on yet is still a row, with whatever accounts it owns.
+		{CostType: klr.CostType{ID: 2, Code: "4200", Name: "Material"}},
+	}}
+	c := reports.NewCatalogue(reports.DataSources{CostTypes: types})
+
+	got, err := c.Render(context.Background(), klr.CostTypeOverviewDefinition.ID, from, to)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	// Two cost types plus the totals row.
+	if len(got.Rows) != 3 {
+		t.Fatalf("rows = %d, want 3 (%v)", len(got.Rows), got.Rows)
+	}
+	if got.Rows[0][0] != "4000" || got.Rows[0][1] != "Personalkosten" || got.Rows[0][2] != "4000, 4010" ||
+		got.Rows[0][3] != "1000.00" || got.Rows[0][4] != "250.00" || got.Rows[0][5] != "-750.00" {
+		t.Fatalf("first row = %v", got.Rows[0])
+	}
+	if got.Rows[1][2] != "" || got.Rows[1][3] != "0.00" {
+		t.Fatalf("cost type without records = %v", got.Rows[1])
+	}
+	total := got.Rows[2]
+	if total[1] != "Summe" || total[3] != "1000.00" || total[4] != "250.00" || total[5] != "-750.00" {
+		t.Fatalf("totals row = %v", total)
+	}
+}
+
+func TestRenderServiceRateOverview(t *testing.T) {
+	from, to := period()
+	end := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
+	prices := &fakePrices{
+		// Deliberately out of cost-type order: the view is ordered by the cost type it prices.
+		rates: []klr.ServiceRate{
+			{ID: 1, CostTypeID: 2, RateCents: 500, ValidFrom: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+			{ID: 2, CostTypeID: 1, RateCents: 1250, ValidFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)},
+			{ID: 3, CostTypeID: 1, RateCents: 1500, ValidFrom: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), ValidTo: &end},
+		},
+		types: []klr.CostType{
+			{ID: 1, Code: "4000", Name: "Personalkosten"},
+			{ID: 2, Code: "4200", Name: "Material"},
+		},
+	}
+	c := reports.NewCatalogue(reports.DataSources{Prices: prices})
+
+	got, err := c.Render(context.Background(), klr.ServiceRateOverviewDefinition.ID, from, to)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if len(got.Rows) != 3 {
+		t.Fatalf("rows = %d, want 3 (%v)", len(got.Rows), got.Rows)
+	}
+	// The cost type is named, and a price with no end states that rather than printing nothing.
+	if got.Rows[0][0] != "4000" || got.Rows[0][1] != "Personalkosten" || got.Rows[0][2] != "12.50" ||
+		got.Rows[0][3] != "01.04.2026" || got.Rows[0][4] != "offen" {
+		t.Fatalf("first row = %v", got.Rows[0])
+	}
+	if got.Rows[1][2] != "15.00" || got.Rows[1][4] != "30.06.2026" {
+		t.Fatalf("second row = %v", got.Rows[1])
+	}
+	if got.Rows[2][0] != "4200" || got.Rows[2][2] != "5.00" {
+		t.Fatalf("third row = %v", got.Rows[2])
+	}
+}
+
+func TestRenderAllocationOverview(t *testing.T) {
+	from, to := period()
+	end := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
+	rules := &fakeRules{
+		rules: []klr.Allocation{
+			{ID: 1, SourceCenterID: 1, TargetCenterID: 2, ShareBP: 1250, ValidFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)},
+			{ID: 2, SourceCenterID: 1, TargetCenterID: 3, ShareBP: 10000, ValidFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC), ValidTo: &end},
+		},
+		centres: []klr.CostCenter{
+			{ID: 1, Number: "K-10", Name: "Verwaltung"},
+			{ID: 2, Number: "K-20", Name: "Bibliothek"},
+			{ID: 3, Number: "K-30", Name: "Mensa"},
+		},
+	}
+	c := reports.NewCatalogue(reports.DataSources{Rules: rules})
+
+	got, err := c.Render(context.Background(), klr.AllocationOverviewDefinition.ID, from, to)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	// One row per rule, both ends named rather than printed as ids.
+	if len(got.Rows) != 2 {
+		t.Fatalf("rows = %d, want 2 (%v)", len(got.Rows), got.Rows)
+	}
+	if got.Rows[0][0] != "K-10" || got.Rows[0][1] != "Verwaltung" || got.Rows[0][2] != "K-20" ||
+		got.Rows[0][3] != "Bibliothek" || got.Rows[0][4] != "12,5 %" || got.Rows[0][5] != "01.04.2026" ||
+		got.Rows[0][6] != "offen" {
+		t.Fatalf("first row = %v", got.Rows[0])
+	}
+	if got.Rows[1][4] != "100 %" || got.Rows[1][6] != "30.06.2026" {
+		t.Fatalf("second row = %v", got.Rows[1])
+	}
+}
+
 // TestRenderRefusals: an unknown report, a missing data source and a failing source all fail
 // rather than rendering something that looks real.
 func TestRenderRefusals(t *testing.T) {
@@ -279,5 +437,31 @@ func TestRenderRefusals(t *testing.T) {
 	}
 	if _, err := reports.NewCatalogue(reports.DataSources{Units: &fakeCostUnits{err: boom}}).Render(context.Background(), klr.CostUnitOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
 		t.Fatalf("cost-unit figures error = %v, want boom", err)
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{}).Render(context.Background(), klr.CostTypeOverviewDefinition.ID, from, to); !errors.Is(err, reports.ErrNoSource) {
+		t.Fatalf("no cost-type source = %v, want ErrNoSource", err)
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{CostTypes: &fakeCostTypes{err: boom}}).Render(context.Background(), klr.CostTypeOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
+		t.Fatalf("cost-type figures error = %v, want boom", err)
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{}).Render(context.Background(), klr.ServiceRateOverviewDefinition.ID, from, to); !errors.Is(err, reports.ErrNoSource) {
+		t.Fatalf("no price source = %v, want ErrNoSource", err)
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{Prices: &fakePrices{ratesErr: boom}}).Render(context.Background(), klr.ServiceRateOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
+		t.Fatalf("rates error = %v, want boom", err)
+	}
+	// The cost types a price names are read too: if they cannot be read, the view stops rather
+	// than printing a price with no service.
+	if _, err := reports.NewCatalogue(reports.DataSources{Prices: &fakePrices{typesErr: boom}}).Render(context.Background(), klr.ServiceRateOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
+		t.Fatalf("cost types error = %v, want boom", err)
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{}).Render(context.Background(), klr.AllocationOverviewDefinition.ID, from, to); !errors.Is(err, reports.ErrNoSource) {
+		t.Fatalf("no rules source = %v, want ErrNoSource", err)
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{Rules: &fakeRules{rulesErr: boom}}).Render(context.Background(), klr.AllocationOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
+		t.Fatalf("rules error = %v, want boom", err)
+	}
+	if _, err := reports.NewCatalogue(reports.DataSources{Rules: &fakeRules{centresErr: boom}}).Render(context.Background(), klr.AllocationOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
+		t.Fatalf("centres error = %v, want boom", err)
 	}
 }
