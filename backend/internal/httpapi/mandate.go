@@ -63,12 +63,12 @@ func (s *Server) createMandate(w http.ResponseWriter, r *http.Request) {
 	m, err := kasse.NewMandate(req.Reference, req.DebtorName, req.DebtorIBAN, req.DebtorBIC,
 		signatureDate, kasse.MandateSequence(req.SequenceType))
 	if err != nil {
-		writeProblem(w, statusForMandate(err), err.Error())
+		writeDomainProblem(w, statusForMandate(err), err)
 		return
 	}
 	saved, err := s.mandates.CreateMandate(r.Context(), m, actor(r))
 	if err != nil {
-		writeProblem(w, statusForMandate(err), err.Error())
+		writeDomainProblem(w, statusForMandate(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -77,7 +77,7 @@ func (s *Server) createMandate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getMandate(w http.ResponseWriter, r *http.Request) {
 	m, err := s.mandates.Mandate(r.Context(), r.PathValue("reference"))
 	if err != nil {
-		writeProblem(w, statusForMandate(err), err.Error())
+		writeDomainProblem(w, statusForMandate(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, m)
@@ -88,7 +88,7 @@ func (s *Server) getMandate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) retireMandate(w http.ResponseWriter, r *http.Request) {
 	retired, err := s.mandates.RetireMandate(r.Context(), r.PathValue("reference"), actor(r))
 	if err != nil {
-		writeProblem(w, statusForMandate(err), err.Error())
+		writeDomainProblem(w, statusForMandate(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, retired)
@@ -116,7 +116,7 @@ func (s *Server) listMandates(w http.ResponseWriter, r *http.Request) {
 	}
 	mandates, err := s.mandates.Mandates(r.Context(), activeOnly, seq)
 	if err != nil {
-		writeProblem(w, statusForMandate(err), err.Error())
+		writeDomainProblem(w, statusForMandate(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, mandates)

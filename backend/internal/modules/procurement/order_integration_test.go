@@ -339,3 +339,123 @@ func TestProcurementMatchReceipt(t *testing.T) {
 		t.Fatalf("audit verify: %v", err)
 	}
 }
+
+// TestProcurementPartialInvoices: an order may be billed in parts. Each invoice converts what it
+// bills, the order records how much has been invoiced, and it closes only when nothing is left — so
+// an invoice that bills one delivery no longer has to be the whole order (docs/12).
+func TestProcurementPartialInvoices(t *testing.T) {
+	ctx := context.Background()
+	procSvc, budgetSvc := setup(t)
+
+	pos, err := budgetSvc.CreatePosition(ctx, 2026, "05", "M-"+suffix(t), "Beschaffung", 100000, "alice")
+	if err != nil {
+		t.Fatalf("CreatePosition: %v", err)
+	}
+	order, err := procSvc.Create(ctx, "PO-P-"+suffix(t), "Lieferant GmbH", pos.ID, "EUR", oneLine(10000, 1900), "alice")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := procSvc.Approve(ctx, order.ID, "dave"); err != nil {
+		t.Fatalf("Approve: %v", err)
+	}
+	if order.GrossCents != 11900 {
+		t.Fatalf("gross = %d, want 11900", order.GrossCents)
+	}
+
+	// The first invoice bills a delivery: it converts its own amount and leaves the order open.
+	first, err := procSvc.MatchReceipt(ctx, order.Number, 5000, "RE-P1", "carol")
+	if err != nil {
+		t.Fatalf("first partial invoice: %v", err)
+	}
+	if first.Status != procurement.StatusApproved {
+		t.Fatalf("status after a partial invoice = %s, want approved", first.Status)
+	}
+	if first.InvoicedCents != 5000 {
+		t.Fatalf("invoiced = %d, want 5000", first.InvoicedCents)
+	}
+	bal, err := budgetSvc.Balance(ctx, pos.ID)
+	if err != nil {
+		t.Fatalf("Balance: %v", err)
+	}
+	if bal.CommittedCents != 6900 || bal.ActualCents != 5000 {
+		t.Fatalf("balance = committed %d / actual %d, want 6900 / 5000", bal.CommittedCents, bal.ActualCents)
+	}
+
+	// The second invoice bills the rest: it converts what is left and closes the order.
+	second, err := procSvc.MatchReceipt(ctx, order.Number, 6900, "RE-P2", "carol")
+	if err != nil {
+		t.Fatalf("second partial invoice: %v", err)
+	}
+	if second.Status != procurement.StatusReceived {
+		t.Fatalf("status after the last invoice = %s, want received", second.Status)
+	}
+	if second.InvoicedCents != 11900 {
+		t.Fatalf("invoiced = %d, want 11900", second.InvoicedCents)
+	}
+	bal, err = budgetSvc.Balance(ctx, pos.ID)
+	if err != nil {
+		t.Fatalf("Balance: %v", err)
+	}
+	if bal.CommittedCents != 0 || bal.ActualCents != 11900 {
+		t.Fatalf("balance = committed %d / actual %d, want 0 / 11900", bal.CommittedCents, bal.ActualCents)
+	}
+
+	// A third invoice has nothing left to convert, and moves nothing.
+	if _, err := procSvc.MatchReceipt(ctx, order.Number, 100, "RE-P3", "carol"); !errors.Is(err, procurement.ErrBadTransition) {
+		t.Fatalf("invoice after completion = %v, want ErrBadTransition", err)
+	}
+
+	// An invoice above the order's gross is refused, and so is one that states nothing.
+	other, err := procSvc.Create(ctx, "PO-P2-"+suffix(t), "Lieferant GmbH", pos.ID, "EUR", oneLine(5000, 1900), "alice")
+	if err != nil {
+		t.Fatalf("Create other: %v", err)
+	}
+	if _, err := procSvc.Approve(ctx, other.ID, "dave"); err != nil {
+		t.Fatalf("Approve other: %v", err)
+	}
+	if _, err := procSvc.MatchReceipt(ctx, other.Number, other.GrossCents+1, "RE-P4", "carol"); !errors.Is(err, procurement.ErrMatchAmountMismatch) {
+		t.Fatalf("invoice above the gross = %v, want ErrMatchAmountMismatch", err)
+	}
+	if _, err := procSvc.MatchReceipt(ctx, other.Number, 0, "RE-P5", "carol"); !errors.Is(err, procurement.ErrMatchAmountNotPositive) {
+		t.Fatalf("zero invoice = %v, want ErrMatchAmountNotPositive", err)
+	}
+	still, err := procSvc.Get(ctx, other.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if still.Status != procurement.StatusApproved || still.InvoicedCents != 0 {
+		t.Fatalf("refusals moved the order: status %s, invoiced %d", still.Status, still.InvoicedCents)
+	}
+
+	// A delivery after a partial invoice converts only what is left, so the gross is never consumed
+	// twice: the invoice took 5000 of a 11900 order, so the receipt is worth 6900 at most.
+	third, err := procSvc.Create(ctx, "PO-P3-"+suffix(t), "Lieferant GmbH", pos.ID, "EUR", oneLine(10000, 1900), "alice")
+	if err != nil {
+		t.Fatalf("Create third: %v", err)
+	}
+	if _, err := procSvc.Approve(ctx, third.ID, "dave"); err != nil {
+		t.Fatalf("Approve third: %v", err)
+	}
+	if _, err := procSvc.MatchReceipt(ctx, third.Number, 5000, "RE-P6", "carol"); err != nil {
+		t.Fatalf("partial invoice on the third order: %v", err)
+	}
+	receipt, err := procSvc.RecordReceipt(ctx, third.ID, "LS-P1", time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC),
+		[]procurement.ReceiptLine{{LineNo: 1, QuantityMilli: 1000}}, "carol")
+	if err != nil {
+		t.Fatalf("RecordReceipt: %v", err)
+	}
+	if receipt.Receipt.ReceivedCents != 6900 {
+		t.Fatalf("receipt converted %d, want the 6900 left after the invoice", receipt.Receipt.ReceivedCents)
+	}
+	closed, err := procSvc.Get(ctx, third.ID)
+	if err != nil {
+		t.Fatalf("Get third: %v", err)
+	}
+	if closed.Status != procurement.StatusReceived {
+		t.Fatalf("status after the delivery = %s, want received", closed.Status)
+	}
+
+	if err := audit.NewStore(testPool(t)).Verify(ctx); err != nil {
+		t.Fatalf("audit verify: %v", err)
+	}
+}

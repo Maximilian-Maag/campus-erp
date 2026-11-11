@@ -24,9 +24,11 @@ var (
 	ErrOrderExists            = errors.New("procurement: an order with that number already exists")
 	ErrOrderNotFound          = errors.New("procurement: purchase order not found")
 	ErrBadTransition          = errors.New("procurement: the order is not in a state that allows this step")
-	// ErrMatchAmountMismatch is returned when an inbound invoice's gross differs from its
-	// order's: the two-way match the receipt is built on.
+	// ErrMatchAmountMismatch is returned when an inbound invoice bills more than the order has
+	// left to convert: the two-way match the receipt is built on.
 	ErrMatchAmountMismatch = errors.New("procurement: the invoice does not match the order's amount")
+	// ErrMatchAmountNotPositive is returned when an invoice states no amount to convert.
+	ErrMatchAmountNotPositive = errors.New("procurement: the invoice amount must be positive")
 	// ErrUnknownStatus is returned for a status that is not part of the lifecycle.
 	ErrUnknownStatus = errors.New("procurement: unknown order status")
 )
@@ -73,7 +75,10 @@ type OrderSummary struct {
 	NetCents         int64
 	VatCents         int64
 	GrossCents       int64
-	Status           Status
+	// InvoicedCents is how much of the order has been billed, so a list can tell an order that is
+	// waiting for its invoice from one that is partly or fully billed (docs/12).
+	InvoicedCents int64
+	Status        Status
 }
 
 // Line is one order line.
@@ -98,8 +103,11 @@ type Order struct {
 	NetCents         int64
 	VatCents         int64
 	GrossCents       int64
-	Status           Status
-	CreatedBy        string
+	// InvoicedCents is how much of the commitment has been invoiced so far. An order may be billed
+	// in parts (docs/12): a partial invoice converts only what it bills and the order stays open.
+	InvoicedCents int64
+	Status        Status
+	CreatedBy     string
 }
 
 func roundHalfUp(numerator, denominator int64) int64 {

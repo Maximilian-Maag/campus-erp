@@ -62,12 +62,12 @@ func (s *Server) createVATType(w http.ResponseWriter, r *http.Request) {
 	}
 	vat, err := kasse.NewVATType(req.Code, req.Description, req.RateBasisPoints, kasse.VATKind(req.Kind))
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	saved, err := s.tax.CreateVATType(r.Context(), vat, actor(r))
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -76,7 +76,7 @@ func (s *Server) createVATType(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getVATType(w http.ResponseWriter, r *http.Request) {
 	vat, err := s.tax.VATType(r.Context(), r.PathValue("code"))
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, vat)
@@ -87,7 +87,7 @@ func (s *Server) getVATType(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listVATTypes(w http.ResponseWriter, r *http.Request) {
 	types, err := s.tax.VATTypes(r.Context())
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, types)
@@ -107,7 +107,7 @@ func (s *Server) listTaxOffices(w http.ResponseWriter, r *http.Request) {
 	}
 	offices, err := s.tax.TaxOffices(r.Context(), year)
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, offices)
@@ -134,12 +134,12 @@ func (s *Server) createTaxOffice(w http.ResponseWriter, r *http.Request) {
 	office, err := kasse.NewTaxOffice(req.Year, req.Number, req.Name, req.Street,
 		req.PostalCode, req.City, req.AccountHolder, req.IBAN, req.BIC)
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	saved, err := s.tax.CreateTaxOffice(r.Context(), office, actor(r))
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -160,12 +160,12 @@ func (s *Server) createFoundation(w http.ResponseWriter, r *http.Request) {
 	}
 	foundation, err := kasse.NewFoundation(req.Year, req.Number, req.Description, req.CarryOver)
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	saved, err := s.tax.CreateFoundation(r.Context(), foundation, actor(r))
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -185,7 +185,7 @@ func (s *Server) listFoundations(w http.ResponseWriter, r *http.Request) {
 	}
 	foundations, err := s.tax.Foundations(r.Context(), year)
 	if err != nil {
-		writeProblem(w, statusForTax(err), err.Error())
+		writeDomainProblem(w, statusForTax(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, foundations)

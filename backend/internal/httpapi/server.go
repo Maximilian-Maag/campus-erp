@@ -378,7 +378,7 @@ func (s *Server) openDay(w http.ResponseWriter, r *http.Request) {
 	}
 	day, err := s.kasse.OpenDay(r.Context(), date, req.OpeningCents, actor(r))
 	if err != nil {
-		writeProblem(w, statusFor(err), err.Error())
+		writeDomainProblem(w, statusFor(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, day)
@@ -392,7 +392,7 @@ func (s *Server) getDay(w http.ResponseWriter, r *http.Request) {
 	}
 	day, err := s.kasse.Day(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusFor(err), err.Error())
+		writeDomainProblem(w, statusFor(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, day)
@@ -417,7 +417,7 @@ func (s *Server) book(w http.ResponseWriter, r *http.Request) {
 	}
 	b, err := s.kasse.Book(r.Context(), id, kasse.BookingKind(req.Kind), req.AmountCents, req.Purpose, actor(r))
 	if err != nil {
-		writeProblem(w, statusFor(err), err.Error())
+		writeDomainProblem(w, statusFor(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, b)
@@ -431,7 +431,7 @@ func (s *Server) closeDay(w http.ResponseWriter, r *http.Request) {
 	}
 	day, err := s.kasse.CloseDay(r.Context(), id, actor(r))
 	if err != nil {
-		writeProblem(w, statusFor(err), err.Error())
+		writeDomainProblem(w, statusFor(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, day)

@@ -38,7 +38,7 @@ func (s *Server) getDunningNoticeDocument(w http.ResponseWriter, r *http.Request
 	}
 	notice, err := s.dunning.Notice(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForDunning(err), err.Error())
+		writeDomainProblem(w, statusForDunning(err), err)
 		return
 	}
 	if notice.DocumentKey == "" {
@@ -123,7 +123,7 @@ func (s *Server) createDunningLevel(w http.ResponseWriter, r *http.Request) {
 	}
 	saved, err := s.dunning.CreateLevel(r.Context(), level, actor(r))
 	if err != nil {
-		writeProblem(w, statusForDunning(err), err.Error())
+		writeDomainProblem(w, statusForDunning(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -143,7 +143,7 @@ func (s *Server) listDunningLevels(w http.ResponseWriter, r *http.Request) {
 	}
 	levels, err := s.dunning.Levels(r.Context(), year)
 	if err != nil {
-		writeProblem(w, statusForDunning(err), err.Error())
+		writeDomainProblem(w, statusForDunning(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, levels)
@@ -157,7 +157,7 @@ func (s *Server) getDunningLevel(w http.ResponseWriter, r *http.Request) {
 	}
 	level, err := s.dunning.Level(r.Context(), year, r.PathValue("code"))
 	if err != nil {
-		writeProblem(w, statusForDunning(err), err.Error())
+		writeDomainProblem(w, statusForDunning(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, level)
@@ -178,7 +178,7 @@ func (s *Server) issueDunningNotice(w http.ResponseWriter, r *http.Request) {
 	}
 	notice, err := s.dunning.Issue(r.Context(), req.Year, req.LevelCode, req.ClaimReference, req.OutstandingCents, actor(r))
 	if err != nil {
-		writeProblem(w, statusForDunning(err), err.Error())
+		writeDomainProblem(w, statusForDunning(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, notice)
@@ -206,7 +206,7 @@ func (s *Server) runDunning(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := s.dunningRun.Run(r.Context(), req.Year, asOf, actor(r))
 	if err != nil {
-		writeProblem(w, statusForDunningRun(err), err.Error())
+		writeDomainProblem(w, statusForDunningRun(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)

@@ -22,6 +22,9 @@ type OrderRepository interface {
 	// List returns the order summaries, optionally narrowed to one status ("" for every status).
 	List(ctx context.Context, status Status) ([]OrderSummary, error)
 	SetStatus(ctx context.Context, id int64, status Status, by string) (Order, error)
+	// AddInvoiced records how much of the order's commitment an invoice converted, so a second
+	// invoice is checked against what is left rather than against the gross again.
+	AddInvoiced(ctx context.Context, id int64, cents int64) (Order, error)
 	// InsertReceipt stores a goods receipt with its lines atomically.
 	InsertReceipt(ctx context.Context, r Receipt) (Receipt, error)
 	// Receipts lists an order's goods receipts, oldest first.
@@ -38,12 +41,12 @@ type OrderRepo struct{ pool *pgxpool.Pool }
 func NewOrderRepo(pool *pgxpool.Pool) *OrderRepo { return &OrderRepo{pool: pool} }
 
 const orderColumns = `id, number, supplier, budget_position_id, currency,
-	net_cents, vat_cents, gross_cents, status, created_by`
+	net_cents, vat_cents, gross_cents, invoiced_cents, status, created_by`
 
 func scanOrder(row pgx.Row) (Order, error) {
 	var o Order
 	err := row.Scan(&o.ID, &o.Number, &o.Supplier, &o.BudgetPositionID, &o.Currency,
-		&o.NetCents, &o.VatCents, &o.GrossCents, &o.Status, &o.CreatedBy)
+		&o.NetCents, &o.VatCents, &o.GrossCents, &o.InvoicedCents, &o.Status, &o.CreatedBy)
 	return o, err
 }
 
@@ -87,7 +90,8 @@ func (r *OrderRepo) Insert(ctx context.Context, o Order) (Order, error) {
 // List returns the orders as summaries, ordered by number. An empty status lists every status.
 func (r *OrderRepo) List(ctx context.Context, status Status) ([]OrderSummary, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, number, supplier, budget_position_id, currency, net_cents, vat_cents, gross_cents, status
+		`SELECT id, number, supplier, budget_position_id, currency, net_cents, vat_cents, gross_cents,
+		        invoiced_cents, status
 		   FROM purchase_order
 		  WHERE ($1 = '' OR status = $1)
 		  ORDER BY number`, string(status))
@@ -99,7 +103,7 @@ func (r *OrderRepo) List(ctx context.Context, status Status) ([]OrderSummary, er
 	for rows.Next() {
 		var s OrderSummary
 		if err := rows.Scan(&s.ID, &s.Number, &s.Supplier, &s.BudgetPositionID, &s.Currency,
-			&s.NetCents, &s.VatCents, &s.GrossCents, &s.Status); err != nil {
+			&s.NetCents, &s.VatCents, &s.GrossCents, &s.InvoicedCents, &s.Status); err != nil {
 			return nil, fmt.Errorf("procurement: scan order summary: %w", err)
 		}
 		out = append(out, s)
@@ -167,6 +171,24 @@ func (r *OrderRepo) SetStatus(ctx context.Context, id int64, status Status, by s
 	}
 	if err != nil {
 		return Order{}, fmt.Errorf("procurement: set status: %w", err)
+	}
+	return o, nil
+}
+
+// AddInvoiced adds what an invoice converted to the order's running total. It is a separate write
+// from the status change so a partial invoice leaves the order where it is: the total moves, the
+// status does not.
+func (r *OrderRepo) AddInvoiced(ctx context.Context, id int64, cents int64) (Order, error) {
+	o, err := scanOrder(r.pool.QueryRow(ctx,
+		`UPDATE purchase_order
+		    SET invoiced_cents = invoiced_cents + $2
+		  WHERE id = $1
+		 RETURNING `+orderColumns, id, cents))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Order{}, fmt.Errorf("procurement: order %d: %w", id, ErrOrderNotFound)
+	}
+	if err != nil {
+		return Order{}, fmt.Errorf("procurement: add invoiced: %w", err)
 	}
 	return o, nil
 }

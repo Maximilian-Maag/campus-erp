@@ -47,7 +47,7 @@ func (s *Server) importStatement(w http.ResponseWriter, r *http.Request) {
 	}
 	stmts, err := s.statements.Import(r.Context(), req.AccountID, req.Content, actor(r))
 	if err != nil {
-		writeProblem(w, statusForStatement(err), err.Error())
+		writeDomainProblem(w, statusForStatement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, stmts)
@@ -67,7 +67,7 @@ func (s *Server) listStatements(w http.ResponseWriter, r *http.Request) {
 	}
 	stmts, err := s.statements.Statements(r.Context(), accountID)
 	if err != nil {
-		writeProblem(w, statusForStatement(err), err.Error())
+		writeDomainProblem(w, statusForStatement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, stmts)
@@ -81,7 +81,7 @@ func (s *Server) getStatement(w http.ResponseWriter, r *http.Request) {
 	}
 	st, err := s.statements.Statement(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForStatement(err), err.Error())
+		writeDomainProblem(w, statusForStatement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, st)
@@ -95,7 +95,7 @@ func (s *Server) getBankFile(w http.ResponseWriter, r *http.Request) {
 	}
 	file, err := s.statements.BankFile(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForStatement(err), err.Error())
+		writeDomainProblem(w, statusForStatement(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, file)

@@ -9,8 +9,8 @@ const base = {
   VatCents: 0,
 };
 const seed = () => [
-  { ...base, ID: 1, Number: 'PO-1', GrossCents: 11900, Status: 'draft' },
-  { ...base, ID: 2, Number: 'PO-2', GrossCents: 23800, Status: 'approved' },
+  { ...base, ID: 1, Number: 'PO-1', GrossCents: 11900, InvoicedCents: 0, Status: 'draft' },
+  { ...base, ID: 2, Number: 'PO-2', GrossCents: 23800, InvoicedCents: 5000, Status: 'approved' },
 ];
 
 /** The list route, honouring the `status` filter the screen now sends, and the approve action. */
@@ -41,6 +41,9 @@ test('Bestellungen lists the orders, approves a draft and passes axe', async ({ 
   await page.goto('/procurement/bestellungen');
   await expect(page.getByTestId('status-PO-1')).toContainText('Entwurf');
   await expect(page.getByTestId('order-PO-2')).toContainText('238,00');
+  // A part-billed order says so, so it is not mistaken for one still waiting for its invoice.
+  await expect(page.getByTestId('billed-PO-2')).toContainText('50,00 von 238,00');
+  await expect(page.getByTestId('billed-PO-1')).toContainText('—');
   // Nothing is filtered on the first load.
   expect(seen).toEqual(['']);
 

@@ -26,6 +26,7 @@ describe('GoodsReceiptsComponent', () => {
     NetCents: 11000,
     VatCents: 2090,
     GrossCents: 13090,
+    InvoicedCents: 0,
     Status: 'approved',
     ...over,
   });

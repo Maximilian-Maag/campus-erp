@@ -631,6 +631,7 @@ export interface Order {
   NetCents: number;
   VatCents: number;
   GrossCents: number;
+  InvoicedCents: number;
   Status: string;
   CreatedBy: string;
 }
@@ -722,6 +723,7 @@ export interface ProcurementOrderSummary {
   NetCents: number;
   VatCents: number;
   GrossCents: number;
+  InvoicedCents: number;
   Status: string;
 }
 

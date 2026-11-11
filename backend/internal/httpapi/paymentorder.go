@@ -166,19 +166,19 @@ func (s *Server) createOrder(w http.ResponseWriter, r *http.Request) {
 		}
 		// A position that is not there is the budget module's to report, and it is a client
 		// error, not a server one.
-		writeProblem(w, statusForBudget(err), err.Error())
+		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
 
 	order, err := kasse.NewPaymentOrder(req.Reference, req.BusinessYear, req.AmountCents, req.Currency,
 		recipient.ID, positionID, req.Purpose, due, actor(r))
 	if err != nil {
-		writeProblem(w, statusForOrder(err), err.Error())
+		writeDomainProblem(w, statusForOrder(err), err)
 		return
 	}
 	saved, err := s.orders.Create(r.Context(), order)
 	if err != nil {
-		writeProblem(w, statusForOrder(err), err.Error())
+		writeDomainProblem(w, statusForOrder(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, saved)
@@ -192,7 +192,7 @@ func (s *Server) getOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	order, err := s.orders.Order(r.Context(), id)
 	if err != nil {
-		writeProblem(w, statusForOrder(err), err.Error())
+		writeDomainProblem(w, statusForOrder(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, order)
@@ -221,7 +221,7 @@ func (s *Server) cancelOrder(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listOrders(w http.ResponseWriter, r *http.Request) {
 	orders, err := s.orders.Orders(r.Context(), kasse.OrderStatus(strings.TrimSpace(r.URL.Query().Get("status"))))
 	if err != nil {
-		writeProblem(w, statusForOrder(err), err.Error())
+		writeDomainProblem(w, statusForOrder(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, orders)
@@ -242,7 +242,7 @@ func (s *Server) rejectOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	order, err := s.orders.Reject(r.Context(), id, actor(r), req.Reason)
 	if err != nil {
-		writeProblem(w, statusForOrder(err), err.Error())
+		writeDomainProblem(w, statusForOrder(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, order)
@@ -257,7 +257,7 @@ func (s *Server) orderTransition(w http.ResponseWriter, r *http.Request,
 	}
 	order, err := fn(id, actor(r))
 	if err != nil {
-		writeProblem(w, statusForOrder(err), err.Error())
+		writeDomainProblem(w, statusForOrder(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, order)

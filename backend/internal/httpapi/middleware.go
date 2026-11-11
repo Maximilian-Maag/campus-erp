@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -113,6 +114,36 @@ func writeProblemCode(w http.ResponseWriter, status int, code, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(p)
+}
+
+// domainCode pairs a domain error with the machine code a client branches on. The table is
+// generated from the statusForX functions (tools/gen_domaincodes.py), so an error a client can
+// receive always has a code and a code never outlives its error.
+type domainCode struct {
+	err  error
+	code string
+}
+
+// codeForDomainError returns the machine code of a domain error, or "" when the error is not one a
+// handler maps. It walks the table with errors.Is, so a wrapped error still finds its code.
+func codeForDomainError(err error) string {
+	for _, dc := range domainErrorCodes {
+		if errors.Is(err, dc.err) {
+			return dc.code
+		}
+	}
+	return ""
+}
+
+// writeDomainProblem writes the envelope for a domain error: the status the handler chose, the
+// error's own machine code when it has one, and the error's text. A handler that maps a domain
+// error to a status therefore also gives the client a code to branch on, without naming it twice.
+func writeDomainProblem(w http.ResponseWriter, status int, err error) {
+	code := codeForDomainError(err)
+	if code == "" {
+		code = codeForStatus(status)
+	}
+	writeProblemCode(w, status, code, err.Error())
 }
 
 // codeForStatus is the stable machine code for a status, so a client can branch on it. It

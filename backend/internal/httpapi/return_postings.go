@@ -42,7 +42,7 @@ func (s *Server) listReturnedLines(w http.ResponseWriter, r *http.Request) {
 	}
 	lines, err := s.returns.Returns(r.Context(), from, to)
 	if err != nil {
-		writeProblem(w, statusForReturns(err), err.Error())
+		writeDomainProblem(w, statusForReturns(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, lines)
