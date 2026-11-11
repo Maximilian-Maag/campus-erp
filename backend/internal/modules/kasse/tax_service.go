@@ -74,6 +74,18 @@ func (s *TaxService) VATType(ctx context.Context, code string) (VATType, error) 
 	return s.repo.GetVATType(ctx, code)
 }
 
+// VATTypes lists the VAT types — the catalogue the exact VAT arithmetic is driven from, so a screen
+// can show what a rate means rather than only what it is.
+func (s *TaxService) VATTypes(ctx context.Context) ([]VATType, error) {
+	return s.repo.VATTypes(ctx)
+}
+
+// TaxOffices lists the tax offices, optionally narrowed to one year (0 = every year). The filter is
+// the store's: a screen asks for the year it shows instead of holding every year to sift a few.
+func (s *TaxService) TaxOffices(ctx context.Context, year int) ([]TaxOffice, error) {
+	return s.repo.TaxOffices(ctx, year)
+}
+
 // CreateTaxOffice stores a tax-office master record.
 func (s *TaxService) CreateTaxOffice(ctx context.Context, t TaxOffice, by string) (TaxOffice, error) {
 	if err := requireActor(by); err != nil {

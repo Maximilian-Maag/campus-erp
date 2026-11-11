@@ -435,8 +435,16 @@ export class CampusErpApi {
     return this.http.post<m.ExportQueuedResponse>(this.base + `/api/statistics/exports`, body);
   }
 
+  listTaxOffices(year?: string): Observable<m.TaxOffice[]> {
+    return this.http.get<m.TaxOffice[]>(this.base + `/api/tax-offices${this._query({ year })}`);
+  }
+
   createTaxOffice(body: m.TaxOfficeRequest): Observable<m.TaxOffice> {
     return this.http.post<m.TaxOffice>(this.base + `/api/tax-offices`, body);
+  }
+
+  listVATTypes(): Observable<m.VATType[]> {
+    return this.http.get<m.VATType[]>(this.base + `/api/vat-types`);
   }
 
   createVATType(body: m.VatTypeRequest): Observable<m.VATType> {

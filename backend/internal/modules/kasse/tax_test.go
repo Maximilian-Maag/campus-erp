@@ -268,11 +268,30 @@ func TestNewFoundation(t *testing.T) {
 
 type fakeTaxRepo struct {
 	vat         VATType
+	vats        []VATType
 	office      TaxOffice
+	offices     []TaxOffice
 	foundation  Foundation
 	foundations []Foundation
 	year        int
 	err         error
+}
+
+// VATTypes returns the fixed catalogue, so a test can prove the service passes it through.
+func (f *fakeTaxRepo) VATTypes(context.Context) ([]VATType, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.vats, nil
+}
+
+// TaxOffices returns the fixed list and records the year it was handed, like Foundations.
+func (f *fakeTaxRepo) TaxOffices(_ context.Context, year int) ([]TaxOffice, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	f.year = year
+	return f.offices, nil
 }
 
 // Foundations returns the fixed list and records the year it was handed, so a test can prove

@@ -183,6 +183,122 @@ func TestHTTPFoundationsListNarrowsByYear(t *testing.T) {
 	}
 }
 
+// The two tax reads: the VAT-type catalogue by code, and the tax offices narrowed by year. Both
+// were write-only routes before — a screen had nothing to read.
+func TestHTTPVATTypesAndTaxOfficesList(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	// Two VAT types of this test's own, created through the API.
+	codeA := uniq(t, "V7")
+	codeB := uniq(t, "V6")
+	for _, body := range []string{
+		`{"code":"` + codeB + `","description":"ermaessigt","rate_basis_points":700,"kind":"output"}`,
+		`{"code":"` + codeA + `","description":"regel","rate_basis_points":1900,"kind":"output"}`,
+	} {
+		if resp := doJSON(t, http.MethodPost, srv.URL+"/api/vat-types", "alice", body); resp.StatusCode != http.StatusCreated {
+			t.Fatalf("create VAT type = %d", resp.StatusCode)
+		}
+	}
+	types := listVATTypes(t, srv.URL)
+	if !holdsVATCode(types, codeA) || !holdsVATCode(types, codeB) {
+		t.Fatalf("the catalogue must hold %s and %s", codeA, codeB)
+	}
+	// The catalogue is ordered by code, so a screen shows a stable list.
+	for i := 1; i < len(types); i++ {
+		if types[i-1].Code > types[i].Code {
+			t.Fatalf("VAT types are not in code order: %q before %q", types[i-1].Code, types[i].Code)
+		}
+	}
+
+	// Two tax offices in two years.
+	current := taxOfficeInYear(t, srv.URL, 2026)
+	previous := taxOfficeInYear(t, srv.URL, 2025)
+	all := listTaxOffices(t, srv.URL+"/api/tax-offices")
+	if !holdsTaxOffice(all, current.ID) || !holdsTaxOffice(all, previous.ID) {
+		t.Fatalf("every year must hold %d and %d", current.ID, previous.ID)
+	}
+	only2025 := listTaxOffices(t, srv.URL+"/api/tax-offices?year=2025")
+	if !holdsTaxOffice(only2025, previous.ID) || holdsTaxOffice(only2025, current.ID) {
+		t.Fatalf("2025 must hold %d and not %d", previous.ID, current.ID)
+	}
+	for _, o := range only2025 {
+		if o.Year != 2025 {
+			t.Fatalf("listing 2025 returned %d/%s", o.Year, o.Number)
+		}
+	}
+	// A year that is not a number is refused with a code, not read as every year.
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/tax-offices?year=heuer", "", ""); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("bad year = %d, want 422", resp.StatusCode)
+	}
+}
+
+type namedID struct {
+	ID     int64
+	Year   int
+	Code   string
+	Number string
+}
+
+func listVATTypes(t *testing.T, base string) []namedID {
+	t.Helper()
+	resp := doJSON(t, http.MethodGet, base+"/api/vat-types", "", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list VAT types = %d", resp.StatusCode)
+	}
+	var types []namedID
+	if err := json.NewDecoder(resp.Body).Decode(&types); err != nil {
+		t.Fatalf("decode VAT types: %v", err)
+	}
+	return types
+}
+
+func holdsVATCode(list []namedID, code string) bool {
+	for _, v := range list {
+		if v.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+func listTaxOffices(t *testing.T, url string) []namedID {
+	t.Helper()
+	resp := doJSON(t, http.MethodGet, url, "", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list tax offices %s = %d (%s)", url, resp.StatusCode, readBody(t, resp))
+	}
+	var offices []namedID
+	if err := json.NewDecoder(resp.Body).Decode(&offices); err != nil {
+		t.Fatalf("decode tax offices: %v", err)
+	}
+	return offices
+}
+
+func holdsTaxOffice(list []namedID, id int64) bool {
+	for _, o := range list {
+		if o.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// taxOfficeInYear creates a tax office in one year and returns it, so a list test has rows of its
+// own in a shared schema.
+func taxOfficeInYear(t *testing.T, srv string, year int) namedID {
+	t.Helper()
+	body := `{"year":` + itoa(int64(year)) + `,"number":"` + uniq(t, "F") + `","name":"Finanzamt Musterstadt"}`
+	resp := doJSON(t, http.MethodPost, srv+"/api/tax-offices", "alice", body)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create tax office = %d", resp.StatusCode)
+	}
+	var office namedID
+	if err := json.NewDecoder(resp.Body).Decode(&office); err != nil {
+		t.Fatalf("decode tax office: %v", err)
+	}
+	return office
+}
+
 // foundationInYear creates a foundation in the given year and returns what the API wrote.
 func foundationInYear(t *testing.T, srv string, year int) foundationJSON {
 	t.Helper()

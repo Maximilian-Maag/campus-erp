@@ -285,12 +285,14 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     # ── Tax / foundations ────────────────────────────────────────────────────
     "/api/vat-types": {
         "post": ("createVATType", "kasse", "Create a VAT type", "httpapi.vatTypeRequest", "kasse.VATType", 201, "json"),
+        "get": ("listVATTypes", "kasse", "List the VAT-type catalogue", None, "[]kasse.VATType", 200, "json"),
     },
     "/api/vat-types/{code}": {
         "get": ("getVATType", "kasse", "Read a VAT type", None, "kasse.VATType", 200, "json"),
     },
     "/api/tax-offices": {
         "post": ("createTaxOffice", "kasse", "Create a tax office", "httpapi.taxOfficeRequest", "kasse.TaxOffice", 201, "json"),
+        "get": ("listTaxOffices", "kasse", "List the tax-office master records, optionally only one year", None, "[]kasse.TaxOffice", 200, "json", [("year", "string", False)]),
     },
     "/api/foundations": {
         "post": ("createFoundation", "kasse", "Create a foundation", "httpapi.foundationRequest", "kasse.Foundation", 201, "json"),

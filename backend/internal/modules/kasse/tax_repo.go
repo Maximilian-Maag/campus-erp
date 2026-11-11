@@ -19,6 +19,10 @@ type TaxRepository interface {
 	UpsertTaxOffice(ctx context.Context, t TaxOffice) (TaxOffice, error)
 	CreateFoundation(ctx context.Context, f Foundation) (Foundation, error)
 	UpsertFoundation(ctx context.Context, f Foundation) (Foundation, error)
+	// VATTypes lists the VAT types by code, so a screen reads the catalogue in its own order.
+	VATTypes(ctx context.Context) ([]VATType, error)
+	// TaxOffices lists the tax offices, newest year first; a year of zero lists every year.
+	TaxOffices(ctx context.Context, year int) ([]TaxOffice, error)
 	Foundations(ctx context.Context, year int) ([]Foundation, error)
 }
 
@@ -164,6 +168,53 @@ func (r *TaxRepo) UpsertFoundation(ctx context.Context, f Foundation) (Foundatio
 		return Foundation{}, fmt.Errorf("kasse: upsert foundation: %w", err)
 	}
 	return out, nil
+}
+
+// VATTypes lists the VAT types by code. The order is the store's, so two calls agree and a screen
+// shows a stable catalogue.
+func (r *TaxRepo) VATTypes(ctx context.Context) ([]VATType, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, code, description, rate_basis_points, kind
+		   FROM vat_type
+		  ORDER BY code`)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: list VAT types: %w", err)
+	}
+	defer rows.Close()
+	out := []VATType{}
+	for rows.Next() {
+		var v VATType
+		if err := rows.Scan(&v.ID, &v.Code, &v.Description, &v.RateBasisPoints, &v.Kind); err != nil {
+			return nil, fmt.Errorf("kasse: scan VAT type: %w", err)
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+
+// TaxOffices lists the tax offices, newest year first and by number within a year. A year of zero
+// lists every year, so a caller that has not chosen one still sees what exists — the same rule the
+// foundation references follow.
+func (r *TaxRepo) TaxOffices(ctx context.Context, year int) ([]TaxOffice, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, year, number, name, street, postal_code, city, account_holder, iban, bic
+		   FROM tax_office
+		  WHERE ($1 = 0 OR year = $1)
+		  ORDER BY year DESC, number`, year)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: list tax offices: %w", err)
+	}
+	defer rows.Close()
+	out := []TaxOffice{}
+	for rows.Next() {
+		var t TaxOffice
+		if err := rows.Scan(&t.ID, &t.Year, &t.Number, &t.Name, &t.Street, &t.PostalCode,
+			&t.City, &t.AccountHolder, &t.IBAN, &t.BIC); err != nil {
+			return nil, fmt.Errorf("kasse: scan tax office: %w", err)
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
 }
 
 // Foundations lists foundation references, newest year first. A year of zero lists every
