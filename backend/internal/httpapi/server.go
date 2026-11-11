@@ -270,6 +270,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/dunning/runs", s.authorize(s.runDunning, auth.RoleKasse))
 
 	mux.HandleFunc("POST /api/vat-types", s.authorize(s.createVATType, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/vat-types", s.authorizeRead(s.listVATTypes, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/tax-offices", s.authorizeRead(s.listTaxOffices, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/vat-types/{code}", s.authorizeRead(s.getVATType, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/tax-offices", s.authorize(s.createTaxOffice, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/foundations", s.authorize(s.createFoundation, auth.RoleFinanzen))

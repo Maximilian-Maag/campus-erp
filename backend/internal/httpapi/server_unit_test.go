@@ -125,7 +125,9 @@ func (s stubDunning) Issue(context.Context, int, string, string, int64, string) 
 // stubTax satisfies the tax-data interface with a fixed result.
 type stubTax struct {
 	vat         kasse.VATType
+	vats        []kasse.VATType
 	office      kasse.TaxOffice
+	offices     []kasse.TaxOffice
 	foundation  kasse.Foundation
 	foundations []kasse.Foundation
 	seenYear    *int
@@ -138,6 +140,23 @@ func (s stubTax) CreateVATType(context.Context, kasse.VATType, string) (kasse.VA
 
 func (s stubTax) VATType(context.Context, string) (kasse.VATType, error) {
 	return s.vat, s.err
+}
+
+func (s stubTax) VATTypes(context.Context) ([]kasse.VATType, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.vats, nil
+}
+
+func (s stubTax) TaxOffices(_ context.Context, year int) ([]kasse.TaxOffice, error) {
+	if s.seenYear != nil {
+		*s.seenYear = year
+	}
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.offices, nil
 }
 
 func (s stubTax) CreateTaxOffice(context.Context, kasse.TaxOffice, string) (kasse.TaxOffice, error) {

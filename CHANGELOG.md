@@ -2,6 +2,33 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.113.0] - 2026-11-11
+
+The tax catalogues have a screen — which meant building the reads they needed first.
+
+### Added
+- **`GET /api/vat-types`** — the VAT-type catalogue, ordered by key, so a screen can show the rates
+  the exact VAT arithmetic is driven from instead of holding its own copy.
+- **`GET /api/tax-offices`** — the Finanzämter of a year (`?year=`), or every year when none is
+  chosen. A year that is not a number is refused with a code rather than read as every year.
+- **`/finanzen/steuern`** (Finanzen — Steuersätze und Finanzämter): lists both catalogues, files a new
+  VAT type and a new Finanzamt, and narrows the offices by year at the server. The rate reads as a
+  percentage (`19 %`) and the kind in words (*Umsatzsteuer* / *Vorsteuer*); an unknown kind shows its
+  own code rather than nothing.
+- `docs/31-tax-data.md` — what the two catalogues hold, the four routes, and what the screen
+  deliberately leaves to the server.
+
+### Fixed
+- **Two failing reads no longer overwrite each other's report.** The screen kept one error for both
+  catalogues, so a Finanzamt list that failed replaced the VAT catalogue's error and the operator
+  only ever saw the second problem. Each read now reports separately, and the catalogue that could be
+  read is still shown.
+
+### Notes
+- Both tax routes were **write-only** before this release: a VAT type could be stored and read back
+  by key, a Finanzamt by year and number, but nothing listed them — which is why no screen existed.
+  The IBAN checksum and BIC shape stay the server's; the screen refuses only what it can see.
+
 ## [0.112.0] - 2026-11-11
 
 The ETL runs are visible and triggerable from the UI — and making them so exposed a contract that

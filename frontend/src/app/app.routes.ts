@@ -10,6 +10,7 @@ import { MandatesComponent } from './kasse/mandates.component';
 import { PaymentRunsComponent } from './kasse/payment-runs.component';
 import { EInvoicesComponent } from './einvoice/invoices.component';
 import { FoundationsComponent } from './finanzen/foundations.component';
+import { TaxesComponent } from './finanzen/taxes.component';
 import { KlrAllocationComponent } from './klr/allocation.component';
 import { KlrCostTypesComponent } from './klr/cost-types.component';
 import { KlrCostUnitsComponent } from './klr/cost-units.component';
@@ -45,6 +46,7 @@ export const routes: Routes = [
   { path: 'kasse/ruecklaeufer', component: ReturnPostingsComponent },
   { path: 'kasse/mandate', component: MandatesComponent },
   { path: 'finanzen/stiftungen', component: FoundationsComponent },
+  { path: 'finanzen/steuern', component: TaxesComponent },
   { path: 'auswertungen', component: AuswertungenComponent },
   { path: 'importe', component: ImportsComponent },
 ];

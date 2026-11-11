@@ -15,7 +15,9 @@ import (
 type taxService interface {
 	CreateVATType(ctx context.Context, v kasse.VATType, by string) (kasse.VATType, error)
 	VATType(ctx context.Context, code string) (kasse.VATType, error)
+	VATTypes(ctx context.Context) ([]kasse.VATType, error)
 	CreateTaxOffice(ctx context.Context, t kasse.TaxOffice, by string) (kasse.TaxOffice, error)
+	TaxOffices(ctx context.Context, year int) ([]kasse.TaxOffice, error)
 	CreateFoundation(ctx context.Context, f kasse.Foundation, by string) (kasse.Foundation, error)
 	Foundations(ctx context.Context, year int) ([]kasse.Foundation, error)
 }
@@ -78,6 +80,37 @@ func (s *Server) getVATType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, vat)
+}
+
+// listVATTypes reads the VAT-type catalogue, by code. A screen shows the rates the exact VAT
+// arithmetic is driven from rather than a list it maintains itself.
+func (s *Server) listVATTypes(w http.ResponseWriter, r *http.Request) {
+	types, err := s.tax.VATTypes(r.Context())
+	if err != nil {
+		writeProblem(w, statusForTax(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, types)
+}
+
+// listTaxOffices reads the tax-office master records. The year filter is the server's: ?year=2026
+// narrows to one year, and no year lists every year — the same rule the foundation references use.
+func (s *Server) listTaxOffices(w http.ResponseWriter, r *http.Request) {
+	year := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("year")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_year", "year must be an integer")
+			return
+		}
+		year = parsed
+	}
+	offices, err := s.tax.TaxOffices(r.Context(), year)
+	if err != nil {
+		writeProblem(w, statusForTax(err), err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, offices)
 }
 
 type taxOfficeRequest struct {
