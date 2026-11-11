@@ -23,6 +23,12 @@ func TestNewCollectionRunValidation(t *testing.T) {
 		t.Fatalf("items not trimmed: %+v", items[0])
 	}
 
+	// No sequence type is a run that takes each mandate's own: accepted at run level, grouped by the
+	// service. A type that is not one of the four is still refused.
+	if _, _, err := NewCollectionRun("RUN-1", 1, "DE98ZZZ09999999999", date, "", "CORE", one()); err != nil {
+		t.Fatalf("a run without a sequence type rejected: %v", err)
+	}
+
 	cases := []struct {
 		name      string
 		reference string

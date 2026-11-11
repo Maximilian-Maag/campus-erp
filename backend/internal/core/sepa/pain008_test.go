@@ -241,3 +241,164 @@ func TestValidLocalInstrument(t *testing.T) {
 func TestPain008ValidatesAgainstVendorXSD(t *testing.T) {
 	golden.ValidateXSD(t, "", "ERP_XSD_PAIN008", filepath.Join("testdata", "golden_pain008.xml"))
 }
+
+// fixedDirectDebitBatch is a deterministic input with two payment instructions — one per sequence
+// type. A collection run that mixes a first collection with a recurring one produces this shape: one
+// message, two PmtInf blocks, each with its own sequence type and collection date.
+func fixedDirectDebitBatch() DirectDebitBatch {
+	single := fixedDirectDebit()
+	batch := single.Batch()
+	batch.Groups = []DirectDebitGroup{
+		{
+			InstructionID:  "SDD-2026-0001-FRST",
+			SequenceType:   "FRST",
+			CollectionDate: single.CollectionDate,
+			Transactions:   []DirectDebitTransaction{single.Transactions[0]},
+		},
+		{
+			InstructionID:  "SDD-2026-0001-RCUR",
+			SequenceType:   "RCUR",
+			CollectionDate: time.Date(2026, 11, 27, 0, 0, 0, 0, time.UTC),
+			Transactions:   []DirectDebitTransaction{single.Transactions[1]},
+		},
+	}
+	return batch
+}
+
+// TestMarshal008BatchGolden pins the bytes of a message with two payment instructions: the shape a
+// mixed run produces. Regenerate with UPDATE_GOLDEN=1.
+func TestMarshal008BatchGolden(t *testing.T) {
+	got, err := fixedDirectDebitBatch().Marshal()
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	golden.Assert(t, filepath.Join("testdata", "golden_pain008_two_groups.xml"), []byte(got))
+}
+
+// TestPain008TwoGroupsValidateAgainstVendorXSD checks the two-instruction file against the vendor
+// schema too: several PmtInf blocks in one message is the part a bank verifies most strictly, so it
+// is not enough that the single-instruction file validates.
+func TestPain008TwoGroupsValidateAgainstVendorXSD(t *testing.T) {
+	golden.ValidateXSD(t, "", "ERP_XSD_PAIN008", filepath.Join("testdata", "golden_pain008_two_groups.xml"))
+}
+
+// TestMarshal008BatchSplitsInstructions reads the produced XML: one PmtInf per group, each carrying
+// its own sequence type, collection date and control sum, under a header that totals them.
+func TestMarshal008BatchSplitsInstructions(t *testing.T) {
+	got, err := fixedDirectDebitBatch().Marshal()
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if n := strings.Count(got, "<PmtInf>"); n != 2 {
+		t.Fatalf("PmtInf blocks = %d, want 2\n%s", n, got)
+	}
+	// The header totals what the instructions carry.
+	header := got[:strings.Index(got, "<PmtInf>")]
+	if !strings.Contains(header, "<NbOfTxs>2</NbOfTxs>") {
+		t.Errorf("header must total two transactions:\n%s", header)
+	}
+	if !strings.Contains(header, "<CtrlSum>55.00</CtrlSum>") {
+		t.Errorf("header must total 55.00:\n%s", header)
+	}
+	// Each instruction carries its own type, date and sum — the reason SeqTp moved off the message.
+	blocks := strings.Split(got, "<PmtInf>")[1:]
+	for i, want := range []struct {
+		id, seqTp, date, nb, ctrl string
+	}{
+		{"SDD-2026-0001-FRST", "FRST", "2026-10-28", "1", "42.50"},
+		{"SDD-2026-0001-RCUR", "RCUR", "2026-11-27", "1", "12.50"},
+	} {
+		block := blocks[i]
+		for _, pair := range [][2]string{
+			{"<PmtInfId>", want.id},
+			{"SeqTp>", want.seqTp},
+			{"<ReqdColltnDt>", want.date},
+			{"<NbOfTxs>", want.nb},
+			{"<CtrlSum>", want.ctrl},
+		} {
+			if !strings.Contains(block, pair[0]) || !strings.Contains(block, pair[0]+pair[1]) {
+				t.Errorf("instruction %d is missing %s%s:\n%s", i, pair[0], pair[1], block)
+			}
+		}
+		// The creditor block repeats per instruction: a bank reads it per PmtInf.
+		if strings.Count(block, "<CdtrSchmeId>") != 1 {
+			t.Errorf("instruction %d must repeat the creditor:\n%s", i, block)
+		}
+	}
+}
+
+func TestMarshal008BatchCountAndSum(t *testing.T) {
+	batch := fixedDirectDebitBatch()
+	if got := batch.Count(); got != 2 {
+		t.Errorf("Count() = %d, want 2", got)
+	}
+	if got := batch.Sum(); got != 5500 {
+		t.Errorf("Sum() = %d, want 5500", got)
+	}
+	// One instruction is the one-instruction case: the general path must agree with the direct one.
+	single := fixedDirectDebit()
+	if got := single.Batch().Count(); got != len(single.Transactions) {
+		t.Errorf("Batch().Count() = %d, want %d", got, len(single.Transactions))
+	}
+	if got := single.Batch().Sum(); got != single.Sum() {
+		t.Errorf("Batch().Sum() = %d, want %d", got, single.Sum())
+	}
+}
+
+func TestMarshal008BatchRejections(t *testing.T) {
+	base := func() DirectDebitBatch { return fixedDirectDebitBatch() }
+
+	t.Run("no instructions at all", func(t *testing.T) {
+		b := base()
+		b.Groups = nil
+		if _, err := b.Marshal(); !errors.Is(err, ErrNoTransactions) {
+			t.Fatalf("err = %v, want ErrNoTransactions", err)
+		}
+	})
+	t.Run("an instruction without transactions", func(t *testing.T) {
+		b := base()
+		b.Groups[0].Transactions = nil
+		if _, err := b.Marshal(); !errors.Is(err, ErrNoTransactions) {
+			t.Fatalf("err = %v, want ErrNoTransactions", err)
+		}
+	})
+	t.Run("two instructions sharing one id", func(t *testing.T) {
+		b := base()
+		b.Groups[1].InstructionID = b.Groups[0].InstructionID
+		if _, err := b.Marshal(); !errors.Is(err, ErrInstructionIDDuplicate) {
+			t.Fatalf("err = %v, want ErrInstructionIDDuplicate", err)
+		}
+	})
+	t.Run("an instruction without a sequence type", func(t *testing.T) {
+		b := base()
+		b.Groups[1].SequenceType = ""
+		if _, err := b.Marshal(); !errors.Is(err, ErrSequenceTypeInvalid) {
+			t.Fatalf("err = %v, want ErrSequenceTypeInvalid", err)
+		}
+	})
+	t.Run("an instruction without a collection date", func(t *testing.T) {
+		b := base()
+		b.Groups[1].CollectionDate = time.Time{}
+		if _, err := b.Marshal(); !errors.Is(err, ErrCollectionDateRequired) {
+			t.Fatalf("err = %v, want ErrCollectionDateRequired", err)
+		}
+	})
+	t.Run("a transaction the single-place rules would refuse", func(t *testing.T) {
+		// The per-transaction checks travel with the batch, so an instruction cannot smuggle in a
+		// transaction the one-instruction path rejects.
+		b := base()
+		b.Groups[1].Transactions[0].DebtorBIC = ""
+		if _, err := b.Marshal(); !errors.Is(err, ErrDebtorAgentRequired) {
+			t.Fatalf("err = %v, want ErrDebtorAgentRequired", err)
+		}
+	})
+	t.Run("a missing instruction id is allowed", func(t *testing.T) {
+		// PmtInfId is not required by the schema, so an unnamed instruction is not a duplicate.
+		b := base()
+		b.Groups[0].InstructionID = ""
+		b.Groups[1].InstructionID = ""
+		if _, err := b.Marshal(); err != nil {
+			t.Fatalf("err = %v, want none", err)
+		}
+	})
+}

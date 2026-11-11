@@ -136,7 +136,7 @@ func (r *ReceivableRepo) OpenReceivablesForCollection(ctx context.Context, dueBy
 		  WHERE r.state = 'open'
 		    AND r.due_date <= $1
 		    AND m.active
-		    AND m.sequence_type = $2
+		    AND ($2 = '' OR m.sequence_type = $2)
 		  ORDER BY r.mandate_reference, r.due_date, r.id`, dueBy, string(sequenceType))
 	if err != nil {
 		return nil, fmt.Errorf("kasse: select receivables for collection: %w", err)

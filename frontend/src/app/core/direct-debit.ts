@@ -28,3 +28,25 @@ export const SEQUENCE_TYPES: readonly SequenceType[] = [
 export function sequenceLabel(value: string): string {
   return SEQUENCE_TYPES.find((type) => type.value === value)?.label ?? value;
 }
+
+/**
+ * The types a **run** may be filed under: the four SEPA types plus "each mandate's own".
+ *
+ * The extra option exists because the sequence type belongs to the payment instruction, not to the
+ * message: a run filed without one collects every mandate under its own type and the file carries one
+ * instruction per type. It is not a type a mandate can carry, which is why it is not in
+ * SEQUENCE_TYPES — the mandate screens must never offer it.
+ */
+export const RUN_SEQUENCE_TYPES: readonly SequenceType[] = [
+  { value: '', label: 'je Mandat' },
+  ...SEQUENCE_TYPES,
+];
+
+/**
+ * The word for the type a **run** collected under. A run with no single type is *gemischt*: that is a
+ * fact about the produced file rather than the choice made in the form, which is why the option reads
+ * "je Mandat" and the result reads "gemischt".
+ */
+export function runSequenceLabel(value: string): string {
+  return value === '' ? 'gemischt' : sequenceLabel(value);
+}

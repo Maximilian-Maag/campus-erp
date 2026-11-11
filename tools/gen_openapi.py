@@ -312,13 +312,13 @@ CONTRACT: dict[str, dict[str, tuple]] = {
         "get": ("getMandate", "kasse", "Read a SEPA direct-debit mandate", None, "kasse.Mandate", 200, "json"),
     },
     "/api/direct-debit/runs": {
-        "post": ("createCollectionRun", "kasse", "Create a SEPA direct-debit collection run", "httpapi.collectionRunRequest", "kasse.CollectionRun", 201, "json"),
+        "post": ("createCollectionRun", "kasse", "Create a SEPA direct-debit collection run — an empty sequence_type collects each mandate under its own type, one payment instruction per type", "httpapi.collectionRunRequest", "kasse.CollectionRun", 201, "json"),
     },
     "/api/direct-debit/runs/{reference}/file": {
         "get": ("getCollectionRunFile", "kasse", "Download the pain.008 XML of a collection run", None, None, 200, "file"),
     },
     "/api/direct-debit/runs/from-receivables": {
-        "post": ("createCollectionRunFromReceivables", "kasse", "Create a collection run that selects its open receivables", "httpapi.collectionRunFromReceivablesRequest", "kasse.CollectionRun", 201, "json"),
+        "post": ("createCollectionRunFromReceivables", "kasse", "Create a collection run that selects its open receivables — an empty sequence_type selects the open items of every type", "httpapi.collectionRunFromReceivablesRequest", "kasse.CollectionRun", 201, "json"),
     },
     "/api/receivables": {
         "post": ("createReceivable", "kasse", "Record an open receivable", "httpapi.receivableRequest", "kasse.Receivable", 201, "json"),

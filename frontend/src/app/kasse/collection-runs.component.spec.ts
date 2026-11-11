@@ -173,6 +173,52 @@ describe('CollectionRunsComponent', () => {
     expect(row?.textContent).toContain('01.11.2026');
   });
 
+  it('offers filing without a sequence type, ahead of the four, and files one', () => {
+    const fixture = loaded([uni]);
+    const component = fixture.componentInstance;
+    // The choice exists because the type belongs to the payment instruction: without one the file
+    // carries one instruction per mandate type.
+    const select = (fixture.nativeElement as HTMLElement).querySelector('#run-sequence') as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.value)).toEqual(['', 'FRST', 'RCUR', 'OOFF', 'FNAL']);
+    expect(select.options[0].textContent?.trim()).toBe('je Mandat');
+
+    component.reference.set('RUN-MIX');
+    component.creditorID.set('DE98ZZZ09999999999');
+    component.collectionDate.set('2026-11-01');
+    component.dueBy.set('2026-10-15');
+    component.changeSequence('');
+    component.run(new Event('submit'));
+
+    const post = http.expectOne('/api/direct-debit/runs/from-receivables');
+    // An absent type is not a missing field: it is sent as empty, which the API reads as "each
+    // mandate's own".
+    expect(post.request.body.sequence_type).toBe('');
+    post.flush(run({ Reference: 'RUN-MIX', SequenceType: '' }));
+    fixture.detectChanges();
+
+    const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="run-RUN-MIX"]');
+    // The result says what the file is, not what was chosen: its types are mixed.
+    expect(row?.textContent).toContain('Art gemischt');
+  });
+
+  it('asks for the mandates of every type when no sequence type is chosen', () => {
+    const fixture = loaded([uni]);
+    const component = fixture.componentInstance;
+    component.setSource('mandates');
+    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR').flush([mandate('MAN-1')]);
+
+    component.changeSequence('');
+
+    const req = http.expectOne((r) => r.url.startsWith('/api/direct-debit/mandates'));
+    // No type in the query, so the server lists them all rather than narrowing to one.
+    expect(req.request.urlWithParams).not.toContain('sequence_type');
+    req.flush([]);
+    fixture.detectChanges();
+
+    // With no type the hint cannot claim one.
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Es ist kein aktives Mandat angelegt.');
+  });
+
   it('refuses a blank reference without asking the API', () => {
     const fixture = loaded([uni]);
     const component = fixture.componentInstance;

@@ -2,6 +2,39 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.114.0] - 2026-11-11
+
+A collection run no longer needs one sequence type: filed without one, it collects each mandate
+under its own and the single file carries one payment instruction per type.
+
+### Added
+- **`sepa.DirectDebitBatch`** — the general pain.008 writer: one group header and one or more
+  `PmtInf` blocks, each with its own sequence type and collection date, under a header that totals
+  them. `sepa.DirectDebit` is the one-instruction case and delegates to it, so a single-type file is
+  byte-identical to before (the existing golden proves it). Pinned additionally by
+  `testdata/golden_pain008_two_groups.xml`.
+- **A collection run may be filed with an empty `sequence_type`** on both routes
+  (`POST /api/direct-debit/runs`, `/from-receivables`): each mandate then rides its own type, the
+  instructions are ordered by the SEPA lifecycle (`FRST`, `RCUR`, `OOFF`, `FNAL`) rather than by
+  arrival, and the selecting route gathers the open items of every type. The run records no single
+  type, which the API and the screen show as *gemischt*.
+- *Kasse: Einzüge* offers the choice as "je Mandat" ahead of the four SEPA types, reads the mandate
+  list without a type filter for it, and labels the produced run *gemischt* — the form names the
+  choice, the result names the file.
+
+### Changed
+- **`migrations/0030_collection_run_mixed.sql`** widens the run's sequence-type check to allow the
+  empty value. The column stays `NOT NULL` and the four-value check still guards every non-empty
+  value; a mandate's own type check is untouched, so "each mandate's own" cannot become a type a
+  mandate carries.
+- A derived instruction identifier (`<reference>-<type>`) is only built when a file carries more
+  than one instruction; a single-type run keeps the reference as its `PmtInfId`.
+
+### Notes
+- `DirectDebitBatch` refuses two instructions sharing an identifier (`ErrInstructionIDDuplicate`):
+  a repeated `PmtInfId` makes the file ambiguous to the bank. An absent `PmtInfId` stays allowed —
+  the schema does not require it, so it is not a duplicate.
+
 ## [0.113.0] - 2026-11-11
 
 The tax catalogues have a screen — which meant building the reads they needed first.

@@ -3,6 +3,7 @@ package kasse
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
@@ -62,11 +63,11 @@ func (s *CollectionRunService) CreateCollectionRun(ctx context.Context, referenc
 	if err != nil {
 		return CollectionRun{}, err
 	}
-	transactions, err := s.resolveTransactions(ctx, reqItems, sequenceType)
+	groups, err := s.resolveGroups(ctx, reqItems, sequenceType)
 	if err != nil {
 		return CollectionRun{}, err
 	}
-	run, fileXML, err := assembleRun(account, ref, creditorID, collectionDate, sequenceType, localInstrument, transactions, by)
+	run, fileXML, err := assembleRun(account, ref, creditorID, collectionDate, sequenceType, localInstrument, groups, by)
 	if err != nil {
 		return CollectionRun{}, err
 	}
@@ -131,11 +132,11 @@ func (s *CollectionRunService) CreateCollectionRunFromReceivables(ctx context.Co
 	if err != nil {
 		return CollectionRun{}, err
 	}
-	transactions, err := s.resolveTransactions(ctx, reqItems, sequenceType)
+	groups, err := s.resolveGroups(ctx, reqItems, sequenceType)
 	if err != nil {
 		return CollectionRun{}, err
 	}
-	run, fileXML, err := assembleRun(account, ref, creditorID, collectionDate, sequenceType, localInstrument, transactions, by)
+	run, fileXML, err := assembleRun(account, ref, creditorID, collectionDate, sequenceType, localInstrument, groups, by)
 	if err != nil {
 		return CollectionRun{}, err
 	}
@@ -159,10 +160,23 @@ func (s *CollectionRunService) CollectionRunFile(ctx context.Context, reference 
 	return s.repo.CollectionRunFile(ctx, reference)
 }
 
-// resolveTransactions loads each item's mandate and turns it into a SEPA
-// transaction, refusing an inactive mandate or a sequence-type mismatch.
-func (s *CollectionRunService) resolveTransactions(ctx context.Context, items []CollectionRunItem, sequenceType MandateSequence) ([]sepa.DirectDebitTransaction, error) {
-	transactions := make([]sepa.DirectDebitTransaction, 0, len(items))
+// mandateGroup is the transactions a run collects under one sequence type.
+type mandateGroup struct {
+	SequenceType MandateSequence
+	Transactions []sepa.DirectDebitTransaction
+}
+
+// sequenceOrder is the order the instructions appear in a file: the SEPA lifecycle rather than the
+// order the items arrived, so a first collection is read before the recurring ones it precedes.
+var sequenceOrder = []MandateSequence{"FRST", "RCUR", "OOFF", "FNAL"}
+
+// resolveGroups loads each item's mandate and groups its transaction by the sequence type it must be
+// collected under, refusing an inactive mandate. With a run-level type every item must match it, so
+// there is one group; with none, each item rides its mandate's own type and there is one group per
+// type — the file then carries one payment instruction per type, which is why the type is not a
+// message-level field.
+func (s *CollectionRunService) resolveGroups(ctx context.Context, items []CollectionRunItem, runType MandateSequence) ([]mandateGroup, error) {
+	byType := make(map[MandateSequence][]sepa.DirectDebitTransaction, len(sequenceOrder))
 	for _, it := range items {
 		m, err := s.mandates.GetMandate(ctx, it.MandateReference)
 		if err != nil {
@@ -171,10 +185,10 @@ func (s *CollectionRunService) resolveTransactions(ctx context.Context, items []
 		if !m.Active {
 			return nil, fmt.Errorf("kasse: mandate %q: %w", m.Reference, ErrMandateNotActive)
 		}
-		if m.SequenceType != sequenceType {
+		if runType != "" && m.SequenceType != runType {
 			return nil, fmt.Errorf("kasse: mandate %q: %w", m.Reference, ErrMandateSequenceMismatch)
 		}
-		transactions = append(transactions, sepa.DirectDebitTransaction{
+		byType[m.SequenceType] = append(byType[m.SequenceType], sepa.DirectDebitTransaction{
 			EndToEndID:  it.EndToEndID,
 			AmountCents: it.AmountCents,
 			MandateID:   m.Reference,
@@ -185,7 +199,24 @@ func (s *CollectionRunService) resolveTransactions(ctx context.Context, items []
 			Purpose:     it.Purpose,
 		})
 	}
-	return transactions, nil
+	groups := make([]mandateGroup, 0, len(byType))
+	for _, t := range sequenceOrder {
+		if txs, ok := byType[t]; ok {
+			groups = append(groups, mandateGroup{SequenceType: t, Transactions: txs})
+			delete(byType, t)
+		}
+	}
+	// Any type outside the lifecycle order is still collected rather than dropped: a mandate's type
+	// is validated when it is written, so this is belt and braces, not a path a caller reaches.
+	leftovers := make([]string, 0, len(byType))
+	for t := range byType {
+		leftovers = append(leftovers, string(t))
+	}
+	sort.Strings(leftovers)
+	for _, t := range leftovers {
+		groups = append(groups, mandateGroup{SequenceType: MandateSequence(t), Transactions: byType[MandateSequence(t)]})
+	}
+	return groups, nil
 }
 
 // recordRun appends the audit event for a stored run.
@@ -199,13 +230,13 @@ func (s *CollectionRunService) recordRun(ctx context.Context, saved CollectionRu
 	return err
 }
 
-// assembleRun builds the pain.008 file and the run record from the resolved
-// transactions.
+// assembleRun builds the pain.008 file and the run record from the resolved groups: one payment
+// instruction per sequence type, under a header that totals them.
 func assembleRun(account CashAccount, ref, creditorID string, collectionDate time.Time,
-	sequenceType MandateSequence, localInstrument string,
-	transactions []sepa.DirectDebitTransaction, by string) (CollectionRun, string, error) {
+	runType MandateSequence, localInstrument string,
+	groups []mandateGroup, by string) (CollectionRun, string, error) {
 
-	dd := sepa.DirectDebit{
+	batch := sepa.DirectDebitBatch{
 		MessageID:       ref,
 		CreationTime:    nowFunc(),
 		InitiatingParty: account.Name,
@@ -213,13 +244,27 @@ func assembleRun(account CashAccount, ref, creditorID string, collectionDate tim
 		CreditorIBAN:    account.IBAN,
 		CreditorBIC:     account.BIC,
 		CreditorID:      creditorID,
-		SequenceType:    string(sequenceType),
 		LocalInstrument: localInstrument,
-		CollectionDate:  collectionDate,
 		Currency:        account.Currency,
-		Transactions:    transactions,
+		Groups:          make([]sepa.DirectDebitGroup, 0, len(groups)),
 	}
-	fileXML, err := dd.Marshal()
+	items := 0
+	for _, g := range groups {
+		// A run of one type keeps the instruction id it has always had — the reference — so its file
+		// is the same bytes as before; several types need one id per instruction to be addressable.
+		id := ref
+		if len(groups) > 1 {
+			id = ref + "-" + string(g.SequenceType)
+		}
+		batch.Groups = append(batch.Groups, sepa.DirectDebitGroup{
+			InstructionID:  id,
+			SequenceType:   string(g.SequenceType),
+			CollectionDate: collectionDate,
+			Transactions:   g.Transactions,
+		})
+		items += len(g.Transactions)
+	}
+	fileXML, err := batch.Marshal()
 	if err != nil {
 		return CollectionRun{}, "", fmt.Errorf("kasse: build SEPA direct-debit file: %w", err)
 	}
@@ -228,11 +273,11 @@ func assembleRun(account CashAccount, ref, creditorID string, collectionDate tim
 		AccountID:       account.ID,
 		CreditorID:      creditorID,
 		CollectionDate:  collectionDate,
-		SequenceType:    sequenceType,
+		SequenceType:    runType,
 		LocalInstrument: localInstrument,
 		MessageID:       ref,
-		ItemCount:       len(transactions),
-		SumCents:        dd.Sum(),
+		ItemCount:       items,
+		SumCents:        batch.Sum(),
 		FileHash:        hashFile(fileXML),
 		CreatedBy:       by,
 	}
