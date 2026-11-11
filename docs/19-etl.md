@@ -62,6 +62,37 @@ registers them:
 Both reuse `LegacyCatalogueSource` + `CatalogueSink`; the queries are the measured
 legacy column shapes (fixed-width char columns trimmed and cast to text).
 
+**Module datasets.** The cash-book module contributes four more, registered by
+`kasse.StandardDatasets` into the same registry:
+
+| dataset | legacy source | canonical |
+|---|---|---|
+| `kasse/vat` | `kbs.mwst_art` | `vat_type` |
+| `kasse/tax-office` | `kbs.finanzamt` | `tax_office` |
+| `kasse/foundation` | `kbs.stift` | `foundation` |
+| `kasse/counter-book` | `kbs.schalterbuch` | `cash_book_day` + `cash_booking` |
+
+Their sources and sinks are described below; the queries are the same measured
+column shapes the integration tests use, addressed unqualified so the dataset
+pool's `search_path` picks the schema.
+
+**Registration is what makes a dataset reachable.** A source and a sink can be
+written, tested and documented and still be dead: the registry is the only door,
+and `cmd/api` and `cmd/worker` are the only places that build one. These four
+datasets existed for several slices while neither runtime registered them, so
+`GET /api/etl/datasets` listed two of six and running any of them answered
+`unknown dataset`. Both runtimes now register `lookup.StandardDatasets` **and**
+`kasse.StandardDatasets`, and `cmd/api/wiring_test.go` reads both composition
+roots to keep it that way — a missing call cannot be observed from inside the
+process that lacks it.
+
+Registered is not the same as runnable *everywhere*: with no `ERP_LEGACY_DATABASE_URL`
+the dataset pool is the canonical one, and these queries name legacy tables
+(`mwst_art`, `finanzamt`, `stift`, `schalterbuch`) that the canonical schema does not
+have — so a run fails at the source with a missing relation rather than reporting an
+empty import. That is the honest failure: there is no extract to read. Against a real
+extract the same run reads and reconciles.
+
 ## Running a dataset (API)
 
 `etl.NewRegistry` binds a `*Runner` to a set of named datasets, and the API exposes
@@ -158,8 +189,15 @@ belongs to the ledger (Phase 4, `mbs`).
 
 ## Not yet done
 
-- The remaining `kbs` tables (cash book, payment orders, statements) as datasets —
-  S8 proper. Each is a new `Dataset`, not new plumbing.
+- The rest of the cash-book group as datasets — `kbs.bu` (the ledger-side bookings,
+  Phase 4), `kbs.kass` (the denomination count: how a physical count maps onto
+  opening/closing is a data decision, not a plumbing one) and `kbs.geing`. The
+  counter book itself is a dataset (`kasse/counter-book`) — it was listed here as
+  missing for a while after it existed, which is how the registration gap in
+  *Datasets* went unnoticed. Each new one is a `Dataset` plus its name in `StandardDatasets`,
+  not new plumbing, and the wiring test fails until both runtimes register it.
+- The **payment orders / statements** tables as datasets: `docs/legacy/kbs-payment-orders.md`
+  and `kbs-statement-import.md` measured them empty like the cash book.
 - The **parallel run**: extract from a real legacy database, reconcile against it
   (row counts + checksums + domain invariants such as bookings-per-day), and
   rehearse the reversible cutover. Blocked on a production extract (ADR-0001).

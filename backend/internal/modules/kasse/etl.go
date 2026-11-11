@@ -350,3 +350,72 @@ func LegacyCounterBookSource(pool *pgxpool.Pool, query string) etl.QuerySource {
 		},
 	}
 }
+
+// The measured legacy queries for this module's datasets. The tables are addressed unqualified so
+// the dataset pool's search_path picks the schema (kbs), exactly as the lookup datasets do it.
+// Column names come from the measured DDL (docs/legacy/kbs-tax-and-foundations.md,
+// docs/legacy/kbs-cashbook.md), not from a guess.
+const (
+	vatCatalogueQuery = `SELECT mw_art, mw_bez, mw_kz::text, mw_typ FROM mwst_art ORDER BY mw_art`
+	taxOfficeQuery    = `SELECT jahr, finanzamt_nr, bezeichnung, str, plz, ort, inhaber, iban, bic
+	                       FROM finanzamt ORDER BY jahr, finanzamt_nr`
+	foundationQuery = `SELECT jahr, stift_nr, bez, kz_uebern FROM stift ORDER BY jahr, stift_nr`
+	// The counter book is the one populated-adjacent table of the cash-book group and the only one
+	// whose mapping can be stated at all: the booking-type codes have no code list in the legacy
+	// schema, so the sign of the amount is the only candidate signal for income vs expense.
+	counterBookQuery = `SELECT scha_dat, betrag::text, grund1, grund2, scha_nr, jahr
+	                      FROM schalterbuch ORDER BY scha_dat, scha_nr`
+)
+
+// VATDataset builds the ETL dataset for the VAT catalogue (legacy kbs.mwst_art).
+func VATDataset(pool *pgxpool.Pool, svc *TaxService) etl.Dataset {
+	return etl.Dataset{
+		Name:   "kasse/vat",
+		Source: LegacyVATSource(pool, vatCatalogueQuery),
+		Sink:   NewVATSink(svc),
+	}
+}
+
+// TaxOfficeDataset builds the ETL dataset for the tax offices (legacy kbs.finanzamt).
+func TaxOfficeDataset(pool *pgxpool.Pool, svc *TaxService) etl.Dataset {
+	return etl.Dataset{
+		Name:   "kasse/tax-office",
+		Source: LegacyTaxOfficeSource(pool, taxOfficeQuery),
+		Sink:   NewTaxOfficeSink(svc),
+	}
+}
+
+// FoundationDataset builds the ETL dataset for the foundations (legacy kbs.stift).
+func FoundationDataset(pool *pgxpool.Pool, svc *TaxService) etl.Dataset {
+	return etl.Dataset{
+		Name:   "kasse/foundation",
+		Source: LegacyFoundationSource(pool, foundationQuery),
+		Sink:   NewFoundationSink(svc),
+	}
+}
+
+// CounterBookDataset builds the ETL dataset for the counter book (legacy kbs.schalterbuch).
+func CounterBookDataset(pool *pgxpool.Pool, svc *Service) etl.Dataset {
+	return etl.Dataset{
+		Name:   "kasse/counter-book",
+		Source: LegacyCounterBookSource(pool, counterBookQuery),
+		Sink:   NewCounterBookSink(svc),
+	}
+}
+
+// StandardDatasets returns the datasets this module contributes to the ETL, sourced from the legacy
+// cash-book and tax master data (docs/19).
+//
+// They are named here rather than only in their integration tests: until this function existed the
+// sources and sinks were reachable from a test and from nowhere else, so the registry — and with it
+// GET /api/etl/datasets and every run of these datasets — never saw them, and a run answered
+// "unknown dataset". A dataset that cannot be reached from the runtime is not wired, however well
+// it is tested.
+func StandardDatasets(pool *pgxpool.Pool, tax *TaxService, cash *Service) []etl.Dataset {
+	return []etl.Dataset{
+		VATDataset(pool, tax),
+		TaxOfficeDataset(pool, tax),
+		FoundationDataset(pool, tax),
+		CounterBookDataset(pool, cash),
+	}
+}

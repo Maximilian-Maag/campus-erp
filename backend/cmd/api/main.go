@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Maximilian-Maag/campus-erp/backend/cmd/etlwiring"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
@@ -62,7 +63,12 @@ func main() {
 			srcPool = legacyPool
 		}
 		etlRunner := etl.NewRunner(store).WithLedger(etl.NewAuditLedger(store))
-		etlRegistry := etl.NewRegistry(etlRunner, lookup.StandardDatasets(srcPool, lookupSvc)...)
+		// The module's own ETL datasets read the legacy extract and load through the services, so
+		// they are registered next to the lookup ones: both a test-visible dataset and a reachable
+		// one (docs/19). Built here because the registry is made before the dependencies literal.
+		kasseSvc := kasse.NewService(kasse.NewRepo(pool), store)
+		taxSvc := kasse.NewTaxService(kasse.NewTaxRepo(pool), store)
+		etlRegistry := etl.NewRegistry(etlRunner, etlwiring.Datasets(srcPool, lookupSvc, taxSvc, kasseSvc)...)
 		dunningRepo := kasse.NewDunningRepo(pool)
 		dunningSvc := kasse.NewDunningService(dunningRepo, store)
 		if issuer := dunningDocumentsFromEnv(); issuer != nil {
@@ -99,12 +105,12 @@ func main() {
 		// procurement service (which owns the order and the budget conversion).
 		procurementSvc := procurement.NewOrderService(procurement.NewOrderRepo(pool), budgetSvc, store)
 		deps := httpapi.Deps{
-			Kasse:           kasse.NewService(kasse.NewRepo(pool), store),
+			Kasse:           kasseSvc,
 			Orders:          kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetSvc, store),
 			Dunning:         dunningSvc,
 			DunningRun:      dunningRunSvc,
 			Artefacts:       artefactStore,
-			Tax:             kasse.NewTaxService(kasse.NewTaxRepo(pool), store),
+			Tax:             taxSvc,
 			Runs:            kasse.NewPaymentRunService(kasse.NewPaymentRunRepo(pool), store),
 			Statements:      kasse.NewStatementService(kasse.NewStatementRepo(pool), store),
 			FoundationBooks: kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store),
