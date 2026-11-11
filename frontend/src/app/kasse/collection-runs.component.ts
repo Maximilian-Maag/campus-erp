@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CampusErpApi, CashAccount, CollectionItemRequest, CollectionRun, Mandate } from '../core/api/generated';
+import { SEQUENCE_TYPES } from '../core/direct-debit';
 import { euroToCents, formatCents, formatDay } from '../core/format';
 
 /**
@@ -77,10 +78,9 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
           <p>
             <label for="run-sequence">Sequenztyp</label>
             <select id="run-sequence" [value]="sequenceType()" (change)="changeSequence($any($event.target).value)">
-              <option value="FRST">FRST — erstmalig</option>
-              <option value="RCUR">RCUR — wiederkehrend</option>
-              <option value="OOFF">OOFF — einmalig</option>
-              <option value="FNAL">FNAL — letztmalig</option>
+              @for (type of sequenceTypes; track type.value) {
+                <option [value]="type.value">{{ type.value }} — {{ type.label }}</option>
+              }
             </select>
           </p>
           <p>
@@ -224,6 +224,8 @@ export class CollectionRunsComponent implements OnInit {
   readonly collectionDate = signal('');
   readonly dueBy = signal('');
   readonly sequenceType = signal('RCUR');
+  /** The sequence types, from the one list the mandate screen uses too (core/direct-debit). */
+  readonly sequenceTypes = SEQUENCE_TYPES;
   readonly localInstrument = signal('CORE');
 
   /** Where the run's items come from: the open receivables, or mandates named by hand. */

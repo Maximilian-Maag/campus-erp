@@ -6,6 +6,7 @@ import { CashAccountsComponent } from './kasse/cash-accounts.component';
 import { DunningComponent } from './kasse/dunning.component';
 import { DunningRunComponent } from './kasse/dunning-run.component';
 import { ReturnPostingsComponent } from './kasse/return-postings.component';
+import { MandatesComponent } from './kasse/mandates.component';
 import { PaymentRunsComponent } from './kasse/payment-runs.component';
 import { EInvoicesComponent } from './einvoice/invoices.component';
 import { FoundationsComponent } from './finanzen/foundations.component';
@@ -41,6 +42,7 @@ export const routes: Routes = [
   { path: 'kasse/mahnwesen', component: DunningComponent },
   { path: 'kasse/mahnlauf', component: DunningRunComponent },
   { path: 'kasse/ruecklaeufer', component: ReturnPostingsComponent },
+  { path: 'kasse/mandate', component: MandatesComponent },
   { path: 'finanzen/stiftungen', component: FoundationsComponent },
   { path: 'auswertungen', component: AuswertungenComponent },
 ];
