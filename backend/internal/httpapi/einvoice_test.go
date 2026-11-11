@@ -126,6 +126,26 @@ func TestHTTPEInvoiceFlow(t *testing.T) {
 	if !strings.Contains(doc, "<ubl:Invoice") || !strings.Contains(doc, inv.Number) {
 		t.Fatalf("document = %s", doc)
 	}
+
+	// Render the same invoice as ZUGFeRD/Factur-X (CII): one model, a second syntax.
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/e-invoices/"+itoa(inv.ID)+"/cii", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("render cii = %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "xml") {
+		t.Fatalf("cii content-type = %q", ct)
+	}
+	body, _ = io.ReadAll(resp.Body)
+	cii := string(body)
+	if !strings.Contains(cii, "<rsm:CrossIndustryInvoice") || !strings.Contains(cii, inv.Number) {
+		t.Fatalf("cii document = %s", cii)
+	}
+	if !strings.Contains(cii, "urn:cen.eu:en16931:2017") {
+		t.Fatalf("the CII document does not name its guideline: %s", cii)
+	}
+	if !strings.Contains(cii, "<ram:DuePayableAmount>") {
+		t.Fatalf("the CII document carries no payable amount: %s", cii)
+	}
 }
 
 func TestHTTPEInvoiceErrorBranches(t *testing.T) {

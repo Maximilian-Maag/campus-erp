@@ -164,3 +164,13 @@ func (s *InvoiceService) Render(ctx context.Context, id int64) (string, error) {
 	}
 	return core.GenerateXRechnung(inv)
 }
+
+// RenderCII renders the same stored invoice as ZUGFeRD/Factur-X (CII). It is a second syntax over
+// one model, so it validates the same way and refuses the same invoices (docs/09).
+func (s *InvoiceService) RenderCII(ctx context.Context, id int64) (string, error) {
+	inv, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return core.GenerateCII(inv)
+}

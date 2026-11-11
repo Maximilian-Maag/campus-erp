@@ -20,8 +20,9 @@ FKs, enum checks) — `migrations/0011_e_invoice.sql`.
 | canonical tables | `e_invoice`, `e_invoice_party`, `e_invoice_line`, `e_invoice_vat` |
 | model + rules | `internal/core/einvoice` (`Validate`, `ComputeTotals`, `VATGroups`) |
 | generator | `internal/core/einvoice.GenerateXRechnung` → UBL 2.1 XML |
+| generator (second syntax) | `internal/core/einvoice.GenerateCII` → UN/CEFACT CII XML (ZUGFeRD/Factur-X) |
 | persistence + service | `internal/modules/einvoice` (atomic insert, audited) |
-| HTTP | `POST /api/e-invoices`, `GET /api/e-invoices/{id}`, `GET /api/e-invoices/{id}/xrechnung`, `POST /api/e-invoices/{id}/match` |
+| HTTP | `POST /api/e-invoices`, `GET /api/e-invoices/{id}`, `GET /api/e-invoices/{id}/xrechnung`, `GET /api/e-invoices/{id}/cii`, `POST /api/e-invoices/{id}/match` |
 
 The generator is deterministic and is pinned by a golden file
 (`internal/core/einvoice/testdata/golden_invoice.xml`) that **validates against
@@ -43,6 +44,33 @@ enforce the mandatory fields a German public-sector invoice needs:
   from (`docs/11`), so an invoice that would not conform is refused rather than generated;
 - **BR-CO-10**: each line net = quantity × unit price (round half away from zero);
 - VAT breakdown derived per (category, rate) with the tax rounded half-up.
+
+## ZUGFeRD / Factur-X (CII)
+
+XRechnung (UBL) is what a German public body *receives*; **ZUGFeRD** is what a supplier is asked for
+when the counterpart prefers a hybrid file. Both carry the EN 16931 business terms, so
+`GenerateCII` is a **second rendering of the same model**, not a second model: it runs the same
+`Validate`, so an invoice this system refuses to emit as XRechnung is refused here too, and the two
+renderings are pinned by two golden files (`golden_invoice.xml`, `golden_invoice_cii.xml`).
+
+What is shipped here is the **CII data part** — the document that would be embedded as
+`factur-x.xml`. A ZUGFeRD file *proper* is a PDF/A-3 with that XML as an attachment; assembling a
+PDF/A-3 is a PDF job of its own and is not part of this (below).
+
+Two things the CII syntax says differently, and how this build treats them:
+
+- the **guideline** (BT-24) is a parameter value, not a fixed tag: `CIIGuideline` is the EN 16931
+  core guideline, and a counterpart that demands a ZUGFeRD profile id (for instance
+  `urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:en16931`) states it rather than this file
+  guessing at one;
+- the **delivery group** (`ram:ApplicableHeaderTradeDelivery`) is part of the element sequence even
+  when it carries nothing, so it is written empty rather than left out — an omitted group is not the
+  same document as an empty one to a CII parser.
+
+`GET /api/e-invoices/{id}/cii` serves it (`application/xml`), next to the UBL route, and the
+*E-Rechnung* screen offers both from each row. No CII schema is committed — the standard's schemas
+live outside the repo, exactly as the XRechnung one does — so the guard is the golden file, a
+well-formedness test that walks every token, and the business terms the document must carry.
 
 ## Inbound (Eingangsrechnung)
 
@@ -74,7 +102,11 @@ to `inbound`. That is what the trail is for.
 
 ## Not yet done
 
-- ZUGFeRD/CII syntax (the vendor ships it too; UBL is the public-sector format).
+- ~~ZUGFeRD/CII syntax~~ — done since: `GenerateCII` renders the same model as CII and
+  `GET /api/e-invoices/{id}/cii` serves it (above). What remains of a ZUGFeRD *file* is the
+  **PDF/A-3 embedding** — the data part exists, the container does not.
 - The full KoSIT Schematron ruleset (we enforce the subset we can satisfy).
 - **No KoSIT Schematron.** The rules enforced are the ones this package can satisfy (docs/09
-  above); the full ruleset is a separate body of work.
+  above); the full ruleset is a separate body of work, and it is the same gap for both syntaxes.
+- Reading a received **CII** document back is not implemented: `ParseXRechnung` reads UBL, which is
+  what a public body is sent. A counterpart that sends ZUGFeRD would need its own parser.

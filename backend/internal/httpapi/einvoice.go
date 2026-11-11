@@ -20,6 +20,7 @@ type einvoiceService interface {
 	Get(ctx context.Context, id int64) (core.Invoice, error)
 	Invoices(ctx context.Context) ([]einvoice.InvoiceSummary, error)
 	Render(ctx context.Context, id int64) (string, error)
+	RenderCII(ctx context.Context, id int64) (string, error)
 	Match(ctx context.Context, id int64, by string) (core.Invoice, error)
 }
 
@@ -204,6 +205,24 @@ func (s *Server) getEInvoiceXML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	doc, err := s.einvoices.Render(r.Context(), id)
+	if err != nil {
+		writeProblem(w, statusForEInvoice(err), err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(doc))
+}
+
+// getEInvoiceCII serves the same invoice as ZUGFeRD/Factur-X (CII) XML, next to the UBL one above:
+// a counterpart that asks for a hybrid file gets the data part of it here (docs/09).
+func (s *Server) getEInvoiceCII(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	doc, err := s.einvoices.RenderCII(r.Context(), id)
 	if err != nil {
 		writeProblem(w, statusForEInvoice(err), err.Error())
 		return

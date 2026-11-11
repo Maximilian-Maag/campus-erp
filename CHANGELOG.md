@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.109.0] - 2026-11-11
+
+The second e-invoice syntax exists: the same invoice can now be emitted as ZUGFeRD/Factur-X (CII)
+next to XRechnung (UBL).
+
+### Added
+- `einvoice.GenerateCII` — the **CII data part** of a ZUGFeRD/Factur-X file, rendered from the same
+  canonical model and the same `Validate`, so an invoice this system refuses to emit as XRechnung is
+  refused here too (one model, two syntaxes). Pinned by a golden file
+  (`testdata/golden_invoice_cii.xml`) and by a well-formedness test that walks every token of the
+  document — the mistake a string assertion misses, which is how the closing-tag bug this helper had
+  was caught.
+- The CII guideline (BT-24) is a **value**: `CIIGuideline` is the EN 16931 core guideline, and a
+  counterpart that demands a ZUGFeRD profile id states it rather than this build guessing at one.
+  The delivery group is written empty rather than omitted, because the sequence requires it.
+- `GET /api/e-invoices/{id}/cii` serves the document as `application/xml`, next to the UBL route
+  (`/xrechnung`); the contract is 110 operations.
+- *E-Rechnung* screen: each invoice row carries both documents — *XRechnung (UBL)* and
+  *ZUGFeRD (CII)* — so the second syntax is reachable without an API client.
+- Still open for a ZUGFeRD *file proper*: the **PDF/A-3 embedding** (the container, not the data
+  part) and reading a received CII document back (docs/09).
+
 ## [0.108.0] - 2026-11-11
 
 A budget year can be read in: one file brings the Mittelquellen, the Bewirtschaftungsstellen and the

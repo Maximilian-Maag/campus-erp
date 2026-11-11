@@ -253,6 +253,10 @@ func (s stubEInvoices) Get(context.Context, int64) (core.Invoice, error) {
 	return core.Invoice{}, s.err
 }
 
+func (s stubEInvoices) RenderCII(context.Context, int64) (string, error) {
+	return "", s.err
+}
+
 func (s stubEInvoices) Render(context.Context, int64) (string, error) {
 	return "", s.err
 }

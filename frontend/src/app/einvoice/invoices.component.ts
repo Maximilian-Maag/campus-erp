@@ -58,6 +58,7 @@ import { formatCents, formatDay } from '../core/format';
               <th scope="col">Referenz</th>
               <th scope="col" class="amount">Betrag</th>
               <th scope="col">Zuordnung</th>
+              <th scope="col">Belege</th>
               <th scope="col">Aktion</th>
             </tr>
           </thead>
@@ -75,6 +76,10 @@ import { formatCents, formatDay } from '../core/format';
                   } @else {
                     {{ invoice.MatchedOrderID ? 'Bestellung ' + invoice.MatchedOrderID : 'offen' }}
                   }
+                </td>
+                <td [attr.data-testid]="'documents-' + invoice.Number">
+                  <a [href]="documentUrl(invoice.ID, 'xrechnung')">XRechnung (UBL)</a>
+                  <a [href]="documentUrl(invoice.ID, 'cii')">ZUGFeRD (CII)</a>
                 </td>
                 <td>
                   @if (invoice.Direction === 'inbound' && !invoice.MatchedOrderID) {
@@ -162,6 +167,14 @@ export class EInvoicesComponent implements OnInit {
         this.actionError.set('Konnte die Rechnung ' + invoice.Number + ' nicht zuordnen.');
       },
     });
+  }
+
+  /**
+   * Where an invoice's document is served: one model, two syntaxes — UBL 2.1 as XRechnung, and
+   * ZUGFeRD/Factur-X as CII (docs/09).
+   */
+  documentUrl(id: number, syntax: 'xrechnung' | 'cii'): string {
+    return `/api/e-invoices/${id}/${syntax}`;
   }
 
   /** Which way the invoice goes, in the words the screen uses. */
