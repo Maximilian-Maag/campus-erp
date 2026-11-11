@@ -89,6 +89,20 @@ export interface BudgetSourceRequest {
   chapter: string;
 }
 
+export interface CarryOverRequest {
+  reference: string;
+}
+
+export interface CarryOverResponse {
+  source_book_id: number;
+  source_reference: string;
+  year: number;
+  target_book_id: number;
+  target_reference: string;
+  booking_id: number;
+  cents: number;
+}
+
 export interface CashAccount {
   ID: number;
   Name: string;

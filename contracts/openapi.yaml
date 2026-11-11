@@ -939,6 +939,46 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/foundation-books/{id}/carry-over:
+    post:
+      tags:
+      - kasse
+      operationId: carryOverFoundationBook
+      summary: Close a year's book into the next year's
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarryOverRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarryOverResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/dunning/notices/{id}/document:
     get:
       tags:
@@ -6010,6 +6050,43 @@ components:
       - state
       - from
       - to
+    CarryOverResponse:
+      type: object
+      properties:
+        source_book_id:
+          type: integer
+          format: int64
+        source_reference:
+          type: string
+        year:
+          type: integer
+          format: int64
+        target_book_id:
+          type: integer
+          format: int64
+        target_reference:
+          type: string
+        booking_id:
+          type: integer
+          format: int64
+        cents:
+          type: integer
+          format: int64
+      required:
+      - source_book_id
+      - source_reference
+      - year
+      - target_book_id
+      - target_reference
+      - booking_id
+      - cents
+    CarryOverRequest:
+      type: object
+      properties:
+        reference:
+          type: string
+      required:
+      - reference
     FoundationBalance:
       type: object
       properties:

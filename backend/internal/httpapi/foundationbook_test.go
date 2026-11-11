@@ -154,6 +154,104 @@ func TestHTTPFoundationBookErrorBranches(t *testing.T) {
 	}
 }
 
+// createBookFor opens a book for a foundation over HTTP and returns it.
+func createBookFor(t *testing.T, srv string, foundationID int64, reference string) bookJSON {
+	t.Helper()
+	resp := doJSON(t, http.MethodPost, srv+"/api/foundation-books", "alice",
+		`{"foundation_id":`+itoa(foundationID)+`,"reference":"`+reference+`","currency":"EUR"}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create book = %d", resp.StatusCode)
+	}
+	var book bookJSON
+	if err := json.NewDecoder(resp.Body).Decode(&book); err != nil {
+		t.Fatalf("decode book: %v", err)
+	}
+	return book
+}
+
+// TestHTTPFoundationCarryOver closes a year over HTTP: the answer names both books and the net, and
+// the two refusals a caller can act on come back as 422 and 409 rather than 500.
+func TestHTTPFoundationCarryOver(t *testing.T) {
+	srv, _ := newTestServer(t)
+	number := "STIFT-" + uniqueSuffix(t)
+	// The source year carries; the next year's record is opened first, as an operator would.
+	for _, year := range []int{2026, 2027} {
+		body := `{"year":` + itoa(int64(year)) + `,"number":"` + number + `","description":"Stiftung","carry_over":true}`
+		if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundations", "alice", body); resp.StatusCode != http.StatusCreated {
+			t.Fatalf("foundation %d = %d", year, resp.StatusCode)
+		}
+	}
+	var f foundationJSON
+	resp := doJSON(t, http.MethodGet, srv.URL+"/api/foundations?year=2026", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list foundations = %d", resp.StatusCode)
+	}
+	var list []foundationJSON
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode foundations: %v", err)
+	}
+	for _, cand := range list {
+		if cand.Number == number && cand.Year == 2026 {
+			f = cand
+		}
+	}
+	if f.ID == 0 {
+		t.Fatalf("foundation %s/2026 not found in %+v", number, list)
+	}
+
+	book := createBookFor(t, srv.URL, f.ID, "JAHR-"+uniqueSuffix(t))
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(book.ID)+"/bookings", "alice",
+		`{"kind":"income","amount_cents":9000,"purpose":"Spende"}`); resp.StatusCode != http.StatusCreated {
+		t.Fatalf("income = %d", resp.StatusCode)
+	}
+
+	resp = doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(book.ID)+"/carry-over", "alice", `{}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("carry-over = %d, want 201", resp.StatusCode)
+	}
+	var out struct {
+		SourceBookID    int64  `json:"source_book_id"`
+		SourceReference string `json:"source_reference"`
+		Year            int    `json:"year"`
+		TargetBookID    int64  `json:"target_book_id"`
+		TargetReference string `json:"target_reference"`
+		BookingID       int64  `json:"booking_id"`
+		Cents           int64  `json:"cents"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode carry-over: %v", err)
+	}
+	if out.Cents != 9000 || out.Year != 2026 || out.SourceBookID != book.ID {
+		t.Fatalf("carry-over = %+v, want 9000 cents from 2026 book %d", out, book.ID)
+	}
+	if out.TargetBookID == 0 || out.TargetBookID == book.ID || out.BookingID == 0 {
+		t.Fatalf("carry-over = %+v, want a distinct target book and an opening movement", out)
+	}
+
+	// The same year again: the money is already in the next book.
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(book.ID)+"/carry-over", "alice", `{}`); resp.StatusCode != http.StatusConflict {
+		t.Fatalf("second carry-over = %d, want 409", resp.StatusCode)
+	}
+
+	// A foundation that does not carry: 422, not 500.
+	plain := createFoundation(t, srv.URL)
+	plainBook := createBookFor(t, srv.URL, plain.ID, "JAHR-"+uniqueSuffix(t))
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(plainBook.ID)+"/bookings", "alice",
+		`{"kind":"income","amount_cents":100,"purpose":"Spende"}`); resp.StatusCode != http.StatusCreated {
+		t.Fatalf("plain income = %d", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(plainBook.ID)+"/carry-over", "alice", `{}`); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("carry-over without the flag = %d, want 422", resp.StatusCode)
+	}
+	// Unknown book: 404. Malformed body: 400.
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/9223372036854775807/carry-over", "alice", `{}`); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown book = %d, want 404", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(book.ID)+"/carry-over", "alice", `{`); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad body = %d, want 400", resp.StatusCode)
+	}
+}
+
 // TestHTTPFoundationBooksListIsScoped reads one foundation's books over HTTP: the ones created
 // for it, and none of another's.
 func TestHTTPFoundationBooksListIsScoped(t *testing.T) {

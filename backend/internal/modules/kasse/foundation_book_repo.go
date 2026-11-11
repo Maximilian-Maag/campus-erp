@@ -17,10 +17,18 @@ const foreignKeyViolation = "23503"
 type FoundationBookRepository interface {
 	CreateBook(ctx context.Context, b FoundationBook) (FoundationBook, error)
 	GetBook(ctx context.Context, id int64) (FoundationBook, error)
+	// BookByReference finds a foundation's book by its reference, so a carry-over opens the book it
+	// already made instead of failing on the unique (foundation, reference) pair.
+	BookByReference(ctx context.Context, foundationID int64, reference string) (FoundationBook, bool, error)
 	InsertBooking(ctx context.Context, b FoundationBooking, by string) (FoundationBooking, error)
 	Bookings(ctx context.Context, bookID int64) ([]FoundationBooking, error)
 	Books(ctx context.Context, foundationID int64) ([]FoundationBook, error)
 	Balance(ctx context.Context, bookID int64) (FoundationBalance, error)
+	// FoundationByID loads the foundation a book belongs to: the carry-over needs its year, its
+	// number and whether it may carry at all.
+	FoundationByID(ctx context.Context, id int64) (Foundation, error)
+	// FoundationByYearNumber finds one year's foundation record — the one a carry-over opens.
+	FoundationByYearNumber(ctx context.Context, year int, number string) (Foundation, bool, error)
 }
 
 // FoundationBookRepo is the PostgreSQL implementation.
@@ -150,4 +158,56 @@ func (r *FoundationBookRepo) Balance(ctx context.Context, bookID int64) (Foundat
 		return FoundationBalance{}, fmt.Errorf("kasse: foundation balance: %w", err)
 	}
 	return bal, nil
+}
+
+// foundationReadColumns is the foundation reference as the book side reads it. The tax repo owns the
+// write path for foundation master data; this repo reads it because a book and the year it belongs to
+// are one question at carry-over time.
+const foundationReadColumns = `id, year, number, description, carry_over`
+
+func scanFoundationRead(row pgx.Row) (Foundation, error) {
+	var f Foundation
+	err := row.Scan(&f.ID, &f.Year, &f.Number, &f.Description, &f.CarryOver)
+	return f, err
+}
+
+// BookByReference finds a foundation's book by its reference.
+func (r *FoundationBookRepo) BookByReference(ctx context.Context, foundationID int64, reference string) (FoundationBook, bool, error) {
+	b, err := scanBook(r.pool.QueryRow(ctx,
+		`SELECT `+bookColumns+` FROM foundation_book WHERE foundation_id = $1 AND reference = $2`,
+		foundationID, reference))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return FoundationBook{}, false, nil
+	}
+	if err != nil {
+		return FoundationBook{}, false, fmt.Errorf("kasse: find foundation book: %w", err)
+	}
+	return b, true, nil
+}
+
+// FoundationByID loads the foundation a book belongs to.
+func (r *FoundationBookRepo) FoundationByID(ctx context.Context, id int64) (Foundation, error) {
+	f, err := scanFoundationRead(r.pool.QueryRow(ctx,
+		`SELECT `+foundationReadColumns+` FROM foundation WHERE id = $1`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Foundation{}, fmt.Errorf("kasse: foundation %d: %w", id, ErrFoundationRequired)
+	}
+	if err != nil {
+		return Foundation{}, fmt.Errorf("kasse: get foundation: %w", err)
+	}
+	return f, nil
+}
+
+// FoundationByYearNumber finds one year's foundation record. A missing one is not an error: the
+// caller decides what to say about a year that has not been opened yet.
+func (r *FoundationBookRepo) FoundationByYearNumber(ctx context.Context, year int, number string) (Foundation, bool, error) {
+	f, err := scanFoundationRead(r.pool.QueryRow(ctx,
+		`SELECT `+foundationReadColumns+` FROM foundation WHERE year = $1 AND number = $2`, year, number))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Foundation{}, false, nil
+	}
+	if err != nil {
+		return Foundation{}, false, fmt.Errorf("kasse: find foundation: %w", err)
+	}
+	return f, true, nil
 }

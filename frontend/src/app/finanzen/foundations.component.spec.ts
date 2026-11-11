@@ -527,4 +527,108 @@ describe('FoundationsComponent', () => {
     expect(component.kindLabel('expense')).toBe('Ausgabe');
     expect(component.kindLabel('transfer')).toBe('transfer');
   });
+
+  it('carries a year over and names what moved', () => {
+    const fixture = withBooks();
+    const component = fixture.componentInstance;
+
+    component.carryOver(buch);
+
+    expect(component.carryingOver()).toBe(7);
+    const post = http.expectOne('/api/foundation-books/7/carry-over');
+    expect(post.request.method).toBe('POST');
+    expect(post.request.body).toEqual({ reference: '' });
+    // While the request is in flight the button says so and cannot be pressed again.
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-testid="carry-over-7"]',
+    ) as HTMLButtonElement;
+    expect(button.disabled).toBeTrue();
+    expect(button.textContent).toContain('Übertrage');
+
+    post.flush({
+      source_book_id: 7,
+      source_reference: 'B-1',
+      year: 2026,
+      target_book_id: 12,
+      target_reference: 'B-1',
+      booking_id: 40,
+      cents: 42500,
+    });
+    fixture.detectChanges();
+
+    expect(component.carryingOver()).toBeNull();
+    expect(component.notice()).toBe('425,00 € aus 2026 übertragen — Buch B-1 im Jahr 2027 angelegt.');
+    expect(component.actionError()).toBeNull();
+  });
+
+  it('names each refusal a carry-over can come back with', () => {
+    const cases: [string, string][] = [
+      ['kasse.carry_over_not_allowed', 'Diese Stiftung trägt ihr Vermögen nicht ins Folgejahr.'],
+      ['kasse.carry_over_nothing', 'Das Buch hat keinen Saldo — es gibt nichts zu übertragen.'],
+      ['kasse.carry_over_target_missing', 'Für das Folgejahr ist noch keine Stiftung angelegt.'],
+      ['kasse.carry_over_target_not_empty', 'Das Buch des Folgejahres hat bereits Buchungen.'],
+      ['kasse.something_else', 'Konnte das Jahr nicht abschließen.'],
+    ];
+    for (const [code, message] of cases) {
+      const fixture = withBooks();
+      const component = fixture.componentInstance;
+
+      component.carryOver(buch);
+      http
+        .expectOne('/api/foundation-books/7/carry-over')
+        .flush({ error: 'refused', code }, { status: 422, statusText: 'Unprocessable Entity' });
+      fixture.detectChanges();
+
+      expect(component.carryingOver()).toBeNull();
+      expect(component.actionError()).toBe(message);
+      expect(component.notice()).toBeNull();
+    }
+  });
+
+  it('clears an earlier notice when a carry-over is refused', () => {
+    const fixture = withBooks();
+    const component = fixture.componentInstance;
+    component.notice.set('Buch angelegt.');
+
+    component.carryOver(buch);
+    http
+      .expectOne('/api/foundation-books/7/carry-over')
+      .flush({ error: 'refused', code: 'kasse.carry_over_nothing' }, { status: 422, statusText: 'Unprocessable Entity' });
+
+    expect(component.notice()).toBeNull();
+    expect(component.actionError()).toBe('Das Buch hat keinen Saldo — es gibt nichts zu übertragen.');
+  });
+
+  it('falls back to a plain message when the failure carries no body at all', () => {
+    const fixture = withBooks();
+    const component = fixture.componentInstance;
+
+    // A failure that is not the API's problem shape (a dropped connection, an HTML error page) must
+    // still leave a sentence on screen rather than throwing while reading it.
+    component.carryOver(buch);
+    http
+      .expectOne('/api/foundation-books/7/carry-over')
+      .flush(null, { status: 500, statusText: 'Internal Server Error' });
+    fixture.detectChanges();
+
+    expect(component.carryingOver()).toBeNull();
+    expect(component.actionError()).toBe('Konnte das Jahr nicht abschließen.');
+  });
+
+  it('keeps the typed year in both year fields', () => {
+    const fixture = withBooks();
+    const component = fixture.componentInstance;
+    const host = fixture.nativeElement as HTMLElement;
+
+    // The filter field shows what was typed, so a narrowed list is never shown under a blank year.
+    component.filterYear.set('2025');
+    component.newYear.set('2027');
+    fixture.detectChanges();
+
+    const filter = host.querySelector('#foundation-filter-year') as HTMLInputElement;
+    const created = host.querySelector('#foundation-year') as HTMLInputElement;
+    expect(filter.value).toBe('2025');
+    expect(created.value).toBe('2027');
+  });
 });
