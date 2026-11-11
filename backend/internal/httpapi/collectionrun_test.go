@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -75,6 +76,44 @@ func TestCreateCollectionRunHandler(t *testing.T) {
 				t.Fatalf("status = %d, want %d (%s)", rec.Code, c.want, rec.Body.String())
 			}
 		})
+	}
+}
+
+// captureCollectionRuns records the sequence type the handler handed the service.
+type captureCollectionRuns struct {
+	stubCollectionRuns
+	seenSequence kasse.MandateSequence
+}
+
+func (c *captureCollectionRuns) CreateCollectionRun(_ context.Context, reference string, _ int64, _ string,
+	_ time.Time, sequenceType kasse.MandateSequence, _ string, _ []kasse.CollectionItem, _ string) (kasse.CollectionRun, error) {
+	c.seenSequence = sequenceType
+	c.run.Reference = reference
+	c.run.SequenceType = sequenceType
+	return c.run, nil
+}
+
+// A run may be filed without a sequence type: it then collects each mandate under its own type. The
+// handler must pass that through as empty rather than inventing a type, and the run that comes back
+// must say it has none.
+func TestCreateCollectionRunWithoutSequenceTypeIsPerMandate(t *testing.T) {
+	stub := &captureCollectionRuns{}
+	srv := httpapi.New(httpapi.Deps{CollectionRuns: stub})
+	body := strings.Replace(validCollectionBody, `"sequence_type":"RCUR",`, "", 1)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/direct-debit/runs", strings.NewReader(body)))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201 (%s)", rec.Code, rec.Body.String())
+	}
+	if stub.seenSequence != "" {
+		t.Fatalf("service saw sequence type %q, want empty", stub.seenSequence)
+	}
+	var got kasse.CollectionRun
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode run: %v", err)
+	}
+	if !got.MixedSequence() {
+		t.Fatalf("run = %q, want no single type", got.SequenceType)
 	}
 }
 

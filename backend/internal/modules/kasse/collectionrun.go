@@ -40,11 +40,14 @@ func validLocalInstrument(s string) bool {
 
 // CollectionRun is one produced direct-debit file for one collection date.
 type CollectionRun struct {
-	ID              int64
-	Reference       string
-	AccountID       int64
-	CreditorID      string
-	CollectionDate  time.Time
+	ID             int64
+	Reference      string
+	AccountID      int64
+	CreditorID     string
+	CollectionDate time.Time
+	// SequenceType is the type every item of the run was collected under, or empty when the run
+	// collected under several: the type belongs to the payment instruction, so such a run is one
+	// file with one instruction per type rather than one run per type.
 	SequenceType    MandateSequence
 	LocalInstrument string // CORE / B2B
 	MessageID       string
@@ -53,6 +56,9 @@ type CollectionRun struct {
 	FileHash        string
 	CreatedBy       string
 }
+
+// MixedSequence reports whether the run collected under more than one sequence type.
+func (r CollectionRun) MixedSequence() bool { return r.SequenceType == "" }
 
 // CollectionRunItem links a run to the mandate it collects from.
 type CollectionRunItem struct {
@@ -90,7 +96,9 @@ func validateRunInputs(reference string, accountID int64, creditorID string, col
 	if collectionDate.IsZero() {
 		return "", ErrCollectionDateRequired
 	}
-	if !ValidSequenceType(sequenceType) {
+	// An empty sequence type is not a missing one: it means the run takes each mandate's own type
+	// and splits the file into one payment instruction per type. Anything else must be a real type.
+	if sequenceType != "" && !ValidSequenceType(sequenceType) {
 		return "", ErrSequenceTypeUnknown
 	}
 	if !validLocalInstrument(localInstrument) {

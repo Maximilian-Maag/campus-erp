@@ -2,8 +2,10 @@
 
 Drives the pain.008 generator (`docs/20`) from the mandates (`docs/21`): the
 collection counterpart of the payment run. A run gathers mandates into one
-direct-debit file for one collection date and one sequence type, and stores the
-produced file so the run is reproducible.
+direct-debit file for one collection date, and stores the produced file so the run
+is reproducible. It is filed either under **one** sequence type — every mandate must
+match it — or under **none**, in which case each mandate rides its own type and the
+file carries one payment instruction (`PmtInf`) per type.
 
 ## Model
 
@@ -51,10 +53,17 @@ type reloads them and drops a chosen item whose mandate is no longer collectable
 - **Fails closed**: an unknown or inactive mandate, a mandate whose
   `sequence_type` differs from the run's, a blank mandate reference or a duplicate
   mandate in one run is rejected before anything is written.
-- **Sequence type is per run**: the run declares one sequence type and every
-  selected mandate must match it — a `FRST` mandate cannot ride an `RCUR` run
-  (correct SEPA behaviour). The per-run `UNIQUE (run_id, mandate_reference)` is a
-  second guard behind the service's own dedupe.
+- **The sequence type belongs to the payment instruction, not to the message.** A run
+  declares one type and every selected mandate must match it — a `FRST` mandate cannot
+  ride an `RCUR` run (correct SEPA behaviour). Filed with **no** type, the run takes
+  each mandate's own and writes one `PmtInf` per type, in the SEPA lifecycle order
+  (`FRST`, `RCUR`, `OOFF`, `FNAL`) rather than in the order the items arrived; the
+  group header then totals the instructions it carries. Such a run records an empty
+  sequence type, which the API and the screen show as *gemischt*. A run of one type is
+  unchanged: one instruction, identified by the run's reference, so a file already
+  handed to a bank keeps its shape.
+- The per-run `UNIQUE (run_id, mandate_reference)` is a second guard behind the
+  service's own dedupe within a type.
 - A mandate may be collected in many runs over time (only within one run is it
   unique).
 
@@ -84,8 +93,10 @@ it is due. Selecting nothing is `ErrNoCollectionItems`, not an empty file.
 
 ## Not yet done
 
-- **One sequence type per run** (see above). Grouping items by their mandates'
-  sequence types into several `PmtInf` blocks in one file is a later refinement.
+- ~~**One sequence type per run.**~~ — done since: a run filed without a sequence type
+  collects each mandate under its own and the file carries one `PmtInf` per type
+  (`migrations/0030_collection_run_mixed.sql` widens the run's check to allow "no single
+  type").
 - **No EBICS transport**: the file is stored and downloadable; sending it over
   EBICS remains `planned` (`docs/14 §4.3`).
 

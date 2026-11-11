@@ -8,9 +8,14 @@ registry (`internal/platform/interfaces`), now implemented.
 
 `sepa.DirectDebit` renders an **ISO 20022 pain.008.001.08** customer direct-debit
 initiation: one creditor collecting from many debtors on one collection date under
-one sequence type. Like the credit transfer it is stdlib-only (no XML library),
-deterministic for a given input, and pinned by a golden file
-(`testdata/golden_pain008.xml`).
+one sequence type. `sepa.DirectDebitBatch` is the general form and the one writer:
+it carries **one or more** `PmtInf` blocks, each with its own sequence type and
+collection date, under a header that totals them — the shape a collection run takes
+when it collects mandates of mixed types (`docs/22`). `DirectDebit` is the
+one-instruction case and delegates to the batch, so a single-type file is the same
+bytes it has always been. Like the credit transfer it is stdlib-only (no XML
+library), deterministic for a given input, and pinned by golden files
+(`testdata/golden_pain008.xml`, `testdata/golden_pain008_two_groups.xml`).
 
 ## Element order (XSD sequences)
 
@@ -73,9 +78,10 @@ Generated files are validated against the vendor's German Banking Industry Commi
 
 - **The collection run exists** (`internal/modules/kasse/collectionrun*.go`,
   `docs/22-collection-runs.md`): it gathers mandates into a pain.008 for one
-  collection date and sequence type, and it can select its items from the open
-  receivables due for collection (`from-receivables`, `docs/22`). Still open:
-  EBICS transport.
+  collection date, under one sequence type or — filed without one — under each
+  mandate's own, which makes the file carry one `PmtInf` per type. It can also select
+  its items from the open receivables due for collection (`from-receivables`,
+  `docs/22`). Still open: EBICS transport.
 - **XSD validation is skipped**: the vendor ships the ISO 20022 schemas, but none is
   committed here, so `golden.ValidateXSD` has no schema to run against. The golden
   file plus the structural tests are the guard.

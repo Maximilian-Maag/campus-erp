@@ -125,3 +125,56 @@ test('Einzüge builds a run from hand-picked mandates and passes axe', async ({ 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('Einzüge files a run whose sequence types are mixed and says so, and passes axe', async ({ page }) => {
+  const bodies: unknown[] = [];
+  const mandateCalls: string[] = [];
+  await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: accounts }));
+  await page.route(/\/api\/direct-debit\/mandates/, (route) => {
+    mandateCalls.push(route.request().url());
+    return route.fulfill({ json: mandates });
+  });
+  await page.route('**/api/direct-debit/runs', (route) => {
+    bodies.push(route.request().postDataJSON());
+    // A run with no single type comes back saying it has none.
+    return route.fulfill({
+      status: 201,
+      json: { ...run, Reference: 'RUN-MIX', SequenceType: '', ItemCount: 1, SumCents: 4250 },
+    });
+  });
+
+  await page.goto('/kasse/einzuege');
+  await page.getByLabel('Referenz').fill('RUN-MIX');
+  await page.getByLabel('Gläubiger-ID').fill('DE98ZZZ09999999999');
+  await page.getByLabel('Einzugsdatum').fill('2026-11-01');
+  // The extra choice sits ahead of the four SEPA types and reads as the choice it is.
+  await expect(page.getByLabel('Sequenztyp').locator('option').first()).toHaveText('je Mandat');
+  await page.getByLabel('Sequenztyp').selectOption('');
+
+  await page.getByLabel('Aus gewählten Mandaten').check();
+  // Every type is offered, so the list is read without a type filter.
+  await expect.poll(() => mandateCalls.some((u) => !u.includes('sequence_type'))).toBe(true);
+  await page.getByLabel('Mandat', { exact: true }).selectOption('MAN-1');
+  await page.getByLabel('Betrag', { exact: true }).fill('42,50');
+  await page.getByLabel('Verwendungszweck').fill('Semesterbeitrag');
+  await page.getByRole('button', { name: 'Posten hinzufügen' }).click();
+
+  await page.getByRole('button', { name: 'Einzug erstellen' }).click();
+  await expect(page.getByText('Einzug erstellt.').first()).toBeVisible();
+  expect(bodies).toEqual([
+    {
+      reference: 'RUN-MIX',
+      account_id: 1,
+      creditor_id: 'DE98ZZZ09999999999',
+      collection_date: '2026-11-01',
+      sequence_type: '',
+      local_instrument: 'CORE',
+      items: [{ mandate_reference: 'MAN-1', end_to_end_id: 'MAN-1', amount_cents: 4250, purpose: 'Semesterbeitrag' }],
+    },
+  ]);
+  // The result reports the file, not the choice: its types are mixed.
+  await expect(page.getByTestId('run-RUN-MIX')).toContainText('Art gemischt');
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});

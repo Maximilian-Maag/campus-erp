@@ -41,6 +41,9 @@ var (
 	// DbtrAgt is 1..1 in pain.008 (the GBIC profile enforces it), so a file without
 	// it is rejected by the bank.
 	ErrDebtorAgentRequired = errors.New("sepa: debtor BIC is required (DbtrAgt is mandatory)")
+	// ErrInstructionIDDuplicate is returned when two payment instructions of one
+	// message share an identifier, which would make the file ambiguous to the bank.
+	ErrInstructionIDDuplicate = errors.New("sepa: payment instruction id is used twice")
 )
 
 // DirectDebitTransaction is one collection from one debtor under one mandate.
@@ -107,56 +110,154 @@ func validLocalInstrument(s string) bool {
 	}
 }
 
-// validate checks every constraint the XSD and the DK profile impose.
-func (dd DirectDebit) validate() error {
-	if strings.TrimSpace(dd.MessageID) == "" {
+// DirectDebitGroup is one payment instruction: everything a pain.008 `PmtInf` repeats. The sequence
+// type lives here, not on the message, which is why a run that collects under more than one type is
+// one message with several of these rather than several files.
+type DirectDebitGroup struct {
+	InstructionID  string
+	SequenceType   string // FRST / RCUR / OOFF / FNAL
+	CollectionDate time.Time
+	Transactions   []DirectDebitTransaction
+}
+
+// sum returns the group's total in cents.
+func (g DirectDebitGroup) sum() int64 {
+	var sum int64
+	for _, tx := range g.Transactions {
+		sum += tx.AmountCents
+	}
+	return sum
+}
+
+// DirectDebitBatch is a whole pain.008 message: one creditor, one group header, and one or more
+// payment instructions. It is the general form; `DirectDebit` is the one-instruction case.
+type DirectDebitBatch struct {
+	MessageID       string
+	CreationTime    time.Time
+	InitiatingParty string
+	CreditorName    string
+	CreditorIBAN    string
+	CreditorBIC     string
+	CreditorID      string // SEPA creditor identifier
+	LocalInstrument string // CORE / B2B
+	Currency        string
+	Groups          []DirectDebitGroup
+}
+
+// currency returns the effective currency, defaulting to EUR.
+func (b DirectDebitBatch) currency() string {
+	if b.Currency == "" {
+		return defaultCurrency
+	}
+	return b.Currency
+}
+
+// Sum returns the total amount in cents over every instruction.
+func (b DirectDebitBatch) Sum() int64 {
+	var sum int64
+	for _, g := range b.Groups {
+		sum += g.sum()
+	}
+	return sum
+}
+
+// Count returns the number of transactions over every instruction.
+func (b DirectDebitBatch) Count() int {
+	n := 0
+	for _, g := range b.Groups {
+		n += len(g.Transactions)
+	}
+	return n
+}
+
+// Batch expresses the one-instruction message as the general one, so there is a single writer and
+// its output for this case stays byte-identical.
+func (dd DirectDebit) Batch() DirectDebitBatch {
+	return DirectDebitBatch{
+		MessageID:       dd.MessageID,
+		CreationTime:    dd.CreationTime,
+		InitiatingParty: dd.InitiatingParty,
+		CreditorName:    dd.CreditorName,
+		CreditorIBAN:    dd.CreditorIBAN,
+		CreditorBIC:     dd.CreditorBIC,
+		CreditorID:      dd.CreditorID,
+		LocalInstrument: dd.LocalInstrument,
+		Currency:        dd.Currency,
+		Groups: []DirectDebitGroup{{
+			InstructionID:  dd.MessageID,
+			SequenceType:   dd.SequenceType,
+			CollectionDate: dd.CollectionDate,
+			Transactions:   dd.Transactions,
+		}},
+	}
+}
+
+// validate checks every constraint the header, every instruction and every transaction must meet.
+func (b DirectDebitBatch) validate() error {
+	if strings.TrimSpace(b.MessageID) == "" {
 		return ErrMessageIDRequired
 	}
-	if len(dd.MessageID) > MaxText35 {
+	if len(b.MessageID) > MaxText35 {
 		return ErrFieldTooLong
 	}
-	if dd.CreationTime.IsZero() {
+	if b.CreationTime.IsZero() {
 		return ErrCreationTimeRequired
 	}
-	if strings.TrimSpace(dd.InitiatingParty) == "" {
+	if strings.TrimSpace(b.InitiatingParty) == "" {
 		return ErrInitiatingPartyRequired
 	}
-	if len(dd.InitiatingParty) > MaxText140 || len(dd.CreditorName) > MaxText140 {
+	if len(b.InitiatingParty) > MaxText140 || len(b.CreditorName) > MaxText140 {
 		return ErrFieldTooLong
 	}
-	if strings.TrimSpace(dd.CreditorName) == "" {
+	if strings.TrimSpace(b.CreditorName) == "" {
 		return ErrCreditorNameRequired
 	}
-	if !ValidIBAN(dd.CreditorIBAN) {
+	if !ValidIBAN(b.CreditorIBAN) {
 		return ErrCreditorIBANInvalid
 	}
-	if dd.CreditorBIC != "" && !ValidBIC(dd.CreditorBIC) {
+	if b.CreditorBIC != "" && !ValidBIC(b.CreditorBIC) {
 		return ErrCreditorBICInvalid
 	}
-	if strings.TrimSpace(dd.CreditorID) == "" {
+	if strings.TrimSpace(b.CreditorID) == "" {
 		return ErrCreditorIDRequired
 	}
-	if len(dd.CreditorID) > MaxText35 {
+	if len(b.CreditorID) > MaxText35 {
 		return ErrFieldTooLong
 	}
-	if !validSequenceType(dd.SequenceType) {
-		return ErrSequenceTypeInvalid
-	}
-	if !validLocalInstrument(dd.LocalInstrument) {
+	if !validLocalInstrument(b.LocalInstrument) {
 		return ErrLocalInstrumentInvalid
 	}
-	if !validCurrency(dd.currency()) {
+	if !validCurrency(b.currency()) {
 		return ErrCurrencyInvalid
 	}
-	if dd.CollectionDate.IsZero() {
-		return ErrCollectionDateRequired
-	}
-	if len(dd.Transactions) == 0 {
+	if len(b.Groups) == 0 {
 		return ErrNoTransactions
 	}
-	for _, tx := range dd.Transactions {
-		if err := tx.validate(); err != nil {
-			return err
+	seen := make(map[string]bool, len(b.Groups))
+	for _, g := range b.Groups {
+		if !validSequenceType(g.SequenceType) {
+			return ErrSequenceTypeInvalid
+		}
+		if len(g.InstructionID) > MaxText35 {
+			return ErrFieldTooLong
+		}
+		// A repeated instruction identifier would make the file ambiguous to the bank.
+		if g.InstructionID != "" {
+			if seen[g.InstructionID] {
+				return ErrInstructionIDDuplicate
+			}
+			seen[g.InstructionID] = true
+		}
+		if g.CollectionDate.IsZero() {
+			return ErrCollectionDateRequired
+		}
+		if len(g.Transactions) == 0 {
+			return ErrNoTransactions
+		}
+		for _, tx := range g.Transactions {
+			if err := tx.validate(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -196,103 +297,111 @@ func (tx DirectDebitTransaction) validate() error {
 	return nil
 }
 
-// Marshal renders the message as pain.008.001.08 XML, or returns a validation
-// error. The output is deterministic for a given input, so it can be pinned by a
-// golden file.
+// Marshal renders the one-instruction message as pain.008.001.08 XML, or returns a validation error.
 func (dd DirectDebit) Marshal() (string, error) {
-	if err := dd.validate(); err != nil {
+	return dd.Batch().Marshal()
+}
+
+// Marshal renders the message as pain.008.001.08 XML, or returns a validation error. The output is
+// deterministic for a given input, so it can be pinned by a golden file.
+func (b DirectDebitBatch) Marshal() (string, error) {
+	if err := b.validate(); err != nil {
 		return "", err
 	}
-	var b strings.Builder
-	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
-	b.WriteString(`<Document xmlns="` + Pain008Namespace +
+	var out strings.Builder
+	out.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
+	out.WriteString(`<Document xmlns="` + Pain008Namespace +
 		`" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="` +
 		Pain008SchemaLocation + `">` + "\n")
-	b.WriteString("  <CstmrDrctDbtInitn>\n")
-	dd.writeGroupHeader(&b)
-	dd.writePaymentInstruction(&b)
-	b.WriteString("  </CstmrDrctDbtInitn>\n")
-	b.WriteString("</Document>\n")
-	return b.String(), nil
-}
-
-func (dd DirectDebit) writeGroupHeader(b *strings.Builder) {
-	b.WriteString("    <GrpHdr>\n")
-	textElem(b, 3, "MsgId", dd.MessageID)
-	textElem(b, 3, "CreDtTm", dd.CreationTime.Format("2006-01-02T15:04:05"))
-	textElem(b, 3, "NbOfTxs", strconv.Itoa(len(dd.Transactions)))
-	textElem(b, 3, "CtrlSum", FormatAmount(dd.Sum()))
-	b.WriteString("      <InitgPty>\n")
-	textElem(b, 4, "Nm", dd.InitiatingParty)
-	b.WriteString("      </InitgPty>\n")
-	b.WriteString("    </GrpHdr>\n")
-}
-
-func (dd DirectDebit) writePaymentInstruction(b *strings.Builder) {
-	b.WriteString("    <PmtInf>\n")
-	textElem(b, 3, "PmtInfId", dd.MessageID)
-	textElem(b, 3, "PmtMtd", "DD")
-	textElem(b, 3, "NbOfTxs", strconv.Itoa(len(dd.Transactions)))
-	textElem(b, 3, "CtrlSum", FormatAmount(dd.Sum()))
-	b.WriteString("      <PmtTpInf>\n")
-	b.WriteString("        <SvcLvl>\n")
-	textElem(b, 5, "Cd", "SEPA")
-	b.WriteString("        </SvcLvl>\n")
-	b.WriteString("        <LclInstrm>\n")
-	textElem(b, 5, "Cd", dd.LocalInstrument)
-	b.WriteString("        </LclInstrm>\n")
-	textElem(b, 4, "SeqTp", dd.SequenceType)
-	b.WriteString("      </PmtTpInf>\n")
-	textElem(b, 3, "ReqdColltnDt", dd.CollectionDate.Format("2006-01-02"))
-	b.WriteString("      <Cdtr>\n")
-	textElem(b, 4, "Nm", dd.CreditorName)
-	b.WriteString("      </Cdtr>\n")
-	b.WriteString("      <CdtrAcct>\n        <Id>\n")
-	textElem(b, 5, "IBAN", dd.CreditorIBAN)
-	b.WriteString("        </Id>\n      </CdtrAcct>\n")
-	if dd.CreditorBIC != "" {
-		b.WriteString("      <CdtrAgt>\n        <FinInstnId>\n")
-		textElem(b, 5, "BICFI", dd.CreditorBIC)
-		b.WriteString("        </FinInstnId>\n      </CdtrAgt>\n")
+	out.WriteString("  <CstmrDrctDbtInitn>\n")
+	b.writeGroupHeader(&out)
+	for _, g := range b.Groups {
+		b.writePaymentInstruction(&out, g)
 	}
-	textElem(b, 3, "ChrgBr", "SLEV")
+	out.WriteString("  </CstmrDrctDbtInitn>\n")
+	out.WriteString("</Document>\n")
+	return out.String(), nil
+}
+
+func (b DirectDebitBatch) writeGroupHeader(out *strings.Builder) {
+	out.WriteString("    <GrpHdr>\n")
+	textElem(out, 3, "MsgId", b.MessageID)
+	textElem(out, 3, "CreDtTm", b.CreationTime.Format("2006-01-02T15:04:05"))
+	textElem(out, 3, "NbOfTxs", strconv.Itoa(b.Count()))
+	textElem(out, 3, "CtrlSum", FormatAmount(b.Sum()))
+	out.WriteString("      <InitgPty>\n")
+	textElem(out, 4, "Nm", b.InitiatingParty)
+	out.WriteString("      </InitgPty>\n")
+	out.WriteString("    </GrpHdr>\n")
+}
+
+// writePaymentInstruction writes one PmtInf. The sequence type and the collection date belong to the
+// instruction, so a batch of several types repeats this block once per type.
+func (b DirectDebitBatch) writePaymentInstruction(out *strings.Builder, g DirectDebitGroup) {
+	out.WriteString("    <PmtInf>\n")
+	textElem(out, 3, "PmtInfId", g.InstructionID)
+	textElem(out, 3, "PmtMtd", "DD")
+	textElem(out, 3, "NbOfTxs", strconv.Itoa(len(g.Transactions)))
+	textElem(out, 3, "CtrlSum", FormatAmount(g.sum()))
+	out.WriteString("      <PmtTpInf>\n")
+	out.WriteString("        <SvcLvl>\n")
+	textElem(out, 5, "Cd", "SEPA")
+	out.WriteString("        </SvcLvl>\n")
+	out.WriteString("        <LclInstrm>\n")
+	textElem(out, 5, "Cd", b.LocalInstrument)
+	out.WriteString("        </LclInstrm>\n")
+	textElem(out, 4, "SeqTp", g.SequenceType)
+	out.WriteString("      </PmtTpInf>\n")
+	textElem(out, 3, "ReqdColltnDt", g.CollectionDate.Format("2006-01-02"))
+	out.WriteString("      <Cdtr>\n")
+	textElem(out, 4, "Nm", b.CreditorName)
+	out.WriteString("      </Cdtr>\n")
+	out.WriteString("      <CdtrAcct>\n        <Id>\n")
+	textElem(out, 5, "IBAN", b.CreditorIBAN)
+	out.WriteString("        </Id>\n      </CdtrAcct>\n")
+	if b.CreditorBIC != "" {
+		out.WriteString("      <CdtrAgt>\n        <FinInstnId>\n")
+		textElem(out, 5, "BICFI", b.CreditorBIC)
+		out.WriteString("        </FinInstnId>\n      </CdtrAgt>\n")
+	}
+	textElem(out, 3, "ChrgBr", "SLEV")
 	// The SEPA creditor identifier sits in CdtrSchmeId/Id/PrvtId/Othr.
-	b.WriteString("      <CdtrSchmeId>\n        <Id>\n          <PrvtId>\n            <Othr>\n")
-	textElem(b, 7, "Id", dd.CreditorID)
-	b.WriteString("              <SchmeNm>\n")
+	out.WriteString("      <CdtrSchmeId>\n        <Id>\n          <PrvtId>\n            <Othr>\n")
+	textElem(out, 7, "Id", b.CreditorID)
+	out.WriteString("              <SchmeNm>\n")
 	// The scheme name in the creditor identifier is proprietary by definition; the
 	// GBIC profile rejects <Cd>SEPA</Cd> here (expects Prtry).
-	textElem(b, 8, "Prtry", "SEPA")
-	b.WriteString("              </SchmeNm>\n")
-	b.WriteString("            </Othr>\n          </PrvtId>\n        </Id>\n      </CdtrSchmeId>\n")
-	for _, tx := range dd.Transactions {
-		dd.writeTransaction(b, tx)
+	textElem(out, 8, "Prtry", "SEPA")
+	out.WriteString("              </SchmeNm>\n")
+	out.WriteString("            </Othr>\n          </PrvtId>\n        </Id>\n      </CdtrSchmeId>\n")
+	for _, tx := range g.Transactions {
+		b.writeTransaction(out, tx)
 	}
-	b.WriteString("    </PmtInf>\n")
+	out.WriteString("    </PmtInf>\n")
 }
 
-func (dd DirectDebit) writeTransaction(b *strings.Builder, tx DirectDebitTransaction) {
-	b.WriteString("      <DrctDbtTxInf>\n")
-	b.WriteString("        <PmtId>\n")
-	textElem(b, 5, "EndToEndId", tx.EndToEndID)
-	b.WriteString("        </PmtId>\n")
-	b.WriteString(`        <InstdAmt Ccy="` + dd.currency() + `">` + FormatAmount(tx.AmountCents) + "</InstdAmt>\n")
-	b.WriteString("        <DrctDbtTx>\n          <MndtRltdInf>\n")
-	textElem(b, 6, "MndtId", tx.MandateID)
-	textElem(b, 6, "DtOfSgntr", tx.MandateDate.Format("2006-01-02"))
-	b.WriteString("          </MndtRltdInf>\n        </DrctDbtTx>\n")
+func (b DirectDebitBatch) writeTransaction(out *strings.Builder, tx DirectDebitTransaction) {
+	out.WriteString("      <DrctDbtTxInf>\n")
+	out.WriteString("        <PmtId>\n")
+	textElem(out, 5, "EndToEndId", tx.EndToEndID)
+	out.WriteString("        </PmtId>\n")
+	out.WriteString(`        <InstdAmt Ccy="` + b.currency() + `">` + FormatAmount(tx.AmountCents) + "</InstdAmt>\n")
+	out.WriteString("        <DrctDbtTx>\n          <MndtRltdInf>\n")
+	textElem(out, 6, "MndtId", tx.MandateID)
+	textElem(out, 6, "DtOfSgntr", tx.MandateDate.Format("2006-01-02"))
+	out.WriteString("          </MndtRltdInf>\n        </DrctDbtTx>\n")
 	// DbtrAgt is mandatory (1..1) in pain.008 and must precede Dbtr.
-	b.WriteString("        <DbtrAgt>\n          <FinInstnId>\n")
-	textElem(b, 6, "BICFI", tx.DebtorBIC)
-	b.WriteString("          </FinInstnId>\n        </DbtrAgt>\n")
-	b.WriteString("        <Dbtr>\n")
-	textElem(b, 5, "Nm", tx.DebtorName)
-	b.WriteString("        </Dbtr>\n")
-	b.WriteString("        <DbtrAcct>\n          <Id>\n")
-	textElem(b, 6, "IBAN", tx.DebtorIBAN)
-	b.WriteString("          </Id>\n        </DbtrAcct>\n")
-	b.WriteString("        <RmtInf>\n")
-	textElem(b, 5, "Ustrd", tx.Purpose)
-	b.WriteString("        </RmtInf>\n")
-	b.WriteString("      </DrctDbtTxInf>\n")
+	out.WriteString("        <DbtrAgt>\n          <FinInstnId>\n")
+	textElem(out, 6, "BICFI", tx.DebtorBIC)
+	out.WriteString("          </FinInstnId>\n        </DbtrAgt>\n")
+	out.WriteString("        <Dbtr>\n")
+	textElem(out, 5, "Nm", tx.DebtorName)
+	out.WriteString("        </Dbtr>\n")
+	out.WriteString("        <DbtrAcct>\n          <Id>\n")
+	textElem(out, 6, "IBAN", tx.DebtorIBAN)
+	out.WriteString("          </Id>\n        </DbtrAcct>\n")
+	out.WriteString("        <RmtInf>\n")
+	textElem(out, 5, "Ustrd", tx.Purpose)
+	out.WriteString("        </RmtInf>\n")
+	out.WriteString("      </DrctDbtTxInf>\n")
 }

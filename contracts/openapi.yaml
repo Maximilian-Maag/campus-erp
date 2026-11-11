@@ -3575,7 +3575,7 @@ paths:
       tags:
       - kasse
       operationId: createCollectionRun
-      summary: Create a SEPA direct-debit collection run
+      summary: Create a SEPA direct-debit collection run — an empty sequence_type collects each mandate under its own type, one payment instruction per type
       requestBody:
         required: true
         content:
@@ -3645,7 +3645,7 @@ paths:
       tags:
       - kasse
       operationId: createCollectionRunFromReceivables
-      summary: Create a collection run that selects its open receivables
+      summary: Create a collection run that selects its open receivables — an empty sequence_type selects the open items of every type
       requestBody:
         required: true
         content:

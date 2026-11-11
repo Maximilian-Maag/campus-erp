@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CampusErpApi, CashAccount, CollectionItemRequest, CollectionRun, Mandate } from '../core/api/generated';
-import { SEQUENCE_TYPES } from '../core/direct-debit';
+import { RUN_SEQUENCE_TYPES, runSequenceLabel } from '../core/direct-debit';
 import { euroToCents, formatCents, formatDay } from '../core/format';
 
 /**
@@ -79,7 +79,9 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
             <label for="run-sequence">Sequenztyp</label>
             <select id="run-sequence" [value]="sequenceType()" (change)="changeSequence($any($event.target).value)">
               @for (type of sequenceTypes; track type.value) {
-                <option [value]="type.value">{{ type.value }} — {{ type.label }}</option>
+                <option [value]="type.value">
+                  {{ type.value ? type.value + ' — ' + type.label : type.label }}
+                </option>
               }
             </select>
           </p>
@@ -133,7 +135,11 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
             @if (mandatesLoading()) {
               <p role="status">Mandate werden geladen.</p>
             } @else if (mandates().length === 0) {
-              <p role="status">Es ist kein aktives Mandat für diesen Sequenztyp angelegt.</p>
+              @if (sequenceType() === '') {
+                <p role="status">Es ist kein aktives Mandat angelegt.</p>
+              } @else {
+                <p role="status">Es ist kein aktives Mandat für diesen Sequenztyp angelegt.</p>
+              }
             } @else {
               <p>
                 <label for="item-mandate">Mandat</label>
@@ -194,7 +200,7 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
             <h3 id="collection-run-result-heading">Erzeugter Einzug</h3>
             <p role="status" [attr.data-testid]="'run-' + r.Reference">
               {{ r.Reference }}: {{ r.ItemCount }} Posten, Summe {{ euro(r.SumCents) }},
-              Einzugsdatum {{ day(r.CollectionDate) }}
+              Einzugsdatum {{ day(r.CollectionDate) }}, Art {{ runLabel(r.SequenceType) }}
             </p>
             <button type="button" (click)="fetchFile()">Datei anzeigen</button>
             @if (file(); as f) {
@@ -224,8 +230,11 @@ export class CollectionRunsComponent implements OnInit {
   readonly collectionDate = signal('');
   readonly dueBy = signal('');
   readonly sequenceType = signal('RCUR');
-  /** The sequence types, from the one list the mandate screen uses too (core/direct-debit). */
-  readonly sequenceTypes = SEQUENCE_TYPES;
+  /**
+   * The types a run may be filed under: the four SEPA types plus "je Mandat", where the run takes each
+   * mandate's own type and the file carries one payment instruction per type (core/direct-debit).
+   */
+  readonly sequenceTypes = RUN_SEQUENCE_TYPES;
   readonly localInstrument = signal('CORE');
 
   /** Where the run's items come from: the open receivables, or mandates named by hand. */
@@ -445,4 +454,6 @@ export class CollectionRunsComponent implements OnInit {
   /** Amounts and dates are rendered by the shared formatters, not by each screen's own. */
   readonly euro = formatCents;
   readonly day = formatDay;
+  /** The word for the type a run collected under — "gemischt" when it has no single one. */
+  readonly runLabel = runSequenceLabel;
 }
