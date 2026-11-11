@@ -2626,7 +2626,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Record'
+                $ref: '#/components/schemas/KlrRecord'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2775,7 +2775,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Run'
+                $ref: '#/components/schemas/KlrRun'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2890,7 +2890,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Run'
+                $ref: '#/components/schemas/KlrRun'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3745,6 +3745,17 @@ paths:
       - etl
       operationId: listETLRuns
       summary: List recent ETL runs (by dataset, read from the audit stream)
+      parameters:
+      - name: dataset
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Success
@@ -3817,7 +3828,31 @@ components:
       - reason
     EtlReport:
       type: object
-      additionalProperties: true
+      properties:
+        dataset:
+          type: string
+        source:
+          type: integer
+          format: int64
+        loaded:
+          type: integer
+          format: int64
+        checksum:
+          type: string
+        previous:
+          type: string
+        drift:
+          type: boolean
+        at:
+          type: string
+          format: date-time
+      required:
+      - dataset
+      - source
+      - loaded
+      - checksum
+      - drift
+      - at
     EtlRunRequest:
       type: object
       properties:
@@ -3831,9 +3866,23 @@ components:
         runs:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/EtlRun'
       required:
       - runs
+    EtlRun:
+      type: object
+      properties:
+        at:
+          type: string
+          format: date-time
+        actor:
+          type: string
+        summary:
+          type: string
+      required:
+      - at
+      - actor
+      - summary
     DatasetsResponse:
       type: object
       properties:
@@ -4391,7 +4440,7 @@ components:
       - rate_cents
       - valid_from
       - valid_to
-    Run:
+    KlrRun:
       type: object
       properties:
         ID:
@@ -4548,7 +4597,7 @@ components:
       - CostCenterID
       - CostsCents
       - RevenuesCents
-    Record:
+    KlrRecord:
       type: object
       properties:
         ID:

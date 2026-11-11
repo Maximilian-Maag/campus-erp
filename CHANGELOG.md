@@ -2,6 +2,42 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.112.0] - 2026-11-11
+
+The ETL runs are visible and triggerable from the UI — and making them so exposed a contract that
+had been lying about them.
+
+### Fixed
+- **The contract misdescribed the ETL endpoints.** `etl` was missing from the OpenAPI generator's
+  package list, so `POST /api/etl/runs` documented its response as an open object and
+  `GET /api/etl/runs` promised `string[]` for a list of run objects; the generated client was typed
+  wrongly and a screen could not be built on it. Nested `$ref`s were collected as component names
+  the collector then dropped, so `EtlRunsResponse.runs` referenced an `EtlRun` schema that did not
+  exist — a dangling reference and a client type that was not there. `core.Direction` never resolved
+  either (an import alias the generator cannot know) and degraded to `string` — right by luck.
+- The generator now **refuses to guess**: an unresolvable type (`UnresolvedType`) or a nested `$ref`
+  it cannot map back fails generation with the fix named (a `PKG_DIRS` entry or a `SYNTHETIC`
+  declaration), and an import alias is resolved by the type's own name only when exactly one package
+  carries it — ambiguity is refused rather than guessed at. A schema that says less than the API
+  returns is a schema that lies, and it lied in silence.
+- `GET /api/etl/runs` also declares the `dataset` and `limit` query parameters it has always read,
+  so the client can narrow a history instead of fetching every dataset's.
+- **`make test-tools` was red and nobody knew**: the ER-model self-test still expected 44 entities
+  after two migrations had added four tables (the goods receipts and the budget sources/centres).
+  The count is now 48, and the newest tables are asserted **by name** as well — a count alone cannot
+  say which table a migration dropped. The gap that let it rot is documented in
+  `docs/build-and-deploy.md`: the `quality` workflow runs the contract self-tests but not
+  `tools/test_erm.py`, so `make test-tools` is a hand-run gate after every migration.
+
+### Added
+- *Importe* (`/importe`): lists the datasets the server registers, narrows the run history to one
+  dataset or all of them, and starts a run — showing what the run recorded (source rows, loaded
+  rows, checksum, and whether the source drifted), read back from the audit stream rather than a
+  second bookkeeping. Timestamps are shown in UTC and labelled as such; the run button is disabled
+  until a dataset is chosen, with the reason next to it, instead of routing a person through a
+  refusal; and the history is reloaded after a run rather than assumed. The routes behind it are the
+  `erp-admin` ones, which is what an import needs.
+
 ## [0.111.0] - 2026-11-11
 
 A mandate can be retired — the debtor revoked the authorisation — and the revocation is a decision

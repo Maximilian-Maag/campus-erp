@@ -20,6 +20,7 @@ import { PaymentOrdersComponent } from './kasse/payment-orders.component';
 import { PurchaseOrdersComponent } from './procurement/orders.component';
 import { GoodsReceiptsComponent } from './procurement/goods-receipts.component';
 import { AuswertungenComponent } from './reports/auswertungen.component';
+import { ImportsComponent } from './etl/imports.component';
 import { ReceivablesComponent } from './kasse/receivables.component';
 
 export const routes: Routes = [
@@ -45,4 +46,5 @@ export const routes: Routes = [
   { path: 'kasse/mandate', component: MandatesComponent },
   { path: 'finanzen/stiftungen', component: FoundationsComponent },
   { path: 'auswertungen', component: AuswertungenComponent },
+  { path: 'importe', component: ImportsComponent },
 ];

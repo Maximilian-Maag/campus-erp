@@ -390,6 +390,19 @@ export interface EinvoicePartyRequest {
 }
 
 export interface EtlReport {
+  dataset: string;
+  source: number;
+  loaded: number;
+  checksum: string;
+  previous?: string;
+  drift: boolean;
+  at: string;
+}
+
+export interface EtlRun {
+  at: string;
+  actor: string;
+  summary: string;
 }
 
 export interface EtlRunRequest {
@@ -397,7 +410,7 @@ export interface EtlRunRequest {
 }
 
 export interface EtlRunsResponse {
-  runs: string[];
+  runs: EtlRun[];
 }
 
 export interface ExportQueuedResponse {
@@ -526,6 +539,18 @@ export interface KlrNamedRequest {
   name: string;
 }
 
+export interface KlrRecord {
+  ID: number;
+  CostCenterID: number;
+  CostUnitID: number | null;
+  CostTypeID: number | null;
+  Kind: string;
+  AmountCents: number;
+  BusinessDate: string;
+  Reference: string;
+  BookedBy: string;
+}
+
 export interface KlrRecordRequest {
   cost_unit_id: number | null;
   cost_type_id: number | null;
@@ -539,6 +564,16 @@ export interface KlrReport {
   CostCenterID: number;
   CostsCents: number;
   RevenuesCents: number;
+}
+
+export interface KlrRun {
+  ID: number;
+  SourceCenterID: number;
+  PeriodFrom: string;
+  PeriodTo: string;
+  AllocatedCents: number;
+  Receivers: number;
+  RunBy: string;
 }
 
 export interface LedgerExportRequest {
@@ -757,18 +792,6 @@ export interface RecipientRequest {
   bank_name: string;
 }
 
-export interface Record {
-  ID: number;
-  CostCenterID: number;
-  CostUnitID: number | null;
-  CostTypeID: number | null;
-  Kind: string;
-  AmountCents: number;
-  BusinessDate: string;
-  Reference: string;
-  BookedBy: string;
-}
-
 export interface RecordGoodsReceiptRequest {
   reference: string;
   received_on: string;
@@ -779,16 +802,6 @@ export interface ReportRenderRequest {
   report_id: string;
   from: string;
   to: string;
-}
-
-export interface Run {
-  ID: number;
-  SourceCenterID: number;
-  PeriodFrom: string;
-  PeriodTo: string;
-  AllocatedCents: number;
-  Receivers: number;
-  RunBy: string;
 }
 
 export interface RunAllocationRequest {

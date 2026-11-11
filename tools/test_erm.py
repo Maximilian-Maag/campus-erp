@@ -63,11 +63,23 @@ def main() -> int:
         check(produced == EXPECTED, "exactly the expected ER models are produced")
 
         target = (out / "target_canonical.puml").read_text()
-        entities = re.findall(r"^\s*entity\s+\"", target, re.MULTILINE)
-        # One entity per canonical table (migrations 0001-0027: 0017/0018 added the direct-debit
+        entities = re.findall(r"^\s*entity\s+\"([^\"]+)\"", target, re.MULTILINE)
+        # One entity per canonical table (migrations 0001-0029: 0017/0018 added the direct-debit
         # tables, 0022 the KLR allocation tables, 0024 the receivable, 0025 the cost types,
-        # 0026 the Kostenträger keys and runs, 0027 the service rates and charges).
-        check(len(entities) == 44, f"target ER has 44 entities (got {len(entities)})")
+        # 0026 the Kostenträger keys and runs, 0027 the service rates and charges, 0028 the goods
+        # receipts, 0029 the budget sources and centres).
+        check(len(entities) == 48, f"target ER has 48 entities (got {len(entities)})")
+        # The count alone cannot say *which* table a migration dropped, so the newest tables are
+        # named: a migration whose table never reaches the model fails by name, not by arithmetic.
+        for table in (
+            "goods_receipt",
+            "goods_receipt_line",
+            "budget_source",
+            "budget_center",
+            "service_rate",
+            "direct_debit_mandate",
+        ):
+            check(table in entities, f"the ER model carries the {table} table")
         fk_edges = re.findall(r"\|\|--o\{", target)
         check(len(fk_edges) >= 4, f"target ER has declared FK edges (got {len(fk_edges)})")
         check("[FK]" in target, "target ER marks foreign-key columns")

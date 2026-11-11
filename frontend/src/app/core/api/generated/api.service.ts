@@ -195,8 +195,8 @@ export class CampusErpApi {
     return this.http.get<m.DatasetsResponse>(this.base + `/api/etl/datasets`);
   }
 
-  listETLRuns(): Observable<m.EtlRunsResponse> {
-    return this.http.get<m.EtlRunsResponse>(this.base + `/api/etl/runs`);
+  listETLRuns(dataset?: string, limit?: string): Observable<m.EtlRunsResponse> {
+    return this.http.get<m.EtlRunsResponse>(this.base + `/api/etl/runs${this._query({ dataset, limit })}`);
   }
 
   runETLDataset(body: m.EtlRunRequest): Observable<m.EtlReport> {
@@ -251,8 +251,8 @@ export class CampusErpApi {
     return this.http.post<m.Allocation>(this.base + `/api/klr/cost-centers/${id}/allocations`, body);
   }
 
-  runAllocation(id: number | string, body: m.RunAllocationRequest): Observable<m.Run> {
-    return this.http.post<m.Run>(this.base + `/api/klr/cost-centers/${id}/allocations/run`, body);
+  runAllocation(id: number | string, body: m.RunAllocationRequest): Observable<m.KlrRun> {
+    return this.http.post<m.KlrRun>(this.base + `/api/klr/cost-centers/${id}/allocations/run`, body);
   }
 
   listCostUnitKeys(id: number | string): Observable<m.CostUnitKey[]> {
@@ -263,12 +263,12 @@ export class CampusErpApi {
     return this.http.post<m.CostUnitKey>(this.base + `/api/klr/cost-centers/${id}/cost-unit-keys`, body);
   }
 
-  runCostUnitAllocation(id: number | string, body: m.RunAllocationRequest): Observable<m.Run> {
-    return this.http.post<m.Run>(this.base + `/api/klr/cost-centers/${id}/cost-unit-keys/run`, body);
+  runCostUnitAllocation(id: number | string, body: m.RunAllocationRequest): Observable<m.KlrRun> {
+    return this.http.post<m.KlrRun>(this.base + `/api/klr/cost-centers/${id}/cost-unit-keys/run`, body);
   }
 
-  postAccountingRecord(id: number | string, body: m.KlrRecordRequest): Observable<m.Record> {
-    return this.http.post<m.Record>(this.base + `/api/klr/cost-centers/${id}/records`, body);
+  postAccountingRecord(id: number | string, body: m.KlrRecordRequest): Observable<m.KlrRecord> {
+    return this.http.post<m.KlrRecord>(this.base + `/api/klr/cost-centers/${id}/records`, body);
   }
 
   getKLRReport(id: number | string): Observable<m.KlrReport> {
