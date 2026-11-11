@@ -38,6 +38,25 @@ The same figures reach the report catalogue: `klr-cost-center-overview` (Kostens
 docs/25) is every cost centre with its Kosten, Erlöse and Saldo and a totals row, rendered through
 the same worker as the other reports.
 
+## The Kostenstellen screen
+
+*KLR — Kostenstellen* (`/klr/kostenstellen`) is the catalogue the rest of the KLR hangs off: an
+accounting record, an allocation and a cost-unit key all name a cost centre, and the other KLR
+screens could only *pick* one. The list and the create route existed; nothing showed or added them.
+
+It lists the centres, files a new one (number and name, trimmed), and reads **one** centre's report
+on demand rather than for every row — the report is a second request per centre, and an operator
+looks at one centre at a time. The balance is worded rather than signed: Erlöse above Kosten is an
+*Überschuss*, below is an *Unterdeckung*, equal is *ausgeglichen*. A bare negative amount in a
+Kostenrechnung invites the wrong reading.
+
+Two rules the screen keeps, both learned the hard way elsewhere in this codebase:
+
+- **A failed read is not an empty catalogue.** The table is not rendered when the list read failed,
+  so "Es ist keine Kostenstelle angelegt." can only mean what it says.
+- **A stale report never stays on screen.** Asking for another centre's report clears the previous
+  figures first, so a failed read cannot leave one centre's Kosten under another centre's heading.
+
 ## Distribution (Umlage)
 
 A cost centre's costs are distributed over its receivers by **keys**, which are
@@ -205,4 +224,5 @@ else in this package the mapping is data an operator can change rather than code
 
 - Nothing outstanding in the KLR itself. The vendor's print layouts for the KLR views are still to
   come (docs/25), and the internal-pricing screen is new enough that no run has been reconciled
-  against the legacy system yet.
+  against the legacy system yet. The cost-centre catalogue has a screen since this release
+  (`/klr/kostenstellen`); before it, a centre could be created only through the API.
