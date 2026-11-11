@@ -2,6 +2,29 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.115.0] - 2026-11-11
+
+The KLR's cost centres have a screen: the catalogue every accounting record, allocation and
+cost-unit key names could be picked in the other KLR screens but never seen or added.
+
+### Added
+- **`/klr/kostenstellen`** (KLR — Kostenstellen): lists the cost centres, files a new one (number and
+  name, trimmed), and reads one centre's report on demand — Kosten, Erlöse and a worded balance
+  (*Überschuss* / *Unterdeckung* / *ausgeglichen*) rather than a bare signed amount.
+- `docs/13-klr.md` describes the screen and the two rules it keeps.
+
+### Fixed
+- **A failed catalogue read no longer looks like an empty catalogue.** The screen rendered its table
+  with the "Es ist keine Kostenstelle angelegt." row even when the read had failed, so a broken
+  catalogue and an empty one were indistinguishable. The table is now only rendered when the read
+  succeeded.
+- **A stale report cannot survive a failed read.** Asking for another centre's report clears the
+  previous figures first, so one centre's Kosten can never sit under another centre's heading.
+
+### Notes
+- No API change: `GET /api/klr/cost-centers`, `POST /api/klr/cost-centers` and
+  `GET /api/klr/cost-centers/{id}/report` already existed — the screen was the missing part.
+
 ## [0.114.0] - 2026-11-11
 
 A collection run no longer needs one sequence type: filed without one, it collects each mandate
