@@ -62,8 +62,14 @@ describe('TaxesComponent', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('V19');
     expect(text).toContain('19 %');
-    expect(text).toContain('Umsatzsteuer');
-    expect(text).toContain('Vorsteuer');
+    // The kind is in the row itself, not only among the form's options: the row, not the page,
+    // is what proves the catalogue carries the word.
+    const cells = (id: string): string[] =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll(`[data-testid="${id}"] td`)).map(
+        (td) => (td.textContent ?? '').trim(),
+      );
+    expect(cells('vat-V19')).toEqual(['V19', 'Regelsteuersatz', '19 %', 'Umsatzsteuer']);
+    expect(cells('vat-V7')).toEqual(['V7', 'ermaessigt', '7 %', 'Vorsteuer']);
   });
 
   it('says so when a catalogue is empty instead of showing a blank table', () => {
@@ -103,9 +109,13 @@ describe('TaxesComponent', () => {
     fixture.componentInstance.vatCode.set('V75');
     fixture.componentInstance.vatDescription.set('ermaessigt');
     fixture.componentInstance.vatRate.set('7,5');
+    // Nothing was chosen, so the rate is filed as Umsatzsteuer — the kind the select starts on.
+    const select = (fixture.nativeElement as HTMLElement).querySelector('#vat-kind') as HTMLSelectElement;
+    expect(select.selectedOptions[0]?.textContent?.trim()).toBe('Umsatzsteuer');
     fixture.componentInstance.createVAT(new Event('submit'));
     const req = http.expectOne('/api/vat-types');
     expect(req.request.body.rate_basis_points).toBe(750);
+    expect(req.request.body.kind).toBe('output');
     req.flush(vat('V75', 750));
   });
 
@@ -228,6 +238,175 @@ describe('TaxesComponent', () => {
     ).map((el) => el.textContent ?? '');
     expect(alerts.some((a) => a.includes('Steuersätze'))).toBe(true);
     expect(alerts.some((a) => a.includes('Finanzämter'))).toBe(true);
+  });
+
+  /** The DOM value of one field, for asserting what an operator actually sees. */
+  function value(fixture: ReturnType<typeof TestBed.createComponent<TaxesComponent>>, id: string): string {
+    const el = (fixture.nativeElement as HTMLElement).querySelector('#' + id) as HTMLInputElement | HTMLSelectElement;
+    return el.value;
+  }
+
+  function button(
+    fixture: ReturnType<typeof TestBed.createComponent<TaxesComponent>>,
+    name: string,
+  ): HTMLButtonElement {
+    const found = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ).find((b) => (b.textContent ?? '').includes(name));
+    if (!found) {
+      throw new Error('no button ' + name);
+    }
+    return found as HTMLButtonElement;
+  }
+
+  const VAT_FIELDS = ['vat-code', 'vat-description', 'vat-rate'];
+  /** The Finanzamt fields a successful write clears — not the year, which is kept on purpose. */
+  const OFFICE_FIELDS = [
+    'office-number',
+    'office-name',
+    'office-street',
+    'office-postal',
+    'office-city',
+    'office-holder',
+    'office-iban',
+    'office-bic',
+  ];
+
+  it('opens with empty fields, the filter blank and both submits available', () => {
+    const fixture = openEmpty();
+    // Nothing is claimed before anything happened.
+    expect(fixture.componentInstance.notice()).toBeNull();
+    expect(fixture.componentInstance.actionError()).toBeNull();
+    expect(fixture.componentInstance.vatLoadError()).toBeNull();
+    expect(fixture.componentInstance.officeLoadError()).toBeNull();
+    // Every field starts empty, and the kind starts on Umsatzsteuer rather than on nothing.
+    const all = ['office-year', 'office-new-year', ...VAT_FIELDS, ...OFFICE_FIELDS];
+    const blank = all.filter((id) => value(fixture, id) !== '');
+    expect(blank).toEqual([]);
+    expect(value(fixture, 'vat-kind')).toBe('output');
+    // Nothing blocks a submission before anything is in flight.
+    expect(button(fixture, 'Steuersatz aufnehmen').disabled).toBe(false);
+    expect(button(fixture, 'Finanzamt aufnehmen').disabled).toBe(false);
+  });
+
+  it('says it is reading the catalogue while the first read is in flight', () => {
+    const fixture = TestBed.createComponent(TaxesComponent);
+    fixture.detectChanges();
+    // Before the answer arrives the screen reports the read rather than showing an empty table.
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Steuersätze werden geladen.');
+    expect(text).not.toContain('Es ist kein Steuersatz erfasst.');
+    open(fixture, [], []);
+    expect(fixture.nativeElement.textContent).not.toContain('Steuersätze werden geladen.');
+  });
+
+  it('shows an answer that arrives as null as an empty catalogue rather than crashing', () => {
+    const fixture = TestBed.createComponent(TaxesComponent);
+    fixture.detectChanges();
+    // A nil Go slice serialises as null; the screen must show the empty state, not throw.
+    http.expectOne('/api/vat-types').flush(null);
+    http.expectOne((r) => r.url.startsWith('/api/tax-offices')).flush(null);
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Es ist kein Steuersatz erfasst.');
+    expect(text).toContain('Es ist kein Finanzamt erfasst.');
+  });
+
+  it('clears the VAT form and frees the submit after a successful write', () => {
+    const fixture = openEmpty();
+    const c = fixture.componentInstance;
+    c.vatCode.set('V19');
+    c.vatDescription.set('Regelsteuersatz');
+    c.vatRate.set('19');
+    c.createVAT(new Event('submit'));
+    // The submit is held while the write is in flight, so a rate cannot be filed twice.
+    fixture.detectChanges();
+    expect(button(fixture, 'Steuersatz aufnehmen').disabled).toBe(true);
+    http.expectOne('/api/vat-types').flush(vat('V19', 1900));
+    fixture.detectChanges();
+    expect(VAT_FIELDS.filter((id) => value(fixture, id) !== '')).toEqual([]);
+    expect(button(fixture, 'Steuersatz aufnehmen').disabled).toBe(false);
+  });
+
+  it('clears the Finanzamt form and frees the submit after a successful write', () => {
+    const fixture = openEmpty();
+    const c = fixture.componentInstance;
+    c.officeYear.set('2026');
+    c.officeNumber.set('F-9');
+    c.officeName.set('Finanzamt Musterstadt');
+    c.officeStreet.set('Amtsweg 1');
+    c.officePostal.set('12345');
+    c.officeCity.set('Musterstadt');
+    c.officeHolder.set('Landeshauptkasse');
+    c.officeIBAN.set('DE02120300000000202051');
+    c.officeBIC.set('BYLADEM1001');
+    c.createOffice(new Event('submit'));
+    fixture.detectChanges();
+    expect(button(fixture, 'Finanzamt aufnehmen').disabled).toBe(true);
+    http.expectOne('/api/tax-offices').flush(office(9, 2026, 'F-9'));
+    fixture.detectChanges();
+    expect(OFFICE_FIELDS.filter((id) => value(fixture, id) !== '')).toEqual([]);
+    // The year stays, so an operator filing several offices of one year does not retype it.
+    expect(value(fixture, 'office-new-year')).toBe('2026');
+    expect(c.officeYear()).toBe('2026');
+    expect(button(fixture, 'Finanzamt aufnehmen').disabled).toBe(false);
+  });
+
+  it('reads in number order, not in the order the rows arrived', () => {
+    const fixture = openEmpty();
+    const c = fixture.componentInstance;
+    const file = (number: string, id: number): void => {
+      c.officeYear.set('2026');
+      c.officeNumber.set(number);
+      c.officeName.set('Finanzamt Musterstadt');
+      c.createOffice(new Event('submit'));
+      http.expectOne('/api/tax-offices').flush(office(id, 2026, number));
+      fixture.detectChanges();
+    };
+    file('F-9', 9);
+    file('F-2', 2);
+    const rows = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid^="office-"]'),
+    ).map((row) => row.getAttribute('data-testid'));
+    // Both were filed and both are there — the later number does not drop the earlier row.
+    expect(rows).toEqual(['office-2', 'office-9']);
+  });
+
+  it('refuses a VAT type whose description is missing or only spaces', () => {
+    const fixture = openEmpty();
+    const c = fixture.componentInstance;
+    c.vatCode.set('V19');
+    c.vatRate.set('19');
+    c.vatDescription.set('');
+    c.createVAT(new Event('submit'));
+    expect(c.actionError()).toContain('erforderlich');
+    // A description of blanks is not a description.
+    c.vatDescription.set('   ');
+    c.createVAT(new Event('submit'));
+    expect(c.actionError()).toContain('erforderlich');
+    http.expectNone('/api/vat-types');
+  });
+
+  it('refuses a Finanzamt with no number, and a year that is not a year', () => {
+    const fixture = openEmpty();
+    const c = fixture.componentInstance;
+    c.officeYear.set('2026');
+    c.officeName.set('Finanzamt Musterstadt');
+    c.createOffice(new Event('submit'));
+    expect(c.actionError()).toContain('erforderlich');
+    // A number of blanks is not a number.
+    c.officeNumber.set('   ');
+    c.createOffice(new Event('submit'));
+    expect(c.actionError()).toContain('erforderlich');
+    // Year zero and a negative year are not years either.
+    for (const year of ['0', '-1']) {
+      c.officeYear.set(year);
+      c.officeNumber.set('F-9');
+      c.createOffice(new Event('submit'));
+      expect(c.actionError()).toContain('Jahr');
+      expect(c.officeYear()).toBe(year);
+    }
+    http.expectNone('/api/tax-offices');
   });
 
   it('reports a write that the server refuses', () => {

@@ -285,8 +285,11 @@ export class TaxesComponent implements OnInit {
     event.preventDefault();
     this.actionError.set(null);
     this.notice.set(null);
+    // An empty field reads as zero here, so one test carries the blank case and the negative one:
+    // there is no string that is a year and does not pass, which is why the blank is not checked
+    // twice.
     const year = Number(this.officeYear());
-    if (this.officeYear().trim() === '' || !Number.isInteger(year) || year <= 0) {
+    if (!Number.isInteger(year) || year <= 0) {
       this.actionError.set('Das Jahr des Finanzamts ist erforderlich.');
       return;
     }
