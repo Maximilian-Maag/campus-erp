@@ -56,6 +56,11 @@ export interface BudgetCenterRequest {
   name: string;
 }
 
+export interface BudgetImportRequest {
+  layout: string;
+  content: string;
+}
+
 export interface BudgetPositionRequest {
   id?: number;
   year: number;
@@ -440,6 +445,17 @@ export interface FoundationRequest {
 export interface GoodsReceiptLineRequest {
   line_no: number;
   quantity_milli: number;
+}
+
+export interface ImportResult {
+  Layout: string;
+  SourcesCreated: number;
+  SourcesKept: number;
+  CentersCreated: number;
+  CentersKept: number;
+  PositionsCreated: number;
+  PositionsKept: number;
+  PositionsNamed: number;
 }
 
 export interface ImportStatementRequest {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	budgetfile "github.com/Maximilian-Maag/campus-erp/backend/internal/core/budgetimport"
 	core "github.com/Maximilian-Maag/campus-erp/backend/internal/core/einvoice"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/einvoice"
@@ -262,6 +263,14 @@ func TestStatusForBudget(t *testing.T) {
 		{"allocated negative", budget.ErrAllocatedNegative, http.StatusUnprocessableEntity},
 		{"amount not positive", budget.ErrAmountNotPositive, http.StatusUnprocessableEntity},
 		{"unknown kind", budget.ErrUnknownKind, http.StatusUnprocessableEntity},
+		{"source not found", budget.ErrSourceNotFound, http.StatusNotFound},
+		{"center not found", budget.ErrCenterNotFound, http.StatusNotFound},
+		{"source exists", budget.ErrSourceExists, http.StatusConflict},
+		{"center exists", budget.ErrCenterExists, http.StatusConflict},
+		{"assignment unknown", budget.ErrAssignmentUnknown, http.StatusUnprocessableEntity},
+		{"unknown import layout", budgetfile.ErrUnknownLayout, http.StatusUnprocessableEntity},
+		{"empty import file", budgetfile.ErrEmpty, http.StatusUnprocessableEntity},
+		{"unreadable import row", budgetfile.ErrBadRow, http.StatusUnprocessableEntity},
 		{"anything else", errors.New("boom"), http.StatusInternalServerError},
 	}
 	for _, c := range cases {

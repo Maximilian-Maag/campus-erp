@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CampusErpApi, BudgetPositionResponse, Center, Source } from '../core/api/generated';
+import { CampusErpApi, BudgetPositionResponse, Center, ImportResult, Source } from '../core/api/generated';
 import { formatCents } from '../core/format';
 
 /**
@@ -174,6 +174,29 @@ import { formatCents } from '../core/format';
             </tbody>
           </table>
         }
+
+        <form (submit)="runImport($event)">
+          <h3 id="budget-import-heading">Budgetdatei einlesen</h3>
+          <p>
+            <label for="import-layout">Format</label>
+            <input
+              id="import-layout"
+              placeholder="budget-import/v1"
+              [value]="layout()"
+              (input)="layout.set($any($event.target).value)"
+            />
+          </p>
+          <p>
+            <label for="import-content">Inhalt der Budgetdatei</label>
+            <textarea
+              id="import-content"
+              rows="6"
+              [value]="file()"
+              (input)="file.set($any($event.target).value)"
+            ></textarea>
+          </p>
+          <button type="submit" [disabled]="busy()">Einlesen</button>
+        </form>
       }
     </section>
   `,
@@ -198,6 +221,9 @@ export class BudgetSourcesComponent implements OnInit {
   readonly position = signal('');
   readonly source = signal('');
   readonly center = signal('');
+  /** The file's format; empty means the standard layout, and the placeholder names it. */
+  readonly layout = signal('');
+  readonly file = signal('');
 
   /** Loads the three lists the screen shows: sources, centres and the positions they name. */
   ngOnInit(): void {
@@ -308,6 +334,45 @@ export class BudgetSourcesComponent implements OnInit {
         this.busy.set(false);
       },
     });
+  }
+
+  /**
+   * Reads a budget file: it creates the sources, the centres and the positions the file carries and
+   * names each position from its own line (`docs/10`). A file with an unreadable line is refused
+   * whole, so a failed read changes nothing on screen either.
+   */
+  runImport(event: Event): void {
+    event.preventDefault();
+    this.actionError.set(null);
+    this.notice.set(null);
+    if (this.file().trim() === '') {
+      this.actionError.set('Es ist keine Budgetdatei eingelesen.');
+      return;
+    }
+    this.busy.set(true);
+    // An empty format is the standard layout: the operator does not have to name it.
+    this.api.importBudget({ layout: this.layout(), content: this.file() }).subscribe({
+      next: (res) => {
+        this.notice.set(this.importNotice(res));
+        this.file.set('');
+        this.busy.set(false);
+        this.reload(false);
+      },
+      error: () => {
+        this.actionError.set('Die Budgetdatei konnte nicht eingelesen werden.');
+        this.busy.set(false);
+      },
+    });
+  }
+
+  /** What an import did, in prose: created and already-there read differently. */
+  importNotice(res: ImportResult): string {
+    return (
+      `${res.SourcesCreated} Mittelquellen, ${res.CentersCreated} Bewirtschaftungsstellen und ` +
+      `${res.PositionsCreated} Haushaltsstellen angelegt; ` +
+      `${res.SourcesKept} Mittelquellen und ${res.PositionsKept} Haushaltsstellen waren schon vorhanden; ` +
+      `${res.PositionsNamed} Haushaltsstellen sind zugeordnet.`
+    );
   }
 
   /** The name of a position's source, or a plain "keine" when it names none. */

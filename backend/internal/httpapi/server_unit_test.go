@@ -291,6 +291,10 @@ func (s stubBudget) Balance(context.Context, int64) (budget.Balance, error) {
 	return budget.Balance{}, s.err
 }
 
+func (s stubBudget) Import(context.Context, string, string, string) (budget.ImportResult, error) {
+	return budget.ImportResult{}, s.err
+}
+
 func (s stubBudget) CreateSource(context.Context, string, string, string, string) (budget.Source, error) {
 	return budget.Source{}, s.err
 }
