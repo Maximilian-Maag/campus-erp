@@ -2,6 +2,15 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.124.0] - 2026-11-11
+
+The purchase-order list can be read a page at a time. `GET /api/procurement/orders` takes `limit` and
+`offset` beside its existing `status` filter, and the *Bestellungen* screen reads it that way —
+offering *Weitere laden* while pages come back full, keeping what it has when a page fails, and
+dropping the offer when another status is chosen. Its order needed no tiebreaker: `purchase_order`
+numbers are `UNIQUE`, so `ORDER BY number` is already total, which is the property the integration
+test asserts by walking the filtered list two orders at a time. `docs/15`.
+
 ## [0.123.0] - 2026-11-11
 
 The statement list can be read a page at a time too. `GET /api/bank-statements` takes `limit` and

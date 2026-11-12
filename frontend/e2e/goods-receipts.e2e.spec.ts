@@ -35,7 +35,7 @@ const openState = {
 
 test('Wareneingang shows the arrival per line and books a partial delivery, and passes axe', async ({ page }) => {
   const posts: unknown[] = [];
-  await page.route('**/api/purchase-orders?status=approved', (route) =>
+  await page.route(/\/api\/purchase-orders\?status=approved/, (route) =>
     route.fulfill({ status: 200, json: [approvedOrder] })
   );
   await page.route('**/api/purchase-orders/7/receipts', (route) => {
@@ -89,7 +89,7 @@ test('Wareneingang shows the arrival per line and books a partial delivery, and 
 
 test('Wareneingang reports a refused booking and an order that is complete, and passes axe', async ({ page }) => {
   let complete = false;
-  await page.route('**/api/purchase-orders?status=approved', (route) =>
+  await page.route(/\/api\/purchase-orders\?status=approved/, (route) =>
     route.fulfill({ status: 200, json: [approvedOrder] })
   );
   await page.route('**/api/purchase-orders/7/receipts', (route) => {
@@ -123,7 +123,7 @@ test('Wareneingang reports a refused booking and an order that is complete, and 
 });
 
 test('Wareneingang states an empty list of approved orders, and passes axe', async ({ page }) => {
-  await page.route('**/api/purchase-orders?status=approved', (route) =>
+  await page.route(/\/api\/purchase-orders\?status=approved/, (route) =>
     route.fulfill({ status: 200, json: [] })
   );
 

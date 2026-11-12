@@ -79,6 +79,18 @@ import { formatCents } from '../core/format';
             }
           </tbody>
         </table>
+        @if (hasMore()) {
+          <p>
+            <button
+              type="button"
+              data-testid="load-more"
+              [disabled]="loadingMore()"
+              (click)="loadMore()"
+            >
+              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
+            </button>
+          </p>
+        }
       }
     </section>
   `,
@@ -87,6 +99,14 @@ export class PurchaseOrdersComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
 
   readonly orders = signal<ProcurementOrderSummary[]>([]);
+  /**
+   * One page of orders, sent explicitly rather than left to the server's default: a screen whose page
+   * size changed when the server did would be a surprise nobody could see in the code.
+   */
+  private readonly pageSize = 50;
+  /** True while the last page came back full, so there may be another. */
+  readonly hasMore = signal(false);
+  readonly loadingMore = signal(false);
   readonly status = signal('');
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
@@ -109,16 +129,56 @@ export class PurchaseOrdersComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.loadError.set(null);
-    this.api.listPurchaseOrders(this.status() || undefined).subscribe({
-      next: (orders) => {
-        this.orders.set(orders ?? []);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loadError.set('Konnte die Bestellungen nicht laden.');
-        this.loading.set(false);
-      },
-    });
+    this.hasMore.set(false);
+    this.api
+      .listPurchaseOrders(this.status() || undefined, String(this.pageSize), '0')
+      .subscribe({
+        next: (orders) => {
+          const page = orders ?? [];
+          this.orders.set(page);
+          // A full page means there may be more; a short one is the end of the list.
+          this.hasMore.set(page.length === this.pageSize);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loadError.set('Konnte die Bestellungen nicht laden.');
+          this.loading.set(false);
+        },
+      });
+  }
+
+  /**
+   * Reads the next page of the chosen status and appends it. The offset is the number of orders
+   * already on screen, which is why the list is never re-sorted in the browser: the pages only line
+   * up while the order the server answered with is the order they are shown in.
+   *
+   * A failed page is reported without clearing what is there — the orders already read are still
+   * valid, and blanking the screen would suggest they are not.
+   */
+  loadMore(): void {
+    if (!this.hasMore() || this.loadingMore()) {
+      return;
+    }
+    this.loadingMore.set(true);
+    this.actionError.set(null);
+    this.api
+      .listPurchaseOrders(
+        this.status() || undefined,
+        String(this.pageSize),
+        String(this.orders().length),
+      )
+      .subscribe({
+        next: (orders) => {
+          const page = orders ?? [];
+          this.orders.set([...this.orders(), ...page]);
+          this.hasMore.set(page.length === this.pageSize);
+          this.loadingMore.set(false);
+        },
+        error: () => {
+          this.loadingMore.set(false);
+          this.actionError.set('Konnte die weiteren Bestellungen nicht laden.');
+        },
+      });
   }
 
   approve(order: ProcurementOrderSummary): void {

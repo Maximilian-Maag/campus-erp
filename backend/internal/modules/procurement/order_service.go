@@ -72,8 +72,8 @@ func (s *OrderService) Receive(ctx context.Context, id int64, by string) (Order,
 
 // Orders returns the order summaries, optionally narrowed to one status ("" for every status).
 // It is read-only, so it is not audited.
-func (s *OrderService) Orders(ctx context.Context, status Status) ([]OrderSummary, error) {
-	return s.repo.List(ctx, status)
+func (s *OrderService) Orders(ctx context.Context, status Status, limit, offset int) ([]OrderSummary, error) {
+	return s.repo.List(ctx, status, limit, offset)
 }
 
 // MatchReceipt is the two-way match: it finds the order an inbound invoice names (its buyer

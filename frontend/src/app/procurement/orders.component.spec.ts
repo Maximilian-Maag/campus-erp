@@ -24,6 +24,10 @@ describe('PurchaseOrdersComponent', () => {
   const draft = order(1, 'PO-1', 'draft', 11900);
   const approved = order(2, 'PO-2', 'approved', 23800);
 
+  /** A page's worth of orders, so the screen believes there may be another. */
+  const fullPage = (from: number, status = 'draft'): ProcurementOrderSummary[] =>
+    Array.from({ length: 50 }, (_, i) => order(from + i, `PO-${from + i}`, status, 11900));
+
   it('loads the orders as soon as it is shown', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     // Before the API answers: loading, nothing listed, no error.
@@ -32,7 +36,7 @@ describe('PurchaseOrdersComponent', () => {
     expect(fixture.componentInstance.loadError()).toBeNull();
     fixture.detectChanges();
 
-    const req = http.expectOne('/api/purchase-orders');
+    const req = http.expectOne('/api/purchase-orders?limit=50&offset=0');
     expect(req.request.method).toBe('GET');
     req.flush([draft, approved]);
     fixture.detectChanges();
@@ -50,7 +54,7 @@ describe('PurchaseOrdersComponent', () => {
       InvoicedCents,
     });
     http
-      .expectOne('/api/purchase-orders')
+      .expectOne('/api/purchase-orders?limit=50&offset=0')
       .flush([billed(1, 'PO-1', 11900, 0), billed(2, 'PO-2', 11900, 5000), billed(3, 'PO-3', 11900, 11900)]);
     fixture.detectChanges();
 
@@ -65,7 +69,7 @@ describe('PurchaseOrdersComponent', () => {
   it('renders each order with its amount and the German status word', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/purchase-orders').flush([draft, approved]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([draft, approved]);
     fixture.detectChanges();
 
     const html = fixture.nativeElement as HTMLElement;
@@ -80,14 +84,14 @@ describe('PurchaseOrdersComponent', () => {
   it('asks the API for the chosen status instead of sifting what it has', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/purchase-orders').flush([draft, approved]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([draft, approved]);
     fixture.detectChanges();
     const component = fixture.componentInstance;
 
     component.filterTo('approved');
 
     // The filter travels to the server, so the screen works on a list it never holds in full.
-    const filtered = http.expectOne('/api/purchase-orders?status=approved');
+    const filtered = http.expectOne('/api/purchase-orders?status=approved&limit=50&offset=0');
     expect(filtered.request.method).toBe('GET');
     filtered.flush([approved]);
     fixture.detectChanges();
@@ -99,7 +103,7 @@ describe('PurchaseOrdersComponent', () => {
 
     // Back to everything: no filter parameter at all.
     component.filterTo('');
-    http.expectOne('/api/purchase-orders').flush([draft, approved]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([draft, approved]);
     fixture.detectChanges();
     expect(component.orders().length).toBe(2);
   });
@@ -107,7 +111,7 @@ describe('PurchaseOrdersComponent', () => {
   it('says so when there are no orders, and when the chosen status has none', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/purchase-orders').flush([]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([]);
     fixture.detectChanges();
 
     const html = fixture.nativeElement as HTMLElement;
@@ -116,7 +120,7 @@ describe('PurchaseOrdersComponent', () => {
 
     // With a status chosen and nothing loaded, the message names the status.
     fixture.componentInstance.filterTo('cancelled');
-    http.expectOne('/api/purchase-orders?status=cancelled').flush([]);
+    http.expectOne('/api/purchase-orders?status=cancelled&limit=50&offset=0').flush([]);
     fixture.detectChanges();
     expect(html.querySelector('[role="status"]')?.textContent).toContain('Keine Bestellung in diesem Status');
   });
@@ -124,7 +128,7 @@ describe('PurchaseOrdersComponent', () => {
   it('reports a failed load instead of showing an empty list', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/purchase-orders').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush('nope', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -138,7 +142,7 @@ describe('PurchaseOrdersComponent', () => {
   it('approves a draft and reloads the list', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/purchase-orders').flush([draft]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([draft]);
     fixture.detectChanges();
 
     fixture.componentInstance.approve(draft);
@@ -150,7 +154,7 @@ describe('PurchaseOrdersComponent', () => {
 
     // The screen reloads so the row shows its new state.
     expect(fixture.componentInstance.loading()).toBeTrue();
-    http.expectOne('/api/purchase-orders').flush([approved]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([approved]);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.loading()).toBeFalse();
@@ -163,7 +167,7 @@ describe('PurchaseOrdersComponent', () => {
   it('keeps the list and names the order when an approval fails', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/purchase-orders').flush([draft]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([draft]);
     fixture.detectChanges();
 
     fixture.componentInstance.approve(draft);
@@ -182,7 +186,7 @@ describe('PurchaseOrdersComponent', () => {
   it('offers approval only for a draft', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/purchase-orders').flush([draft, approved]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([draft, approved]);
     fixture.detectChanges();
 
     const html = fixture.nativeElement as HTMLElement;
@@ -196,7 +200,7 @@ describe('PurchaseOrdersComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
-    http.expectOne('/api/purchase-orders').flush(null);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush(null);
     fixture.detectChanges();
 
     expect(component.orders()).toEqual([]);
@@ -208,7 +212,7 @@ describe('PurchaseOrdersComponent', () => {
     const fixture = TestBed.createComponent(PurchaseOrdersComponent);
     fixture.detectChanges();
     const component = fixture.componentInstance;
-    http.expectOne('/api/purchase-orders').flush([]);
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush([]);
 
     expect(component.statusLabel('draft')).toBe('Entwurf');
     expect(component.statusLabel('approved')).toBe('Genehmigt');
@@ -217,5 +221,136 @@ describe('PurchaseOrdersComponent', () => {
     expect(component.statusLabel('something-else')).toBe('something-else');
     expect(component.euro(11900)).toBe('119,00');
     expect(component.euro(0)).toBe('0,00');
+  });
+
+  it('opens with one page and offers the next only while the pages come back full', () => {
+    const fixture = TestBed.createComponent(PurchaseOrdersComponent);
+    const component = fixture.componentInstance;
+
+    // Before anything is read at all: no next page to offer, none being read. This is asserted before
+    // the first `detectChanges()`, because the first load resets the offer — asserting afterwards
+    // would test the reset rather than the screen's opening state.
+    expect(component.hasMore()).toBeFalse();
+    expect(component.loadingMore()).toBeFalse();
+
+    fixture.detectChanges();
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    expect(component.orders().length).toBe(50);
+    expect(component.hasMore()).toBeTrue();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Weitere laden');
+  });
+
+  it('reads the next page of the chosen status and appends it', () => {
+    const fixture = TestBed.createComponent(PurchaseOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush(fullPage(1, 'approved'));
+    fixture.detectChanges();
+
+    component.loadMore();
+
+    expect(component.loadingMore()).toBeTrue();
+    // The page carries the filter too, so a page of one status cannot be read for another.
+    const second = http.expectOne('/api/purchase-orders?limit=50&offset=50');
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-testid="load-more"]',
+    ) as HTMLButtonElement;
+    expect(button.disabled).toBeTrue();
+    expect(button.textContent).toContain('Weitere werden geladen');
+
+    second.flush(fullPage(51, 'approved'));
+    fixture.detectChanges();
+
+    expect(component.orders().length).toBe(100);
+    expect(component.orders()[0].Number).toBe('PO-1');
+    // A second full page means there may be a third, so the offer stays.
+    expect(component.hasMore()).toBeTrue();
+    expect(component.loadingMore()).toBeFalse();
+  });
+
+  it('stops offering the next page when a page comes back empty', () => {
+    const fixture = TestBed.createComponent(PurchaseOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    component.loadMore();
+    http.expectOne('/api/purchase-orders?limit=50&offset=50').flush(null);
+    fixture.detectChanges();
+
+    // An empty page appends nothing: the rows read are the rows on screen, whatever the server says.
+    expect(component.orders().length).toBe(50);
+    expect(component.hasMore()).toBeFalse();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Weitere laden');
+
+    component.loadMore();
+    expect(component.loadingMore()).toBeFalse();
+  });
+
+  it('carries the chosen status into the next page', () => {
+    const fixture = TestBed.createComponent(PurchaseOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+    component.filterTo('approved');
+    http.expectOne('/api/purchase-orders?status=approved&limit=50&offset=0').flush(fullPage(1, 'approved'));
+    fixture.detectChanges();
+
+    component.loadMore();
+
+    // The filter travels with the page: a page of one status must never be read without it, or the
+    // offset would count rows of a different list.
+    http.expectOne('/api/purchase-orders?status=approved&limit=50&offset=50').flush([]);
+    fixture.detectChanges();
+
+    expect(component.orders().length).toBe(50);
+    expect(component.hasMore()).toBeFalse();
+  });
+
+  it('keeps the orders it has when the next page cannot be read, and does not read it twice', () => {
+    const fixture = TestBed.createComponent(PurchaseOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    component.loadMore();
+    component.loadMore();
+    http
+      .expectOne('/api/purchase-orders?limit=50&offset=50')
+      .flush({ error: 'unreadable' }, { status: 500, statusText: 'Internal Server Error' });
+    fixture.detectChanges();
+
+    expect(component.orders().length).toBe(50);
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.actionError()).toBe('Konnte die weiteren Bestellungen nicht laden.');
+    expect(component.loadError()).toBeNull();
+    // The offer stays: the page failed, so it is still there to be read.
+    expect(component.hasMore()).toBeTrue();
+  });
+
+  it('clears the offer when another status is chosen', () => {
+    const fixture = TestBed.createComponent(PurchaseOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/purchase-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+    expect(component.hasMore()).toBeTrue();
+
+    component.filterTo('approved');
+
+    // The other status starts from its own first page: a stale offer would ask for a page of the
+    // list that is no longer on screen.
+    expect(component.hasMore()).toBeFalse();
+    http.expectOne('/api/purchase-orders?status=approved&limit=50&offset=0').flush([approved]);
+    fixture.detectChanges();
+
+    expect(component.orders().length).toBe(1);
+    expect(component.hasMore()).toBeFalse();
   });
 });

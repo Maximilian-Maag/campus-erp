@@ -20,7 +20,7 @@ type OrderRepository interface {
 	// carries is the order number (BT-10).
 	GetByNumber(ctx context.Context, number string) (Order, error)
 	// List returns the order summaries, optionally narrowed to one status ("" for every status).
-	List(ctx context.Context, status Status) ([]OrderSummary, error)
+	List(ctx context.Context, status Status, limit, offset int) ([]OrderSummary, error)
 	SetStatus(ctx context.Context, id int64, status Status, by string) (Order, error)
 	// AddInvoiced records how much of the order's commitment an invoice converted, so a second
 	// invoice is checked against what is left rather than against the gross again.
@@ -88,13 +88,16 @@ func (r *OrderRepo) Insert(ctx context.Context, o Order) (Order, error) {
 }
 
 // List returns the orders as summaries, ordered by number. An empty status lists every status.
-func (r *OrderRepo) List(ctx context.Context, status Status) ([]OrderSummary, error) {
+func (r *OrderRepo) List(ctx context.Context, status Status, limit, offset int) ([]OrderSummary, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT id, number, supplier, budget_position_id, currency, net_cents, vat_cents, gross_cents,
 		        invoiced_cents, status
 		   FROM purchase_order
 		  WHERE ($1 = '' OR status = $1)
-		  ORDER BY number`, string(status))
+		  -- number is UNIQUE, so this order is total and a page boundary can neither repeat nor skip
+		  -- an order. (An order whose number were not unique would need a tiebreaker here.)
+		  ORDER BY number
+		  LIMIT $2 OFFSET $3`, string(status), limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("procurement: list orders: %w", err)
 	}

@@ -273,12 +273,12 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
   code (`invalid_limit`, `invalid_offset`) rather than quietly falling back to the default — a
   client that sends `offset=zwölf` has a bug, and hiding it makes the symptom (a list that never
   advances) harder to find than the cause.
-  Two lists page so far: `GET /api/e-invoices` (*Belege*) and `GET /api/bank-statements`
-  (*Kontoauszüge* — the first *filtered* one, where the page is of one account's statements, so the
-  filter and the page are asked for together and switching account cannot mix two accounts' pages).
-  Both screens read them one page at a time (`Weitere laden`), keep what they have when a page
-  fails, and drop the offer once a short page says the list has ended. The remaining list routes
-  still return everything: each needs the two parameters on the route, an `ORDER BY` that is
-  **total** — the statement list gained `id DESC` as a tiebreaker for exactly this reason, since two
-  statements can share a number and a boundary over a partial order repeats one row and skips
-  another — and a control on the screen that reads it.
+  Three lists page so far: `GET /api/e-invoices` (*Belege*), `GET /api/bank-statements`
+  (*Kontoauszüge* — filtered, where the page is of one account's statements, so the filter and the
+  page are asked for together) and `GET /api/procurement/orders` (*Bestellungen*, likewise filtered
+  by status). Their screens read one page at a time (`Weitere laden`), keep what they have when a
+  page fails, and drop the offer once a short page ends the list. The remaining list routes still
+  return everything: each needs the two parameters on the route, an `ORDER BY` that is **total** —
+  the statement list gained `id DESC` as a tiebreaker for exactly this reason, since two statements
+  can share a number and a boundary over a partial order repeats one row and skips another — and a
+  control on the screen that reads it.

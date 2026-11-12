@@ -19,7 +19,7 @@ type procurementService interface {
 	Receive(ctx context.Context, id int64, by string) (procurement.Order, error)
 	Cancel(ctx context.Context, id int64, by string) (procurement.Order, error)
 	Get(ctx context.Context, id int64) (procurement.Order, error)
-	Orders(ctx context.Context, status procurement.Status) ([]procurement.OrderSummary, error)
+	Orders(ctx context.Context, status procurement.Status, limit, offset int) ([]procurement.OrderSummary, error)
 	// RecordReceipt records a delivery (a goods receipt) against an approved order (docs/12).
 	RecordReceipt(ctx context.Context, orderID int64, reference string, receivedOn time.Time, lines []procurement.ReceiptLine, by string) (procurement.ReceiptResult, error)
 	// ReceiptState is the order's goods-receipt state: every line's progress and the receipts.
@@ -39,7 +39,12 @@ func (s *Server) listPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		status = parsed
 	}
-	orders, err := s.procurement.Orders(r.Context(), status)
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
+	orders, err := s.procurement.Orders(r.Context(), status, limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForProcurement(err), err)
 		return

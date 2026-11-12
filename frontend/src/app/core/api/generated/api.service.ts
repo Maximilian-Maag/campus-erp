@@ -387,8 +387,8 @@ export class CampusErpApi {
     return this.http.get(this.base + `/api/payment-runs/${id}/file`, { responseType: 'text' });
   }
 
-  listPurchaseOrders(status?: string): Observable<m.ProcurementOrderSummary[]> {
-    return this.http.get<m.ProcurementOrderSummary[]>(this.base + `/api/purchase-orders${this._query({ status })}`);
+  listPurchaseOrders(status?: string, limit?: string, offset?: string): Observable<m.ProcurementOrderSummary[]> {
+    return this.http.get<m.ProcurementOrderSummary[]>(this.base + `/api/purchase-orders${this._query({ status, limit, offset })}`);
   }
 
   createPurchaseOrder(body: m.CreatePurchaseOrderRequest): Observable<m.Order> {
