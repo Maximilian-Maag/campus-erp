@@ -56,6 +56,11 @@ func Pool(t *testing.T) *pgxpool.Pool {
 	if _, err := db.Migrate(ctx, pool); err != nil {
 		t.Fatalf("dbtest: migrate: %v", err)
 	}
+	// A schema that is missing an exclusion constraint the migrations should have added fails here,
+	// located and named, instead of as a duplicate accepted in some unrelated assertion (issue #136).
+	if err := verifySchema(ctx, pool, requiredConstraints); err != nil {
+		t.Fatalf("dbtest: %v", err)
+	}
 	return pool
 }
 

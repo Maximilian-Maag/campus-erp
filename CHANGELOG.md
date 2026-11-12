@@ -2,6 +2,16 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.125.0] - 2026-11-11
+
+The test harness now checks the schema's shape, not only its isolation: `dbtest.Pool` asserts that the
+exclusion constraints the suite relies on (`allocation_run_no_overlap`, `cost_unit_run_no_overlap` —
+how the KLR refuses a second, overlapping run) are present, and says which is missing, what goes wrong
+without it and whether `btree_gist` is the reason. The failure mode it answers was observed: two
+`httpapi` tests failed with `second run = 201, want 409`, passed on a re-run of the identical commit,
+and did not reproduce locally (issue #136). Now the next occurrence is a located start-up failure
+rather than a duplicate silently accepted in an unrelated package. `docs/18`.
+
 ## [0.124.0] - 2026-11-11
 
 The purchase-order list can be read a page at a time. `GET /api/procurement/orders` takes `limit` and
