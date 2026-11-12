@@ -17,14 +17,17 @@ type foundationBookService interface {
 	Books(ctx context.Context, foundationID int64) ([]kasse.FoundationBook, error)
 	Balance(ctx context.Context, bookID int64) (kasse.FoundationBalance, error)
 	CarryOver(ctx context.Context, bookID int64, reference, by string) (kasse.CarryOver, error)
+	Reverse(ctx context.Context, bookingID int64, reason, by string) (kasse.Reversal, error)
 }
 
 // statusForFoundationBook maps a foundation-book error to an HTTP status.
 func statusForFoundationBook(err error) int {
 	switch {
-	case errors.Is(err, kasse.ErrFoundationBookNotFound), errors.Is(err, kasse.ErrNotFound):
+	case errors.Is(err, kasse.ErrFoundationBookNotFound), errors.Is(err, kasse.ErrNotFound),
+		errors.Is(err, kasse.ErrBookingNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, kasse.ErrFoundationBookExists), errors.Is(err, kasse.ErrCarryOverTargetNotEmpty):
+	case errors.Is(err, kasse.ErrFoundationBookExists), errors.Is(err, kasse.ErrCarryOverTargetNotEmpty),
+		errors.Is(err, kasse.ErrBookingAlreadyReversed):
 		return http.StatusConflict
 	case errors.Is(err, kasse.ErrFoundationBookReferenceRequired),
 		errors.Is(err, kasse.ErrFoundationRequired),
@@ -35,6 +38,7 @@ func statusForFoundationBook(err error) int {
 		errors.Is(err, kasse.ErrCarryOverNotAllowed),
 		errors.Is(err, kasse.ErrCarryOverNothing),
 		errors.Is(err, kasse.ErrCarryOverTargetMissing),
+		errors.Is(err, kasse.ErrReversalNotReversible),
 		errors.Is(err, kasse.ErrActorRequired):
 		return http.StatusUnprocessableEntity
 	default:
@@ -128,6 +132,49 @@ func (s *Server) carryOverFoundationBook(w http.ResponseWriter, r *http.Request)
 		TargetReference: res.Target.Reference,
 		BookingID:       res.Booking.ID,
 		Cents:           res.Cents,
+	})
+}
+
+// reverseBookingRequest may say why a movement is being cancelled. The reason travels in the
+// counter-movement's purpose, so the statement explains itself months later without a join.
+type reverseBookingRequest struct {
+	Reason string `json:"reason"`
+}
+
+// reversalResponse is what a cancellation answers with: the movement that was cancelled and the
+// counter-movement appended beside it.
+type reversalResponse struct {
+	OriginalID       int64  `json:"original_id"`
+	BookID           int64  `json:"book_id"`
+	CounterBookingID int64  `json:"counter_booking_id"`
+	CounterKind      string `json:"counter_kind"`
+	AmountCents      int64  `json:"amount_cents"`
+	Purpose          string `json:"purpose"`
+}
+
+func (s *Server) reverseFoundationBooking(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var req reverseBookingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	res, err := s.foundationBooks.Reverse(r.Context(), id, req.Reason, actor(r))
+	if err != nil {
+		writeDomainProblem(w, statusForFoundationBook(err), err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, reversalResponse{
+		OriginalID:       res.Original.ID,
+		BookID:           res.Original.BookID,
+		CounterBookingID: res.Mirror.ID,
+		CounterKind:      string(res.Mirror.Kind),
+		AmountCents:      res.Cents,
+		Purpose:          res.Mirror.Purpose,
 	})
 }
 

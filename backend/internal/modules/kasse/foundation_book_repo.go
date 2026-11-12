@@ -21,6 +21,12 @@ type FoundationBookRepository interface {
 	// already made instead of failing on the unique (foundation, reference) pair.
 	BookByReference(ctx context.Context, foundationID int64, reference string) (FoundationBook, bool, error)
 	InsertBooking(ctx context.Context, b FoundationBooking, by string) (FoundationBooking, error)
+	// BookingByID loads one movement — cancelling it means reading what it was first.
+	BookingByID(ctx context.Context, id int64) (FoundationBooking, error)
+	// Reverse appends the counter-movement and marks the original as cancelled, in one transaction:
+	// half of that pair would either cancel a movement twice or leave one reversed with nothing to
+	// show for it.
+	Reverse(ctx context.Context, original, mirror FoundationBooking, by string) (FoundationBooking, error)
 	Bookings(ctx context.Context, bookID int64) ([]FoundationBooking, error)
 	Books(ctx context.Context, foundationID int64) ([]FoundationBook, error)
 	Balance(ctx context.Context, bookID int64) (FoundationBalance, error)
@@ -41,7 +47,7 @@ func NewFoundationBookRepo(pool *pgxpool.Pool) *FoundationBookRepo {
 
 const bookColumns = `id, foundation_id, reference, currency, created_by`
 
-const foundationBookingColumns = `id, book_id, kind, amount_cents, purpose, booked_by`
+const foundationBookingColumns = `id, book_id, kind, amount_cents, purpose, booked_by, reverses, reversed_by`
 
 func scanBook(row pgx.Row) (FoundationBook, error) {
 	var b FoundationBook
@@ -51,7 +57,7 @@ func scanBook(row pgx.Row) (FoundationBook, error) {
 
 func scanFoundationBooking(row pgx.Row) (FoundationBooking, error) {
 	var b FoundationBooking
-	err := row.Scan(&b.ID, &b.BookID, &b.Kind, &b.AmountCents, &b.Purpose, &b.BookedBy)
+	err := row.Scan(&b.ID, &b.BookID, &b.Kind, &b.AmountCents, &b.Purpose, &b.BookedBy, &b.Reverses, &b.ReversedBy)
 	return b, err
 }
 
@@ -210,4 +216,63 @@ func (r *FoundationBookRepo) FoundationByYearNumber(ctx context.Context, year in
 		return Foundation{}, false, fmt.Errorf("kasse: find foundation: %w", err)
 	}
 	return f, true, nil
+}
+
+// BookingByID loads one foundation movement.
+func (r *FoundationBookRepo) BookingByID(ctx context.Context, id int64) (FoundationBooking, error) {
+	b, err := scanFoundationBooking(r.pool.QueryRow(ctx,
+		`SELECT `+foundationBookingColumns+` FROM foundation_booking WHERE id = $1`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return FoundationBooking{}, fmt.Errorf("kasse: booking %d: %w", id, ErrBookingNotFound)
+	}
+	if err != nil {
+		return FoundationBooking{}, fmt.Errorf("kasse: get foundation booking: %w", err)
+	}
+	return b, nil
+}
+
+// Reverse appends the counter-movement and marks the original in one transaction. The database
+// carries both halves of the rule as partial unique indexes, so a second reversal of the same
+// movement cannot slip through between two connections: whichever transaction loses reports
+// ErrBookingAlreadyReversed rather than appending a second counter-movement.
+func (r *FoundationBookRepo) Reverse(ctx context.Context, original, mirror FoundationBooking, by string) (FoundationBooking, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return FoundationBooking{}, fmt.Errorf("kasse: begin reversal: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	saved, err := scanFoundationBooking(tx.QueryRow(ctx,
+		`INSERT INTO foundation_booking (book_id, kind, amount_cents, purpose, booked_by, reverses)
+		 VALUES ($1,$2,$3,$4,$5,$6) RETURNING `+foundationBookingColumns,
+		mirror.BookID, mirror.Kind, mirror.AmountCents, mirror.Purpose, by, original.ID))
+	if err != nil {
+		if isUniqueViolation(err) {
+			return FoundationBooking{}, fmt.Errorf("kasse: booking %d: %w", original.ID, ErrBookingAlreadyReversed)
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation {
+			if pgErr.ConstraintName == "foundation_booking_book_id_fkey" {
+				return FoundationBooking{}, fmt.Errorf("kasse: book %d: %w", mirror.BookID, ErrFoundationBookNotFound)
+			}
+			return FoundationBooking{}, fmt.Errorf("kasse: booking %d: %w", original.ID, ErrBookingNotFound)
+		}
+		return FoundationBooking{}, fmt.Errorf("kasse: insert counter-movement: %w", err)
+	}
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE foundation_booking SET reversed_by = $1 WHERE id = $2 AND reversed_by IS NULL`, saved.ID, original.ID)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return FoundationBooking{}, fmt.Errorf("kasse: booking %d: %w", original.ID, ErrBookingAlreadyReversed)
+		}
+		return FoundationBooking{}, fmt.Errorf("kasse: mark booking reversed: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return FoundationBooking{}, fmt.Errorf("kasse: booking %d: %w", original.ID, ErrBookingAlreadyReversed)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return FoundationBooking{}, fmt.Errorf("kasse: commit reversal: %w", err)
+	}
+	return saved, nil
 }

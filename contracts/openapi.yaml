@@ -939,6 +939,46 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
+  /api/foundation-bookings/{id}/reverse:
+    post:
+      tags:
+      - kasse
+      operationId: reverseFoundationBooking
+      summary: Cancel a foundation movement with a counter-movement
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReverseBookingRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReversalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/Internal'
   /api/foundation-books/{id}/carry-over:
     post:
       tags:
@@ -6087,6 +6127,39 @@ components:
           type: string
       required:
       - reference
+    ReversalResponse:
+      type: object
+      properties:
+        original_id:
+          type: integer
+          format: int64
+        book_id:
+          type: integer
+          format: int64
+        counter_booking_id:
+          type: integer
+          format: int64
+        counter_kind:
+          type: string
+        amount_cents:
+          type: integer
+          format: int64
+        purpose:
+          type: string
+      required:
+      - original_id
+      - book_id
+      - counter_booking_id
+      - counter_kind
+      - amount_cents
+      - purpose
+    ReverseBookingRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+      - reason
     FoundationBalance:
       type: object
       properties:
@@ -6121,6 +6194,14 @@ components:
           type: string
         BookedBy:
           type: string
+        Reverses:
+          type: integer
+          format: int64
+          x-nullable: true
+        ReversedBy:
+          type: integer
+          format: int64
+          x-nullable: true
       required:
       - ID
       - BookID
@@ -6128,6 +6209,8 @@ components:
       - AmountCents
       - Purpose
       - BookedBy
+      - Reverses
+      - ReversedBy
     BookFoundationRequest:
       type: object
       properties:

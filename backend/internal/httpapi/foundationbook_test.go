@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 )
@@ -249,6 +250,79 @@ func TestHTTPFoundationCarryOver(t *testing.T) {
 	}
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(book.ID)+"/carry-over", "alice", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad body = %d, want 400", resp.StatusCode)
+	}
+}
+
+// TestHTTPFoundationBookingReversal cancels a movement over HTTP: the answer names both rows, and
+// the refusals come back as statuses a client can act on rather than one generic failure.
+func TestHTTPFoundationBookingReversal(t *testing.T) {
+	srv, _ := newTestServer(t)
+	f := createFoundation(t, srv.URL)
+	book := createBookFor(t, srv.URL, f.ID, "STORNO-"+uniqueSuffix(t))
+
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(book.ID)+"/bookings", "alice",
+		`{"kind":"income","amount_cents":7500,"purpose":"Spende (doppelt)"}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("book a movement = %d", resp.StatusCode)
+	}
+	var original struct{ ID int64 }
+	if err := json.NewDecoder(resp.Body).Decode(&original); err != nil {
+		t.Fatalf("decode booking: %v", err)
+	}
+
+	resp = doJSON(t, http.MethodPost, srv.URL+"/api/foundation-bookings/"+itoa(original.ID)+"/reverse", "alice",
+		`{"reason":"doppelt erfasst"}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("reverse = %d, want 201", resp.StatusCode)
+	}
+	// The tags matter: `source_book_id`-style names do not map onto a Go field without one.
+	var out struct {
+		OriginalID       int64  `json:"original_id"`
+		BookID           int64  `json:"book_id"`
+		CounterBookingID int64  `json:"counter_booking_id"`
+		CounterKind      string `json:"counter_kind"`
+		AmountCents      int64  `json:"amount_cents"`
+		Purpose          string `json:"purpose"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode reversal: %v", err)
+	}
+	if out.OriginalID != original.ID || out.BookID != book.ID || out.CounterBookingID == 0 {
+		t.Fatalf("reversal = %+v, want it to name %d in book %d and the counter-movement", out, original.ID, book.ID)
+	}
+	if out.CounterKind != "expense" || out.AmountCents != 7500 {
+		t.Fatalf("counter-movement = %s %d, want expense 7500", out.CounterKind, out.AmountCents)
+	}
+	if out.Purpose != fmt.Sprintf("Storno zu Buchung %d: doppelt erfasst", original.ID) {
+		t.Fatalf("purpose = %q, want the reason carried into it", out.Purpose)
+	}
+
+	// Cancelling the same movement again is a conflict, not a second counter-movement.
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-bookings/"+itoa(original.ID)+"/reverse", "alice", `{}`); resp.StatusCode != http.StatusConflict {
+		t.Fatalf("second reversal = %d, want 409", resp.StatusCode)
+	}
+	// Cancelling the counter-movement is refused with a reason a client can show.
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-bookings/"+itoa(out.CounterBookingID)+"/reverse", "alice", `{}`); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("reversing the counter-movement = %d, want 422", resp.StatusCode)
+	}
+	// Unknown movement: 404. Malformed body and bad id: 400.
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-bookings/9223372036854775807/reverse", "alice", `{}`); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown movement = %d, want 404", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-bookings/"+itoa(original.ID)+"/reverse", "alice", `{`); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad body = %d, want 400", resp.StatusCode)
+	}
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-bookings/abc/reverse", "alice", `{}`); resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad id = %d, want 400", resp.StatusCode)
+	}
+	// The book's balance is derived, so the pair nets to zero without either row being removed.
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/foundation-books/"+itoa(book.ID)+"/balance", "alice", "")
+	var bal balanceJSON
+	if err := json.NewDecoder(resp.Body).Decode(&bal); err != nil {
+		t.Fatalf("decode balance: %v", err)
+	}
+	if bal.IncomeCents-bal.ExpenseCents != 0 {
+		t.Fatalf("balance = %d/%d, want it netted to zero", bal.IncomeCents, bal.ExpenseCents)
 	}
 }
 

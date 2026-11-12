@@ -2,6 +2,19 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.121.0] - 2026-11-11
+
+A foundation movement booked in error can be cancelled: `POST /api/foundation-bookings/{id}/reverse`
+appends a counter-movement of the same amount and the opposite kind beside the original and marks the
+original as cancelled by it, in one transaction. The book stays append-only — the mistake is still
+there, with its correction next to it — and the balance is derived, so the pair nets to zero without
+anything being edited or deleted. Three refusals carry their own machine codes: an unknown movement
+(404), one already cancelled (409), and a counter-movement itself (422 — cancelling a cancellation is
+a re-instatement, which is a different act). The *Stiftungen* screen offers it per movement, shows
+the original as *storniert* and the counter-movement as *Gegenbuchung*, and names the refusal it gets
+back. Migration `0032` carries both halves of the rule as partial unique indexes, so a second
+cancellation cannot slip through between two connections. `docs/29`.
+
 ## [0.120.0] - 2026-11-11
 
 The four ETL datasets the cash-book module owns are now reachable. `kasse/vat`, `kasse/tax-office`,

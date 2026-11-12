@@ -112,6 +112,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     "/api/foundation-books/{id}/balance": {
         "get": ("getFoundationBalance", "kasse", "Read a foundation balance", None, "kasse.FoundationBalance", 200, "json"),
     },
+    "/api/foundation-bookings/{id}/reverse": {
+        "post": ("reverseFoundationBooking", "kasse", "Cancel a foundation movement with a counter-movement", "httpapi.reverseBookingRequest", "httpapi.reversalResponse", 201, "json"),
+    },
     "/api/foundation-books/{id}/carry-over": {
         "post": ("carryOverFoundationBook", "kasse", "Close a year's book into the next year's", "httpapi.carryOverRequest", "httpapi.carryOverResponse", 201, "json"),
     },

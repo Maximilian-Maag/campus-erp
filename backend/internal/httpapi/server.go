@@ -196,6 +196,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/foundations/{id}/books", s.authorizeRead(s.listFoundationBooks, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/foundation-books/{id}/bookings", s.authorize(s.bookFoundation, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/foundation-books/{id}/carry-over", s.authorize(s.carryOverFoundationBook, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/foundation-bookings/{id}/reverse", s.authorize(s.reverseFoundationBooking, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/foundation-books/{id}/bookings", s.authorizeRead(s.getFoundationBookings, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/foundation-books/{id}/balance", s.authorizeRead(s.getFoundationBalance, auth.RoleFinanzen))
 
