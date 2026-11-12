@@ -19,7 +19,7 @@ test('Eingangsrechnungen lists the invoices, matches one and passes axe', async 
     summary(2, 'RE-2', 'inbound', 7),
     summary(3, 'RE-3', 'outbound', 0),
   ];
-  await page.route('**/api/e-invoices', (route) => route.fulfill({ json: invoices }));
+  await page.route(/\/api\/e-invoices(\?|$)/, (route) => route.fulfill({ json: invoices }));
   await page.route('**/api/e-invoices/1/match', (route) => {
     invoices = [summary(1, 'RE-1', 'inbound', 7), ...invoices.slice(1)];
     return route.fulfill({ json: { Number: 'RE-1' } });
@@ -53,7 +53,7 @@ test('Eingangsrechnungen lists the invoices, matches one and passes axe', async 
 
 test('Eingangsrechnungen reads a document in and passes axe', async ({ page }) => {
   let invoices: unknown[] = [];
-  await page.route('**/api/e-invoices', (route) => route.fulfill({ json: invoices }));
+  await page.route(/\/api\/e-invoices(\?|$)/, (route) => route.fulfill({ json: invoices }));
   await page.route('**/api/e-invoices/received', (route) => {
     invoices = [summary(1, 'RE-1', 'inbound', 0)];
     return route.fulfill({ status: 201, json: { Number: 'RE-1' } });
@@ -70,10 +70,41 @@ test('Eingangsrechnungen reads a document in and passes axe', async ({ page }) =
 });
 
 test('Eingangsrechnungen reports refusals and passes axe', async ({ page }) => {
-  await page.route('**/api/e-invoices', (route) => route.fulfill({ status: 500, json: { error: 'boom' } }));
+  await page.route(/\/api\/e-invoices(\?|$)/, (route) => route.fulfill({ status: 500, json: { error: 'boom' } }));
   await page.goto('/einvoice/rechnungen');
 
   await expect(page.getByRole('alert')).toContainText('Konnte die Rechnungen nicht laden.');
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test('Eingangsrechnungen reads the invoices one page at a time, and passes axe', async ({ page }) => {
+  const offsets: string[] = [];
+  const page50 = Array.from({ length: 50 }, (_, i) => summary(i + 1, `RE-${i + 1}`, 'inbound', 0));
+
+  await page.route(/\/api\/e-invoices(\?|$)/, (route) => {
+    const url = new URL(route.request().url());
+    offsets.push(url.searchParams.get('offset') ?? '');
+    // The first page is full, so the screen offers the next one; the second is short, so it stops.
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    return route.fulfill({
+      json: offset === 0 ? page50 : [summary(51, 'RE-51', 'inbound', 0)],
+    });
+  });
+
+  await page.goto('/einvoice/rechnungen');
+  await expect(page.getByTestId('invoice-RE-1')).toBeVisible();
+  await expect(page.getByTestId('invoice-RE-50')).toBeVisible();
+  expect(offsets).toEqual(['0']);
+
+  await page.getByTestId('load-more').click();
+  await expect(page.getByTestId('invoice-RE-51')).toBeVisible();
+  // The pages continue rather than repeat: the offset is the number of rows already read, and the
+  // rows already on screen are still there.
+  expect(offsets).toEqual(['0', '50']);
+  await expect(page.getByTestId('invoice-RE-1')).toBeVisible();
+  // A short page is the end of the list, so the button is gone.
+  await expect(page.getByTestId('load-more')).toHaveCount(0);
 
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

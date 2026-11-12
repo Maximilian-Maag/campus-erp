@@ -292,7 +292,7 @@ func (s stubEInvoices) Match(context.Context, int64, string) (core.Invoice, erro
 	return core.Invoice{}, s.err
 }
 
-func (s stubEInvoices) Invoices(context.Context) ([]einvoice.InvoiceSummary, error) {
+func (s stubEInvoices) Invoices(context.Context, int, int) ([]einvoice.InvoiceSummary, error) {
 	return nil, s.err
 }
 

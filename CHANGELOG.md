@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.122.0] - 2026-11-11
+
+Lists can be read a page at a time. `GET /api/e-invoices` takes `limit` and `offset` — the first
+list route to do so — and the *Belege* screen reads it that way, offering *Weitere laden* while the
+pages come back full and keeping what it already has when a page fails. The convention lives in one
+place (`pageParams`): default page 50, bound 200, a limit past the bound clamped, and a value that is
+not a non-negative integer refused with `invalid_limit` / `invalid_offset` rather than quietly
+falling back to the default. The invoice list is ordered by number, so walking the pages yields
+exactly the whole list — the property the integration test asserts, along with a page past the end
+being empty rather than an error. `docs/15`.
+
 ## [0.121.0] - 2026-11-11
 
 A foundation movement booked in error can be cancelled: `POST /api/foundation-bookings/{id}/reverse`

@@ -163,7 +163,8 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     # ── E-invoicing ──────────────────────────────────────────────────────────
     "/api/e-invoices": {
-        "get": ("listEInvoices", "einvoice", "List e-invoices, matched or not", None, "[]einvoice.InvoiceSummary", 200, "json"),
+        "get": ("listEInvoices", "einvoice", "List e-invoices, matched or not, one page at a time", None, "[]einvoice.InvoiceSummary", 200, "json",
+                (("limit", "integer", False), ("offset", "integer", False))),
         "post": ("createEInvoice", "einvoice", "Generate an outgoing XRechnung 3.0 invoice", "httpapi.createEInvoiceRequest", "einvoice.Invoice", 201, "json"),
     },
     "/api/e-invoices/received": {

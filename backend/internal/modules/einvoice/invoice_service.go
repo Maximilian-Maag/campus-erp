@@ -76,8 +76,8 @@ func (s *InvoiceService) Get(ctx context.Context, id int64) (core.Invoice, error
 }
 
 // Invoices returns the invoices as summaries, ordered by number. It is read-only.
-func (s *InvoiceService) Invoices(ctx context.Context) ([]InvoiceSummary, error) {
-	return s.repo.List(ctx)
+func (s *InvoiceService) Invoices(ctx context.Context, limit, offset int) ([]InvoiceSummary, error) {
+	return s.repo.List(ctx, limit, offset)
 }
 
 // Match runs the two-way match for an inbound invoice (docs/09, docs/12): the order its buyer

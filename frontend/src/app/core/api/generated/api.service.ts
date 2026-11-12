@@ -163,8 +163,8 @@ export class CampusErpApi {
     return this.http.post<m.DunningRunResult>(this.base + `/api/dunning/runs`, body);
   }
 
-  listEInvoices(): Observable<m.InvoiceSummary[]> {
-    return this.http.get<m.InvoiceSummary[]>(this.base + `/api/e-invoices`);
+  listEInvoices(limit?: string, offset?: string): Observable<m.InvoiceSummary[]> {
+    return this.http.get<m.InvoiceSummary[]>(this.base + `/api/e-invoices${this._query({ limit, offset })}`);
   }
 
   createEInvoice(body: m.CreateEInvoiceRequest): Observable<m.Invoice> {
