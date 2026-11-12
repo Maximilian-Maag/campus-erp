@@ -44,6 +44,19 @@ run — a killed run cannot leak a schema, and a concurrent run is never touched
 Every package's `testPool` now delegates to it, and each has a `TestMain` that
 calls `dbtest.Main`.
 
+**The harness also checks the schema's shape, not only its isolation.** `dbtest.Pool`
+asserts, before the test that asked for it runs, that the exclusion constraints the
+suite relies on are present: `allocation_run_no_overlap` and
+`cost_unit_run_no_overlap`, which are how the KLR refuses a second, overlapping run.
+Both are `EXCLUDE USING gist` and need `btree_gist`, which is database-wide while the
+schemas are per process — so a migration that did not add one is invisible until a
+test somewhere else asserts "a duplicate is refused" and is told it was not. That
+failure mode has been seen: two `httpapi` tests failed with `second run = 201, want
+409`, passed on a re-run of the identical commit, and were not reproducible locally
+(issue #136). The check names the missing constraint and what goes wrong without it,
+so the next occurrence is a located start-up failure instead of an unrelated assertion
+in another package.
+
 **Belt and braces in kasse.** The recipient fixtures now use `uniqueIBAN(t)` — a
 valid mod-97 IBAN built from the test sequence — so no two recipients ever share
 an identity, with or without isolation.
