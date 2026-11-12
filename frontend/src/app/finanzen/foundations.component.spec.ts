@@ -48,6 +48,8 @@ describe('FoundationsComponent', () => {
     AmountCents: 42500,
     Purpose: 'Spende',
     BookedBy: 'alice',
+    Reverses: null,
+    ReversedBy: null,
     ...over,
   });
 
@@ -614,6 +616,165 @@ describe('FoundationsComponent', () => {
 
     expect(component.carryingOver()).toBeNull();
     expect(component.actionError()).toBe('Konnte das Jahr nicht abschließen.');
+  });
+
+  it('cancels a movement, reads the movements and the balance again, and says what it did', () => {
+    const fixture = withBook();
+    const component = fixture.componentInstance;
+    const movement = component.bookings()[0];
+
+    // A movement nobody has acted on yet offers the act, and says so plainly.
+    const idle = (fixture.nativeElement as HTMLElement).querySelector(
+      `[data-testid="reverse-${movement.ID}"]`,
+    ) as HTMLButtonElement;
+    expect(idle.textContent?.trim()).toBe('Stornieren');
+    expect(idle.disabled).toBeFalse();
+
+    component.reverse(movement);
+
+    expect(component.reversing()).toBe(movement.ID);
+    const post = http.expectOne(`/api/foundation-bookings/${movement.ID}/reverse`);
+    expect(post.request.method).toBe('POST');
+    expect(post.request.body).toEqual({ reason: '' });
+    // While the request is in flight the button says so and cannot be pressed again.
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector(
+      `[data-testid="reverse-${movement.ID}"]`,
+    ) as HTMLButtonElement;
+    expect(button.disabled).toBeTrue();
+    expect(button.textContent).toContain('Storniere');
+
+    post.flush({
+      original_id: movement.ID,
+      book_id: 7,
+      counter_booking_id: 12,
+      counter_kind: 'expense',
+      amount_cents: 42500,
+      purpose: `Storno zu Buchung ${movement.ID}`,
+    });
+    fixture.detectChanges();
+
+    // The screen re-reads rather than adjusting: the mistake and its counter-movement are both rows.
+    http
+      .expectOne('/api/foundation-books/7/bookings')
+      .flush([{ ...movement, ReversedBy: 12 }, booking(12, { Kind: 'expense', Reverses: movement.ID })]);
+    http.expectOne('/api/foundation-books/7/balance').flush(balance({ IncomeCents: 50000, ExpenseCents: 50000 }));
+    fixture.detectChanges();
+
+    expect(component.reversing()).toBeNull();
+    expect(component.notice()).toBe(`Buchung ${movement.ID} storniert — Gegenbuchung 12 angelegt.`);
+    expect(component.actionError()).toBeNull();
+    // The cancelled movement is marked, and its counter-movement is named as one.
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(`[data-testid="reversed-${movement.ID}"]`)
+        ?.textContent,
+    ).toContain('storniert');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="counter-12"]')?.textContent,
+    ).toContain('Gegenbuchung');
+    // A cancelled movement is not offered for cancelling again: only its mark is left.
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(`[data-testid="reverse-${movement.ID}"]`),
+    ).toBeNull();
+  });
+
+  it('names each refusal a cancellation can come back with', () => {
+    const cases: [string, string][] = [
+      ['kasse.booking_already_reversed', 'Diese Buchung ist bereits storniert.'],
+      ['kasse.reversal_not_reversible', 'Eine Gegenbuchung kann nicht storniert werden.'],
+      ['kasse.booking_not_found', 'Diese Buchung gibt es nicht mehr.'],
+      ['kasse.something_else', 'Konnte die Buchung nicht stornieren.'],
+    ];
+    for (const [code, message] of cases) {
+      const fixture = withBook();
+      const component = fixture.componentInstance;
+      const movement = component.bookings()[0];
+
+      component.reverse(movement);
+      http
+        .expectOne(`/api/foundation-bookings/${movement.ID}/reverse`)
+        .flush({ error: 'refused', code }, { status: 409, statusText: 'Conflict' });
+      fixture.detectChanges();
+
+      expect(component.reversing()).toBeNull();
+      expect(component.actionError()).toBe(message);
+      expect(component.notice()).toBeNull();
+    }
+  });
+
+  it('falls back to a plain message when a cancellation fails with no body', () => {
+    const fixture = withBook();
+    const component = fixture.componentInstance;
+    const movement = component.bookings()[0];
+
+    component.reverse(movement);
+    http
+      .expectOne(`/api/foundation-bookings/${movement.ID}/reverse`)
+      .flush(null, { status: 500, statusText: 'Internal Server Error' });
+
+    expect(component.actionError()).toBe('Konnte die Buchung nicht stornieren.');
+  });
+
+  it('does nothing when no book is on screen', () => {
+    // A movement is only ever reached through a book, so this is the guard that keeps a stale click
+    // from reaching the API — and the request that must NOT happen is the assertion.
+    const fixture = withBooks([stiftung], [buch]);
+    const component = fixture.componentInstance;
+    expect(component.selectedBook()).toBeNull();
+
+    component.reverse(booking(3));
+
+    expect(component.reversing()).toBeNull();
+    expect(component.actionError()).toBeNull();
+    expect(component.notice()).toBeNull();
+  });
+
+  it('treats an empty movements response as no movements after a cancellation', () => {
+    const fixture = withBook();
+    const component = fixture.componentInstance;
+    const movement = component.bookings()[0];
+
+    component.reverse(movement);
+    http.expectOne(`/api/foundation-bookings/${movement.ID}/reverse`).flush({
+      original_id: movement.ID,
+      book_id: 7,
+      counter_booking_id: 12,
+      counter_kind: 'expense',
+      amount_cents: 42500,
+      purpose: `Storno zu Buchung ${movement.ID}`,
+    });
+    http.expectOne('/api/foundation-books/7/bookings').flush(null);
+    http.expectOne('/api/foundation-books/7/balance').flush(balance());
+    fixture.detectChanges();
+
+    expect(component.bookings()).toEqual([]);
+    expect(component.reversing()).toBeNull();
+  });
+
+  it('says so when the movements cannot be read again after a cancellation', () => {
+    const fixture = withBook();
+    const component = fixture.componentInstance;
+    const movement = component.bookings()[0];
+
+    component.reverse(movement);
+    http.expectOne(`/api/foundation-bookings/${movement.ID}/reverse`).flush({
+      original_id: movement.ID,
+      book_id: 7,
+      counter_booking_id: 12,
+      counter_kind: 'expense',
+      amount_cents: 42500,
+      purpose: `Storno zu Buchung ${movement.ID}`,
+    });
+    // The cancellation itself went through, so the screen keeps its notice and reports the read that
+    // failed rather than claiming the cancellation failed.
+    http
+      .expectOne('/api/foundation-books/7/bookings')
+      .flush({ error: 'unreadable' }, { status: 500, statusText: 'Internal Server Error' });
+    http.expectOne('/api/foundation-books/7/balance').flush(balance());
+    fixture.detectChanges();
+
+    expect(component.actionError()).toBe('Konnte die Buchungen nicht laden.');
+    expect(component.notice()).toBe(`Buchung ${movement.ID} storniert — Gegenbuchung 12 angelegt.`);
   });
 
   it('keeps the typed year in both year fields', () => {

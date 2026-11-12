@@ -184,3 +184,61 @@ func (s *FoundationBookService) CarryOver(ctx context.Context, bookID int64, ref
 }
 
 func bookSubject(id int64) string { return fmt.Sprintf("foundation_book/%d", id) }
+
+// Reverse cancels one movement of a foundation's book. The movement stays where it is — the book is
+// an append-only record of what happened, mistakes included — and a counter-movement of the same
+// amount and the opposite kind is appended beside it, pointing back at the original. Both halves are
+// written in one transaction, so a movement is never marked cancelled without its counter-movement.
+//
+// Two things are refused rather than guessed at:
+//
+//   - a movement that is itself a counter-movement: cancelling a cancellation re-instates the
+//     original, which is a different act and would be worded differently on the statement;
+//   - a movement that already carries a counter-movement, because a second one would take the book
+//     back past where it was.
+//
+// The balance is derived from the movements, so a cancelled pair nets to zero without either row
+// being touched or deleted.
+func (s *FoundationBookService) Reverse(ctx context.Context, bookingID int64, reason, by string) (Reversal, error) {
+	if err := requireActor(by); err != nil {
+		return Reversal{}, err
+	}
+	original, err := s.repo.BookingByID(ctx, bookingID)
+	if err != nil {
+		return Reversal{}, err
+	}
+	if original.Reverses != nil {
+		return Reversal{}, fmt.Errorf("%w: booking %d", ErrReversalNotReversible, original.ID)
+	}
+	if original.ReversedBy != nil {
+		return Reversal{}, fmt.Errorf("%w: booking %d", ErrBookingAlreadyReversed, original.ID)
+	}
+
+	kind := Expense
+	if original.Kind == Expense {
+		kind = Income
+	}
+	reason = strings.TrimSpace(reason)
+	purpose := fmt.Sprintf("Storno zu Buchung %d", original.ID)
+	if reason != "" {
+		purpose = fmt.Sprintf("Storno zu Buchung %d: %s", original.ID, reason)
+	}
+	mirror, err := NewFoundationBooking(original.BookID, original.AmountCents, kind, purpose)
+	if err != nil {
+		return Reversal{}, err
+	}
+	saved, err := s.repo.Reverse(ctx, original, mirror, by)
+	if err != nil {
+		return Reversal{}, err
+	}
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "foundation.booking_reversal",
+		Subject: bookSubject(original.BookID),
+		After: fmt.Sprintf("cancels=%d counter=%d cents=%d kind=%s reason=%q",
+			original.ID, saved.ID, original.AmountCents, original.Kind, reason),
+	}); err != nil {
+		return Reversal{}, err
+	}
+	return Reversal{Original: original, Mirror: saved, Cents: original.AmountCents}, nil
+}

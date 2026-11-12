@@ -187,6 +187,48 @@ test('Stiftungen names the refusal when a year cannot be closed, and passes axe'
   expect(results.violations).toEqual([]);
 });
 
+test('Stiftungen cancels a movement and shows the counter-movement beside it, and passes axe', async ({ page }) => {
+  const carryBodies: unknown[] = [];
+  const carrying = { ...stiftung, CarryOver: true };
+  const movement = { ID: 3, BookID: 7, Kind: 'income', AmountCents: 50000, Purpose: 'Spende (doppelt)', BookedBy: 'alice', Reverses: null, ReversedBy: null };
+  const counter = { ID: 12, BookID: 7, Kind: 'expense', AmountCents: 50000, Purpose: 'Storno zu Buchung 3', BookedBy: 'alice', Reverses: 3, ReversedBy: null };
+  let reads = 0;
+
+  await page.route('**/api/foundations', (route) => route.fulfill({ json: [carrying] }));
+  await page.route('**/api/foundations/1/books', (route) => route.fulfill({ json: [book] }));
+  await page.route('**/api/foundation-books/7/bookings', (route) => {
+    reads += 1;
+    // Before the cancellation the mistake is on its own; after it, the counter-movement is there.
+    return route.fulfill({ json: reads === 1 ? [movement] : [{ ...movement, ReversedBy: 12 }, counter] });
+  });
+  await page.route('**/api/foundation-books/7/balance', (route) =>
+    route.fulfill({ json: { BookID: 7, IncomeCents: 50000, ExpenseCents: 50000 } })
+  );
+  await page.route('**/api/foundation-bookings/3/reverse', (route) => {
+    carryBodies.push(route.request().postDataJSON());
+    return route.fulfill({
+      status: 201,
+      json: { original_id: 3, book_id: 7, counter_booking_id: 12, counter_kind: 'expense', amount_cents: 50000, purpose: 'Storno zu Buchung 3' },
+    });
+  });
+
+  await page.goto('/finanzen/stiftungen');
+  await page.getByTestId('foundation-1').getByRole('button', { name: 'Bücher anzeigen' }).click();
+  await page.getByTestId('book-7').getByRole('button', { name: 'Buchungen anzeigen' }).click();
+  await expect(page.getByTestId('reverse-3')).toBeVisible();
+
+  await page.getByTestId('reverse-3').click();
+  await expect(page.getByText('Buchung 3 storniert — Gegenbuchung 12 angelegt.')).toBeVisible();
+  // The mistake stays, marked, with its counter-movement named as one.
+  await expect(page.getByTestId('reversed-3')).toContainText('storniert');
+  await expect(page.getByTestId('counter-12')).toContainText('Gegenbuchung');
+  await expect(page.getByTestId('booking-3')).toContainText('Spende (doppelt)');
+  expect(carryBodies).toEqual([{ reason: '' }]);
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
 test('Stiftungen refuses an incomplete foundation and reports an unreadable year, and passes axe', async ({ page }) => {
   await page.route('**/api/foundations', (route) =>
     route.request().method() === 'POST'

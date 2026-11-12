@@ -203,6 +203,10 @@ export class CampusErpApi {
     return this.http.post<m.EtlReport>(this.base + `/api/etl/runs`, body);
   }
 
+  reverseFoundationBooking(id: number | string, body: m.ReverseBookingRequest): Observable<m.ReversalResponse> {
+    return this.http.post<m.ReversalResponse>(this.base + `/api/foundation-bookings/${id}/reverse`, body);
+  }
+
   createFoundationBook(body: m.CreateFoundationBookRequest): Observable<m.FoundationBook> {
     return this.http.post<m.FoundationBook>(this.base + `/api/foundation-books`, body);
   }

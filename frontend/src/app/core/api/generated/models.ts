@@ -460,6 +460,8 @@ export interface FoundationBooking {
   AmountCents: number;
   Purpose: string;
   BookedBy: string;
+  Reverses: number | null;
+  ReversedBy: number | null;
 }
 
 export interface FoundationRequest {
@@ -818,6 +820,19 @@ export interface ReportRenderRequest {
   report_id: string;
   from: string;
   to: string;
+}
+
+export interface ReversalResponse {
+  original_id: number;
+  book_id: number;
+  counter_booking_id: number;
+  counter_kind: string;
+  amount_cents: number;
+  purpose: string;
+}
+
+export interface ReverseBookingRequest {
+  reason: string;
 }
 
 export interface RunAllocationRequest {

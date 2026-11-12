@@ -28,6 +28,14 @@ var (
 	// ErrCarryOverTargetNotEmpty is returned when the next year's book already carries movements, so
 	// posting an opening balance into it would count the money twice.
 	ErrCarryOverTargetNotEmpty = errors.New("kasse: the next year's book already carries movements")
+	// ErrBookingNotFound is returned when a movement does not exist.
+	ErrBookingNotFound = errors.New("kasse: foundation booking not found")
+	// ErrBookingAlreadyReversed is returned when a movement has already been cancelled: a second
+	// counter-movement would take the book back past where it was.
+	ErrBookingAlreadyReversed = errors.New("kasse: the movement has already been cancelled")
+	// ErrReversalNotReversible is returned when a counter-movement is itself asked to be cancelled.
+	// Cancelling a cancellation is a re-instatement, which is a different act with its own wording.
+	ErrReversalNotReversible = errors.New("kasse: a counter-movement cannot be cancelled")
 )
 
 // CarryOver is the result of closing one year's book into the next: the book that was closed, the
@@ -58,6 +66,18 @@ type FoundationBooking struct {
 	AmountCents int64
 	Purpose     string
 	BookedBy    string
+	// Reverses is the booking this one cancels, when this one is a counter-movement.
+	Reverses *int64
+	// ReversedBy is the counter-movement that cancels this booking, when it has been reversed.
+	ReversedBy *int64
+}
+
+// Reversal is the result of cancelling one movement: the movement that was cancelled, the
+// counter-movement that cancels it, and the amount that moved back.
+type Reversal struct {
+	Original FoundationBooking
+	Mirror   FoundationBooking
+	Cents    int64
 }
 
 // FoundationBalance is the derived balance of a book.

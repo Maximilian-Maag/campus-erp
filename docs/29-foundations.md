@@ -102,10 +102,42 @@ book opens with the same net the source closed with.
 The screen offers it per book (*Ins Folgejahr übertragen*) and names the refusal it gets back
 rather than a generic failure, because the four refusals ask for four different things.
 
+## Correcting a movement
+
+A book's movements are append-only: a booking made in error is answered by a **counter-movement**,
+never by an edit or a delete. `POST /api/foundation-bookings/{id}/reverse` appends a movement of the
+same amount and the opposite kind, pointing back at the original, and marks the original as
+cancelled by it. Both halves are written in one transaction, so a movement is never marked cancelled
+without its counter-movement.
+
+The two columns are `reverses` (this one cancels that one) and `reversed_by` (that one cancels this
+one), with a partial unique index on each, so "cancelled" is a stored fact rather than a flag that
+can drift, and a second cancellation cannot slip through between two connections — whichever
+transaction loses reports `kasse.booking_already_reversed` (409) rather than appending a second
+counter-movement.
+
+| refusal | code | status |
+| --- | --- | --- |
+| the movement does not exist | `kasse.booking_not_found` | 404 |
+| it has already been cancelled | `kasse.booking_already_reversed` | 409 |
+| it *is* a counter-movement | `kasse.reversal_not_reversible` | 422 |
+
+The last one is a deliberate limit: cancelling a cancellation re-instates the original, which is a
+different act with its own wording on a statement, and nothing here supports it. The reason given
+travels in the counter-movement's purpose (`Storno zu Buchung 7: doppelt erfasst`), so the statement
+explains itself months later without a join. The balance is derived from the movements, so a
+cancelled pair nets to zero without either row being touched, and the screen shows the original as
+*storniert* with the counter-movement marked *Gegenbuchung*.
+
+The screen reads those codes through `core/problem.ts` (`problemCode`), which answers "no code" for
+anything that is not the API's problem body — the API wraps a refusal as `{ error, code }`, Angular
+wraps *that* in the response's `error`, and a failure that never reached the API (a dropped
+connection, a proxy's HTML page) carries neither. Reading `code` off such a reply would throw while
+the screen is trying to explain what went wrong; every branch of that reader is unit-tested for
+exactly that reason.
+
 ## Not yet done
 
-- **No correction path.** Movements are append-only, so a wrong movement is answered by a
-  counter-movement; there is no reversal that marks the original as cancelled.
 - **No ETL dataset.** The legacy foundation tables are thin in the Muster
   (`docs/legacy/kbs-tax-and-foundations.md`), so the mapping still cannot be validated against a
   production extract (`docs/19`).

@@ -7,6 +7,7 @@ import {
   FoundationBooking,
 } from '../core/api/generated';
 import { euroToCents, formatCents } from '../core/format';
+import { problemCode } from '../core/problem';
 
 /**
  * Finanzen — Stiftungen (a foundation, its books, and a book's movements).
@@ -234,6 +235,7 @@ import { euroToCents, formatCents } from '../core/format';
                       <th scope="col">Betrag</th>
                       <th scope="col">Verwendungszweck</th>
                       <th scope="col">Erfasst von</th>
+                      <th scope="col">Korrektur</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -243,6 +245,22 @@ import { euroToCents, formatCents } from '../core/format';
                         <td>{{ euro(booking.AmountCents) }}</td>
                         <td>{{ booking.Purpose }}</td>
                         <td>{{ booking.BookedBy }}</td>
+                        <td>
+                          @if (booking.ReversedBy) {
+                            <span [attr.data-testid]="'reversed-' + booking.ID">storniert</span>
+                          } @else if (booking.Reverses) {
+                            <span [attr.data-testid]="'counter-' + booking.ID">Gegenbuchung</span>
+                          } @else {
+                            <button
+                              type="button"
+                              [attr.data-testid]="'reverse-' + booking.ID"
+                              [disabled]="reversing() === booking.ID"
+                              (click)="reverse(booking)"
+                            >
+                              {{ reversing() === booking.ID ? 'Storniere …' : 'Stornieren' }}
+                            </button>
+                          }
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -320,6 +338,8 @@ export class FoundationsComponent implements OnInit {
   readonly purpose = signal('');
   /** The book whose carry-over is in flight, so its button says so and cannot be pressed twice. */
   readonly carryingOver = signal<number | null>(null);
+  /** The movement whose cancellation is in flight, for the same reason. */
+  readonly reversing = signal<number | null>(null);
 
   readonly euro = formatCents;
 
@@ -433,6 +453,38 @@ export class FoundationsComponent implements OnInit {
     });
   }
 
+  /**
+   * Cancels one movement. The server appends a counter-movement beside it and marks the original, so
+   * the screen reads the movements and the balance again rather than adjusting them here: the balance
+   * is derived, and the mistake stays on the record with a counter-movement next to it.
+   */
+  reverse(booking: FoundationBooking): void {
+    const book = this.selectedBook();
+    if (book === null) {
+      return;
+    }
+    this.actionError.set(null);
+    this.notice.set(null);
+    this.reversing.set(booking.ID);
+    this.api.reverseFoundationBooking(booking.ID, { reason: '' }).subscribe({
+      next: (res) => {
+        this.reversing.set(null);
+        this.notice.set(
+          `Buchung ${res.original_id} storniert — Gegenbuchung ${res.counter_booking_id} angelegt.`,
+        );
+        this.api.listFoundationBookings(book.ID).subscribe({
+          next: (bookings) => this.bookings.set(bookings ?? []),
+          error: () => this.actionError.set('Konnte die Buchungen nicht laden.'),
+        });
+        this.loadBalance(book);
+      },
+      error: (err: unknown) => {
+        this.reversing.set(null);
+        this.actionError.set(reversalMessage(err));
+      },
+    });
+  }
+
   createBook(event: Event): void {
     event.preventDefault();
     const foundation = this.selectedFoundation();
@@ -538,12 +590,29 @@ export class FoundationsComponent implements OnInit {
 }
 
 /**
+ * Names the refusal a cancellation came back with. The two refusals ask for different things: a
+ * movement already cancelled is a mistake by the operator, while a counter-movement that cannot be
+ * cancelled is a rule they may not know yet.
+ */
+function reversalMessage(err: unknown): string {
+  switch (problemCode(err)) {
+    case 'kasse.booking_already_reversed':
+      return 'Diese Buchung ist bereits storniert.';
+    case 'kasse.reversal_not_reversible':
+      return 'Eine Gegenbuchung kann nicht storniert werden.';
+    case 'kasse.booking_not_found':
+      return 'Diese Buchung gibt es nicht mehr.';
+    default:
+      return 'Konnte die Buchung nicht stornieren.';
+  }
+}
+
+/**
  * Names the refusal a carry-over came back with, so the operator knows what to do next rather than
  * reading "Konnte das Jahr nicht abschließen" for four different reasons.
  */
 function carryOverMessage(err: unknown): string {
-  const code = (err as { error?: { code?: string } })?.error?.code ?? '';
-  switch (code) {
+  switch (problemCode(err)) {
     case 'kasse.carry_over_not_allowed':
       return 'Diese Stiftung trägt ihr Vermögen nicht ins Folgejahr.';
     case 'kasse.carry_over_nothing':
