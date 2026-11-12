@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.120.0] - 2026-11-11
+
+The four ETL datasets the cash-book module owns are now reachable. `kasse/vat`, `kasse/tax-office`,
+`kasse/foundation` and `kasse/counter-book` had sources, sinks, integration tests and documentation
+— but neither runtime registered them, so `GET /api/etl/datasets` listed two of six, the *Importe*
+screen could not offer the others, and running one answered `unknown dataset`. Both composition
+roots now register `kasse.StandardDatasets` next to `lookup.StandardDatasets`, `cmd/api/wiring_test.go`
+fails if either stops calling it, and `kasse.StandardDatasets` is covered by a test that insists on
+a name, a source and a sink for each. `docs/19` states the rule the gap broke: registration is what
+makes a dataset reachable, however well its mapping is tested.
+
 ## [0.119.0] - 2026-11-11
 
 A foundation's year can be closed: `POST /api/foundation-books/{id}/carry-over` posts the book's net

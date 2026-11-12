@@ -18,6 +18,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Maximilian-Maag/campus-erp/backend/cmd/etlwiring"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/statistics"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/budget"
@@ -70,9 +71,15 @@ func main() {
 	}
 
 	store := audit.NewStore(pool)
+	// Both the lookup reference sets and this module's own datasets (VAT, tax offices, foundations,
+	// counter book) are registered: a sink is only reachable through the registry, so a dataset
+	// that is missing here cannot be run at all (docs/19).
+	kasseSvc := kasse.NewService(kasse.NewRepo(pool), store)
+	taxSvc := kasse.NewTaxService(kasse.NewTaxRepo(pool), store)
+	etlDatasets := etlwiring.Datasets(srcPool, lookup.NewValueService(lookup.NewValueRepo(pool), store), taxSvc, kasseSvc)
 	registry := etl.NewRegistry(
 		etl.NewRunner(store).WithLedger(etl.NewAuditLedger(store)),
-		lookup.StandardDatasets(srcPool, lookup.NewValueService(lookup.NewValueRepo(pool), store))...,
+		etlDatasets...,
 	)
 
 	// River owns its own schema; apply it before the client starts.
