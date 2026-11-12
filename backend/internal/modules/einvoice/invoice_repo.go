@@ -34,7 +34,7 @@ type InvoiceRepository interface {
 	Insert(ctx context.Context, inv core.Invoice) (core.Invoice, error)
 	Get(ctx context.Context, id int64) (core.Invoice, error)
 	MarkMatched(ctx context.Context, id, orderID int64) error
-	List(ctx context.Context) ([]InvoiceSummary, error)
+	List(ctx context.Context, limit, offset int) ([]InvoiceSummary, error)
 }
 
 // InvoiceSummary is an invoice as a list shows it: the header, without parties or lines.
@@ -132,11 +132,13 @@ func (r *InvoiceRepo) Insert(ctx context.Context, inv core.Invoice) (core.Invoic
 }
 
 // List returns the invoices as summaries, ordered by number.
-func (r *InvoiceRepo) List(ctx context.Context) ([]InvoiceSummary, error) {
+func (r *InvoiceRepo) List(ctx context.Context, limit, offset int) ([]InvoiceSummary, error) {
+	// Ordered by number so a page boundary is stable: a list that reorders between requests repeats
+	// one row on the next page and drops another, which is worse than a slow list.
 	rows, err := r.pool.Query(ctx,
 		`SELECT id, number, issue_date, type_code, currency, buyer_reference, gross_cents,
 		        matched_order_id, direction
-		   FROM e_invoice ORDER BY number`)
+		   FROM e_invoice ORDER BY number LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("einvoice: list invoices: %w", err)
 	}

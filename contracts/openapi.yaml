@@ -1546,7 +1546,18 @@ paths:
       tags:
       - einvoice
       operationId: listEInvoices
-      summary: List e-invoices, matched or not
+      summary: List e-invoices, matched or not, one page at a time
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: Success

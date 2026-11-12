@@ -266,5 +266,14 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
   phases land, each one starting from the read routes it needs — and the kasse/payments domain is
   where that bites: it had 32 operations and one list route, so nearly every screen there needs its
   `GET` built first.
-- **No paging yet.** Every list route returns everything; a list big enough to need paging
-  needs a page parameter on the route and on the screens that read it.
+- **Paging is a convention with one list on it so far.** A list route that grows with use takes
+  `limit` and `offset` (`pageParams` in `internal/httpapi/page.go`): the default page is 50, the
+  bound is 200, a limit past the bound is *clamped* (the request is understandable and the answer
+  is still a page), and anything that is not a non-negative integer is *refused* with a machine
+  code (`invalid_limit`, `invalid_offset`) rather than quietly falling back to the default — a
+  client that sends `offset=zwölf` has a bug, and hiding it makes the symptom (a list that never
+  advances) harder to find than the cause.
+  `GET /api/e-invoices` is the first list that pages, and the *Belege* screen reads it one page at a
+  time (`Weitere laden`), keeping what it has when a page fails. The remaining list routes still
+  return everything: each needs the two parameters on the route, `ORDER BY` something stable so a
+  page boundary does not repeat or skip a row, and a control on the screen that reads it.

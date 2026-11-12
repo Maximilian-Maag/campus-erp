@@ -18,7 +18,7 @@ type einvoiceService interface {
 	Create(ctx context.Context, inv core.Invoice, by string) (core.Invoice, error)
 	ImportReceived(ctx context.Context, doc, by string) (core.Invoice, error)
 	Get(ctx context.Context, id int64) (core.Invoice, error)
-	Invoices(ctx context.Context) ([]einvoice.InvoiceSummary, error)
+	Invoices(ctx context.Context, limit, offset int) ([]einvoice.InvoiceSummary, error)
 	Render(ctx context.Context, id int64) (string, error)
 	RenderCII(ctx context.Context, id int64) (string, error)
 	Match(ctx context.Context, id int64, by string) (core.Invoice, error)
@@ -159,7 +159,12 @@ func (s *Server) receiveEInvoice(w http.ResponseWriter, r *http.Request) {
 // listEInvoices returns the invoices as summaries, so a screen can show which are still
 // unmatched and match one without fetching each by id.
 func (s *Server) listEInvoices(w http.ResponseWriter, r *http.Request) {
-	invoices, err := s.einvoices.Invoices(r.Context())
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
+	invoices, err := s.einvoices.Invoices(r.Context(), limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForEInvoice(err), err)
 		return

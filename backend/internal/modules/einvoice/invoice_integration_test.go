@@ -212,7 +212,7 @@ func TestInvoiceSummariesList(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	all, err := svc.Invoices(ctx)
+	all, err := svc.Invoices(ctx, 1000, 0)
 	if err != nil {
 		t.Fatalf("Invoices: %v", err)
 	}

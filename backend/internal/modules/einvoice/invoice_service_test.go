@@ -15,6 +15,9 @@ type fakeRepo struct {
 	inv core.Invoice
 	err error
 
+	// The page the last List was asked for, so a test can assert what the service passed on.
+	limit, offset int
+
 	matchedCalls int
 }
 
@@ -31,7 +34,9 @@ func (f *fakeRepo) MarkMatched(context.Context, int64, int64) error {
 	return f.err
 }
 
-func (f *fakeRepo) List(context.Context) ([]InvoiceSummary, error) {
+func (f *fakeRepo) List(_ context.Context, limit, offset int) ([]InvoiceSummary, error) {
+	// The fake keeps the page it was asked for, so a test can assert what the service passed on.
+	f.limit, f.offset = limit, offset
 	return nil, f.err
 }
 
