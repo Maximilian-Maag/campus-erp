@@ -2309,13 +2309,23 @@ paths:
       tags:
       - procurement
       operationId: listPurchaseOrders
-      summary: List purchase orders, optionally narrowed to one status
+      summary: List purchase orders, optionally narrowed to one status, one page at a time
       parameters:
       - name: status
         in: query
         required: false
         schema:
           type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: Success

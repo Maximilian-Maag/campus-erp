@@ -206,7 +206,7 @@ func TestOrderSummariesListAndFilter(t *testing.T) {
 		t.Fatalf("Approve: %v", err)
 	}
 
-	all, err := procSvc.Orders(ctx, "")
+	all, err := procSvc.Orders(ctx, "", 200, 0)
 	if err != nil {
 		t.Fatalf("Orders: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestOrderSummariesListAndFilter(t *testing.T) {
 	}
 
 	// Filtered to one status.
-	onlyApproved, err := procSvc.Orders(ctx, procurement.StatusApproved)
+	onlyApproved, err := procSvc.Orders(ctx, procurement.StatusApproved, 200, 0)
 	if err != nil {
 		t.Fatalf("Orders(approved): %v", err)
 	}
