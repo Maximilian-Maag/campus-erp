@@ -27,8 +27,8 @@ export class CampusErpApi {
     return this.http.get<m.StatementLine[]>(this.base + `/api/bank-statement-returns${this._query({ from, to })}`);
   }
 
-  listBankStatements(account_id?: string): Observable<m.StatementSummary[]> {
-    return this.http.get<m.StatementSummary[]>(this.base + `/api/bank-statements${this._query({ account_id })}`);
+  listBankStatements(account_id?: string, limit?: string, offset?: string): Observable<m.StatementSummary[]> {
+    return this.http.get<m.StatementSummary[]>(this.base + `/api/bank-statements${this._query({ account_id, limit, offset })}`);
   }
 
   importBankStatement(body: m.ImportStatementRequest): Observable<m.Statement[]> {

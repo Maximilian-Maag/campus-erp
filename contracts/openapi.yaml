@@ -699,13 +699,23 @@ paths:
       tags:
       - kasse
       operationId: listBankStatements
-      summary: List imported bank statements, optionally for one account
+      summary: List imported bank statements, optionally for one account, one page at a time
       parameters:
       - name: account_id
         in: query
         required: false
         schema:
           type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: Success

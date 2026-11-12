@@ -2,6 +2,15 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.123.0] - 2026-11-11
+
+The statement list can be read a page at a time too. `GET /api/bank-statements` takes `limit` and
+`offset` beside its existing `account_id`, so the page is of one account's statements and switching
+account cannot mix two accounts' pages; the *Kontoauszüge* screen offers *Weitere laden* while the
+pages come back full and drops the offer once a short page ends the list. Its order had to become
+total — `closing_date DESC NULLS LAST, statement_number DESC` can tie, so it now ends in `id DESC`
+and a page boundary can neither repeat nor skip a statement. `docs/15`.
+
 ## [0.122.0] - 2026-11-11
 
 Lists can be read a page at a time. `GET /api/e-invoices` takes `limit` and `offset` — the first

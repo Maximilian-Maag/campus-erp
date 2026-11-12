@@ -30,6 +30,10 @@ describe('BankStatementsComponent', () => {
     LineCount: 0, ImportedBy: 'carol',
   });
   const first = statement(1, 'STMT-1');
+
+  /** A page's worth of statements, so the screen believes there may be another. */
+  const fullPage = (from: number): StatementSummary[] =>
+    Array.from({ length: 50 }, (_, i) => statement(from + i, `STMT-${from + i}`));
   const second2 = statement(2, 'STMT-2');
 
   /** A bank statement line as the API returns it. */
@@ -85,7 +89,7 @@ describe('BankStatementsComponent', () => {
 
     component.choose('2');
     expect(component.loading()).toBeTrue();
-    const filtered = http.expectOne('/api/bank-statements?account_id=2');
+    const filtered = http.expectOne('/api/bank-statements?account_id=2&limit=50&offset=0');
     expect(filtered.request.method).toBe('GET');
     filtered.flush([second2]);
     fixture.detectChanges();
@@ -143,7 +147,7 @@ describe('BankStatementsComponent', () => {
     fixture.detectChanges();
     http.expectOne('/api/cash-accounts').flush([uni]);
     fixture.detectChanges();
-    http.expectOne('/api/bank-statements?account_id=1').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush('nope', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -252,7 +256,7 @@ describe('BankStatementsComponent', () => {
     expect(component.notice()).toBe('Ein Auszug eingelesen.');
     // The content box is cleared, and the list is reloaded.
     expect(component.content()).toBe('');
-    http.expectOne('/api/bank-statements?account_id=1').flush([first]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush([first]);
     fixture.detectChanges();
     expect(component.statements().length).toBe(1);
   });
@@ -267,7 +271,7 @@ describe('BankStatementsComponent', () => {
     fixture.detectChanges();
 
     expect(component.notice()).toBe('2 Auszüge eingelesen.');
-    http.expectOne('/api/bank-statements?account_id=1').flush([first, second2]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush([first, second2]);
   });
 
   it('treats an empty import response as nothing read in', () => {
@@ -280,7 +284,7 @@ describe('BankStatementsComponent', () => {
     fixture.detectChanges();
 
     expect(component.notice()).toBe('0 Auszüge eingelesen.');
-    http.expectOne('/api/bank-statements?account_id=1').flush([]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush([]);
   });
 
   it('refuses an empty import without asking the API', () => {
@@ -309,7 +313,9 @@ describe('BankStatementsComponent', () => {
     // The typed content is still there to correct and send again.
     expect(component.content()).toBe(':20:BAD\n');
     expect(component.loadError()).toBeNull();
-    http.expectNone('/api/bank-statements?account_id=1');
+    // A failed import must not re-read the list either. The predicate is on the collection, not on one
+    // URL: an exact URL that no longer matches anything would make this pass for the wrong reason.
+    http.expectNone((r) => r.url.startsWith('/api/bank-statements'));
   });
 
   it('clears a previous notice and error when another account is chosen', () => {
@@ -319,7 +325,7 @@ describe('BankStatementsComponent', () => {
     component.actionError.set('alt');
 
     component.choose('2');
-    http.expectOne('/api/bank-statements?account_id=2').flush([]);
+    http.expectOne('/api/bank-statements?account_id=2&limit=50&offset=0').flush([]);
     fixture.detectChanges();
 
     expect(component.notice()).toBeNull();
@@ -335,7 +341,7 @@ describe('BankStatementsComponent', () => {
     component.choose('2');
     expect(component.open()).toBeNull();
     expect(component.lines()).toEqual([]);
-    http.expectOne('/api/bank-statements?account_id=2').flush([]);
+    http.expectOne('/api/bank-statements?account_id=2&limit=50&offset=0').flush([]);
   });
 
   it('formats amounts and dates with the shared helpers', () => {
@@ -356,7 +362,7 @@ describe('BankStatementsComponent', () => {
     expect(component.loading()).toBeTrue();
     http.expectOne('/api/cash-accounts').flush([uni]);
     fixture.detectChanges();
-    http.expectOne('/api/bank-statements?account_id=1').flush([first]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush([first]);
     fixture.detectChanges();
     expect(component.loading()).toBeFalse();
   });
@@ -366,7 +372,7 @@ describe('BankStatementsComponent', () => {
     fixture.detectChanges();
     http.expectOne('/api/cash-accounts').flush([uni]);
     fixture.detectChanges();
-    http.expectOne('/api/bank-statements?account_id=1').flush(null);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush(null);
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -399,5 +405,122 @@ describe('BankStatementsComponent', () => {
     expect(component.lines()).toEqual([]);
     expect(component.actionError()).toBeNull();
     expect(component.open()).toBe(1);
+  });
+
+  it('opens with one page and offers the next only while the pages come back full', () => {
+    const fixture = TestBed.createComponent(BankStatementsComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    // Nothing has been read yet, so there is no next page to offer and none is being read.
+    expect(component.hasMore()).toBeFalse();
+    expect(component.loadingMore()).toBeFalse();
+
+    http.expectOne('/api/cash-accounts').flush([uni]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    expect(component.statements().length).toBe(50);
+    expect(component.hasMore()).toBeTrue();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Weitere laden');
+  });
+
+  it('reads the next page of the chosen account and appends it', () => {
+    const fixture = TestBed.createComponent(BankStatementsComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/cash-accounts').flush([uni]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    component.loadMore();
+
+    expect(component.loadingMore()).toBeTrue();
+    // The page is the chosen account's, from where the last one ended — the filter and the page are
+    // asked for together, so switching account cannot mix two accounts' pages.
+    const secondPage = http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=50');
+    fixture.detectChanges();
+    const button = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-testid="load-more"]',
+    ) as HTMLButtonElement;
+    expect(button.disabled).toBeTrue();
+    expect(button.textContent).toContain('Weitere werden geladen');
+
+    secondPage.flush(fullPage(51));
+    fixture.detectChanges();
+
+    expect(component.statements().length).toBe(100);
+    expect(component.statements()[0].Reference).toBe('STMT-1');
+    // A second full page means there may be a third, so the offer stays.
+    expect(component.hasMore()).toBeTrue();
+    expect(component.loadingMore()).toBeFalse();
+  });
+
+  it('stops offering the next page when a page comes back short or empty', () => {
+    const fixture = TestBed.createComponent(BankStatementsComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/cash-accounts').flush([uni]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    component.loadMore();
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=50').flush(null);
+    fixture.detectChanges();
+
+    // An empty page appends nothing: the rows read are the rows on screen, whatever the server says.
+    expect(component.statements().length).toBe(50);
+    expect(component.hasMore()).toBeFalse();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Weitere laden');
+
+    // With no next page to offer there is nothing to ask for.
+    component.loadMore();
+    expect(component.loadingMore()).toBeFalse();
+  });
+
+  it('keeps the statements it has when the next page cannot be read, and does not read it twice', () => {
+    const fixture = TestBed.createComponent(BankStatementsComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/cash-accounts').flush([uni]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    component.loadMore();
+    // A second click while the page is in flight must not send a second request.
+    component.loadMore();
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=50').flush(
+      { error: 'unreadable' },
+      { status: 500, statusText: 'Internal Server Error' },
+    );
+    fixture.detectChanges();
+
+    expect(component.statements().length).toBe(50);
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.actionError()).toBe('Konnte die weiteren Kontoauszüge nicht laden.');
+    expect(component.loadError()).toBeNull();
+    // The offer stays: the page failed, so it is still there to be read.
+    expect(component.hasMore()).toBeTrue();
+  });
+
+  it('clears the offer when another account is chosen', () => {
+    const fixture = TestBed.createComponent(BankStatementsComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/cash-accounts').flush([uni, second]);
+    http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+    expect(component.hasMore()).toBeTrue();
+
+    component.choose('2');
+
+    // The other account's list starts from its own first page: a stale offer would ask for a page of
+    // the account that is no longer on screen.
+    expect(component.hasMore()).toBeFalse();
+    http.expectOne('/api/bank-statements?account_id=2&limit=50&offset=0').flush([second2]);
+    fixture.detectChanges();
+
+    expect(component.statements().length).toBe(1);
+    expect(component.hasMore()).toBeFalse();
   });
 });

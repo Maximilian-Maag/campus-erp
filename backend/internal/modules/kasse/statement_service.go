@@ -137,8 +137,8 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 
 // Statement loads a statement and its lines.
 // Statements lists imported statements, optionally narrowed to one account (0 for all).
-func (s *StatementService) Statements(ctx context.Context, accountID int64) ([]StatementSummary, error) {
-	return s.repo.Statements(ctx, accountID)
+func (s *StatementService) Statements(ctx context.Context, accountID int64, limit, offset int) ([]StatementSummary, error) {
+	return s.repo.Statements(ctx, accountID, limit, offset)
 }
 
 func (s *StatementService) Statement(ctx context.Context, id int64) (Statement, error) {

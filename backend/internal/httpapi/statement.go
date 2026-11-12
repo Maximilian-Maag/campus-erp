@@ -15,7 +15,7 @@ import (
 type statementService interface {
 	Import(ctx context.Context, accountID int64, content, by string) ([]kasse.Statement, error)
 	Statement(ctx context.Context, id int64) (kasse.Statement, error)
-	Statements(ctx context.Context, accountID int64) ([]kasse.StatementSummary, error)
+	Statements(ctx context.Context, accountID int64, limit, offset int) ([]kasse.StatementSummary, error)
 	BankFile(ctx context.Context, id int64) (kasse.BankFile, error)
 }
 
@@ -65,7 +65,12 @@ func (s *Server) listStatements(w http.ResponseWriter, r *http.Request) {
 		}
 		accountID = parsed
 	}
-	stmts, err := s.statements.Statements(r.Context(), accountID)
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
+	stmts, err := s.statements.Statements(r.Context(), accountID, limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForStatement(err), err)
 		return
