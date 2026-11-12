@@ -18,7 +18,7 @@ type StatementRepository interface {
 	InsertStatements(ctx context.Context, bankFileID int64, stmts []Statement) ([]Statement, error)
 	StatementsByFile(ctx context.Context, accountID int64, fileHash string) ([]Statement, error)
 	GetStatement(ctx context.Context, id int64) (Statement, error)
-	Statements(ctx context.Context, accountID int64) ([]StatementSummary, error)
+	Statements(ctx context.Context, accountID int64, limit, offset int) ([]StatementSummary, error)
 	PaidOrdersByReference(ctx context.Context, refs []string) (map[string]int64, error)
 }
 
@@ -55,7 +55,7 @@ func derefDate(p *time.Time) time.Time {
 
 // Statements lists imported statements, newest closing date first — the order an operator looks
 // for one in — optionally narrowed to one account (0 for all).
-func (r *StatementRepo) Statements(ctx context.Context, accountID int64) ([]StatementSummary, error) {
+func (r *StatementRepo) Statements(ctx context.Context, accountID int64, limit, offset int) ([]StatementSummary, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT id, account_id, reference, statement_number, page, currency,
 		        opening_balance_cents, opening_date, closing_balance_cents, closing_date,
@@ -66,8 +66,10 @@ func (r *StatementRepo) Statements(ctx context.Context, accountID int64) ([]Stat
 		  -- simply matching nothing.
 		  WHERE ($1::bigint = 0 OR account_id = $1::bigint)
 		  -- A statement the bank sent without a closing date sorts last: it has no period to be
-		  -- found by, and NULLs would otherwise lead the newest-first order.
-		  ORDER BY closing_date DESC NULLS LAST, statement_number DESC`, accountID)
+		  -- found by, and NULLs would otherwise lead the newest-first order. The id breaks ties, so
+		  -- the order is total and a page boundary cannot repeat one statement and skip another.
+		  ORDER BY closing_date DESC NULLS LAST, statement_number DESC, id DESC
+		  LIMIT $2 OFFSET $3`, accountID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("kasse: list statements: %w", err)
 	}

@@ -389,7 +389,7 @@ func TestStatementAndCashAccountLists(t *testing.T) {
 		t.Fatalf("Import newer: %v", err)
 	}
 
-	all, err := stmtSvc.Statements(ctx, 0)
+	all, err := stmtSvc.Statements(ctx, 0, 200, 0)
 	if err != nil {
 		t.Fatalf("Statements: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestStatementAndCashAccountLists(t *testing.T) {
 	}
 
 	// The filter narrows to one account.
-	narrowed, err := stmtSvc.Statements(ctx, account.ID)
+	narrowed, err := stmtSvc.Statements(ctx, account.ID, 200, 0)
 	if err != nil {
 		t.Fatalf("Statements(account): %v", err)
 	}
@@ -436,7 +436,7 @@ func TestStatementAndCashAccountLists(t *testing.T) {
 		}
 	}
 	// An account id past the 32-bit range simply matches nothing rather than failing.
-	if none, err := stmtSvc.Statements(ctx, 9223372036854775807); err != nil || len(none) != 0 {
+	if none, err := stmtSvc.Statements(ctx, 9223372036854775807, 200, 0); err != nil || len(none) != 0 {
 		t.Fatalf("far account = %d statements, %v", len(none), err)
 	}
 
@@ -493,7 +493,7 @@ func TestStatementListToleratesMissingDates(t *testing.T) {
 		t.Fatalf("InsertStatements: %v", err)
 	}
 
-	list, err := stmtSvc.Statements(ctx, account.ID)
+	list, err := stmtSvc.Statements(ctx, account.ID, 200, 0)
 	if err != nil {
 		t.Fatalf("Statements: %v", err)
 	}

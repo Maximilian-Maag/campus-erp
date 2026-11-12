@@ -216,7 +216,7 @@ func (s stubStatements) Statement(context.Context, int64) (kasse.Statement, erro
 	return s.st, s.err
 }
 
-func (s stubStatements) Statements(context.Context, int64) ([]kasse.StatementSummary, error) {
+func (s stubStatements) Statements(context.Context, int64, int, int) ([]kasse.StatementSummary, error) {
 	return nil, s.err
 }
 

@@ -144,3 +144,35 @@ test('Kontoauszüge states that no own account exists and passes axe', async ({ 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('Kontoauszüge reads the statements one page at a time, and passes axe', async ({ page }) => {
+  const offsets: string[] = [];
+  const page50 = Array.from({ length: 50 }, (_, i) => ({
+    ...statement,
+    ID: i + 1,
+    Reference: `STMT-${i + 1}`,
+  }));
+
+  await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: accounts }));
+  await page.route(/\/api\/bank-statements\?.*$/, (route) => {
+    const url = new URL(route.request().url());
+    offsets.push(url.searchParams.get('offset') ?? '');
+    // The first page is full, so the screen offers the next one; the second is short, so it stops.
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    return route.fulfill({ json: offset === 0 ? page50 : [{ ...statement, ID: 51, Reference: 'STMT-51' }] });
+  });
+
+  await page.goto('/kasse/kontoauszuege');
+  await expect(page.getByTestId('statement-STMT-1')).toBeVisible();
+  await expect(page.getByTestId('statement-STMT-50')).toBeVisible();
+  expect(offsets).toEqual(['0']);
+
+  await page.getByTestId('load-more').click();
+  await expect(page.getByTestId('statement-STMT-51')).toBeVisible();
+  // The pages continue rather than repeat, and what was read is still on screen.
+  expect(offsets).toEqual(['0', '50']);
+  await expect(page.getByTestId('statement-STMT-1')).toBeVisible();
+  await expect(page.getByTestId('load-more')).toHaveCount(0);
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
