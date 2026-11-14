@@ -92,7 +92,11 @@ took the extension with it, and with the extension every exclusion constraint th
   the constraint had been dropped between the two calls, by an unrelated test process finishing;
 - every integration test in a package failing at its first `dbtest.Pool` call with "the schema is
   missing the exclusion constraints" (#138): its constraints had been dropped by a sibling's exit
-  after its own migration had run, and no migration error was ever printed because nothing failed.
+  after its own migration had run, and no migration error was ever printed because nothing failed;
+- a third shape, seen on a fresh CI database in the `go test ./...` job of #139: a package's own
+  migration failing with `ERROR: referenced operator class was concurrently dropped (SQLSTATE 42704)`
+  from `CREATE TABLE ... EXCLUDE USING gist` — a sibling exited between the statement that resolved
+  the operator class and the one that used it. Same cause, seen from the other side.
 
 Both passed on a rerun because both depended on another process exiting in the middle.
 
