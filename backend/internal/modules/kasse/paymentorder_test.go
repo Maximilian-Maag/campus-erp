@@ -212,11 +212,16 @@ type fakeOrderRepo struct {
 	createCalls int
 	summaries   []OrderSummary
 	lastStatus  OrderStatus
+	lastLimit   int
+	lastOffset  int
 }
 
-// ListOrders records the status it was asked for, so the service's pass-through is observable.
-func (f *fakeOrderRepo) ListOrders(_ context.Context, status OrderStatus) ([]OrderSummary, error) {
+// ListOrders records the status and the page it was asked for, so the service's pass-through is
+// observable.
+func (f *fakeOrderRepo) ListOrders(_ context.Context, status OrderStatus, limit, offset int) ([]OrderSummary, error) {
 	f.lastStatus = status
+	f.lastLimit = limit
+	f.lastOffset = offset
 	return f.summaries, f.getErr
 }
 
@@ -437,7 +442,7 @@ func TestOrdersPassesTheStatusThrough(t *testing.T) {
 	repo := &fakeOrderRepo{summaries: []OrderSummary{{ID: 1, Reference: "AO-1", Status: OrderDraft}}}
 	svc := NewOrderService(repo, nil, &fakeAudit{})
 
-	got, err := svc.Orders(ctx, OrderSubmitted)
+	got, err := svc.Orders(ctx, OrderSubmitted, 25, 50)
 	if err != nil {
 		t.Fatalf("Orders: %v", err)
 	}
@@ -447,9 +452,14 @@ func TestOrdersPassesTheStatusThrough(t *testing.T) {
 	if repo.lastStatus != OrderSubmitted {
 		t.Fatalf("the store was asked for %q", repo.lastStatus)
 	}
+	// The page is the caller's, not the service's: a service that quietly chose its own page size
+	// would make the screen's "Weitere laden" advance by a different amount than it thinks.
+	if repo.lastLimit != 25 || repo.lastOffset != 50 {
+		t.Fatalf("the store was asked for limit=%d offset=%d, want 25 and 50", repo.lastLimit, repo.lastOffset)
+	}
 
 	boom := errors.New("boom")
-	if _, err := NewOrderService(&fakeOrderRepo{getErr: boom}, nil, &fakeAudit{}).Orders(ctx, ""); !errors.Is(err, boom) {
+	if _, err := NewOrderService(&fakeOrderRepo{getErr: boom}, nil, &fakeAudit{}).Orders(ctx, "", 50, 0); !errors.Is(err, boom) {
 		t.Fatalf("store error = %v, want boom", err)
 	}
 }

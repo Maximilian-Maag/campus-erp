@@ -18,6 +18,18 @@ that does not outlive the process. The regression test migrates two schemas in t
 and asserts the second's constraints are still there — it fails without 0033 with the extension gone.
 `docs/18` records the mechanism and the reasoning.
 
+## [0.126.0] - 2026-11-12
+
+`GET /api/payment-orders` (*Zahlungsanordnungen*) takes `limit` and `offset` beside its `status`
+filter, and the screen reads it one page at a time (`Weitere laden`) instead of holding every order
+to show some of them. This is the fourth paged list; `docs/15` names all four and states what each
+remaining route needs. `payment_order.reference` is `UNIQUE`, so the existing `ORDER BY due_date,
+reference` was already total and needed no tiebreaker — unlike the statement list, which gained
+`id DESC`. Covered by a repository paging test that walks the pages and compares them to the whole
+list, a handler test for the parameters and the refusals (`invalid_limit`, `invalid_offset`) and the
+screens' unit and e2e tests. The e2e assertion that compared the query string now reads the
+parameters: the filter and the page travel together.
+
 ## [0.125.0] - 2026-11-11
 
 The test harness now checks the schema's shape, not only its isolation: `dbtest.Pool` asserts that the

@@ -128,6 +128,18 @@ import { formatCents, formatDay } from '../core/format';
             }
           </tbody>
         </table>
+        @if (hasMore()) {
+          <p>
+            <button
+              type="button"
+              data-testid="load-more"
+              [disabled]="loadingMore()"
+              (click)="loadMore()"
+            >
+              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
+            </button>
+          </p>
+        }
       }
     </section>
   `,
@@ -137,6 +149,14 @@ export class PaymentOrdersComponent implements OnInit {
 
   readonly orders = signal<KasseOrderSummary[]>([]);
   readonly status = signal('');
+  /**
+   * One page of orders, sent explicitly rather than left to the server's default: a screen whose
+   * page size changed when the server did would be a surprise nobody could see in the code.
+   */
+  private readonly pageSize = 50;
+  /** True while the last page came back full, so there may be another. */
+  readonly hasMore = signal(false);
+  readonly loadingMore = signal(false);
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
@@ -161,16 +181,50 @@ export class PaymentOrdersComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.loadError.set(null);
-    this.api.listPaymentOrders(this.status() || undefined).subscribe({
+    this.api.listPaymentOrders(this.status() || undefined, String(this.pageSize), '0').subscribe({
       next: (orders) => {
-        this.orders.set(orders ?? []);
+        const page = orders ?? [];
+        this.orders.set(page);
+        // A full page means there may be more; a short one is the end of the list.
+        this.hasMore.set(page.length === this.pageSize);
         this.loading.set(false);
       },
       error: () => {
         this.loadError.set('Konnte die Zahlungsanordnungen nicht laden.');
+        this.hasMore.set(false);
         this.loading.set(false);
       },
     });
+  }
+
+  /**
+   * Reads the next page and appends it. The offset is the number of rows already on screen, which is
+   * why the list is never re-sorted in the browser: the pages only line up while the order the server
+   * answered with is the order they are shown in.
+   *
+   * A failed page is reported without clearing what is already there — the orders that were read are
+   * still valid, and blanking the screen would suggest they are not.
+   */
+  loadMore(): void {
+    if (!this.hasMore() || this.loadingMore()) {
+      return;
+    }
+    this.loadingMore.set(true);
+    this.actionError.set(null);
+    this.api
+      .listPaymentOrders(this.status() || undefined, String(this.pageSize), String(this.orders().length))
+      .subscribe({
+        next: (orders) => {
+          const page = orders ?? [];
+          this.orders.set([...this.orders(), ...page]);
+          this.hasMore.set(page.length === this.pageSize);
+          this.loadingMore.set(false);
+        },
+        error: () => {
+          this.loadingMore.set(false);
+          this.actionError.set('Konnte die weiteren Zahlungsanordnungen nicht laden.');
+        },
+      });
   }
 
   submit(order: KasseOrderSummary): void {

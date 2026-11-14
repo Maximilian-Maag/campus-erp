@@ -273,12 +273,14 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
   code (`invalid_limit`, `invalid_offset`) rather than quietly falling back to the default — a
   client that sends `offset=zwölf` has a bug, and hiding it makes the symptom (a list that never
   advances) harder to find than the cause.
-  Three lists page so far: `GET /api/e-invoices` (*Belege*), `GET /api/bank-statements`
+  Four lists page so far: `GET /api/e-invoices` (*Belege*), `GET /api/bank-statements`
   (*Kontoauszüge* — filtered, where the page is of one account's statements, so the filter and the
-  page are asked for together) and `GET /api/procurement/orders` (*Bestellungen*, likewise filtered
-  by status). Their screens read one page at a time (`Weitere laden`), keep what they have when a
-  page fails, and drop the offer once a short page ends the list. The remaining list routes still
-  return everything: each needs the two parameters on the route, an `ORDER BY` that is **total** —
-  the statement list gained `id DESC` as a tiebreaker for exactly this reason, since two statements
-  can share a number and a boundary over a partial order repeats one row and skips another — and a
-  control on the screen that reads it.
+  page are asked for together), `GET /api/procurement/orders` (*Bestellungen*, likewise filtered
+  by status) and `GET /api/payment-orders` (*Zahlungsanordnungen*, likewise filtered). Their screens
+  read one page at a time (`Weitere laden`), keep what they have when a page fails, and drop the
+  offer once a short page ends the list. The remaining list routes still return everything: each
+  needs the two parameters on the route, an `ORDER BY` that is **total** — the statement list gained
+  `id DESC` as a tiebreaker for exactly this reason, since two statements can share a number and a
+  boundary over a partial order repeats one row and skips another (`payment_order.reference` is
+  `UNIQUE`, so its `ORDER BY due_date, reference` needed no tiebreaker) — and a control on the screen
+  that reads it.

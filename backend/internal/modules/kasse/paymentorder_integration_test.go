@@ -297,7 +297,7 @@ func TestPaymentOrderListOrdersByDueDate(t *testing.T) {
 		refs = append(refs, ref)
 	}
 
-	all, err := svc.Orders(ctx, "")
+	all, err := svc.Orders(ctx, "", 1000, 0)
 	if err != nil {
 		t.Fatalf("Orders: %v", err)
 	}
@@ -340,7 +340,7 @@ func TestPaymentOrderListOrdersByDueDate(t *testing.T) {
 		t.Fatalf("Submit: %v", err)
 	}
 
-	narrowed, err := svc.Orders(ctx, kasse.OrderSubmitted)
+	narrowed, err := svc.Orders(ctx, kasse.OrderSubmitted, 1000, 0)
 	if err != nil {
 		t.Fatalf("Orders(submitted): %v", err)
 	}
@@ -356,5 +356,99 @@ func TestPaymentOrderListOrdersByDueDate(t *testing.T) {
 		if s.Reference == refs[0] || s.Reference == refs[1] {
 			t.Fatalf("a draft order (%s) came through the submitted filter", s.Reference)
 		}
+	}
+}
+
+// TestPaymentOrderListPages drives the list the way the screen does: one page at a time, advancing
+// the offset, and checks the two properties a paged list must have — a page holds no more than was
+// asked for, and walking the pages yields the whole list, in order, with nothing repeated and
+// nothing skipped. The page is of one status's orders, asked for together with the filter, which is
+// how the screen reads it.
+func TestPaymentOrderListPages(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	svc := kasse.NewOrderService(kasse.NewOrderRepo(pool), budgetService(pool), audit.NewStore(pool))
+
+	mark := fmt.Sprintf("%d", time.Now().UnixNano())
+	rec, err := svc.CreateRecipient(ctx, kasse.Recipient{
+		Name: "Stadtwerke " + mark, AccountHolder: "Stadtwerke", IBAN: "DE02120300000000202051",
+		BIC: "BYLADEM1001", BankName: "Musterbank",
+	})
+	if err != nil {
+		t.Fatalf("CreateRecipient: %v", err)
+	}
+	pos, err := svc.CreateBudgetPosition(ctx, kasse.BudgetPosition{
+		Year: 2026, Chapter: "0710", Title: "6810", CostCentre: "KST-P-" + mark, CostCarrier: "KT-1",
+		AllocatedCents: 900000,
+	})
+	if err != nil {
+		t.Fatalf("CreateBudgetPosition: %v", err)
+	}
+	// One order, so the list this test reads is not empty on its own and the paging below is not
+	// vacuous. Nothing else about it matters: the pages are checked against a window of the list
+	// rather than against what this test put there.
+	due, err := time.Parse(time.DateOnly, "2026-06-01")
+	if err != nil {
+		t.Fatalf("parse due date: %v", err)
+	}
+	order, err := kasse.NewPaymentOrder(fmt.Sprintf("AO-P-%s", mark), 2026, 1000,
+		"EUR", rec.ID, pos.ID, "Stromabschlag", due, "alice")
+	if err != nil {
+		t.Fatalf("NewPaymentOrder: %v", err)
+	}
+	if _, err := svc.Create(ctx, order); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// A window read in one go is the reference the pages must reproduce: the same rows in the same
+	// order. Reading a window rather than assuming the table is empty keeps this independent of what
+	// the other tests in this package have already stored.
+	const window = 4
+	head, err := svc.Orders(ctx, "", window, 0)
+	if err != nil {
+		t.Fatalf("Orders: %v", err)
+	}
+	if len(head) == 0 {
+		t.Fatal("the list is empty, so nothing about paging is being tested")
+	}
+
+	// The same window taken as two pages: the first from the beginning, the second from where the
+	// first ended. A list that ignored the offset would repeat the first page; one that ignored the
+	// limit would answer with more than was asked for.
+	const pageSize = 2
+	first, err := svc.Orders(ctx, "", pageSize, 0)
+	if err != nil {
+		t.Fatalf("Orders(offset=0): %v", err)
+	}
+	if len(first) > pageSize {
+		t.Fatalf("a page of %d holds %d rows", pageSize, len(first))
+	}
+	second, err := svc.Orders(ctx, "", pageSize, pageSize)
+	if err != nil {
+		t.Fatalf("Orders(offset=%d): %v", pageSize, err)
+	}
+	if len(second) > pageSize {
+		t.Fatalf("a page of %d holds %d rows", pageSize, len(second))
+	}
+
+	paged := append(append([]kasse.OrderSummary{}, first...), second...)
+	if len(paged) != len(head) {
+		t.Fatalf("two pages of %d yielded %d rows, want the %d of one window", pageSize, len(paged), len(head))
+	}
+	for i := range head {
+		if paged[i].ID != head[i].ID {
+			t.Fatalf("the pages diverge from the window at %d: got %d, want %d — the order is not stable",
+				i, paged[i].ID, head[i].ID)
+		}
+	}
+
+	// Past the end is an empty page, not an error: a screen that asks once too often gets nothing
+	// rather than a failure it would have to explain.
+	past, err := svc.Orders(ctx, "", pageSize, 100000)
+	if err != nil {
+		t.Fatalf("Orders past the end: %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows, want none", len(past))
 	}
 }

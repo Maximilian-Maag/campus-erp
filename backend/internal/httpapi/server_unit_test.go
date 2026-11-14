@@ -68,7 +68,7 @@ func (s stubOrders) Order(context.Context, int64) (kasse.PaymentOrder, error) {
 	return s.order, s.err
 }
 
-func (s stubOrders) Orders(context.Context, kasse.OrderStatus) ([]kasse.OrderSummary, error) {
+func (s stubOrders) Orders(context.Context, kasse.OrderStatus, int, int) ([]kasse.OrderSummary, error) {
 	return nil, s.err
 }
 

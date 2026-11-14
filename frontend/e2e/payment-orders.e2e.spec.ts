@@ -56,8 +56,9 @@ test('Zahlungsanordnungen filters by status on the server and passes axe', async
   await expect(page.getByTestId('order-AO-2')).toBeVisible();
   await expect(page.getByTestId('order-AO-1')).toHaveCount(0);
 
-  // The filter really travelled to the server.
-  expect(seen).toContain('?status=submitted');
+  // The filter really travelled to the server, beside the page (the screen sends both together).
+  const queries = seen.map((s) => new URLSearchParams(s));
+  expect(queries.some((q) => q.get('status') === 'submitted')).toBe(true);
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
@@ -133,4 +134,37 @@ test('Zahlungsanordnungen states an empty list and passes axe', async ({ page })
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
+});
+
+test('Zahlungsanordnungen reads the orders one page at a time, and passes axe', async ({ page }) => {
+  const offsets: string[] = [];
+  const page50 = Array.from({ length: 50 }, (_, i) => ({
+    ...base, ID: i + 1, Reference: `AO-P-${i + 1}`, Status: 'draft',
+  }));
+
+  await page.route(/\/api\/payment-orders(\?.*)?$/, (route) => {
+    const url = new URL(route.request().url());
+    offsets.push(url.searchParams.get('offset') ?? '');
+    // The first page is full, so the screen offers the next one; the second is short, so it stops.
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    return route.fulfill({
+      json: offset === 0 ? page50 : [{ ...base, ID: 51, Reference: 'AO-P-51', Status: 'draft' }],
+    });
+  });
+
+  await page.goto('/kasse/anordnungen');
+  await expect(page.getByTestId('order-AO-P-1')).toBeVisible();
+  await expect(page.getByTestId('order-AO-P-50')).toBeVisible();
+  expect(offsets).toEqual(['0']);
+
+  await page.getByTestId('load-more').click();
+  await expect(page.getByTestId('order-AO-P-51')).toBeVisible();
+  // The pages continue rather than repeat: the offset is the number of rows already read, and the
+  // rows already on screen are still there.
+  expect(offsets).toEqual(['0', '50']);
+  await expect(page.getByTestId('order-AO-P-1')).toBeVisible();
+  // A short page is the end of the list, so the button is gone.
+  await expect(page.getByTestId('load-more')).toHaveCount(0);
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

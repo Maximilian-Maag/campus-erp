@@ -19,7 +19,7 @@ type orderService interface {
 	CreateBudgetPosition(ctx context.Context, b kasse.BudgetPosition) (kasse.BudgetPosition, error)
 	Create(ctx context.Context, o kasse.PaymentOrder) (kasse.PaymentOrder, error)
 	Order(ctx context.Context, id int64) (kasse.PaymentOrder, error)
-	Orders(ctx context.Context, status kasse.OrderStatus) ([]kasse.OrderSummary, error)
+	Orders(ctx context.Context, status kasse.OrderStatus, limit, offset int) ([]kasse.OrderSummary, error)
 	Submit(ctx context.Context, id int64, by string) (kasse.PaymentOrder, error)
 	Approve(ctx context.Context, id int64, by string) (kasse.PaymentOrder, error)
 	Reject(ctx context.Context, id int64, by, reason string) (kasse.PaymentOrder, error)
@@ -219,7 +219,12 @@ func (s *Server) cancelOrder(w http.ResponseWriter, r *http.Request) {
 // listOrders reads the payment orders, optionally narrowed to one status. The filter is the
 // server's, so the screen never has to hold the whole list to work on part of it.
 func (s *Server) listOrders(w http.ResponseWriter, r *http.Request) {
-	orders, err := s.orders.Orders(r.Context(), kasse.OrderStatus(strings.TrimSpace(r.URL.Query().Get("status"))))
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
+	orders, err := s.orders.Orders(r.Context(), kasse.OrderStatus(strings.TrimSpace(r.URL.Query().Get("status"))), limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForOrder(err), err)
 		return
