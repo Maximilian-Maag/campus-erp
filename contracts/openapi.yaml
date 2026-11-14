@@ -3831,13 +3831,23 @@ paths:
       tags:
       - kasse
       operationId: listReceivables
-      summary: List open receivables, optionally for one state
+      summary: List open receivables, optionally for one state, one page at a time
       parameters:
       - name: state
         in: query
         required: false
         schema:
           type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: Success

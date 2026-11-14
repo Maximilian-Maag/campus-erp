@@ -126,7 +126,7 @@ func TestCollectionRunSelectsReceivables(t *testing.T) {
 	}
 
 	// The open list reads by due date and can be narrowed to the open ones.
-	open, err := recv.Receivables(ctx, kasse.ReceivableOpen)
+	open, err := recv.Receivables(ctx, kasse.ReceivableOpen, 50, 0)
 	if err != nil {
 		t.Fatalf("Receivables: %v", err)
 	}
@@ -245,5 +245,98 @@ func TestCollectionRunRepoRefusesStaleClaim(t *testing.T) {
 	// The refused run was not stored: the claim and the run are one transaction.
 	if _, ok, err := repo.CollectionRunByReference(ctx, ref2); err != nil || ok {
 		t.Fatalf("the refused run was stored: ok=%v err=%v", ok, err)
+	}
+}
+
+// TestReceivableListPages: the list answers the page that was asked for, and walking the pages
+// reproduces a window of it in order, with nothing repeated and nothing skipped. A page past the end
+// is empty rather than an error — a screen that asks once too often gets nothing, not a failure it
+// would have to explain.
+func TestReceivableListPages(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	store := audit.NewStore(pool)
+
+	mandates := kasse.NewMandateService(kasse.NewMandateRepo(pool), store)
+	ref := "MAN-PG-" + uniqueSuffix(t)
+	m, err := kasse.NewMandate(ref, "Debtor Paging", uniqueIBAN(t), "COBADEFFXXX",
+		time.Date(2025, 3, 14, 0, 0, 0, 0, time.UTC), kasse.SequenceRecurring)
+	if err != nil {
+		t.Fatalf("NewMandate: %v", err)
+	}
+	if _, err := mandates.CreateMandate(ctx, m, "clerk"); err != nil {
+		t.Fatalf("CreateMandate: %v", err)
+	}
+
+	recv := kasse.NewReceivableService(kasse.NewReceivableRepo(pool), store)
+	// One item of this test's own, so the list it reads is not empty and the paging below is not
+	// vacuous. Nothing else about it matters: the pages are checked against a window of the list, not
+	// against what this test put there.
+	if _, err := recv.Post(ctx, ref, 1500, "EUR", time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+		"Semesterbeitrag", "manual", "clerk"); err != nil {
+		t.Fatalf("Post: %v", err)
+	}
+
+	// A window read in one go is the reference the pages must reproduce: the same rows in the same
+	// order. Reading a window rather than assuming the table is empty keeps this independent of what
+	// the other tests in this package have already stored.
+	const window = 4
+	head, err := recv.Receivables(ctx, "", window, 0)
+	if err != nil {
+		t.Fatalf("Receivables: %v", err)
+	}
+	if len(head) == 0 {
+		t.Fatal("the list is empty, so nothing about paging is being tested")
+	}
+
+	// The same window taken as two pages: the first from the beginning, the second from where the
+	// first ended. A list that ignored the offset would repeat the first page; one that ignored the
+	// limit would answer with more than was asked for.
+	const pageSize = 2
+	first, err := recv.Receivables(ctx, "", pageSize, 0)
+	if err != nil {
+		t.Fatalf("Receivables(offset=0): %v", err)
+	}
+	if len(first) > pageSize {
+		t.Fatalf("a page of %d holds %d rows", pageSize, len(first))
+	}
+	second, err := recv.Receivables(ctx, "", pageSize, pageSize)
+	if err != nil {
+		t.Fatalf("Receivables(offset=%d): %v", pageSize, err)
+	}
+	if len(second) > pageSize {
+		t.Fatalf("a page of %d holds %d rows", pageSize, len(second))
+	}
+
+	paged := append(append([]kasse.Receivable{}, first...), second...)
+	if len(paged) != len(head) {
+		t.Fatalf("two pages of %d yielded %d rows, want the %d of one window", pageSize, len(paged), len(head))
+	}
+	for i := range head {
+		if paged[i].ID != head[i].ID {
+			t.Fatalf("the pages diverge from the window at %d: got %d, want %d — the order is not stable",
+				i, paged[i].ID, head[i].ID)
+		}
+	}
+
+	// The filter travels with the page: a page of collected items holds collected ones only.
+	collected, err := recv.Receivables(ctx, kasse.ReceivableCollected, 5, 0)
+	if err != nil {
+		t.Fatalf("Receivables(collected): %v", err)
+	}
+	for _, r := range collected {
+		if r.State != kasse.ReceivableCollected {
+			t.Fatalf("a page of collected items holds a %s one", r.State)
+		}
+	}
+
+	// Past the end is an empty page, not an error: a screen that asks once too often gets nothing
+	// rather than a failure it would have to explain.
+	past, err := recv.Receivables(ctx, "", pageSize, 100000)
+	if err != nil {
+		t.Fatalf("Receivables past the end: %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows, want none", len(past))
 	}
 }

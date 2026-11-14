@@ -61,7 +61,7 @@ describe('ReceivablesComponent', () => {
   function loaded(items: Receivable[] = [item(1)]) {
     const fixture = TestBed.createComponent(ReceivablesComponent);
     fixture.detectChanges();
-    http.expectOne('/api/receivables?state=open').flush(items);
+    http.expectOne('/api/receivables?state=open&limit=50&offset=0').flush(items);
     fixture.detectChanges();
     return fixture;
   }
@@ -92,7 +92,7 @@ describe('ReceivablesComponent', () => {
 
     component.load();
     expect(component.loading()).toBeTrue();
-    http.expectOne('/api/receivables?state=open').flush([item(1)]);
+    http.expectOne('/api/receivables?state=open&limit=50&offset=0').flush([item(1)]);
     fixture.detectChanges();
     expect(component.loading()).toBeFalse();
   });
@@ -100,7 +100,7 @@ describe('ReceivablesComponent', () => {
   it('treats an empty response body as no items', () => {
     const fixture = TestBed.createComponent(ReceivablesComponent);
     fixture.detectChanges();
-    http.expectOne('/api/receivables?state=open').flush(null);
+    http.expectOne('/api/receivables?state=open&limit=50&offset=0').flush(null);
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -129,7 +129,7 @@ describe('ReceivablesComponent', () => {
     const component = fixture.componentInstance;
 
     component.choose('collected');
-    const filtered = http.expectOne('/api/receivables?state=collected');
+    const filtered = http.expectOne('/api/receivables?state=collected&limit=50&offset=0');
     expect(filtered.request.method).toBe('GET');
     filtered.flush([item(2, { State: 'collected' })]);
     fixture.detectChanges();
@@ -144,7 +144,7 @@ describe('ReceivablesComponent', () => {
 
     component.choose('');
     // An empty state means every state: the query carries no filter.
-    http.expectOne('/api/receivables').flush([item(1)]);
+    http.expectOne('/api/receivables?limit=50&offset=0').flush([item(1)]);
     fixture.detectChanges();
 
     expect(component.stateFilter()).toBe('');
@@ -159,7 +159,7 @@ describe('ReceivablesComponent', () => {
   it('reports a failed load instead of an empty list', () => {
     const fixture = TestBed.createComponent(ReceivablesComponent);
     fixture.detectChanges();
-    http.expectOne('/api/receivables?state=open').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/receivables?state=open&limit=50&offset=0').flush('nope', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -200,7 +200,7 @@ describe('ReceivablesComponent', () => {
     expect(component.notice()).toBe('Posten erfasst.');
     expect(component.amount()).toBe('');
     expect(component.purpose()).toBe('');
-    http.expectOne('/api/receivables?state=open').flush([item(9)]);
+    http.expectOne('/api/receivables?state=open&limit=50&offset=0').flush([item(9)]);
     fixture.detectChanges();
     expect(component.items().length).toBe(1);
   });
@@ -208,11 +208,11 @@ describe('ReceivablesComponent', () => {
   it('switches to the open list after recording while another state is shown', () => {
     const fixture = TestBed.createComponent(ReceivablesComponent);
     fixture.detectChanges();
-    http.expectOne('/api/receivables?state=open').flush([]);
+    http.expectOne('/api/receivables?state=open&limit=50&offset=0').flush([]);
     fixture.detectChanges();
     const component = fixture.componentInstance;
     component.choose('collected');
-    http.expectOne('/api/receivables?state=collected').flush([]);
+    http.expectOne('/api/receivables?state=collected&limit=50&offset=0').flush([]);
     fixture.detectChanges();
 
     component.mandate.set('MAN-9');
@@ -225,7 +225,7 @@ describe('ReceivablesComponent', () => {
 
     // A new item is open, so the shown state follows it back to open.
     expect(component.stateFilter()).toBe('open');
-    http.expectOne('/api/receivables?state=open').flush([item(9)]);
+    http.expectOne('/api/receivables?state=open&limit=50&offset=0').flush([item(9)]);
   });
 
   it('refuses a bad amount without asking the API', () => {
@@ -274,7 +274,7 @@ describe('ReceivablesComponent', () => {
     // The typed values are still there to correct and send again.
     expect(component.mandate()).toBe('MAN-absent');
     expect(component.amount()).toBe('5');
-    http.expectNone('/api/receivables?state=open');
+    http.expectNone('/api/receivables?state=open&limit=50&offset=0');
   });
 
   it('renders amounts and dates with the shared helpers', () => {
@@ -285,5 +285,71 @@ describe('ReceivablesComponent', () => {
     expect(component.euro(0)).toBe('0,00');
     expect(component.day('2026-10-31T00:00:00Z')).toBe('31.10.2026');
     expect(component.label('open')).toBe('offen');
+  });
+
+  /** The screen with a first page of `n` items loaded. */
+  function firstPage(n: number) {
+    const fixture = TestBed.createComponent(ReceivablesComponent);
+    fixture.detectChanges();
+    const rows = Array.from({ length: n }, (_, i) => item(i + 1));
+    http.expectOne('/api/receivables?state=open&limit=50&offset=0').flush(rows);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('offers the next page only when the first one came back full', () => {
+    const full = firstPage(50);
+    expect(full.componentInstance.hasMore()).toBeTrue();
+    expect(full.nativeElement.querySelector('[data-testid="load-more"]')).not.toBeNull();
+
+    // A short page is the end of the list, so there is nothing to offer.
+    const short = firstPage(3);
+    expect(short.componentInstance.hasMore()).toBeFalse();
+    expect(short.nativeElement.querySelector('[data-testid="load-more"]')).toBeNull();
+  });
+
+  it('appends the next page from where the list ends and stops at a short page', () => {
+    const fixture = firstPage(50);
+    const component = fixture.componentInstance;
+
+    component.loadMore();
+    const next = http.expectOne('/api/receivables?state=open&limit=50&offset=50');
+    expect(component.loadingMore()).toBeTrue();
+    next.flush([item(51), item(52)]);
+    fixture.detectChanges();
+
+    expect(component.items().length).toBe(52);
+    expect(component.items()[51].ID).toBe(52);
+    expect(component.hasMore()).toBeFalse();
+    // The end of the list is the end: asking again does not touch the network.
+    component.loadMore();
+    http.expectNone('/api/receivables?state=open&limit=50&offset=52');
+  });
+
+  it('does not ask for a second page while one is in flight', () => {
+    const fixture = firstPage(50);
+    const component = fixture.componentInstance;
+
+    component.loadMore();
+    component.loadMore();
+    http.expectOne('/api/receivables?state=open&limit=50&offset=50').flush([item(51)]);
+    expect(component.items().length).toBe(51);
+  });
+
+  it('keeps what it has when a page fails, and says so', () => {
+    const fixture = firstPage(50);
+    const component = fixture.componentInstance;
+
+    component.loadMore();
+    http
+      .expectOne('/api/receivables?state=open&limit=50&offset=50')
+      .flush('nope', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(component.items().length).toBe(50);
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.actionError()).toBe('Konnte die weiteren offenen Posten nicht laden.');
+    // Still offered, so the operator can try again.
+    expect(component.hasMore()).toBeTrue();
   });
 });

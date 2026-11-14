@@ -17,7 +17,7 @@ type receivableService interface {
 	Post(ctx context.Context, mandateReference string, amountCents int64, currency string,
 		dueDate time.Time, purpose, source, by string) (kasse.Receivable, error)
 	Receivable(ctx context.Context, id int64) (kasse.Receivable, error)
-	Receivables(ctx context.Context, state kasse.ReceivableState) ([]kasse.Receivable, error)
+	Receivables(ctx context.Context, state kasse.ReceivableState, limit, offset int) ([]kasse.Receivable, error)
 }
 
 // statusForReceivable maps a receivable error to an HTTP status.
@@ -73,8 +73,8 @@ func (s *Server) createReceivable(w http.ResponseWriter, r *http.Request) {
 }
 
 // listReceivables reads the open items, due date first, optionally narrowed to one
-// state with ?state=. The filter is the server's, so a screen never has to hold
-// every item to show the open ones.
+// state with ?state=, one page at a time. The filter is the server's, so a screen
+// never has to hold every item to show the open ones.
 func (s *Server) listReceivables(w http.ResponseWriter, r *http.Request) {
 	state := kasse.ReceivableState(strings.TrimSpace(r.URL.Query().Get("state")))
 	switch state {
@@ -83,7 +83,12 @@ func (s *Server) listReceivables(w http.ResponseWriter, r *http.Request) {
 		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_state", "state must be open, collected or cancelled")
 		return
 	}
-	items, err := s.receivables.Receivables(r.Context(), state)
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
+	items, err := s.receivables.Receivables(r.Context(), state, limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForReceivable(err), err)
 		return

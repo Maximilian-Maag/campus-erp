@@ -419,8 +419,8 @@ export class CampusErpApi {
     return this.http.post<m.Order>(this.base + `/api/purchase-orders/${id}/receive`, null);
   }
 
-  listReceivables(state?: string): Observable<m.Receivable[]> {
-    return this.http.get<m.Receivable[]>(this.base + `/api/receivables${this._query({ state })}`);
+  listReceivables(state?: string, limit?: string, offset?: string): Observable<m.Receivable[]> {
+    return this.http.get<m.Receivable[]>(this.base + `/api/receivables${this._query({ state, limit, offset })}`);
   }
 
   createReceivable(body: m.ReceivableRequest): Observable<m.Receivable> {

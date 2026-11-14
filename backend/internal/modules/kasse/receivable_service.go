@@ -52,9 +52,10 @@ func (s *ReceivableService) Receivable(ctx context.Context, id int64) (Receivabl
 	return s.repo.GetReceivable(ctx, id)
 }
 
-// Receivables lists open items, due date first, optionally narrowed to one state.
-func (s *ReceivableService) Receivables(ctx context.Context, state ReceivableState) ([]Receivable, error) {
-	return s.repo.Receivables(ctx, state)
+// Receivables lists open items, due date first, optionally narrowed to one state, one page at a
+// time.
+func (s *ReceivableService) Receivables(ctx context.Context, state ReceivableState, limit, offset int) ([]Receivable, error) {
+	return s.repo.Receivables(ctx, state, limit, offset)
 }
 
 func receivableSubject(id int64) string { return fmt.Sprintf("receivable/%d", id) }
