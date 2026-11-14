@@ -266,3 +266,55 @@ func TestHTTPOrderRefusesAmbiguousOrUnknownBudgetPosition(t *testing.T) {
 		t.Fatalf("unknown position = %d, want 404", resp.StatusCode)
 	}
 }
+
+// TestHTTPPaymentOrderListPages: the list answers a page, a page past the end is empty rather than
+// an error, and a page that is not a positive integer is refused with a machine code rather than
+// quietly defaulted — a client that sends offset=zwölf has a bug, and a silent default hides it.
+func TestHTTPPaymentOrderListPages(t *testing.T) {
+	srv, _ := newTestServer(t)
+	createOrder(t, srv.URL, "alice")
+	createOrder(t, srv.URL, "alice")
+
+	resp := doJSON(t, http.MethodGet, srv.URL+"/api/payment-orders?limit=1", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("page = %d", resp.StatusCode)
+	}
+	var page []orderJSON
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		t.Fatalf("decode page: %v", err)
+	}
+	if len(page) > 1 {
+		t.Fatalf("a page of 1 holds %d rows", len(page))
+	}
+
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/payment-orders?limit=1&offset=100000", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("page past the end = %d, want 200", resp.StatusCode)
+	}
+	var past []orderJSON
+	if err := json.NewDecoder(resp.Body).Decode(&past); err != nil {
+		t.Fatalf("decode page: %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows, want none", len(past))
+	}
+
+	for _, tc := range []struct{ query, code string }{
+		{"limit=0", "invalid_limit"},
+		{"limit=-1", "invalid_limit"},
+		{"limit=f%C3%BCnf", "invalid_limit"},
+		{"offset=zw%C3%B6lf", "invalid_offset"},
+	} {
+		resp = doJSON(t, http.MethodGet, srv.URL+"/api/payment-orders?"+tc.query, "alice", "")
+		if resp.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("%s: status = %d, want 422", tc.query, resp.StatusCode)
+		}
+		var problem struct{ Code string }
+		if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+			t.Fatalf("%s: decode problem: %v", tc.query, err)
+		}
+		if problem.Code != tc.code {
+			t.Fatalf("%s: code = %q, want %q", tc.query, problem.Code, tc.code)
+		}
+	}
+}

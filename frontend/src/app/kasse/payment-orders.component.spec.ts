@@ -29,7 +29,7 @@ describe('PaymentOrdersComponent', () => {
   function loaded(orders: KasseOrderSummary[] = [draft, submitted]) {
     const fixture = TestBed.createComponent(PaymentOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/payment-orders').flush(orders);
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush(orders);
     fixture.detectChanges();
     return fixture;
   }
@@ -90,7 +90,7 @@ describe('PaymentOrdersComponent', () => {
     const component = fixture.componentInstance;
 
     component.filterTo('submitted');
-    const filtered = http.expectOne('/api/payment-orders?status=submitted');
+    const filtered = http.expectOne('/api/payment-orders?status=submitted&limit=50&offset=0');
     expect(filtered.request.method).toBe('GET');
     filtered.flush([submitted]);
     fixture.detectChanges();
@@ -102,7 +102,7 @@ describe('PaymentOrdersComponent', () => {
 
     // Back to everything: no filter parameter at all.
     component.filterTo('');
-    http.expectOne('/api/payment-orders').flush([draft, submitted]);
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush([draft, submitted]);
     fixture.detectChanges();
     expect(component.orders().length).toBe(2);
   });
@@ -114,7 +114,7 @@ describe('PaymentOrdersComponent', () => {
     expect(html.querySelector('[role="status"]')?.textContent).toContain('keine Zahlungsanordnungen angelegt');
 
     fixture.componentInstance.filterTo('cancelled');
-    http.expectOne('/api/payment-orders?status=cancelled').flush([]);
+    http.expectOne('/api/payment-orders?status=cancelled&limit=50&offset=0').flush([]);
     fixture.detectChanges();
     expect(html.querySelector('[role="status"]')?.textContent).toContain('Keine Anordnung in diesem Status');
   });
@@ -122,7 +122,7 @@ describe('PaymentOrdersComponent', () => {
   it('reports a failed load instead of showing an empty list', () => {
     const fixture = TestBed.createComponent(PaymentOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/payment-orders').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush('nope', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -136,7 +136,7 @@ describe('PaymentOrdersComponent', () => {
   it('treats an empty response body as a list without orders', () => {
     const fixture = TestBed.createComponent(PaymentOrdersComponent);
     fixture.detectChanges();
-    http.expectOne('/api/payment-orders').flush(null);
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush(null);
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -158,7 +158,7 @@ describe('PaymentOrdersComponent', () => {
 
     // The screen reloads so the row shows its new state.
     expect(component.loading()).toBeTrue();
-    http.expectOne('/api/payment-orders').flush([submitted]);
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush([submitted]);
     fixture.detectChanges();
 
     expect(component.busy()).toBeNull();
@@ -172,7 +172,7 @@ describe('PaymentOrdersComponent', () => {
 
     component.approve(submitted);
     http.expectOne('/api/payment-orders/2/approve').flush({ ID: 2, Status: 'approved' });
-    http.expectOne('/api/payment-orders').flush([approved]);
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush([approved]);
     fixture.detectChanges();
 
     expect(component.busy()).toBeNull();
@@ -185,7 +185,7 @@ describe('PaymentOrdersComponent', () => {
 
     component.cancel(draft);
     http.expectOne('/api/payment-orders/1/cancel').flush({ ID: 1, Status: 'cancelled' });
-    http.expectOne('/api/payment-orders').flush([]);
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush([]);
     fixture.detectChanges();
 
     expect(component.busy()).toBeNull();
@@ -217,7 +217,7 @@ describe('PaymentOrdersComponent', () => {
     // The reason box is gone and the list reloaded.
     expect(component.rejecting()).toBeNull();
     expect(component.reason()).toBe('');
-    http.expectOne('/api/payment-orders').flush([]);
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush([]);
     fixture.detectChanges();
     expect(component.busy()).toBeNull();
   });
@@ -321,10 +321,107 @@ describe('PaymentOrdersComponent', () => {
     component.reason.set('halb getippt');
     component.approve(approved);
     http.expectOne('/api/payment-orders/3/approve').flush({ ID: 3, Status: 'approved' });
-    http.expectOne('/api/payment-orders').flush([submitted, approved]);
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush([submitted, approved]);
     fixture.detectChanges();
 
     expect(component.rejecting()).toBe(2);
     expect(component.reason()).toBe('halb getippt');
+  });
+
+  /** A full page, so the screen has to offer the next one. */
+  const fullPage = (from: number): KasseOrderSummary[] =>
+    Array.from({ length: 50 }, (_, i) => order(from + i, `AO-P-${from + i}`, 'draft'));
+
+  it('opens with one page and offers the next only while the pages come back full', () => {
+    const fixture = TestBed.createComponent(PaymentOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    // Nothing has been read yet, so there is no next page to offer and none is being read. A screen
+    // that claimed otherwise would show a button that asks for a page it cannot know exists.
+    expect(component.hasMore()).toBeFalse();
+    expect(component.loadingMore()).toBeFalse();
+
+    // The first page is asked for explicitly: the screen's page size, from the beginning.
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    expect(component.orders().length).toBe(50);
+    expect(component.hasMore()).toBeTrue();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Weitere laden');
+  });
+
+  it('reads the next page from where the last one ended and appends it', () => {
+    const fixture = TestBed.createComponent(PaymentOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    component.loadMore();
+    // The offset is the number of rows already on screen: page two starts where page one ended.
+    const next = http.expectOne('/api/payment-orders?limit=50&offset=50');
+    expect(next.request.method).toBe('GET');
+    next.flush([order(51, 'AO-P-51', 'draft')]);
+    fixture.detectChanges();
+
+    expect(component.orders().length).toBe(51);
+    expect(component.orders()[50].Reference).toBe('AO-P-51');
+    // A short page is the end of the list, so the offer goes away.
+    expect(component.hasMore()).toBeFalse();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Weitere laden');
+  });
+
+  it('keeps what it has when the next page fails', () => {
+    const fixture = TestBed.createComponent(PaymentOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    component.loadMore();
+    http
+      .expectOne('/api/payment-orders?limit=50&offset=50')
+      .flush('nope', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    // The orders that were read are still valid; blanking the screen would suggest they are not.
+    expect(component.orders().length).toBe(50);
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.actionError()).toBe('Konnte die weiteren Zahlungsanordnungen nicht laden.');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).toBeTruthy();
+  });
+
+  it('does not read a page while one is already being read', () => {
+    const fixture = TestBed.createComponent(PaymentOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+
+    component.loadMore();
+    component.loadMore();
+    // One request, not two: a second must not double the same page.
+    http.expectOne('/api/payment-orders?limit=50&offset=50').flush([]);
+    fixture.detectChanges();
+    expect(component.orders().length).toBe(50);
+  });
+
+  it('asks for the next page of the chosen status, not of everything', () => {
+    const fixture = TestBed.createComponent(PaymentOrdersComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/payment-orders?limit=50&offset=0').flush([]);
+    fixture.detectChanges();
+
+    component.filterTo('submitted');
+    http.expectOne('/api/payment-orders?status=submitted&limit=50&offset=0').flush(fullPage(1));
+    fixture.detectChanges();
+    expect(component.hasMore()).toBeTrue();
+
+    component.loadMore();
+    http.expectOne('/api/payment-orders?status=submitted&limit=50&offset=50').flush([]);
+    fixture.detectChanges();
+    expect(component.orders().length).toBe(50);
   });
 });

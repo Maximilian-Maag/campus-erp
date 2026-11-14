@@ -18,7 +18,7 @@ type OrderRepository interface {
 	GetOrder(ctx context.Context, id int64) (PaymentOrder, error)
 	SaveOrderStatus(ctx context.Context, o PaymentOrder, from OrderStatus) (PaymentOrder, error)
 	RecordDecision(ctx context.Context, orderID int64, decision OrderStatus, actor, reason string) error
-	ListOrders(ctx context.Context, status OrderStatus) ([]OrderSummary, error)
+	ListOrders(ctx context.Context, status OrderStatus, limit, offset int) ([]OrderSummary, error)
 }
 
 // OrderRepo is the PostgreSQL implementation.
@@ -41,12 +41,14 @@ func scanOrder(row pgx.Row) (PaymentOrder, error) {
 
 // ListOrders lists payment orders, soonest due first — that is the order an operator works
 // through them in — with a status filter that is the server's own ("" for all).
-func (r *OrderRepo) ListOrders(ctx context.Context, status OrderStatus) ([]OrderSummary, error) {
+func (r *OrderRepo) ListOrders(ctx context.Context, status OrderStatus, limit, offset int) ([]OrderSummary, error) {
+	// Ordered by due date then reference. The reference is UNIQUE, so the order is total: a page
+	// boundary cannot repeat or skip a row, unlike an order over a non-unique column.
 	rows, err := r.pool.Query(ctx,
 		`SELECT id, reference, amount_cents, currency, budget_position_id, purpose, due_date, status
 		   FROM payment_order
 		  WHERE ($1 = '' OR status = $1)
-		  ORDER BY due_date, reference`, string(status))
+		  ORDER BY due_date, reference LIMIT $2 OFFSET $3`, string(status), limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("kasse: list payment orders: %w", err)
 	}
