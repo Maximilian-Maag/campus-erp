@@ -116,3 +116,33 @@ test('Offene Posten states an empty state and passes axe', async ({ page }) => {
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('Offene Posten reads the items one page at a time, and passes axe', async ({ page }) => {
+  const offsets: string[] = [];
+  const page50 = Array.from({ length: 50 }, (_, i) => ({ ...openItem, ID: i + 1 }));
+
+  await page.route('**/api/receivables**', (route) => {
+    if (route.request().method() !== 'GET') {
+      return route.fulfill({ json: openItem });
+    }
+    const url = new URL(route.request().url());
+    offsets.push(url.searchParams.get('offset') ?? '');
+    // The first page is full, so the screen offers the next one; the second is short, so it stops.
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    return route.fulfill({ json: offset === 0 ? page50 : [{ ...openItem, ID: 51 }] });
+  });
+
+  await page.goto('/kasse/offene-posten');
+  await expect(page.getByTestId('receivable-1')).toBeVisible();
+  await expect(page.getByTestId('receivable-50')).toBeVisible();
+  expect(offsets).toEqual(['0']);
+
+  await page.getByTestId('load-more').click();
+  await expect(page.getByTestId('receivable-51')).toBeVisible();
+  expect(offsets).toEqual(['0', '50']);
+  // A short page ends the list, so the offer is gone.
+  await expect(page.getByTestId('load-more')).toHaveCount(0);
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});

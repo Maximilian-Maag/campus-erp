@@ -14,7 +14,7 @@ import (
 type ReceivableRepository interface {
 	CreateReceivable(ctx context.Context, r Receivable, by string) (Receivable, error)
 	GetReceivable(ctx context.Context, id int64) (Receivable, error)
-	Receivables(ctx context.Context, state ReceivableState) ([]Receivable, error)
+	Receivables(ctx context.Context, state ReceivableState, limit, offset int) ([]Receivable, error)
 	OpenReceivablesForCollection(ctx context.Context, dueBy time.Time, sequenceType MandateSequence) ([]Receivable, error)
 }
 
@@ -73,12 +73,15 @@ func (r *ReceivableRepo) GetReceivable(ctx context.Context, id int64) (Receivabl
 }
 
 // Receivables lists open items, due date first — the order an operator chases
-// them in — optionally narrowed to one state (the empty state lists all).
-func (r *ReceivableRepo) Receivables(ctx context.Context, state ReceivableState) ([]Receivable, error) {
+// them in — optionally narrowed to one state (the empty state lists all), one page at a time.
+//
+// Ordered by due date then id. The id is the primary key, so the order is total: a page boundary
+// cannot repeat or skip a row, unlike an order over a column two rows can share.
+func (r *ReceivableRepo) Receivables(ctx context.Context, state ReceivableState, limit, offset int) ([]Receivable, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT `+receivableColumns+` FROM receivable
 		  WHERE ($1 = '' OR state = $1)
-		  ORDER BY due_date, id`, string(state))
+		  ORDER BY due_date, id LIMIT $2 OFFSET $3`, string(state), limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("kasse: list receivables: %w", err)
 	}

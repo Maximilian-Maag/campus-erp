@@ -2,6 +2,16 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.128.0] - 2026-11-14
+
+`GET /api/receivables` (*Offene Posten*) takes `limit` and `offset` beside its `state` filter, and the
+screen reads it one page at a time (`Weitere laden`) instead of holding every open item to show the
+open ones. This is the fifth paged list. The order needed no tiebreaker: `receivable` is read
+`ORDER BY due_date, id`, and `id` is the primary key, so a page boundary cannot repeat or skip a row.
+Covered by a repository paging test that walks the pages and compares them with a window of the list,
+a handler test for the default page, the clamp and both refusals (`invalid_limit`, `invalid_offset`),
+and the screen's unit and e2e tests.
+
 ## [0.127.0] - 2026-11-14
 
 The two "flakes" of #136 and #138 had one cause, and it was not a race in the tests: migration 0022

@@ -329,7 +329,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/receivables": {
         "post": ("createReceivable", "kasse", "Record an open receivable", "httpapi.receivableRequest", "kasse.Receivable", 201, "json"),
-        "get": ("listReceivables", "kasse", "List open receivables, optionally for one state", None, "[]kasse.Receivable", 200, "json", [("state", "string", False)]),
+        "get": ("listReceivables", "kasse", "List open receivables, optionally for one state, one page at a time", None, "[]kasse.Receivable", 200, "json", [("state", "string", False), ("limit", "integer", False), ("offset", "integer", False)]),
     },
     "/api/receivables/{id}": {
         "get": ("getReceivable", "kasse", "Read an open receivable", None, "kasse.Receivable", 200, "json"),

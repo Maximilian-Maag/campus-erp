@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,7 +18,13 @@ type stubReceivables struct {
 	items []kasse.Receivable
 	one   kasse.Receivable
 	err   error
+	// asked, when set, records the page the handler passed down: the defaults the server picks are
+	// not visible in the response, so what the handler asked for is the only thing that shows them.
+	asked *pageAsked
 }
+
+// pageAsked is what the handler passed to the service.
+type pageAsked struct{ limit, offset int }
 
 func (s stubReceivables) Post(_ context.Context, mandateReference string, amountCents int64,
 	currency string, _ time.Time, _, _, _ string) (kasse.Receivable, error) {
@@ -35,7 +42,10 @@ func (s stubReceivables) Receivable(context.Context, int64) (kasse.Receivable, e
 	return s.one, s.err
 }
 
-func (s stubReceivables) Receivables(context.Context, kasse.ReceivableState) ([]kasse.Receivable, error) {
+func (s stubReceivables) Receivables(_ context.Context, _ kasse.ReceivableState, limit, offset int) ([]kasse.Receivable, error) {
+	if s.asked != nil {
+		*s.asked = pageAsked{limit: limit, offset: offset}
+	}
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -93,6 +103,65 @@ func TestListReceivablesHandler(t *testing.T) {
 	fail.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/receivables", nil))
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("failing list = %d, want 500", rec.Code)
+	}
+}
+
+// TestListReceivablesHandlerPages: the handler asks the service for a page — the server's own default
+// when the client does not say, and exactly what the client asked for when it does — and refuses a
+// page that is not a positive integer with a machine code rather than quietly falling back. The
+// screen's *Weitere laden* only works if the two ends agree on this, so the default is asserted
+// rather than assumed, and a refused request must not reach the store at all.
+func TestListReceivablesHandlerPages(t *testing.T) {
+	var asked pageAsked
+	srv := httpapi.New(httpapi.Deps{Receivables: stubReceivables{asked: &asked}})
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/receivables", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("default page = %d, want 200", rec.Code)
+	}
+	if asked != (pageAsked{limit: 50, offset: 0}) {
+		t.Fatalf("default page = %+v, want the first page of 50", asked)
+	}
+
+	asked = pageAsked{}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/receivables?limit=10&offset=20", nil))
+	if rec.Code != http.StatusOK || asked != (pageAsked{limit: 10, offset: 20}) {
+		t.Fatalf("status = %d asked = %+v, want limit 10 offset 20", rec.Code, asked)
+	}
+
+	// A limit past the bound is clamped, not refused: the request is understandable and the answer
+	// is still a page, the largest one.
+	asked = pageAsked{}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/receivables?limit=5000", nil))
+	if rec.Code != http.StatusOK || asked != (pageAsked{limit: 200, offset: 0}) {
+		t.Fatalf("clamped page: status = %d asked = %+v, want limit 200", rec.Code, asked)
+	}
+
+	for _, tc := range []struct{ query, code string }{
+		{"limit=0", "invalid_limit"},
+		{"limit=f%C3%BCnf", "invalid_limit"},
+		{"offset=zw%C3%B6lf", "invalid_offset"},
+		{"offset=-1", "invalid_offset"},
+	} {
+		asked = pageAsked{}
+		rec = httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/receivables?"+tc.query, nil))
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("%s: status = %d, want 422", tc.query, rec.Code)
+		}
+		var problem struct{ Code string }
+		if err := json.NewDecoder(rec.Body).Decode(&problem); err != nil {
+			t.Fatalf("%s: decode problem: %v", tc.query, err)
+		}
+		if problem.Code != tc.code {
+			t.Fatalf("%s: code = %q, want %q", tc.query, problem.Code, tc.code)
+		}
+		if asked != (pageAsked{}) {
+			t.Fatalf("%s: the store was asked for a page although the request was refused", tc.query)
+		}
 	}
 }
 
