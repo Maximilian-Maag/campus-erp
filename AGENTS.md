@@ -46,6 +46,12 @@ system it replaces.
   `time.Now()` repeats and collides on unique constraints. Use the database
   (`testSeqNext`, a sequence) — it is the only source unique across packages *and*
   runs. `CREATE SEQUENCE IF NOT EXISTS` is not atomic either.
+- **Nothing database-wide lives in a per-process schema.** `dbtest` gives each test
+  process a `test_<pid>` schema and drops it on exit; an extension, a role, a
+  tablespace or a publication put there is taken away by that drop — and so is
+  every object in *other* schemas that depends on it. That is what made the KLR's
+  exclusion constraints vanish mid-run (issues #136, #138): `btree_gist` lives in
+  `public`, and `dbtest` refuses a database where it does not (`docs/18`).
 - **The API contract is enforced.** `tools/api_contract.py check` fails if a Go
   route is undocumented or a documented route is missing from Go; CI also
   regenerates the client and the spec and fails on any diff. Add a route in
