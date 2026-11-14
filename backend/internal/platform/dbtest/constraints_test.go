@@ -58,7 +58,7 @@ func TestMissingConstraintsNamesWhatIsAbsent(t *testing.T) {
 // ask the reader to do different things — look at the migrations, or get the extension installed for
 // the role — so both are asserted here, without needing a database that lacks btree_gist.
 func TestConstraintProblemWordsBothCases(t *testing.T) {
-	withExtension := constraintProblem([]string{"gone_one"}, true)
+	withExtension := constraintProblem([]string{"gone_one"}, "public")
 	if withExtension == nil {
 		t.Fatal("a missing constraint with the extension present was not reported")
 	}
@@ -73,7 +73,7 @@ func TestConstraintProblemWordsBothCases(t *testing.T) {
 		t.Fatalf("the message does not point at the issue that explains it: %q", msg)
 	}
 
-	withoutExtension := constraintProblem([]string{"gone_one", "gone_two"}, false)
+	withoutExtension := constraintProblem([]string{"gone_one", "gone_two"}, "")
 	if withoutExtension == nil {
 		t.Fatal("a missing constraint without the extension was not reported")
 	}
@@ -111,5 +111,91 @@ func TestVerifySchemaSaysWhichConstraintAndWhy(t *testing.T) {
 	// And a schema that has everything asked of it is accepted, so the check is not simply always red.
 	if err := verifySchema(ctx, pool, []string{"allocation_run_no_overlap"}); err != nil {
 		t.Fatalf("verifySchema refused a constraint that is present: %v", err)
+	}
+}
+
+// TestExtensionOutlivesTheProcess: the extension the exclusion constraints depend on must not sit in
+// a schema this harness drops. That invariant is the whole of issues #136 and #138 — the constraints
+// were fine, the extension's schema went away with another process — so it is asserted on the
+// database the tests are actually talking to.
+func TestExtensionOutlivesTheProcess(t *testing.T) {
+	ctx := context.Background()
+	pool := Pool(t)
+
+	installedIn, err := btreeGistSchema(ctx, pool)
+	if err != nil {
+		t.Fatalf("btreeGistSchema: %v", err)
+	}
+	if installedIn == "" {
+		t.Fatal("btree_gist is not installed at all, though the migrations need it")
+	}
+	if isPerProcessSchema(installedIn) {
+		t.Fatalf("btree_gist is installed in %q, a schema this harness drops when the process exits", installedIn)
+	}
+	if err := extensionProblem(installedIn); err != nil {
+		t.Fatalf("extensionProblem refused a schema that outlives the process: %v", err)
+	}
+}
+
+// TestSchemaDropDoesNotTakeTheConstraints: a sibling process finishing drops its schema, and the
+// constraints in this one must still be there afterwards. The dropped schema holds nothing
+// database-wide — that is the point of putting the extension in `public`.
+func TestSchemaDropDoesNotTakeTheConstraints(t *testing.T) {
+	ctx := context.Background()
+	pool := Pool(t)
+
+	if _, err := pool.Exec(ctx, "CREATE SCHEMA dbtest_sibling_exit"); err != nil {
+		t.Fatalf("CREATE SCHEMA: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "DROP SCHEMA dbtest_sibling_exit CASCADE"); err != nil {
+		t.Fatalf("DROP SCHEMA: %v", err)
+	}
+	if err := verifySchema(ctx, pool, requiredConstraints); err != nil {
+		t.Fatalf("dropping a sibling schema took the exclusion constraints with it: %v", err)
+	}
+}
+
+// TestExtensionProblemRefusesAPerishableSchema: the refusal has to name the schema it found the
+// extension in and the one it belongs in, because "the extension is in the wrong place" without
+// either is not something a reader can act on.
+func TestExtensionProblemRefusesAPerishableSchema(t *testing.T) {
+	if err := extensionProblem("public"); err != nil {
+		t.Fatalf("extensionProblem refused where the extension belongs: %v", err)
+	}
+
+	perishable := extensionProblem("test_4242")
+	if perishable == nil {
+		t.Fatal("an extension in a per-process schema was accepted")
+	}
+	msg := perishable.Error()
+	if !strings.Contains(msg, "test_4242") {
+		t.Fatalf("the message does not say where the extension is: %q", msg)
+	}
+	if !strings.Contains(msg, "public") {
+		t.Fatalf("the message does not say where it belongs: %q", msg)
+	}
+	if !strings.Contains(msg, "#136") || !strings.Contains(msg, "#138") {
+		t.Fatalf("the message does not point at the issues that explain it: %q", msg)
+	}
+
+	absent := extensionProblem("")
+	if absent == nil {
+		t.Fatal("a database without btree_gist was accepted")
+	}
+	if !strings.Contains(absent.Error(), "btree_gist") {
+		t.Fatalf("the message does not name the missing extension: %q", absent.Error())
+	}
+}
+
+// TestIsPerProcessSchema: the harness's own naming is the boundary between "dropped when this
+// process ends" and "as long as the database exists", so it is asserted rather than assumed.
+func TestIsPerProcessSchema(t *testing.T) {
+	if !isPerProcessSchema("test_4242") {
+		t.Fatal("the harness's own schema name was not recognised as per-process")
+	}
+	for _, stable := range []string{"public", "tenants", "testing"} {
+		if isPerProcessSchema(stable) {
+			t.Fatalf("%q was taken for a per-process schema", stable)
+		}
 	}
 }

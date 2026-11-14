@@ -75,6 +75,51 @@ database shows one `test_<pid>` schema per process (removed on exit).
   package. Splitting it along those lines is a standing refactor — not a
   correctness issue, but the reason integration fixtures are easy to cross.
 
+## What the guard then found: the extension was in the wrong schema
+
+The guard added for #136 fired twice more (#138), always on CI, always transient, always on a schema
+that had just been migrated. The constraints were not the problem.
+
+`btree_gist` is a **database-wide** object, but `CREATE EXTENSION IF NOT EXISTS btree_gist` (migration
+0022) installs it into *the schema that is current*. On a server with the default `search_path` that
+is `public`, which is created with the database and dropped with it. Under the harness the
+`search_path` is `test_<pid>`, so the first process to migrate a fresh database installed the
+extension **into its own per-process schema** — and when that process exited, `DROP SCHEMA ... CASCADE`
+took the extension with it, and with the extension every exclusion constraint that depends on it, in
+**every other schema at once**. That is exactly what was observed:
+
+- two `httpapi` tests asserting "a second, overlapping allocation run is refused" got `201` (#136):
+  the constraint had been dropped between the two calls, by an unrelated test process finishing;
+- every integration test in a package failing at its first `dbtest.Pool` call with "the schema is
+  missing the exclusion constraints" (#138): its constraints had been dropped by a sibling's exit
+  after its own migration had run, and no migration error was ever printed because nothing failed;
+- a third shape, seen on a fresh CI database in the `go test ./...` job of #139: a package's own
+  migration failing with `ERROR: referenced operator class was concurrently dropped (SQLSTATE 42704)`
+  from `CREATE TABLE ... EXCLUDE USING gist` — a sibling exited between the statement that resolved
+  the operator class and the one that used it. Same cause, seen from the other side.
+
+Both passed on a rerun because both depended on another process exiting in the middle.
+
+The fix is where the extension lives, not more guarding:
+
+- **migration 0033** moves `btree_gist` to `public` (and leaves it alone if an operator has put it
+  somewhere stable on purpose). `public` is the database-wide place for an extension: nothing drops it
+  while the database exists.
+- **`dbtest`** installs it in `public` before it creates any schema of its own — so a run does not
+  depend on the migration having been applied to a database that already had the extension somewhere
+  perishable — and moves one that a killed run left behind.
+- **`verifySchema`** now also refuses an extension installed in a per-process schema, naming both
+  the schema it found and the one it belongs in. Checking only *that* the extension exists missed the
+  whole failure mode: it existed, and it was about to be dropped.
+- **`TestDroppingASiblingSchemaKeepsTheExclusionConstraints`** (in `internal/platform/db`) is the
+  regression test: it migrates two schemas in turn, drops the first as a process exit would, and
+  asserts the second's constraints are still there. Without migration 0033 it fails with the
+  extension gone.
+
+A rule that follows, for anything added later: **nothing database-wide may live in a per-process
+schema**. An extension, a role, a tablespace, a publication belongs in `public` (or a schema of its
+own that the harness does not create), because the harness drops its schemas without asking.
+
 ## Remaining
 
 - `audit_event` and `budget_position` are written by several packages; with

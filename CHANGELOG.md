@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.127.0] - 2026-11-14
+
+The two "flakes" of #136 and #138 had one cause, and it was not a race in the tests: migration 0022
+installs `btree_gist` with `CREATE EXTENSION IF NOT EXISTS`, which puts it into whatever schema is
+current — under the test harness, the per-process `test_<pid>` schema. When that process exited,
+`DROP SCHEMA ... CASCADE` took the extension with it, and with the extension every exclusion
+constraint that depends on it, in every other process at once. A KLR run that should have been
+refused was accepted (`second run = 201`), and a schema that had just been migrated was reported as
+missing the constraints. Both passed on a rerun, because both depended on *another* process exiting
+in between. Migration 0033 moves the extension into `public` (the schema that lives as long as the
+database does) and leaves it alone when an operator has chosen somewhere else; `dbtest` puts it there
+before it creates any schema of its own and refuses, at start-up, an extension installed somewhere
+that does not outlive the process. The regression test migrates two schemas in turn, drops the first,
+and asserts the second's constraints are still there — it fails without 0033 with the extension gone.
+`docs/18` records the mechanism and the reasoning.
+
 ## [0.125.0] - 2026-11-11
 
 The test harness now checks the schema's shape, not only its isolation: `dbtest.Pool` asserts that the

@@ -103,6 +103,13 @@ func ensureSchema(ctx context.Context, dsn string) (string, error) {
 	}
 	defer base.Close()
 	cleanupStale(ctx, base)
+	// The extension the exclusion constraints need is database-wide while the schemas are not, so it
+	// is placed in `public` before ours exists: an extension installed into `test_<pid>` is dropped
+	// with that schema, taking every other process's exclusion constraints with it (issues #136,
+	// #138).
+	if err := ensureExtension(ctx, base); err != nil {
+		return "", err
+	}
 	name := fmt.Sprintf("test_%d", os.Getpid())
 	if _, err := base.Exec(ctx, "DROP SCHEMA IF EXISTS "+name+" CASCADE"); err != nil {
 		return "", fmt.Errorf("drop schema: %w", err)
