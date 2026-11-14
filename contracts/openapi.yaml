@@ -3623,7 +3623,7 @@ paths:
       tags:
       - kasse
       operationId: listMandates
-      summary: List SEPA direct-debit mandates, optionally only the active ones and those collecting under one sequence type
+      summary: List SEPA direct-debit mandates, optionally only the active ones and those collecting under one sequence type, one page at a time
       parameters:
       - name: active
         in: query
@@ -3635,6 +3635,16 @@ paths:
         required: false
         schema:
           type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: Success

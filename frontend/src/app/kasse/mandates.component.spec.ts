@@ -39,7 +39,7 @@ describe('MandatesComponent', () => {
     fixture.detectChanges();
     component = fixture.componentInstance;
     el = fixture.nativeElement as HTMLElement;
-    http.expectOne('/api/direct-debit/mandates?active=true').flush(mandates);
+    http.expectOne('/api/direct-debit/mandates?active=true&limit=50&offset=0').flush(mandates);
     fixture.detectChanges();
   }
 
@@ -49,7 +49,7 @@ describe('MandatesComponent', () => {
     expect(fixture.componentInstance.mandates()).toEqual([]);
     fixture.detectChanges();
 
-    expect(http.expectOne('/api/direct-debit/mandates?active=true').request.method).toBe('GET');
+    expect(http.expectOne('/api/direct-debit/mandates?active=true&limit=50&offset=0').request.method).toBe('GET');
     fixture.detectChanges();
   });
 
@@ -88,7 +88,7 @@ describe('MandatesComponent', () => {
     fixture.detectChanges();
     component = fixture.componentInstance;
     http
-      .expectOne('/api/direct-debit/mandates?active=true')
+      .expectOne('/api/direct-debit/mandates?active=true&limit=50&offset=0')
       .flush({ error: 'boom' }, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
@@ -99,14 +99,14 @@ describe('MandatesComponent', () => {
   it('narrows by state and by sequence type, asking the server each time', () => {
     screen();
     component.changeSequenceFilter('RCUR');
-    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR').flush([]);
+    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0').flush([]);
     expect(component.mandates()).toEqual([]);
 
     component.changeActive('');
-    http.expectOne('/api/direct-debit/mandates?sequence_type=RCUR').flush([]);
+    http.expectOne('/api/direct-debit/mandates?sequence_type=RCUR&limit=50&offset=0').flush([]);
 
     component.changeSequenceFilter('');
-    http.expectOne('/api/direct-debit/mandates').flush([mandate()]);
+    http.expectOne('/api/direct-debit/mandates?limit=50&offset=0').flush([mandate()]);
     expect(component.mandates().length).toBe(1);
   });
 
@@ -235,5 +235,53 @@ describe('MandatesComponent', () => {
     expect(component.busy()).toBeFalse();
     // A refused mandate keeps what was typed, so it can be corrected rather than retyped.
     expect(component.reference()).toBe('MND-1');
+  });
+  it('reads the mandates one page at a time, offering more only while a page comes back full', () => {
+    fixture = TestBed.createComponent(MandatesComponent);
+    fixture.detectChanges();
+    component = fixture.componentInstance;
+    el = fixture.nativeElement as HTMLElement;
+
+    http
+      .expectOne('/api/direct-debit/mandates?active=true&limit=50&offset=0')
+      .flush(Array.from({ length: 50 }, (_, i) => mandate({ ID: i + 1, Reference: `MND-${i + 1}` })));
+    fixture.detectChanges();
+    expect(component.hasMore()).toBeTrue();
+    expect(el.querySelector('[data-testid="load-more"]')?.textContent).toContain('Weitere laden');
+
+    component.loadMore();
+    expect(component.loadingMore()).toBeTrue();
+    http
+      .expectOne('/api/direct-debit/mandates?active=true&limit=50&offset=50')
+      .flush([mandate({ ID: 51, Reference: 'MND-51' })]);
+    fixture.detectChanges();
+
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.mandates().length).toBe(51);
+    expect(el.querySelector('[data-testid="mandate-MND-51"]')).not.toBeNull();
+    // A short page is the end of the list: the offer goes, and asking again asks nobody.
+    expect(component.hasMore()).toBeFalse();
+    expect(el.querySelector('[data-testid="load-more"]')).toBeNull();
+    component.loadMore();
+    http.expectNone('/api/direct-debit/mandates?active=true&limit=50&offset=51');
+  });
+
+  it('keeps the mandates it already has when the next page fails', () => {
+    screen(Array.from({ length: 50 }, (_, i) => mandate({ ID: i + 1, Reference: `MND-${i + 1}` })));
+    expect(component.hasMore()).toBeTrue();
+
+    component.loadMore();
+    http
+      .expectOne('/api/direct-debit/mandates?active=true&limit=50&offset=50')
+      .flush('no', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    // The rows that were read are still valid, so the failure is reported beside them, not over them.
+    expect(component.mandates().length).toBe(50);
+    expect(component.actionError()).toBe('Die weiteren Mandate konnten nicht geladen werden.');
+    expect(component.loadError()).toBeNull();
+    expect(component.loadingMore()).toBeFalse();
+    // The page failed rather than came back short, so there may still be one.
+    expect(component.hasMore()).toBeTrue();
   });
 });

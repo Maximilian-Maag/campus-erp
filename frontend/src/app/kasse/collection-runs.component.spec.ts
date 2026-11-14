@@ -205,7 +205,7 @@ describe('CollectionRunsComponent', () => {
     const fixture = loaded([uni]);
     const component = fixture.componentInstance;
     component.setSource('mandates');
-    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR').flush([mandate('MAN-1')]);
+    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0').flush([mandate('MAN-1')]);
 
     component.changeSequence('');
 
@@ -335,7 +335,7 @@ describe('CollectionRunsComponent', () => {
     const fixture = loaded([uni]);
     const component = fixture.componentInstance;
     component.setSource('mandates');
-    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR').flush(refs.map((r) => mandate(r)));
+    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0').flush(refs.map((r) => mandate(r)));
     fixture.detectChanges();
     return fixture;
   }
@@ -350,7 +350,7 @@ describe('CollectionRunsComponent', () => {
 
     expect(component.source()).toBe('mandates');
     expect(component.mandatesLoading()).toBeTrue();
-    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=FRST').flush([mandate('MAN-1')]);
+    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=FRST&limit=50&offset=0').flush([mandate('MAN-1')]);
     fixture.detectChanges();
 
     expect(component.mandatesLoading()).toBeFalse();
@@ -362,7 +362,7 @@ describe('CollectionRunsComponent', () => {
     const component = fixture.componentInstance;
 
     component.setSource('mandates');
-    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR').flush('no', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0').flush('no', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(component.mandatesError()).toBe('Konnte die Mandate nicht laden.');
@@ -374,7 +374,7 @@ describe('CollectionRunsComponent', () => {
     const component = fixture.componentInstance;
 
     component.setSource('mandates');
-    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR').flush(null);
+    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0').flush(null);
     fixture.detectChanges();
 
     expect(component.mandates()).toEqual([]);
@@ -388,7 +388,7 @@ describe('CollectionRunsComponent', () => {
     component.setSource('open');
 
     expect(component.source()).toBe('open');
-    http.expectNone('/api/direct-debit/mandates?active=true&sequence_type=RCUR');
+    http.expectNone('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0');
   });
 
   it('adds hand-picked items as minor units and can remove one', () => {
@@ -513,34 +513,85 @@ describe('CollectionRunsComponent', () => {
     expect(component.items().length).toBe(1);
   });
 
-  it('reloads the mandates when the sequence type changes, keeping what is still offered and dropping what is not', () => {
+  it('drops the picked items when the sequence type changes, and says so', () => {
     const fixture = handPicked(['MAN-1', 'MAN-2']);
     const component = fixture.componentInstance;
     component.items.set([
       { mandate_reference: 'MAN-1', end_to_end_id: 'MAN-1', amount_cents: 1000, purpose: '' },
-      { mandate_reference: 'MAN-3', end_to_end_id: 'MAN-3', amount_cents: 3000, purpose: '' },
+      { mandate_reference: 'MAN-2', end_to_end_id: 'MAN-2', amount_cents: 3000, purpose: '' },
     ]);
     component.itemMandate.set('MAN-1');
 
     component.changeSequence('OOFF');
 
     expect(component.sequenceType()).toBe('OOFF');
-    // The new sequence offers two mandates; the chosen one is among them, so it stays.
+    // Every item was picked from the mandates RCUR collects under, so none of them can survive a run
+    // that collects under OOFF — the answer follows from how they were picked, not from the page.
+    expect(component.items()).toEqual([]);
+    expect(component.notice()).toContain('die gewählten Posten wurden verworfen');
+
     http
-      .expectOne('/api/direct-debit/mandates?active=true&sequence_type=OOFF')
-      .flush([mandate('MAN-1'), mandate('MAN-2', { SequenceType: 'OOFF' })]);
+      .expectOne('/api/direct-debit/mandates?active=true&sequence_type=OOFF&limit=50&offset=0')
+      .flush([mandate('MAN-1', { SequenceType: 'OOFF' })]);
     fixture.detectChanges();
 
-    expect(component.items().map((i) => i.mandate_reference)).toEqual(['MAN-1']);
-    expect(component.itemMandate()).toBe('MAN-1');
-
-    // A reload that no longer offers the picker's choice clears it.
-    component.itemMandate.set('MAN-3');
-    component.changeSequence('FNAL');
-    http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=FNAL').flush([mandate('MAN-1')]);
-    fixture.detectChanges();
-
+    // The pick is a choice among the options on offer, and the options start again at the first page.
     expect(component.itemMandate()).toBe('');
+    expect(component.mandates().map((m) => m.Reference)).toEqual(['MAN-1']);
+  });
+
+  it('reads the picker one page at a time, offering more only while a page comes back full', () => {
+    const offsets: string[] = [];
+    const fixture = loaded([uni]);
+    const component = fixture.componentInstance;
+
+    component.setSource('mandates');
+    const first = http.expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0');
+    offsets.push('0');
+    first.flush(Array.from({ length: 50 }, (_, i) => mandate(`MAN-${i + 1}`)));
+    fixture.detectChanges();
+    expect(component.mandatesHasMore()).toBeTrue();
+
+    // A fifty-first mandate is only reachable through the next page, which is the whole point of it.
+    component.loadMoreMandates();
+    expect(component.mandatesLoadingMore()).toBeTrue();
+    http
+      .expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=50')
+      .flush([mandate('MAN-51')]);
+    offsets.push('50');
+    fixture.detectChanges();
+
+    expect(component.mandatesLoadingMore()).toBeFalse();
+    expect(component.mandates().length).toBe(51);
+    expect(component.mandates().at(-1)?.Reference).toBe('MAN-51');
+    // A short page is the end of the list, so the offer goes away and asking again asks nobody.
+    expect(component.mandatesHasMore()).toBeFalse();
+    component.loadMoreMandates();
+    http.expectNone((r) => r.url.startsWith('/api/direct-debit/mandates') && r.urlWithParams.includes('offset=51'));
+    expect(offsets).toEqual(['0', '50']);
+  });
+
+  it('keeps the mandates it already offers when the next page fails', () => {
+    const fixture = loaded([uni]);
+    const component = fixture.componentInstance;
+
+    component.setSource('mandates');
+    http
+      .expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0')
+      .flush(Array.from({ length: 50 }, (_, i) => mandate(`MAN-${i + 1}`)));
+    fixture.detectChanges();
+
+    component.loadMoreMandates();
+    http
+      .expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=50')
+      .flush('no', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(component.mandates().length).toBe(50);
+    expect(component.mandatesError()).toBe('Konnte die weiteren Mandate nicht laden.');
+    expect(component.mandatesLoadingMore()).toBeFalse();
+    // The page failed, so there may still be one: the offer is not withdrawn on an error.
+    expect(component.mandatesHasMore()).toBeTrue();
   });
 
   it('does not reload the mandates when the sequence changes in the open-items source', () => {
@@ -550,6 +601,6 @@ describe('CollectionRunsComponent', () => {
     component.changeSequence('FNAL');
 
     expect(component.sequenceType()).toBe('FNAL');
-    http.expectNone('/api/direct-debit/mandates?active=true&sequence_type=FNAL');
+    http.expectNone('/api/direct-debit/mandates?active=true&sequence_type=FNAL&limit=50&offset=0');
   });
 });

@@ -25,13 +25,16 @@ convention; there are no hard deletes (ADR-0006).
 | method | path |
 |---|---|
 | `POST` | `/api/direct-debit/mandates` — register a mandate |
-| `GET` | `/api/direct-debit/mandates` — list them, `?active=true` and `?sequence_type=` to narrow |
+| `GET` | `/api/direct-debit/mandates` — list them, `?active=true` and `?sequence_type=` to narrow, one page (`limit`/`offset`) at a time |
 | `GET` | `/api/direct-debit/mandates/{reference}` — read one |
 | `POST` | `/api/direct-debit/mandates/{reference}/retire` — withdraw the authorisation |
 
 The list's filters are the server's: a screen that offers the mandates a run can
 actually gather asks for the active ones collecting under the run's sequence type,
-rather than holding every mandate to show a few.
+rather than holding every mandate to show a few. The page is the server's too
+(`limit`/`offset`, `docs/15`), because a university's debtor list grows with every
+matriculation: the by-reference order is `UNIQUE`, so a page boundary can neither
+repeat nor skip a mandate.
 
 Direct debit is a receivables process, so the routes sit behind the `erp-kasse`
 role like dunning (`docs/17`). The write is audited (`mandate.create`).
@@ -40,7 +43,9 @@ role like dunning (`docs/17`). The write is audited (`mandate.create`).
 
 Lists the mandates and registers one. The **filters are the server's** — the state (*alle* / *nur
 aktive*) and the sequence type are asked for, not narrowed on screen — exactly as the collection-run
-screen asks for the mandates a run can gather, so both read the same route the same way.
+screen asks for the mandates a run can gather, so both read the same route the same way. It reads
+them **one page at a time** (*Weitere laden*), keeps the rows it has when a page fails, and stops
+offering more once a short page ends the list.
 
 The sequence types come from **one list** the collection run and this screen share
 (`frontend/src/app/core/direct-debit.ts`): a run that collects `RCUR` may only gather mandates that
@@ -79,6 +84,11 @@ Kasse), `ErrDebtorBICInvalid` (ISO 9362, shared with `core/sepa`), and
   (`internal/modules/kasse/collectionrun*.go`, docs/22); it gathers mandates into a pain.008
   for one collection date and sequence type, and can select its items from the open
   receivables (`docs/22`). What is still open there is EBICS transport.
+- ~~The mandate list returns everything~~ — done since: `limit`/`offset` on the route and *Weitere
+  laden* on the screen. The collection run's picker reads the same list the same way, which also
+  settled what a changed sequence type means for hand-picked items: they are dropped, because they
+  were picked from the mandates the old type collects under and a page cannot be asked whether they
+  still are.
 - No ETL dataset: the legacy mandate table (`kbs.mandat`) is empty in the Muster
   (`docs/legacy/kbs-payment-orders.md`), so the mapping cannot be validated.
 - ~~Registering a mandate is still an API call, not a screen~~ — done since: the *Kasse: Mandate*

@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,9 @@ type stubMandates struct {
 	all  []kasse.Mandate
 	err  error
 	seen *mandateFilter
+	// asked, when set, records the page the handler passed down: the defaults the server picks are
+	// not visible in the response, so what the handler asked for is the only thing that shows them.
+	asked *pageAsked
 }
 
 // mandateFilter records the filter a list call was given, so a handler test can
@@ -45,9 +49,12 @@ func (s stubMandates) Mandate(context.Context, string) (kasse.Mandate, error) {
 	return s.m, nil
 }
 
-func (s stubMandates) Mandates(_ context.Context, activeOnly bool, seq kasse.MandateSequence) ([]kasse.Mandate, error) {
+func (s stubMandates) Mandates(_ context.Context, activeOnly bool, seq kasse.MandateSequence, limit, offset int) ([]kasse.Mandate, error) {
 	if s.seen != nil {
 		*s.seen = mandateFilter{activeOnly: activeOnly, seq: seq}
+	}
+	if s.asked != nil {
+		*s.asked = pageAsked{limit: limit, offset: offset}
 	}
 	if s.err != nil {
 		return nil, s.err
@@ -184,5 +191,72 @@ func TestListMandatesHandler(t *testing.T) {
 				t.Fatalf("body = %s, want a JSON array of mandates", body)
 			}
 		})
+	}
+}
+
+// TestListMandatesHandlerPages: the handler asks the service for a page — the server's own default
+// when the client does not say, and exactly what the client asked for when it does — and refuses a
+// page that is not a positive integer with a machine code rather than quietly falling back. The
+// filter and the page travel together: a screen that offers the mandates a run can gather reads one
+// page of them, so both must reach the store from the same request.
+func TestListMandatesHandlerPages(t *testing.T) {
+	var asked pageAsked
+	var seen mandateFilter
+	srv := httpapi.New(httpapi.Deps{Mandates: stubMandates{asked: &asked, seen: &seen}})
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/direct-debit/mandates", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("default page = %d, want 200", rec.Code)
+	}
+	if asked != (pageAsked{limit: 50, offset: 0}) {
+		t.Fatalf("default page = %+v, want the first page of 50", asked)
+	}
+
+	asked, seen = pageAsked{}, mandateFilter{}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
+		"/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=10&offset=20", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if asked != (pageAsked{limit: 10, offset: 20}) {
+		t.Fatalf("page = %+v, want limit 10 offset 20", asked)
+	}
+	if !seen.activeOnly || seen.seq != kasse.SequenceRecurring {
+		t.Fatalf("filter = {%t %q}, want the active ones collecting under RCUR", seen.activeOnly, seen.seq)
+	}
+
+	// A limit past the bound is clamped, not refused: the request is understandable and the answer
+	// is still a page, the largest one.
+	asked = pageAsked{}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/direct-debit/mandates?limit=5000", nil))
+	if rec.Code != http.StatusOK || asked != (pageAsked{limit: 200, offset: 0}) {
+		t.Fatalf("clamped page: status = %d asked = %+v, want limit 200", rec.Code, asked)
+	}
+
+	for _, tc := range []struct{ query, code string }{
+		{"limit=0", "invalid_limit"},
+		{"limit=f%C3%BCnf", "invalid_limit"},
+		{"offset=zw%C3%B6lf", "invalid_offset"},
+		{"offset=-1", "invalid_offset"},
+	} {
+		asked, seen = pageAsked{}, mandateFilter{}
+		rec = httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/direct-debit/mandates?"+tc.query, nil))
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("%s: status = %d, want 422", tc.query, rec.Code)
+		}
+		var problem struct{ Code string }
+		if err := json.NewDecoder(rec.Body).Decode(&problem); err != nil {
+			t.Fatalf("%s: decode problem: %v", tc.query, err)
+		}
+		if problem.Code != tc.code {
+			t.Fatalf("%s: code = %q, want %q", tc.query, problem.Code, tc.code)
+		}
+		if asked != (pageAsked{}) {
+			t.Fatalf("%s: the store was asked for a page although the request was refused", tc.query)
+		}
 	}
 }

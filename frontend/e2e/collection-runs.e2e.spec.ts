@@ -178,3 +178,41 @@ test('Einzüge files a run whose sequence types are mixed and says so, and passe
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('Einzüge offers more mandates than its first page, and passes axe', async ({ page }) => {
+  const offsets: string[] = [];
+  const page50 = Array.from({ length: 50 }, (_, i) => ({
+    ID: i + 1,
+    Reference: `MAN-${i + 1}`,
+    DebtorName: `Debtor ${i + 1}`,
+    DebtorIBAN: 'DE89370400440532013000',
+    DebtorBIC: '',
+    SignatureDate: '2025-03-14T00:00:00Z',
+    SequenceType: 'RCUR',
+    Active: true,
+  }));
+
+  await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: accounts }));
+  await page.route(/\/api\/direct-debit\/mandates\?/, (route) => {
+    const url = new URL(route.request().url());
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    offsets.push(String(offset));
+    return route.fulfill({ json: offset === 0 ? page50 : [{ ...page50[0], ID: 51, Reference: 'MAN-51' }] });
+  });
+
+  await page.goto('/kasse/einzuege');
+  await page.getByLabel('Aus gewählten Mandaten').check();
+  await expect(page.getByTestId('load-more-mandates')).toBeVisible();
+  expect(offsets).toEqual(['0']);
+
+  // A mandate past the first page is reachable, and picking it is picking the one on the last page.
+  await page.getByTestId('load-more-mandates').click();
+  await expect(page.getByLabel('Mandat', { exact: true }).locator('option[value="MAN-51"]')).toHaveCount(1);
+  expect(offsets).toEqual(['0', '50']);
+  await page.getByLabel('Mandat', { exact: true }).selectOption('MAN-51');
+  await page.getByLabel('Betrag', { exact: true }).fill('42,50');
+  await page.getByRole('button', { name: 'Posten hinzufügen' }).click();
+  await expect(page.getByTestId('item-MAN-51')).toContainText('42,50');
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});

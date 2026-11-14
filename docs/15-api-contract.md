@@ -266,22 +266,28 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
   phases land, each one starting from the read routes it needs — and the kasse/payments domain is
   where that bites: it had 32 operations and one list route, so nearly every screen there needs its
   `GET` built first.
-- **Paging is a convention with one list on it so far.** A list route that grows with use takes
+- **Paging is a convention with six lists on it so far.** A list route that grows with use takes
   `limit` and `offset` (`pageParams` in `internal/httpapi/page.go`): the default page is 50, the
   bound is 200, a limit past the bound is *clamped* (the request is understandable and the answer
   is still a page), and anything that is not a non-negative integer is *refused* with a machine
   code (`invalid_limit`, `invalid_offset`) rather than quietly falling back to the default — a
   client that sends `offset=zwölf` has a bug, and hiding it makes the symptom (a list that never
   advances) harder to find than the cause.
-  Five lists page so far: `GET /api/e-invoices` (*Belege*), `GET /api/bank-statements`
+  Six lists page so far: `GET /api/e-invoices` (*Belege*), `GET /api/bank-statements`
   (*Kontoauszüge* — filtered, where the page is of one account's statements, so the filter and the
   page are asked for together), `GET /api/procurement/orders` (*Bestellungen*, likewise filtered
-  by status), `GET /api/payment-orders` (*Zahlungsanordnungen*, likewise filtered) and
-  `GET /api/receivables` (*Offene Posten*, likewise filtered by state). Their screens read one page
-  at a time (`Weitere laden`), keep what they have when a page fails, and drop the offer once a short
-  page ends the list. The remaining list routes still return everything: each needs the two parameters
-  on the route, an `ORDER BY` that is **total** — the statement list gained `id DESC` as a tiebreaker
-  for exactly this reason, since two statements can share a number and a boundary over a partial order
-  repeats one row and skips another (`payment_order.reference` is `UNIQUE`, so its `ORDER BY
-  due_date, reference` needed no tiebreaker, and `receivable` orders by `due_date, id`, whose `id` is
+  by status), `GET /api/payment-orders` (*Zahlungsanordnungen*, likewise filtered),
+  `GET /api/receivables` (*Offene Posten*, likewise filtered by state) and
+  `GET /api/direct-debit/mandates` (*Mandate*, likewise filtered by state and sequence type). Their
+  screens read one page at a time (`Weitere laden`), keep what they have when a page fails, and drop
+  the offer once a short page ends the list. *Einzüge* reads the same mandate list a page at a time
+  as its picker, because it offers the mandates a run can be given by hand rather than every mandate
+  there is — and that is also why it **drops the hand-picked items when the sequence type changes**:
+  they were picked from the mandates the old type collects under, so none of them can stay, and a
+  page cannot be asked whether one of them could (a page is not the list). The remaining list routes
+  still return everything: each needs the two parameters on the route, an `ORDER BY` that is **total**
+  — the statement list gained `id DESC` as a tiebreaker for exactly this reason, since two statements
+  can share a number and a boundary over a partial order repeats one row and skips another
+  (`payment_order.reference` and `direct_debit_mandate.mandate_reference` are `UNIQUE`, so their
+  orders by reference needed no tiebreaker, and `receivable` orders by `due_date, id`, whose `id` is
   the primary key) — and a control on the screen that reads it.

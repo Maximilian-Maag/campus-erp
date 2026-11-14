@@ -42,8 +42,12 @@ are audited (`collection_run.create`, `receivable.create`).
 *Kasse: Einzüge* (`/kasse/einzuege`) offers both routes: it gathers the open
 receivables due by a date, or names the mandates and amounts by hand. The hand-picked
 flow loads the mandates the run's sequence type can collect under (the list route of
-`docs/21`), so a choice the run would refuse is not offered — changing the sequence
-type reloads them and drops a chosen item whose mandate is no longer collectable.
+`docs/21`) one page at a time, so a choice the run would refuse is not offered — and
+changing the sequence type **drops the hand-picked items**: each was picked from the
+mandates the previous type collects under, so none of them can stay on a run that
+collects under another one. That follows from how they were picked rather than from
+what is on the reloaded page, which is why the screen says the items were dropped
+instead of silently keeping the ones that happen to appear in the first page.
 
 ## Behaviour
 
