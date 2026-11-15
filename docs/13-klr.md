@@ -114,7 +114,7 @@ column for it was added here.
 | `GET`  | `/api/klr/service-rates` |
 | `POST` | `/api/klr/service-charges` |
 | `POST` | `/api/klr/cost-types` |
-| `GET`  | `/api/klr/cost-types` |
+| `GET`  | `/api/klr/cost-types` (the catalogue, one page at a time) |
 | `POST` | `/api/klr/cost-types/{id}/accounts` |
 | `GET`  | `/api/klr/cost-types/{id}/accounts` |
 | `GET`  | `/api/klr/accounts/{account}/cost-type` |
@@ -146,7 +146,11 @@ refused by the store, not silently dropped.
 
 The frontend has one screen for this, *Kostenarten* (`/klr/kostenarten`): it
 lists the catalogue, creates entries, shows the accounts of the chosen cost type
-and maps a new one, and looks an account up in the other direction. An empty
+and maps a new one, and looks an account up in the other direction. The catalogue is read **one page
+at a time** (`Weitere laden`, `docs/15`): a chart of accounts grows with the institution, the order is
+by code — which is `UNIQUE`, so a page boundary can neither repeat nor skip a type — and paging it also
+makes the *Verrechnungspreise* screen's two pickers grow with the same page, so a cost type is never
+priceable without being offered. An empty
 catalogue still offers the form, so the first cost type can be created from the
 screen; and an account nobody has mapped shows as an answer ("keine Kostenart
 hinterlegt"), not as a failure — the API's 404 is the answer.
@@ -208,7 +212,10 @@ centre charging itself, and a day no rate covers are all refused. Its records ca
 
 The frontend has one screen for this, *Verrechnungspreise* (`/klr/verrechnungspreise`): it lists
 the rates, defines one (the price is typed in euros and stored in cents) and charges a service,
-naming both ends, the quantity and the day it was rendered. A price needs one cost type and no
+naming both ends, the quantity and the day it was rendered. Its two cost-type pickers read the paged
+catalogue (`docs/15`) and offer more of it on request, so neither picker is silently limited to the
+first page. The *Verrechnungspreise* **report** is over the whole catalogue by definition, so
+`internal/platform/reports` walks the pages instead of asking for one. A price needs one cost type and no
 second centre; the charge form is only offered once there are two centres to charge between.
 
 ## Why "clearing" is two things here

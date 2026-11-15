@@ -47,7 +47,7 @@ type Repository interface {
 
 	CreateCostType(ctx context.Context, t CostType) (CostType, error)
 	GetCostType(ctx context.Context, id int64) (CostType, error)
-	CostTypes(ctx context.Context) ([]CostType, error)
+	CostTypes(ctx context.Context, limit, offset int) ([]CostType, error)
 	MapAccount(ctx context.Context, link CostTypeAccount) (CostTypeAccount, error)
 	AccountsOf(ctx context.Context, costTypeID int64) ([]CostTypeAccount, error)
 	CostTypeByAccount(ctx context.Context, accountCode string) (CostType, error)

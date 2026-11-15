@@ -280,7 +280,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/klr/cost-types": {
         "post": ("createCostType", "klr", "Create a cost type", "httpapi.klrCostTypeRequest", "klr.CostType", 201, "json"),
-        "get": ("listCostTypes", "klr", "List the cost types", None, "[]klr.CostType", 200, "json"),
+        "get": ("listCostTypes", "klr", "List the cost types by code, one page at a time", None, "[]klr.CostType", 200, "json", [("limit", "integer", False), ("offset", "integer", False)]),
     },
     "/api/klr/cost-types/{id}/accounts": {
         "post": ("mapCostTypeAccount", "klr", "Map a ledger account to a cost type", "httpapi.klrAccountRequest", "klr.CostTypeAccount", 201, "json"),

@@ -32,7 +32,7 @@ func TestCostTypeBridge(t *testing.T) {
 		t.Fatalf("duplicate code = %v, want ErrCostTypeExists", err)
 	}
 
-	types, err := svc.CostTypes(ctx)
+	types, err := svc.CostTypes(ctx, 200, 0)
 	if err != nil {
 		t.Fatalf("CostTypes: %v", err)
 	}
@@ -147,5 +147,63 @@ func TestRecordCarriesItsCostType(t *testing.T) {
 	bogus := int64(9223372036854775807)
 	if _, err := svc.Post(ctx, center.ID, nil, &bogus, klr.Cost, 100, klrDay(2026, 4, 30), "RE3-"+mark, "alice"); !errors.Is(err, klr.ErrCostTypeNotFound) {
 		t.Fatalf("unknown cost type = %v, want ErrCostTypeNotFound", err)
+	}
+}
+
+// TestCostTypesPage: the catalogue answers the page it was asked for, and walking the pages
+// reproduces a window of it in order, with nothing repeated and nothing skipped. The order is by
+// code, which is UNIQUE, so a page boundary is safe.
+func TestCostTypesPage(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+	mark := suffix(t)
+
+	// Four types of this test's own, whose codes share a prefix so they sort together.
+	for _, letter := range []string{"A", "B", "C", "D"} {
+		if _, err := svc.PostCostType(ctx, "PG-"+mark+"-"+letter, "Paging "+letter, "alice"); err != nil {
+			t.Fatalf("PostCostType(%s): %v", letter, err)
+		}
+	}
+
+	const window = 4
+	head, err := svc.CostTypes(ctx, window, 0)
+	if err != nil {
+		t.Fatalf("CostTypes: %v", err)
+	}
+	if len(head) < 2 {
+		t.Fatalf("the catalogue holds %d types, so nothing about paging is being tested", len(head))
+	}
+
+	// The same window as two pages: a list that ignored the offset would repeat the first page, one
+	// that ignored the limit would answer with more than was asked for.
+	const pageSize = 2
+	first, err := svc.CostTypes(ctx, pageSize, 0)
+	if err != nil {
+		t.Fatalf("CostTypes(offset=0): %v", err)
+	}
+	second, err := svc.CostTypes(ctx, pageSize, pageSize)
+	if err != nil {
+		t.Fatalf("CostTypes(offset=%d): %v", pageSize, err)
+	}
+	if len(first) > pageSize || len(second) > pageSize {
+		t.Fatalf("a page of %d holds %d and %d rows", pageSize, len(first), len(second))
+	}
+	paged := append(append([]klr.CostType{}, first...), second...)
+	if len(paged) != len(head) {
+		t.Fatalf("two pages of %d yielded %d rows, want the %d of one window", pageSize, len(paged), len(head))
+	}
+	for i := range head {
+		if paged[i].Code != head[i].Code {
+			t.Fatalf("the pages diverge from the window at %d: got %q, want %q", i, paged[i].Code, head[i].Code)
+		}
+	}
+
+	// A page past the end is empty rather than an error.
+	past, err := svc.CostTypes(ctx, 5, 100000)
+	if err != nil {
+		t.Fatalf("CostTypes(past the end): %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows", len(past))
 	}
 }

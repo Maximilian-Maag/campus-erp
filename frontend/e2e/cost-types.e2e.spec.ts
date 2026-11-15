@@ -7,7 +7,7 @@ test('Kostenarten shows the catalogue, maps an account and looks one up, and pas
   const accounts = [{ ID: 1, CostTypeID: 1, AccountCode: '6810' }];
   const mapped: unknown[] = [];
 
-  await page.route('**/api/klr/cost-types', (route) => route.fulfill({ json: [personal] }));
+  await page.route(/\/api\/klr\/cost-types(\?.*)?$/, (route) => route.fulfill({ json: [personal] }));
   await page.route('**/api/klr/cost-types/1/accounts', (route) => {
     if (route.request().method() === 'POST') {
       mapped.push(route.request().postDataJSON());
@@ -48,7 +48,7 @@ test('Kostenarten creates the first cost type and reports a refused one, and pas
   const catalogue: unknown[] = [];
   const created: unknown[] = [];
 
-  await page.route('**/api/klr/cost-types', (route) => {
+  await page.route(/\/api\/klr\/cost-types(\?.*)?$/, (route) => {
     if (route.request().method() === 'POST') {
       const body = route.request().postDataJSON();
       created.push(body);
@@ -91,4 +91,38 @@ test('Kostenarten creates the first cost type and reports a refused one, and pas
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
+});
+
+test('Kostenarten reads the catalogue one page at a time, and passes axe', async ({ page }) => {
+  const offsets: string[] = [];
+  const type = (id: number) => ({
+    ID: id,
+    Code: 'K-' + id,
+    Name: 'Kostenart ' + id,
+    CreatedBy: 'alice',
+  });
+
+  await page.route(/\/api\/klr\/cost-types(\?.*)?$/, (route) => {
+    const url = new URL(route.request().url());
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    offsets.push(String(offset));
+    // The first page is full, so the screen offers the next one; the second is short, so it stops.
+    return route.fulfill({
+      json: offset === 0 ? Array.from({ length: 50 }, (_, i) => type(i + 1)) : [type(51)],
+    });
+  });
+  await page.route('**/api/klr/cost-types/*/accounts', (route) => route.fulfill({ json: [] }));
+
+  await page.goto('/klr/kostenarten');
+  await expect(page.getByTestId('cost-type-1')).toBeVisible();
+  await expect(page.getByTestId('cost-type-50')).toBeVisible();
+  expect(offsets).toEqual(['0']);
+
+  await page.getByTestId('load-more').click();
+  await expect(page.getByTestId('cost-type-51')).toBeVisible();
+  expect(offsets).toEqual(['0', '50']);
+  // A short page ends the catalogue, so the offer is gone.
+  await expect(page.getByTestId('load-more')).toHaveCount(0);
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

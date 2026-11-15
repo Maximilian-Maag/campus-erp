@@ -22,7 +22,7 @@ type klrService interface {
 	Allocations(ctx context.Context, sourceCenterID int64) ([]klr.Allocation, error)
 	Allocate(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (klr.Run, error)
 	PostCostType(ctx context.Context, code, name, by string) (klr.CostType, error)
-	CostTypes(ctx context.Context) ([]klr.CostType, error)
+	CostTypes(ctx context.Context, limit, offset int) ([]klr.CostType, error)
 	DefineCostUnitKey(ctx context.Context, sourceCenterID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (klr.CostUnitKey, error)
 	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]klr.CostUnitKey, error)
 	CostUnits(ctx context.Context) ([]klr.CostUnit, error)
@@ -466,9 +466,15 @@ func (s *Server) createCostType(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, ct)
 }
 
-// listCostTypes reads every cost type, which is what a screen needs before it can ask about one.
+// listCostTypes reads the cost types by code, one page at a time (docs/15): a chart of accounts grows
+// with the institution, and a screen that offers the types never needs the whole chart to show a few.
 func (s *Server) listCostTypes(w http.ResponseWriter, r *http.Request) {
-	types, err := s.klr.CostTypes(r.Context())
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
+	types, err := s.klr.CostTypes(r.Context(), limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForKLR(err), err)
 		return

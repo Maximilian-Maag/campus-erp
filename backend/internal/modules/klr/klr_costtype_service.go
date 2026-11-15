@@ -40,9 +40,9 @@ func (s *Service) CostTypeFigures(ctx context.Context) ([]CostTypeLine, error) {
 	return s.repo.CostTypeFigures(ctx)
 }
 
-// CostTypes lists every cost type.
-func (s *Service) CostTypes(ctx context.Context) ([]CostType, error) {
-	return s.repo.CostTypes(ctx)
+// CostTypes lists the cost types, one page at a time.
+func (s *Service) CostTypes(ctx context.Context, limit, offset int) ([]CostType, error) {
+	return s.repo.CostTypes(ctx, limit, offset)
 }
 
 // GetCostType loads a cost type.

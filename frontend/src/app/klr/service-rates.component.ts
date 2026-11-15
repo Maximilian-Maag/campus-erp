@@ -75,6 +75,18 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
                 }
               </select>
             </p>
+            @if (hasMore()) {
+              <p>
+                <button
+                  type="button"
+                  data-testid="load-more-cost-types"
+                  [disabled]="loadingMore()"
+                  (click)="loadMore()"
+                >
+                  {{ loadingMore() ? 'Weitere Kostenarten werden geladen …' : 'Weitere Kostenarten laden' }}
+                </button>
+              </p>
+            }
             <p>
               <label for="klr-rate-amount">Preis je Einheit in Euro</label>
               <input
@@ -189,6 +201,15 @@ export class KlrServiceRatesComponent implements OnInit {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly charging = signal(false);
+  /**
+   * One page of cost types, sent explicitly rather than left to the server's default: both pickers
+   * below read this list, so a page size that changed under the screen would silently hide cost
+   * types from both.
+   */
+  private readonly pageSize = 50;
+  /** True while the last page of cost types came back full, so there may be another. */
+  readonly hasMore = signal(false);
+  readonly loadingMore = signal(false);
   readonly loadError = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
@@ -198,13 +219,39 @@ export class KlrServiceRatesComponent implements OnInit {
     this.load();
   }
 
+  /**
+   * Reads the next page of cost types and appends it to both pickers, since they are the same list.
+   * A failed page leaves what is already offered where it is — those cost types are still priceable.
+   */
+  loadMore(): void {
+    if (!this.hasMore() || this.loadingMore()) {
+      return;
+    }
+    this.loadingMore.set(true);
+    this.actionError.set(null);
+    this.api.listCostTypes(String(this.pageSize), String(this.costTypes().length)).subscribe({
+      next: (types) => {
+        const page = types ?? [];
+        this.costTypes.set([...this.costTypes(), ...page]);
+        this.hasMore.set(page.length === this.pageSize);
+        this.loadingMore.set(false);
+      },
+      error: () => {
+        this.loadingMore.set(false);
+        this.actionError.set('Konnte die weiteren Kostenarten nicht laden.');
+      },
+    });
+  }
+
   load(): void {
     this.loading.set(true);
     this.loadError.set(null);
-    this.api.listCostTypes().subscribe({
+    this.api.listCostTypes(String(this.pageSize), '0').subscribe({
       next: (types) => {
         const list = types ?? [];
         this.costTypes.set(list);
+        // A full page means there may be more; a short one is the end of the catalogue.
+        this.hasMore.set(list.length === this.pageSize);
         // The first cost type is the one the operator most likely means, and seeding it here
         // means neither picker can be submitted empty. A choice already made is left alone.
         const first = list.length > 0 ? String(list[0].ID) : '';

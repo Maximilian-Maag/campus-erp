@@ -266,26 +266,27 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
   phases land, each one starting from the read routes it needs — and the kasse/payments domain is
   where that bites: it had 32 operations and one list route, so nearly every screen there needs its
   `GET` built first.
-- **Paging is a convention with eight lists on it so far.** A list route that grows with use takes
+- **Paging is a convention with nine lists on it so far.** A list route that grows with use takes
   `limit` and `offset` (`pageParams` in `internal/httpapi/page.go`): the default page is 50, the
   bound is 200, a limit past the bound is *clamped* (the request is understandable and the answer
   is still a page), and anything that is not a non-negative integer is *refused* with a machine
   code (`invalid_limit`, `invalid_offset`) rather than quietly falling back to the default — a
   client that sends `offset=zwölf` has a bug, and hiding it makes the symptom (a list that never
   advances) harder to find than the cause.
-  Eight lists page so far: `GET /api/e-invoices` (*Belege*), `GET /api/bank-statements`
+  Nine lists page so far: `GET /api/e-invoices` (*Belege*), `GET /api/bank-statements`
   (*Kontoauszüge* — filtered, where the page is of one account's statements, so the filter and the
   page are asked for together), `GET /api/procurement/orders` (*Bestellungen*, likewise filtered
   by status), `GET /api/payment-orders` (*Zahlungsanordnungen*, likewise filtered),
-  `GET /api/receivables` (*Offene Posten*, likewise filtered by state) and
-  `GET /api/direct-debit/mandates` (*Mandate*, likewise filtered by state and sequence type) and
-  `GET /api/foundation-books/{id}/bookings` (the movements of one book, scoped by the path's id) and
+  `GET /api/receivables` (*Offene Posten*, likewise filtered by state),
+  `GET /api/direct-debit/mandates` (*Mandate*, likewise filtered by state and sequence type),
+  `GET /api/foundation-books/{id}/bookings` (the movements of one book, scoped by the path's id),
   `GET /api/budget/positions` (the budget, each position with its balance, which is why the page is
-  what keeps its per-position read affordable). Their screens read one page at a time
-  (`Weitere laden`), keep what they have when a page fails, and drop the offer once a short page ends
-  the list. *Einzüge* reads the same mandate list a page at a time
-  as its picker, because it offers the mandates a run can be given by hand rather than every mandate
-  there is — and that is also why it **drops the hand-picked items when the sequence type changes**:
+  what keeps its per-position read affordable) and `GET /api/klr/cost-types` (the chart of cost
+  types). Their screens read one page at a time (`Weitere laden`), keep what they have when a page
+  fails, and drop the offer once a short page ends the list. *Einzüge* reads the same mandate list a
+  page at a time as its picker, because it offers the mandates a run can be given by hand rather than
+  every mandate there is — and that is also why it **drops the hand-picked items when the sequence
+  type changes**:
   they were picked from the mandates the old type collects under, so none of them can stay, and a
   page cannot be asked whether one of them could (a page is not the list). The remaining list routes
   still return everything: each needs the two parameters on the route, an `ORDER BY` that is **total**
@@ -294,4 +295,6 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
   (`payment_order.reference` and `direct_debit_mandate.mandate_reference` are `UNIQUE`, so their
   orders by reference needed no tiebreaker, `receivable` orders by `due_date, id` and a book's
   movements by `id`, both primary keys, and `budget_position` already ended its `year, chapter,
-  title` order in `id`) — and a control on the screen that reads it.
+  title` order in `id`) — and a control on the screen that reads it. A report that is over *all* of a
+  list by definition — the *Mittelübersicht* and *Verrechnungspreise* print views — walks the pages
+  instead of asking for one, and a short page ends the walk.

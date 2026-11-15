@@ -3178,7 +3178,18 @@ paths:
       tags:
       - klr
       operationId: listCostTypes
-      summary: List the cost types
+      summary: List the cost types by code, one page at a time
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: Success

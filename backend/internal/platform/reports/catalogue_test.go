@@ -109,8 +109,17 @@ func (f *fakePrices) ServiceRates(context.Context) ([]klr.ServiceRate, error) {
 	return f.rates, f.ratesErr
 }
 
-func (f *fakePrices) CostTypes(context.Context) ([]klr.CostType, error) {
-	return f.types, f.typesErr
+// CostTypes answers a page, like the service it stands in for: a fake that returned everything would
+// make the report's page walk untestable.
+func (f *fakePrices) CostTypes(_ context.Context, limit, offset int) ([]klr.CostType, error) {
+	if offset >= len(f.types) {
+		return nil, f.typesErr
+	}
+	end := offset + limit
+	if end > len(f.types) {
+		end = len(f.types)
+	}
+	return f.types[offset:end], f.typesErr
 }
 
 type fakeRules struct {
@@ -501,5 +510,42 @@ func TestRenderPositionOverviewWalksEveryPage(t *testing.T) {
 	}
 	if got.Rows[count-1][2] != "0200" || got.Rows[count][3] != "Summe" {
 		t.Fatalf("last position and totals row = %v / %v", got.Rows[count-1], got.Rows[count])
+	}
+}
+
+// TestRenderServiceRateOverviewWalksEveryPage: the view names a cost type per rate, and the store
+// answers cost types a page at a time — so the pages are walked and a short one ends the walk. The
+// rate below prices the 201st type, which a single read would not have reached.
+func TestRenderServiceRateOverviewWalksEveryPage(t *testing.T) {
+	from, to := period()
+	const count = 201
+	types := make([]klr.CostType, 0, count)
+	for i := 0; i < count; i++ {
+		id := int64(i + 1)
+		types = append(types, klr.CostType{ID: id, Code: fmt.Sprintf("K-%04d", i), Name: fmt.Sprintf("Art %d", i)})
+	}
+	prices := &fakePrices{
+		rates: []klr.ServiceRate{
+			{ID: 1, CostTypeID: count, RateCents: 1000, ValidFrom: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+		},
+		types: types,
+	}
+	c := reports.NewCatalogue(reports.DataSources{Prices: prices})
+
+	got, err := c.Render(context.Background(), klr.ServiceRateOverviewDefinition.ID, from, to)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	// The rate's row names the type it prices; a walk that stopped at the first page would not know it.
+	var named bool
+	for _, row := range got.Rows {
+		for _, cell := range row {
+			if cell == "K-0200" {
+				named = true
+			}
+		}
+	}
+	if !named {
+		t.Fatalf("the last cost type never reached the view: %v", got.Rows)
 	}
 }

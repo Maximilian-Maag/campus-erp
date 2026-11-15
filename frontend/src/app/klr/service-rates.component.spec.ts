@@ -52,7 +52,7 @@ describe('KlrServiceRatesComponent', () => {
     const fixture = TestBed.createComponent(KlrServiceRatesComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').flush(types);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush(types);
     http.expectOne('/api/klr/cost-centers').flush(centers);
     http.expectOne('/api/klr/service-rates').flush(rates);
     fixture.detectChanges();
@@ -117,7 +117,7 @@ describe('KlrServiceRatesComponent', () => {
 
     component.load();
     expect(component.loading()).toBeTrue();
-    http.expectOne('/api/klr/cost-types').flush([costType(1)]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([costType(1)]);
     http.expectOne('/api/klr/cost-centers').flush([center(1), center(2)]);
     http.expectOne('/api/klr/service-rates').flush([]);
     expect(component.loading()).toBeFalse();
@@ -132,7 +132,7 @@ describe('KlrServiceRatesComponent', () => {
     const fixture = TestBed.createComponent(KlrServiceRatesComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').flush(null);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush(null);
     http.expectOne('/api/klr/cost-centers').flush(null);
     http.expectOne('/api/klr/service-rates').flush(null);
     fixture.detectChanges();
@@ -182,7 +182,7 @@ describe('KlrServiceRatesComponent', () => {
     const fixture = TestBed.createComponent(KlrServiceRatesComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').error(new ProgressEvent('error'));
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').error(new ProgressEvent('error'));
     expect(component.loading()).toBeFalse();
     http.expectOne('/api/klr/cost-centers').flush([center(1)]);
     http.expectOne('/api/klr/service-rates').flush([]);
@@ -195,7 +195,7 @@ describe('KlrServiceRatesComponent', () => {
     const fixture = TestBed.createComponent(KlrServiceRatesComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').flush([costType(1)]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([costType(1)]);
     http.expectOne('/api/klr/cost-centers').error(new ProgressEvent('error'));
     expect(component.loading()).toBeFalse();
     http.expectOne('/api/klr/service-rates').flush([]);
@@ -208,7 +208,7 @@ describe('KlrServiceRatesComponent', () => {
     const fixture = TestBed.createComponent(KlrServiceRatesComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').flush([costType(1)]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([costType(1)]);
     http.expectOne('/api/klr/cost-centers').flush([center(1), center(2)]);
     http.expectOne('/api/klr/service-rates').error(new ProgressEvent('error'));
     fixture.detectChanges();
@@ -377,5 +377,44 @@ describe('KlrServiceRatesComponent', () => {
     expect(component.charging()).toBeFalse();
     expect(component.actionError()).toBe('Konnte die Leistung nicht verrechnen.');
     expect(component.result()).toBeNull();
+  });
+  it('offers more cost types than the first page, in both pickers alike', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => costType(i + 1, { Code: 'K-' + (i + 1) }));
+    const { fixture, component } = loaded(fifty);
+    const el = fixture.nativeElement as HTMLElement;
+    expect(component.hasMore()).toBeTrue();
+    expect(el.querySelector('[data-testid="load-more-cost-types"]')).not.toBeNull();
+
+    component.loadMore();
+    expect(component.loadingMore()).toBeTrue();
+    http
+      .expectOne('/api/klr/cost-types?limit=50&offset=50')
+      .flush([costType(51, { Code: 'K-51', Name: 'Späte Art' })]);
+    fixture.detectChanges();
+
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.costTypes().length).toBe(51);
+    // Both pickers read the list, so both can name the cost type from the second page.
+    expect(el.querySelector('select#klr-rate-cost-type option[value="51"]')).not.toBeNull();
+    expect(el.querySelector('select#klr-charge-cost-type option[value="51"]')).not.toBeNull();
+    // A short page is the end of the catalogue: the offer goes.
+    expect(component.hasMore()).toBeFalse();
+    expect(el.querySelector('[data-testid="load-more-cost-types"]')).toBeNull();
+  });
+
+  it('keeps the cost types it already offers when the next page fails', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => costType(i + 1, { Code: 'K-' + (i + 1) }));
+    const { fixture, component } = loaded(fifty);
+
+    component.loadMore();
+    http
+      .expectOne('/api/klr/cost-types?limit=50&offset=50')
+      .flush('no', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(component.costTypes().length).toBe(50);
+    expect(component.actionError()).toBe('Konnte die weiteren Kostenarten nicht laden.');
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.hasMore()).toBeTrue();
   });
 });

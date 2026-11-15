@@ -122,7 +122,18 @@ func (f *fakeRepo) RecordServiceCharge(_ context.Context, charge ServiceCharge, 
 	charge.ID = 1
 	return charge, nil
 }
-func (f *fakeRepo) CostTypes(context.Context) ([]CostType, error) { return f.costTypes, f.err }
+// CostTypes answers a page, like the repo it stands in for: a fake that returned everything would
+// make the paging below untestable.
+func (f *fakeRepo) CostTypes(_ context.Context, limit, offset int) ([]CostType, error) {
+	if offset >= len(f.costTypes) {
+		return nil, f.err
+	}
+	end := offset + limit
+	if end > len(f.costTypes) {
+		end = len(f.costTypes)
+	}
+	return f.costTypes[offset:end], f.err
+}
 func (f *fakeRepo) MapAccount(_ context.Context, link CostTypeAccount) (CostTypeAccount, error) {
 	if f.err != nil {
 		return CostTypeAccount{}, f.err
