@@ -13,7 +13,7 @@ import (
 type MandateRepository interface {
 	CreateMandate(ctx context.Context, m Mandate, by string) (Mandate, error)
 	GetMandate(ctx context.Context, reference string) (Mandate, error)
-	Mandates(ctx context.Context, activeOnly bool, seq MandateSequence) ([]Mandate, error)
+	Mandates(ctx context.Context, activeOnly bool, seq MandateSequence, limit, offset int) ([]Mandate, error)
 	// RetireMandate withdraws a mandate's authorisation, keeping the row.
 	RetireMandate(ctx context.Context, reference string) (Mandate, error)
 }
@@ -81,15 +81,18 @@ func (r *MandateRepo) RetireMandate(ctx context.Context, reference string) (Mand
 	return out, nil
 }
 
-// Mandates lists the mandates by reference. The filter is the store's, so a caller
-// that wants the live ones collecting under one sequence type never holds every
-// mandate to show a few: a false activeOnly ignores it, a blank seq ignores it.
-func (r *MandateRepo) Mandates(ctx context.Context, activeOnly bool, seq MandateSequence) ([]Mandate, error) {
+// Mandates lists the mandates by reference, one page at a time. The filter is the store's, so a
+// caller that wants the live ones collecting under one sequence type never holds every mandate to
+// show a few: a false activeOnly ignores it, a blank seq ignores it.
+//
+// Ordered by reference, which is UNIQUE, so the order is total: a page boundary can neither repeat
+// nor skip a row, unlike an order over a column two rows can share.
+func (r *MandateRepo) Mandates(ctx context.Context, activeOnly bool, seq MandateSequence, limit, offset int) ([]Mandate, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT `+mandateColumns+` FROM direct_debit_mandate
 		  WHERE ($1 = false OR active = $1)
 		    AND ($2 = '' OR sequence_type = $2)
-		  ORDER BY mandate_reference`, activeOnly, string(seq))
+		  ORDER BY mandate_reference LIMIT $3 OFFSET $4`, activeOnly, string(seq), limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("kasse: list mandates: %w", err)
 	}

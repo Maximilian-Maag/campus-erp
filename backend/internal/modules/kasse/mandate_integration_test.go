@@ -115,7 +115,7 @@ func TestMandateRetireIsAuditedAndRefusedTwice(t *testing.T) {
 		t.Fatalf("blank actor = %v, want ErrActorRequired", err)
 	}
 	// A retired mandate no longer appears among the active ones.
-	active, err := svc.Mandates(ctx, true, "")
+	active, err := svc.Mandates(ctx, true, "", 50, 0)
 	if err != nil {
 		t.Fatalf("Mandates(active): %v", err)
 	}
@@ -180,25 +180,25 @@ func TestMandatesListFilters(t *testing.T) {
 		}
 	}
 
-	all, err := svc.Mandates(ctx, false, "")
+	all, err := svc.Mandates(ctx, false, "", 50, 0)
 	if err != nil {
 		t.Fatalf("Mandates(all): %v", err)
 	}
 	eq("all", mine(all), live, retired, oneoff)
 
-	active, err := svc.Mandates(ctx, true, "")
+	active, err := svc.Mandates(ctx, true, "", 50, 0)
 	if err != nil {
 		t.Fatalf("Mandates(active): %v", err)
 	}
 	eq("active only", mine(active), live, oneoff)
 
-	recurring, err := svc.Mandates(ctx, true, kasse.SequenceRecurring)
+	recurring, err := svc.Mandates(ctx, true, kasse.SequenceRecurring, 50, 0)
 	if err != nil {
 		t.Fatalf("Mandates(active, recurring): %v", err)
 	}
 	eq("active AND recurring", mine(recurring), live)
 
-	oneoffs, err := svc.Mandates(ctx, false, kasse.SequenceOneOff)
+	oneoffs, err := svc.Mandates(ctx, false, kasse.SequenceOneOff, 50, 0)
 	if err != nil {
 		t.Fatalf("Mandates(one-off): %v", err)
 	}
@@ -211,5 +211,104 @@ func TestMandatesListFilters(t *testing.T) {
 	}
 	if !sort.StringsAreSorted(refs) {
 		t.Fatalf("mandates not ordered by reference: %v", refs)
+	}
+}
+
+// TestMandateListPages: the list answers the page that was asked for, and walking the pages
+// reproduces a window of it in order, with nothing repeated and nothing skipped. A page past the end
+// is empty rather than an error — a screen that asks once too often gets nothing, not a failure it
+// would have to explain.
+func TestMandateListPages(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	svc := kasse.NewMandateService(kasse.NewMandateRepo(pool), audit.NewStore(pool))
+
+	// A handful of this test's own, so the list is longer than one small page whatever else lives in
+	// the shared schema. Their references share a prefix, which also sorts them predictably.
+	prefix := "PG-" + uniqueSuffix(t)
+	for _, suffix := range []string{"-1", "-2", "-3", "-4", "-5"} {
+		m, err := kasse.NewMandate(prefix+suffix, "Max Mustermann", uniqueIBAN(t), "",
+			time.Date(2025, 3, 14, 0, 0, 0, 0, time.UTC), kasse.SequenceRecurring)
+		if err != nil {
+			t.Fatalf("NewMandate: %v", err)
+		}
+		if _, err := svc.CreateMandate(ctx, m, "clerk"); err != nil {
+			t.Fatalf("CreateMandate: %v", err)
+		}
+	}
+
+	// A window read in one go is the reference the pages must reproduce: the same rows in the same
+	// order. Reading a window rather than assuming the table is empty keeps this independent of what
+	// the other tests in this package have already stored.
+	const window = 4
+	head, err := svc.Mandates(ctx, false, "", window, 0)
+	if err != nil {
+		t.Fatalf("Mandates: %v", err)
+	}
+	if len(head) < 2 {
+		t.Fatalf("the list holds %d rows, so nothing about paging is being tested", len(head))
+	}
+
+	// The same window taken as two pages: the first from the beginning, the second from where the
+	// first ended. A list that ignored the offset would repeat the first page; one that ignored the
+	// limit would answer with more than was asked for.
+	const pageSize = 2
+	first, err := svc.Mandates(ctx, false, "", pageSize, 0)
+	if err != nil {
+		t.Fatalf("Mandates(offset=0): %v", err)
+	}
+	if len(first) > pageSize {
+		t.Fatalf("a page of %d holds %d rows", pageSize, len(first))
+	}
+	second, err := svc.Mandates(ctx, false, "", pageSize, pageSize)
+	if err != nil {
+		t.Fatalf("Mandates(offset=%d): %v", pageSize, err)
+	}
+	if len(second) > pageSize {
+		t.Fatalf("a page of %d holds %d rows", pageSize, len(second))
+	}
+
+	paged := append(append([]kasse.Mandate{}, first...), second...)
+	if len(paged) != len(head) {
+		t.Fatalf("two pages of %d yielded %d rows, want the %d of one window", pageSize, len(paged), len(head))
+	}
+	for i := range head {
+		if paged[i].Reference != head[i].Reference {
+			t.Fatalf("the pages diverge from the window at %d: got %q, want %q — the order is not stable",
+				i, paged[i].Reference, head[i].Reference)
+		}
+	}
+
+	// The filter travels with the page: a page of this test's recurring mandates holds recurring ones
+	// only, and a walk of those pages finds every one this test stored.
+	var seen int
+	for offset := 0; ; offset += pageSize {
+		page, err := svc.Mandates(ctx, false, kasse.SequenceRecurring, pageSize, offset)
+		if err != nil {
+			t.Fatalf("Mandates(recurring, offset=%d): %v", offset, err)
+		}
+		for _, m := range page {
+			if m.SequenceType != kasse.SequenceRecurring {
+				t.Fatalf("a page of recurring mandates holds a %s one", m.SequenceType)
+			}
+			if strings.HasPrefix(m.Reference, prefix) {
+				seen++
+			}
+		}
+		if len(page) < pageSize {
+			break
+		}
+	}
+	if seen != 5 {
+		t.Fatalf("the walk found %d of this test's 5 mandates", seen)
+	}
+
+	// A page past the end is empty, not an error.
+	past, err := svc.Mandates(ctx, false, "", 5, 100000)
+	if err != nil {
+		t.Fatalf("Mandates(past the end): %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows", len(past))
 	}
 }

@@ -2,6 +2,27 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.129.0] - 2026-11-15
+
+`GET /api/direct-debit/mandates` (*Mandate*) takes `limit` and `offset` beside its `active` and
+`sequence_type` filters, and the screen reads it one page at a time (*Weitere laden*) instead of
+holding every mandate — the list a university's debtor count grows. This is the sixth paged list.
+`mandate_reference` is `UNIQUE`, so the existing `ORDER BY mandate_reference` was already total and
+needed no tiebreaker.
+
+The collection run's picker reads the same list the same way, which settled what a changed sequence
+type means for items already picked: they are **dropped**, and the screen says so. Every item was
+picked from the mandates the previous type collects under, so none can stay on a run that collects
+under another one — that follows from how they were picked, and a reloaded page could not have
+answered it, since a page is not the list (an item picked from the second page would have looked
+stale on the first). The picker also clears its own selection on a fresh read, because the option it
+named may now sit further down the list.
+
+Covered by a repository paging test that walks the pages against a window and a filtered walk that
+finds every row the test stored, a handler test for the default page, the clamp, both refusals
+(`invalid_limit`, `invalid_offset`) and the filter travelling with the page, and the screens' unit
+tests plus an e2e that asserts the offsets actually sent — including a pick from the second page.
+
 ## [0.128.0] - 2026-11-14
 
 `GET /api/receivables` (*Offene Posten*) takes `limit` and `offset` beside its `state` filter, and the

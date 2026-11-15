@@ -77,7 +77,7 @@ func (s *MandateService) Mandate(ctx context.Context, reference string) (Mandate
 
 // Mandates lists the mandates, optionally only the active ones and optionally only
 // those collecting under one sequence type — what a screen needs to offer the
-// mandates a run can actually gather.
-func (s *MandateService) Mandates(ctx context.Context, activeOnly bool, seq MandateSequence) ([]Mandate, error) {
-	return s.repo.Mandates(ctx, activeOnly, seq)
+// mandates a run can actually gather — one page at a time.
+func (s *MandateService) Mandates(ctx context.Context, activeOnly bool, seq MandateSequence, limit, offset int) ([]Mandate, error) {
+	return s.repo.Mandates(ctx, activeOnly, seq, limit, offset)
 }

@@ -15,7 +15,7 @@ import (
 type mandateService interface {
 	CreateMandate(ctx context.Context, m kasse.Mandate, by string) (kasse.Mandate, error)
 	Mandate(ctx context.Context, reference string) (kasse.Mandate, error)
-	Mandates(ctx context.Context, activeOnly bool, seq kasse.MandateSequence) ([]kasse.Mandate, error)
+	Mandates(ctx context.Context, activeOnly bool, seq kasse.MandateSequence, limit, offset int) ([]kasse.Mandate, error)
 	RetireMandate(ctx context.Context, reference, by string) (kasse.Mandate, error)
 }
 
@@ -94,11 +94,19 @@ func (s *Server) retireMandate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, retired)
 }
 
-// listMandates reads the mandates, by reference. The filters are the server's:
+// listMandates reads the mandates, by reference, one page at a time. The filters are the server's:
 // ?active=true narrows to the live ones and ?sequence_type= to those collecting
 // under one sequence type, so a screen that offers the mandates a run can gather
 // never holds every mandate to show a few.
+//
+// The page is read before the filters are judged: a client whose limit is not a number has a bug,
+// and answering it with a comment about `active` would point at the wrong parameter.
 func (s *Server) listMandates(w http.ResponseWriter, r *http.Request) {
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
 	activeOnly := false
 	switch r.URL.Query().Get("active") {
 	case "":
@@ -114,7 +122,7 @@ func (s *Server) listMandates(w http.ResponseWriter, r *http.Request) {
 		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_sequence_type", "sequence_type must be FRST, RCUR, OOFF or FNAL")
 		return
 	}
-	mandates, err := s.mandates.Mandates(r.Context(), activeOnly, seq)
+	mandates, err := s.mandates.Mandates(r.Context(), activeOnly, seq, limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForMandate(err), err)
 		return

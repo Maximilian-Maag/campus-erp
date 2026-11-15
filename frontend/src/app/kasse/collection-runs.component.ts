@@ -150,6 +150,18 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
                   }
                 </select>
               </p>
+              @if (mandatesHasMore()) {
+                <p>
+                  <button
+                    type="button"
+                    data-testid="load-more-mandates"
+                    [disabled]="mandatesLoadingMore()"
+                    (click)="loadMoreMandates()"
+                  >
+                    {{ mandatesLoadingMore() ? 'Weitere Mandate werden geladen …' : 'Weitere Mandate laden' }}
+                  </button>
+                </p>
+              }
               <p>
                 <label for="item-amount">Betrag</label>
                 <input
@@ -243,6 +255,14 @@ export class CollectionRunsComponent implements OnInit {
   readonly mandates = signal<Mandate[]>([]);
   readonly mandatesLoading = signal(false);
   readonly mandatesError = signal<string | null>(null);
+  /**
+   * One page of mandates, sent explicitly rather than left to the server's default: a picker whose
+   * page size changed when the server did would be a surprise nobody could see in the code.
+   */
+  private readonly pageSize = 50;
+  /** True while the last page of mandates came back full, so there may be another. */
+  readonly mandatesHasMore = signal(false);
+  readonly mandatesLoadingMore = signal(false);
   readonly itemMandate = signal('');
   readonly itemAmount = signal('');
   readonly itemPurpose = signal('');
@@ -278,37 +298,77 @@ export class CollectionRunsComponent implements OnInit {
     }
   }
 
-  /** The run's sequence type decides which mandates are collectable, so both change together. */
+  /**
+   * The run's sequence type decides which mandates are collectable, so both change together.
+   *
+   * Every hand-picked item was chosen from the mandates *the previous sequence type* collects under,
+   * so none of them can stay on a run that collects under another one. That follows from how they
+   * were picked, which is why it does not need a lookup — and why it cannot be read off the reloaded
+   * page either: a page is not the list, and an item picked from the second page would look stale on
+   * the first. The items are dropped, and the screen says so rather than letting them vanish.
+   */
   changeSequence(value: string): void {
     this.sequenceType.set(value);
     if (this.source() === 'mandates') {
+      if (this.items().length > 0) {
+        this.items.set([]);
+        this.notice.set('Der Sequenztyp hat sich geändert: die gewählten Posten wurden verworfen.');
+      }
       this.loadMandates();
     }
   }
 
-  /** Loads the active mandates the run's sequence type can collect under. */
+  /**
+   * Loads the first page of the active mandates the run's sequence type can collect under.
+   *
+   * The pick is cleared: it is a choice among the options on offer, and a fresh read offers a new
+   * first page — the mandate that was picked may sit further down the list now, and a select whose
+   * value is not among its options would show nothing while the screen still thinks it holds one.
+   */
   loadMandates(): void {
     this.mandatesLoading.set(true);
     this.mandatesError.set(null);
-    this.api.listMandates('true', this.sequenceType()).subscribe({
+    this.itemMandate.set('');
+    this.api.listMandates('true', this.sequenceType(), String(this.pageSize), '0').subscribe({
       next: (list) => {
-        const mandates = list ?? [];
-        this.mandates.set(mandates);
-        // A mandate this sequence type no longer offers cannot be collected on the run, so a
-        // chosen item under one is dropped rather than submitted for the API to refuse, and the
-        // picker's stale choice is cleared. Clearing an already-empty choice is a no-op, so the
-        // guard is just "not offered", not "not offered and non-empty".
-        this.items.set(this.items().filter((it) => mandates.some((m) => m.Reference === it.mandate_reference)));
-        if (!mandates.some((m) => m.Reference === this.itemMandate())) {
-          this.itemMandate.set('');
-        }
+        const page = list ?? [];
+        this.mandates.set(page);
+        this.mandatesHasMore.set(page.length === this.pageSize);
         this.mandatesLoading.set(false);
       },
       error: () => {
         this.mandatesError.set('Konnte die Mandate nicht laden.');
+        this.mandatesHasMore.set(false);
         this.mandatesLoading.set(false);
       },
     });
+  }
+
+  /**
+   * Reads the next page of collectable mandates and appends it. A failed page leaves what is already
+   * offered where it is — those mandates are still collectable, and blanking the picker would suggest
+   * they are not.
+   */
+  loadMoreMandates(): void {
+    if (!this.mandatesHasMore() || this.mandatesLoadingMore()) {
+      return;
+    }
+    this.mandatesLoadingMore.set(true);
+    this.mandatesError.set(null);
+    this.api
+      .listMandates('true', this.sequenceType(), String(this.pageSize), String(this.mandates().length))
+      .subscribe({
+        next: (list) => {
+          const page = list ?? [];
+          this.mandates.set([...this.mandates(), ...page]);
+          this.mandatesHasMore.set(page.length === this.pageSize);
+          this.mandatesLoadingMore.set(false);
+        },
+        error: () => {
+          this.mandatesLoadingMore.set(false);
+          this.mandatesError.set('Konnte die weiteren Mandate nicht laden.');
+        },
+      });
   }
 
   /** Adds the picked mandate and amount to the run's items. The end-to-end id is the mandate. */

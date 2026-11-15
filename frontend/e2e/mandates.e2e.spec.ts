@@ -129,3 +129,37 @@ test('Mandate refuses an incomplete mandate and reports a refused one, and passe
 
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
+
+test('Mandate reads the list one page at a time, and passes axe', async ({ page }) => {
+  const offsets: string[] = [];
+  const page50 = Array.from({ length: 50 }, (_, i) => ({
+    ...mandate,
+    ID: i + 1,
+    Reference: `MND-${i + 1}`,
+  }));
+
+  await page.route('**/api/direct-debit/mandates**', (route) => {
+    if (route.request().method() !== 'GET') {
+      return route.fulfill({ status: 201, json: mandate });
+    }
+    const url = new URL(route.request().url());
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    offsets.push(String(offset));
+    // The first page is full, so the screen offers the next one; the second is short, so it stops.
+    return route.fulfill({ json: offset === 0 ? page50 : [{ ...mandate, ID: 51, Reference: 'MND-51' }] });
+  });
+
+  await page.goto('/kasse/mandate');
+  await expect(page.getByTestId('mandate-MND-1')).toBeVisible();
+  await expect(page.getByTestId('mandate-MND-50')).toBeVisible();
+  // The filter and the page travel together: the first read asks for the active ones, page one.
+  expect(offsets).toEqual(['0']);
+
+  await page.getByTestId('load-more').click();
+  await expect(page.getByTestId('mandate-MND-51')).toBeVisible();
+  expect(offsets).toEqual(['0', '50']);
+  // A short page ends the list, so the offer is gone.
+  await expect(page.getByTestId('load-more')).toHaveCount(0);
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
