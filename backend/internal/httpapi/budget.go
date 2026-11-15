@@ -15,7 +15,7 @@ type budgetService interface {
 	CreatePosition(ctx context.Context, year int, chapter, title, description string, allocatedCents int64, by string) (budget.Position, error)
 	Post(ctx context.Context, positionID int64, kind budget.PostingKind, amountCents int64, reference, by string) (budget.Posting, error)
 	GetPosition(ctx context.Context, id int64) (budget.Position, error)
-	Positions(ctx context.Context) ([]budget.Position, error)
+	Positions(ctx context.Context, limit, offset int) ([]budget.Position, error)
 	Balance(ctx context.Context, id int64) (budget.Balance, error)
 	// Import reads a budget file — Mittelquellen, Bewirtschaftungsstellen and Haushaltsstellen in
 	// one pass — and writes it (docs/10).
@@ -138,12 +138,17 @@ func (s *Server) getBudgetPosition(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, budgetPositionResponse{Position: pos, Balance: bal, AvailableCents: bal.AvailableCents()})
 }
 
-// listBudgetPositions returns every position with its balance: the Mittelübersicht a client
-// shows without having to ask position by position. It reads each balance separately, so a
-// budget with many positions costs many reads; an aggregate query is the follow-up when it
-// matters.
+// listBudgetPositions returns the positions with their balances, one page at a time: the
+// Mittelübersicht a client shows without having to ask position by position. The page is what makes
+// the per-position balance read below affordable — it is a read per row of the page, not per row of
+// the budget; an aggregate query is still the follow-up when it matters.
 func (s *Server) listBudgetPositions(w http.ResponseWriter, r *http.Request) {
-	positions, err := s.budget.Positions(r.Context())
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
+	positions, err := s.budget.Positions(r.Context(), limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForBudget(err), err)
 		return

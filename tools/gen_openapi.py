@@ -184,7 +184,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     # ── Budget ───────────────────────────────────────────────────────────────
     "/api/budget/positions": {
-        "get": ("listBudgetPositions", "budget", "List every budget position with its balance", None, "[]httpapi.budgetPositionResponse", 200, "json"),
+        "get": ("listBudgetPositions", "budget", "List the budget positions with their balances, one page at a time", None, "[]httpapi.budgetPositionResponse", 200, "json", [("limit", "integer", False), ("offset", "integer", False)]),
         "post": ("createBudgetPosition", "budget", "Create a budget position", "httpapi.createBudgetPositionRequest", "budget.Position", 201, "json"),
     },
     "/api/budget/positions/{id}": {

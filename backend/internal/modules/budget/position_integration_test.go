@@ -50,7 +50,7 @@ func TestPositionsListsEveryPositionInBudgetOrder(t *testing.T) {
 		t.Fatalf("CreatePosition: %v", err)
 	}
 
-	all, err := svc.Positions(ctx)
+	all, err := svc.Positions(ctx, 200, 0)
 	if err != nil {
 		t.Fatalf("Positions: %v", err)
 	}
@@ -175,5 +175,64 @@ func TestBudgetValidation(t *testing.T) {
 	}
 	if _, err := svc.Balance(ctx, 9223372036854775807); !errors.Is(err, budget.ErrPositionNotFound) {
 		t.Fatalf("balance unknown: %v", err)
+	}
+}
+
+// TestPositionsPages: the list answers the page it was asked for, and walking the pages reproduces a
+// window of it in order, with nothing repeated and nothing skipped. The order ends in the primary key,
+// which is what makes that true for positions that share a year, a chapter and a title.
+func TestPositionsPages(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+	tag := suffix(t)
+
+	// Four positions of this test's own, so the window below spans several of them whatever else the
+	// shared schema holds.
+	for _, chapter := range []string{"A", "B", "C", "D"} {
+		if _, err := svc.CreatePosition(ctx, 2026, "PG-"+tag, chapter, "Titel", 1000, "alice"); err != nil {
+			t.Fatalf("CreatePosition(%s): %v", chapter, err)
+		}
+	}
+
+	const window = 4
+	head, err := svc.Positions(ctx, window, 0)
+	if err != nil {
+		t.Fatalf("Positions: %v", err)
+	}
+	if len(head) < 2 {
+		t.Fatalf("the budget holds %d positions, so nothing about paging is being tested", len(head))
+	}
+
+	// The same window as two pages: a list that ignored the offset would repeat the first page, one
+	// that ignored the limit would answer with more than was asked for.
+	const pageSize = 2
+	first, err := svc.Positions(ctx, pageSize, 0)
+	if err != nil {
+		t.Fatalf("Positions(offset=0): %v", err)
+	}
+	second, err := svc.Positions(ctx, pageSize, pageSize)
+	if err != nil {
+		t.Fatalf("Positions(offset=%d): %v", pageSize, err)
+	}
+	if len(first) > pageSize || len(second) > pageSize {
+		t.Fatalf("a page of %d holds %d and %d rows", pageSize, len(first), len(second))
+	}
+	paged := append(append([]budget.Position{}, first...), second...)
+	if len(paged) != len(head) {
+		t.Fatalf("two pages of %d yielded %d rows, want the %d of one window", pageSize, len(paged), len(head))
+	}
+	for i := range head {
+		if paged[i].ID != head[i].ID {
+			t.Fatalf("the pages diverge from the window at %d: got %d, want %d", i, paged[i].ID, head[i].ID)
+		}
+	}
+
+	// A page past the end is empty rather than an error.
+	past, err := svc.Positions(ctx, 5, 100000)
+	if err != nil {
+		t.Fatalf("Positions(past the end): %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows", len(past))
 	}
 }

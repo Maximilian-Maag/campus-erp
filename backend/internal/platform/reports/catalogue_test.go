@@ -3,6 +3,7 @@ package reports_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -29,8 +30,17 @@ type fakePositions struct {
 	err       error
 }
 
-func (f *fakePositions) Positions(context.Context) ([]budget.Position, error) {
-	return f.positions, f.err
+// Positions answers a page, like the service it stands in for: a fake that returned everything would
+// make the report's page walk untestable.
+func (f *fakePositions) Positions(_ context.Context, limit, offset int) ([]budget.Position, error) {
+	if offset >= len(f.positions) {
+		return nil, f.err
+	}
+	end := offset + limit
+	if end > len(f.positions) {
+		end = len(f.positions)
+	}
+	return f.positions[offset:end], f.err
 }
 
 func (f *fakePositions) Balance(_ context.Context, id int64) (budget.Balance, error) {
@@ -463,5 +473,33 @@ func TestRenderRefusals(t *testing.T) {
 	}
 	if _, err := reports.NewCatalogue(reports.DataSources{Rules: &fakeRules{centresErr: boom}}).Render(context.Background(), klr.AllocationOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
 		t.Fatalf("centres error = %v, want boom", err)
+	}
+}
+
+// TestRenderPositionOverviewWalksEveryPage: the store answers a page at a time, while a report is
+// over the whole budget — so the report walks the pages and a short one ends the walk. A budget of
+// 201 positions spans two pages, which is one more than a single read would have covered.
+func TestRenderPositionOverviewWalksEveryPage(t *testing.T) {
+	from, to := period()
+	const count = 201
+	list := make([]budget.Position, 0, count)
+	balances := map[int64]budget.Balance{}
+	for i := 0; i < count; i++ {
+		id := int64(i + 1)
+		list = append(list, budget.Position{ID: id, Year: 2026, Chapter: "0710", Title: fmt.Sprintf("%04d", i)})
+		balances[id] = budget.Balance{PositionID: id, AllocatedCents: 1000}
+	}
+	c := reports.NewCatalogue(reports.DataSources{Positions: &fakePositions{positions: list, balances: balances}})
+
+	got, err := c.Render(context.Background(), budget.PositionOverviewDefinition.ID, from, to)
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	// Every position plus the totals row: a walk that stopped at the first page would report 200.
+	if len(got.Rows) != count+1 {
+		t.Fatalf("rows = %d, want %d (every position, from every page, plus the totals row)", len(got.Rows), count+1)
+	}
+	if got.Rows[count-1][2] != "0200" || got.Rows[count][3] != "Summe" {
+		t.Fatalf("last position and totals row = %v / %v", got.Rows[count-1], got.Rows[count])
 	}
 }

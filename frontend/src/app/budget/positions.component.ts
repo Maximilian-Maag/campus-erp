@@ -58,6 +58,18 @@ import { formatCents } from '../core/format';
             }
           </tbody>
         </table>
+        @if (hasMore()) {
+          <p>
+            <button
+              type="button"
+              data-testid="load-more"
+              [disabled]="loadingMore()"
+              (click)="loadMore()"
+            >
+              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
+            </button>
+          </p>
+        }
       }
     </section>
   `,
@@ -68,6 +80,14 @@ export class BudgetPositionsComponent implements OnInit {
   readonly positions = signal<BudgetPositionResponse[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  /**
+   * One page of positions, sent explicitly rather than left to the server's default: a screen whose
+   * page size changed when the server did would be a surprise nobody could see in the code.
+   */
+  private readonly pageSize = 50;
+  /** True while the last page came back full, so there may be another. */
+  readonly hasMore = signal(false);
+  readonly loadingMore = signal(false);
 
   // Loading starts when the screen is shown, not when it is constructed: the initial state is
   // then observable (and testable) before any request is made.
@@ -78,16 +98,50 @@ export class BudgetPositionsComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.api.listBudgetPositions().subscribe({
+    this.api.listBudgetPositions(String(this.pageSize), '0').subscribe({
       next: (rows) => {
-        this.positions.set(rows ?? []);
+        const page = rows ?? [];
+        this.positions.set(page);
+        // A full page means there may be more; a short one is the end of the budget.
+        this.hasMore.set(page.length === this.pageSize);
         this.loading.set(false);
       },
       error: () => {
         this.error.set('Konnte die Mittelübersicht nicht laden.');
+        this.hasMore.set(false);
         this.loading.set(false);
       },
     });
+  }
+
+  /**
+   * Reads the next page and appends it. The offset is the number of rows already on screen, which is
+   * why the list is never re-sorted in the browser: the pages only line up while the order the server
+   * answered with is the order they are shown in — a budget is read by year, then chapter, then title.
+   *
+   * A failed page is reported without clearing what is already there — the positions that were read
+   * are still valid, and blanking the screen would suggest they are not.
+   */
+  loadMore(): void {
+    if (!this.hasMore() || this.loadingMore()) {
+      return;
+    }
+    this.loadingMore.set(true);
+    this.error.set(null);
+    this.api
+      .listBudgetPositions(String(this.pageSize), String(this.positions().length))
+      .subscribe({
+        next: (rows) => {
+          const page = rows ?? [];
+          this.positions.set([...this.positions(), ...page]);
+          this.hasMore.set(page.length === this.pageSize);
+          this.loadingMore.set(false);
+        },
+        error: () => {
+          this.loadingMore.set(false);
+          this.error.set('Konnte die weiteren Haushaltsstellen nicht laden.');
+        },
+      });
   }
 
   /** Amounts are rendered by the shared formatter, not by each screen's own. */

@@ -100,6 +100,7 @@ reads the three lists again after a successful import.
 
 | method | path |
 |---|---|
+| `GET`  | `/api/budget/positions` (the list, with each position's balance, one page at a time) |
 | `POST` | `/api/budget/positions` |
 | `GET`  | `/api/budget/positions/{id}` (position + balance) |
 | `POST` | `/api/budget/positions/{id}/postings` |
@@ -110,6 +111,21 @@ reads the three lists again after a successful import.
 | `POST` | `/api/budget/centers` |
 | `GET`  | `/api/budget/centers` |
 | `POST` | `/api/budget/positions/{id}/assignment` (source and centre; a null half clears it) |
+
+## Reading the budget
+
+`GET /api/budget/positions` answers **one page at a time** (`limit`/`offset`, `docs/15`): a budget
+holds a chapter and a title per position, and a university's is not a list that fits a page. The order
+is the way a budget is read — year, chapter, title — and ends in `id`, the primary key, so a page
+boundary can neither repeat nor skip a position.
+
+The page is also what makes the route's shape affordable: it reads each position's balance separately
+to answer with the *Mittelüberwachung*'s own figure, so the read is per row of the page rather than
+per row of the budget. Both screens that read the list page it — *Mittelübersicht* and the
+*Mittelherkunft* picker — and the picker grows its table with the same page, so a position can never
+be assignable without being shown as assigned. The *Mittelübersicht* **report**
+(`internal/platform/reports`) is over the whole budget by definition, so it walks the pages instead of
+asking for a page: a short one ends the walk.
 
 ## Screen — *Budget: Mittelherkunft* (`/budget/mittelherkunft`)
 

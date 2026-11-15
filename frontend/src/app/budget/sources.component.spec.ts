@@ -83,7 +83,7 @@ describe('BudgetSourcesComponent', () => {
     el = fixture.nativeElement as HTMLElement;
     http.expectOne('/api/budget/sources').flush(sources);
     http.expectOne('/api/budget/centers').flush(centers);
-    http.expectOne('/api/budget/positions').flush(positions);
+    http.expectOne('/api/budget/positions?limit=50&offset=0').flush(positions);
     fixture.detectChanges();
   }
 
@@ -125,7 +125,7 @@ describe('BudgetSourcesComponent', () => {
       { status: 500, statusText: 'Server Error' }
     );
     http.expectOne('/api/budget/centers').flush([center()]);
-    http.expectOne('/api/budget/positions').flush([row()]);
+    http.expectOne('/api/budget/positions?limit=50&offset=0').flush([row()]);
     fixture.detectChanges();
 
     expect(component.loadError()).toBe('Die Mittelherkunft konnte nicht geladen werden.');
@@ -277,7 +277,7 @@ describe('BudgetSourcesComponent', () => {
     // The three lists are read again: the file may have added to every one of them.
     http.expectOne('/api/budget/sources').flush([source({ ID: 9, Code: 'LHH' })]);
     http.expectOne('/api/budget/centers').flush([center({ ID: 9 })]);
-    http.expectOne('/api/budget/positions').flush([row()]);
+    http.expectOne('/api/budget/positions?limit=50&offset=0').flush([row()]);
     expect(component.sources().length).toBe(1);
     expect(component.loading()).toBeFalse();
   });
@@ -292,7 +292,7 @@ describe('BudgetSourcesComponent', () => {
     req.flush(importResult());
     http.expectOne('/api/budget/sources').flush([]);
     http.expectOne('/api/budget/centers').flush([]);
-    http.expectOne('/api/budget/positions').flush([]);
+    http.expectOne('/api/budget/positions?limit=50&offset=0').flush([]);
   });
 
   it('refuses an empty file and reports a refused one', () => {
@@ -321,5 +321,44 @@ describe('BudgetSourcesComponent', () => {
     expect(component.centerNameOf(row({ CenterID: 98 }))).toBe('98');
     expect(component.sourceNameOf(row({ SourceID: null }))).toBe('keine');
     expect(component.amount(100000)).toBe('1.000,00');
+  });
+  it('offers more Haushaltsstellen than the first page, in the picker and the table alike', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => row({ ID: i + 1, Title: String(i + 1) }));
+    screen([source()], [center()], fifty);
+    expect(component.hasMore()).toBeTrue();
+    expect(el.querySelector('[data-testid="load-more-positions"]')).not.toBeNull();
+
+    component.loadMore();
+    expect(component.loadingMore()).toBeTrue();
+    http
+      .expectOne('/api/budget/positions?limit=50&offset=50')
+      .flush([row({ ID: 51, Title: '51', Description: 'Späte Stelle' })]);
+    fixture.detectChanges();
+
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.positions().length).toBe(51);
+    // Both readers of the list grow together: a position the picker offers is a row the table shows.
+    expect(el.querySelector('[data-testid="position-51"]')).not.toBeNull();
+    expect(el.querySelector('select#assign-position option[value="51"]')).not.toBeNull();
+    // A short page is the end of the budget: the offer goes.
+    expect(component.hasMore()).toBeFalse();
+    expect(el.querySelector('[data-testid="load-more-positions"]')).toBeNull();
+  });
+
+  it('keeps the Haushaltsstellen it already offers when the next page fails', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => row({ ID: i + 1, Title: String(i + 1) }));
+    screen([source()], [center()], fifty);
+
+    component.loadMore();
+    http
+      .expectOne('/api/budget/positions?limit=50&offset=50')
+      .flush('no', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(component.positions().length).toBe(50);
+    expect(component.actionError()).toBe('Die weiteren Haushaltsstellen konnten nicht geladen werden.');
+    expect(component.loadingMore()).toBeFalse();
+    // The page failed rather than came back short, so there may still be one.
+    expect(component.hasMore()).toBeTrue();
   });
 });

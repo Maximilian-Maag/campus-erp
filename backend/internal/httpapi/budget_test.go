@@ -107,7 +107,7 @@ func TestHTTPBudgetFlow(t *testing.T) {
 // than render a budget with a missing figure.
 type stubBudgetBalanceFails struct{ stubBudget }
 
-func (s stubBudgetBalanceFails) Positions(context.Context) ([]budget.Position, error) {
+func (s stubBudgetBalanceFails) Positions(context.Context, int, int) ([]budget.Position, error) {
 	return []budget.Position{{ID: 1, Year: 2026, Chapter: "1", Title: "2"}}, nil
 }
 
@@ -167,5 +167,95 @@ func TestHTTPBudgetErrorBranches(t *testing.T) {
 	// Malformed posting body -> 400.
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/budget/positions/1/postings", "a", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad posting body = %d, want 400", resp.StatusCode)
+	}
+}
+
+// TestHTTPBudgetPositionsPage: the list answers a page — the default when the client does not say,
+// exactly what was asked for when it does — and refuses a page that is not a non-negative integer
+// with the machine code a client branches on. A page past the end is empty, not an error.
+func TestHTTPBudgetPositionsPage(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	// Three positions of this test's own, so the walk below spans several of them whatever else the
+	// shared schema holds.
+	tag := uniqueSuffix(t)
+	for _, title := range []string{"1", "2", "3"} {
+		resp := doJSON(t, http.MethodPost, srv.URL+"/api/budget/positions", "alice",
+			`{"year":2026,"chapter":"PG","title":"`+tag+`-`+title+`","description":"Paging","allocated_cents":1000}`)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("create position %s = %d", title, resp.StatusCode)
+		}
+	}
+	base := srv.URL + "/api/budget/positions"
+
+	// The default page is the first one: the request without parameters is a page, not the table.
+	resp := doJSON(t, http.MethodGet, base, "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("default page = %d", resp.StatusCode)
+	}
+	var all []budgetPositionJSON
+	if err := json.NewDecoder(resp.Body).Decode(&all); err != nil {
+		t.Fatalf("decode default page: %v", err)
+	}
+	if len(all) == 0 {
+		t.Fatal("the default page is empty, so nothing about paging is being tested")
+	}
+
+	// Two pages of two reproduce the first four rows of the same list, in order.
+	var first, second []budgetPositionJSON
+	resp = doJSON(t, http.MethodGet, base+"?limit=2", "alice", "")
+	if err := json.NewDecoder(resp.Body).Decode(&first); err != nil {
+		t.Fatalf("decode first page: %v", err)
+	}
+	resp = doJSON(t, http.MethodGet, base+"?limit=2&offset=2", "alice", "")
+	if err := json.NewDecoder(resp.Body).Decode(&second); err != nil {
+		t.Fatalf("decode second page: %v", err)
+	}
+	if len(first) != 2 {
+		t.Fatalf("a page of 2 holds %d rows", len(first))
+	}
+	for i := range first {
+		if first[i].Position.ID != all[i].Position.ID {
+			t.Fatalf("the first page diverges from the list at %d: got %d, want %d",
+				i, first[i].Position.ID, all[i].Position.ID)
+		}
+	}
+	for i := range second {
+		if second[i].Position.ID != all[2+i].Position.ID {
+			t.Fatalf("the second page diverges from the list at %d: got %d, want %d",
+				i, second[i].Position.ID, all[2+i].Position.ID)
+		}
+	}
+
+	// A page past the end is empty rather than an error.
+	resp = doJSON(t, http.MethodGet, base+"?offset=100000", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("page past the end = %d, want 200", resp.StatusCode)
+	}
+	var past []budgetPositionJSON
+	if err := json.NewDecoder(resp.Body).Decode(&past); err != nil {
+		t.Fatalf("decode past the end: %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows", len(past))
+	}
+
+	for _, tc := range []struct{ query, code string }{
+		{"?limit=0", "invalid_limit"},
+		{"?limit=f%C3%BCnf", "invalid_limit"},
+		{"?offset=zw%C3%B6lf", "invalid_offset"},
+		{"?offset=-1", "invalid_offset"},
+	} {
+		resp = doJSON(t, http.MethodGet, base+tc.query, "alice", "")
+		if resp.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("%s: status = %d, want 422", tc.query, resp.StatusCode)
+		}
+		var problem struct{ Code string }
+		if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+			t.Fatalf("%s: decode problem: %v", tc.query, err)
+		}
+		if problem.Code != tc.code {
+			t.Fatalf("%s: code = %q, want %q", tc.query, problem.Code, tc.code)
+		}
 	}
 }
