@@ -47,7 +47,7 @@ test('Stiftungen finds a foundation, its books and the movements of a book, and 
     bookBodies.push(route.request().postDataJSON());
     return route.fulfill({ status: 201, json: { ...book, ID: 8, Reference: 'B-2' } });
   });
-  await page.route('**/api/foundation-books/7/bookings', (route) => {
+  await page.route('**/api/foundation-books/7/bookings**', (route) => {
     if (route.request().method() === 'POST') {
       bookingBodies.push(route.request().postDataJSON());
       return route.fulfill({
@@ -196,7 +196,7 @@ test('Stiftungen cancels a movement and shows the counter-movement beside it, an
 
   await page.route('**/api/foundations', (route) => route.fulfill({ json: [carrying] }));
   await page.route('**/api/foundations/1/books', (route) => route.fulfill({ json: [book] }));
-  await page.route('**/api/foundation-books/7/bookings', (route) => {
+  await page.route('**/api/foundation-books/7/bookings**', (route) => {
     reads += 1;
     // Before the cancellation the mistake is on its own; after it, the counter-movement is there.
     return route.fulfill({ json: reads === 1 ? [movement] : [{ ...movement, ReversedBy: 12 }, counter] });
@@ -254,4 +254,48 @@ test('Stiftungen refuses an incomplete foundation and reports an unreadable year
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
+});
+
+test('Stiftungen reads a book one page of movements at a time, and passes axe', async ({ page }) => {
+  const offsets: string[] = [];
+  const movements = Array.from({ length: 50 }, (_, i) => ({
+    ID: i + 1,
+    BookID: 7,
+    Kind: 'income',
+    AmountCents: 1000,
+    Purpose: `Spende ${i + 1}`,
+    BookedBy: 'alice',
+    Reverses: null,
+    ReversedBy: null,
+  }));
+
+  await page.route('**/api/foundations', (route) => route.fulfill({ json: [stiftung] }));
+  await page.route('**/api/foundations/1/books', (route) => route.fulfill({ json: [book] }));
+  await page.route('**/api/foundation-books/7/balance', (route) =>
+    route.fulfill({ json: { BookID: 7, IncomeCents: 50000, ExpenseCents: 0 } })
+  );
+  await page.route('**/api/foundation-books/7/bookings**', (route) => {
+    const url = new URL(route.request().url());
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    offsets.push(String(offset));
+    // The first page is full, so the screen offers the next one; the second is short, so it stops.
+    return route.fulfill({
+      json: offset === 0 ? movements : [{ ...movements[0], ID: 51, Purpose: 'Spende 51' }],
+    });
+  });
+
+  await page.goto('/finanzen/stiftungen');
+  await page.getByTestId('foundation-1').getByRole('button', { name: 'Bücher anzeigen' }).click();
+  await page.getByTestId('book-7').getByRole('button', { name: 'Buchungen anzeigen' }).click();
+  await expect(page.getByTestId('booking-1')).toBeVisible();
+  await expect(page.getByTestId('booking-50')).toBeVisible();
+  expect(offsets).toEqual(['0']);
+
+  await page.getByTestId('load-more-bookings').click();
+  await expect(page.getByTestId('booking-51')).toBeVisible();
+  expect(offsets).toEqual(['0', '50']);
+  // A short page ends the book's movements, so the offer is gone.
+  await expect(page.getByTestId('load-more-bookings')).toHaveCount(0);
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

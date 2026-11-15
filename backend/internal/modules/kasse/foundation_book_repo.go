@@ -27,7 +27,7 @@ type FoundationBookRepository interface {
 	// half of that pair would either cancel a movement twice or leave one reversed with nothing to
 	// show for it.
 	Reverse(ctx context.Context, original, mirror FoundationBooking, by string) (FoundationBooking, error)
-	Bookings(ctx context.Context, bookID int64) ([]FoundationBooking, error)
+	Bookings(ctx context.Context, bookID int64, limit, offset int) ([]FoundationBooking, error)
 	Books(ctx context.Context, foundationID int64) ([]FoundationBook, error)
 	Balance(ctx context.Context, bookID int64) (FoundationBalance, error)
 	// FoundationByID loads the foundation a book belongs to: the carry-over needs its year, its
@@ -112,11 +112,16 @@ func (r *FoundationBookRepo) InsertBooking(ctx context.Context, b FoundationBook
 	return saved, nil
 }
 
-// Bookings lists a book's movements, oldest first. It is scoped to the book id,
+// Bookings lists a book's movements, oldest first, one page at a time. It is scoped to the book id,
 // so one foundation's movements never appear in another's.
-func (r *FoundationBookRepo) Bookings(ctx context.Context, bookID int64) ([]FoundationBooking, error) {
+//
+// Ordered by id, which is the primary key, so the order is total: a page boundary can neither repeat
+// nor skip a movement. A caller that needs to know whether a book has moved at all asks for one row
+// rather than the list — the year's carry-over does exactly that.
+func (r *FoundationBookRepo) Bookings(ctx context.Context, bookID int64, limit, offset int) ([]FoundationBooking, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT `+foundationBookingColumns+` FROM foundation_booking WHERE book_id = $1 ORDER BY id`, bookID)
+		`SELECT `+foundationBookingColumns+` FROM foundation_booking WHERE book_id = $1
+		  ORDER BY id LIMIT $2 OFFSET $3`, bookID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("kasse: foundation bookings: %w", err)
 	}

@@ -247,7 +247,7 @@ func (s stubFoundationBooks) Reverse(context.Context, int64, string, string) (ka
 	return kasse.Reversal{}, s.err
 }
 
-func (s stubFoundationBooks) Bookings(context.Context, int64) ([]kasse.FoundationBooking, error) {
+func (s stubFoundationBooks) Bookings(context.Context, int64, int, int) ([]kasse.FoundationBooking, error) {
 	return nil, s.err
 }
 

@@ -33,7 +33,7 @@ updated or deleted (ADR-0006).
 | `POST` | `/api/foundation-books` — open a book for a foundation (201) |
 | `GET` | `/api/foundations/{id}/books` — list one foundation's books |
 | `POST` | `/api/foundation-books/{id}/bookings` — post a movement (201) |
-| `GET` | `/api/foundation-books/{id}/bookings` — list a book's movements, oldest first |
+| `GET` | `/api/foundation-books/{id}/bookings` — list a book's movements, oldest first, one page (`limit`/`offset`) at a time |
 | `GET` | `/api/foundation-books/{id}/balance` — a book's derived balance |
 
 Behind the `erp-finanzen` role (`docs/17`). Writes are audited (`foundation.create`,
@@ -128,6 +128,22 @@ travels in the counter-movement's purpose (`Storno zu Buchung 7: doppelt erfasst
 explains itself months later without a join. The balance is derived from the movements, so a
 cancelled pair nets to zero without either row being touched, and the screen shows the original as
 *storniert* with the counter-movement marked *Gegenbuchung*.
+
+## Reading a book's movements
+
+A book is the account of a year, so its movements are read **one page at a time** (`limit`/`offset`,
+`docs/15`): the list is ordered by `id`, which is the primary key, so a page boundary can neither
+repeat nor skip a movement. The screen offers *Weitere laden* while pages come
+back full and drops the offer once a short page ends the book.
+
+The year's carry-over asks the same query for **one row** (`Bookings(ctx, book, 1, 0)`) rather than
+for the list: its question is "has this book moved at all?", and reading a year of movements to learn
+whether there is a first one is the kind of cost that only shows up on the books that matter.
+
+Two places on the screen **re-read the first page** instead of appending, both because a page is only
+a page while it starts at the first movement: recording a movement while pages are still unread (the
+new row is the last by id, so appending it would sit it above rows the next page would then return
+again), and cancelling one (the server appends a counter-movement at the end).
 
 The screen reads those codes through `core/problem.ts` (`problemCode`), which answers "no code" for
 anything that is not the API's problem body — the API wraps a refusal as `{ error, code }`, Angular

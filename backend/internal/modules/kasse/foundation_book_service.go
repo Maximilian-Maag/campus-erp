@@ -69,8 +69,8 @@ func (s *FoundationBookService) Book(ctx context.Context, bookID, amountCents in
 }
 
 // Bookings lists a book's movements.
-func (s *FoundationBookService) Bookings(ctx context.Context, bookID int64) ([]FoundationBooking, error) {
-	return s.repo.Bookings(ctx, bookID)
+func (s *FoundationBookService) Bookings(ctx context.Context, bookID int64, limit, offset int) ([]FoundationBooking, error) {
+	return s.repo.Bookings(ctx, bookID, limit, offset)
 }
 
 // Balance returns a book's derived balance.
@@ -139,8 +139,10 @@ func (s *FoundationBookService) CarryOver(ctx context.Context, bookID int64, ref
 	}
 	if found {
 		// An existing book is reused only when it is still empty: a book that already carries
-		// movements has been opened, and posting into it again would count the money twice.
-		existing, err := s.repo.Bookings(ctx, target.ID)
+		// movements has been opened, and posting into it again would count the money twice. One row
+		// is the whole question — asking for the list would read a year of movements to learn
+		// whether there is a first one.
+		existing, err := s.repo.Bookings(ctx, target.ID, 1, 0)
 		if err != nil {
 			return CarryOver{}, err
 		}

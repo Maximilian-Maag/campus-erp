@@ -58,7 +58,7 @@ func TestFoundationBookingReversal(t *testing.T) {
 	}
 
 	// The original is marked and neither row was touched or deleted: the book carries all three.
-	list, err := books.Bookings(ctx, book.ID)
+	list, err := books.Bookings(ctx, book.ID, 50, 0)
 	if err != nil {
 		t.Fatalf("Bookings: %v", err)
 	}

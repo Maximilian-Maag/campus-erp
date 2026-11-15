@@ -383,3 +383,91 @@ func getBooks(t *testing.T, srv string, foundationID int64) []bookJSON {
 	}
 	return list
 }
+
+// TestHTTPFoundationBookingsPage: the route answers a page of a book's movements — the default page
+// when the client does not say, exactly what was asked for when it does — and refuses a page that is
+// not a non-negative integer with the machine code a client branches on, rather than quietly falling
+// back to the default. A page past the end is empty, not an error.
+func TestHTTPFoundationBookingsPage(t *testing.T) {
+	srv, _ := newTestServer(t)
+	f := createFoundation(t, srv.URL)
+
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books", "alice",
+		`{"foundation_id":`+itoa(f.ID)+`,"reference":"PG-B-`+uniqueSuffix(t)+`","currency":"EUR"}`)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create book = %d", resp.StatusCode)
+	}
+	var book bookJSON
+	if err := json.NewDecoder(resp.Body).Decode(&book); err != nil {
+		t.Fatalf("decode book: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		if resp := doJSON(t, http.MethodPost, srv.URL+"/api/foundation-books/"+itoa(book.ID)+"/bookings",
+			"alice", `{"kind":"income","amount_cents":1000,"purpose":"Spende `+itoa(int64(i))+`"}`); resp.StatusCode != http.StatusCreated {
+			t.Fatalf("book %d = %d", i, resp.StatusCode)
+		}
+	}
+	base := srv.URL + "/api/foundation-books/" + itoa(book.ID) + "/bookings"
+
+	// The default page holds all three, in the order they were booked.
+	resp = doJSON(t, http.MethodGet, base, "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("default page = %d", resp.StatusCode)
+	}
+	var all []struct{ ID int64 }
+	if err := json.NewDecoder(resp.Body).Decode(&all); err != nil {
+		t.Fatalf("decode bookings: %v", err)
+	}
+	if len(all) != 3 {
+		t.Fatalf("default page holds %d rows, want 3", len(all))
+	}
+
+	// Two pages of two: the first two, then the last one.
+	var first, second []struct{ ID int64 }
+	resp = doJSON(t, http.MethodGet, base+"?limit=2", "alice", "")
+	if err := json.NewDecoder(resp.Body).Decode(&first); err != nil {
+		t.Fatalf("decode first page: %v", err)
+	}
+	resp = doJSON(t, http.MethodGet, base+"?limit=2&offset=2", "alice", "")
+	if err := json.NewDecoder(resp.Body).Decode(&second); err != nil {
+		t.Fatalf("decode second page: %v", err)
+	}
+	if len(first) != 2 || len(second) != 1 {
+		t.Fatalf("pages hold %d and %d rows, want 2 and 1", len(first), len(second))
+	}
+	if first[0].ID != all[0].ID || first[1].ID != all[1].ID || second[0].ID != all[2].ID {
+		t.Fatalf("the pages do not reproduce the list: %v %v vs %v", first, second, all)
+	}
+
+	// A page past the end is empty rather than an error.
+	resp = doJSON(t, http.MethodGet, base+"?offset=99", "alice", "")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("page past the end = %d, want 200", resp.StatusCode)
+	}
+	var past []struct{ ID int64 }
+	if err := json.NewDecoder(resp.Body).Decode(&past); err != nil {
+		t.Fatalf("decode past the end: %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows", len(past))
+	}
+
+	for _, tc := range []struct{ query, code string }{
+		{"?limit=0", "invalid_limit"},
+		{"?limit=f%C3%BCnf", "invalid_limit"},
+		{"?offset=zw%C3%B6lf", "invalid_offset"},
+		{"?offset=-1", "invalid_offset"},
+	} {
+		resp = doJSON(t, http.MethodGet, base+tc.query, "alice", "")
+		if resp.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("%s: status = %d, want 422", tc.query, resp.StatusCode)
+		}
+		var problem struct{ Code string }
+		if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+			t.Fatalf("%s: decode problem: %v", tc.query, err)
+		}
+		if problem.Code != tc.code {
+			t.Fatalf("%s: code = %q, want %q", tc.query, problem.Code, tc.code)
+		}
+	}
+}

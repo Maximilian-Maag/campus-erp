@@ -894,7 +894,7 @@ paths:
       tags:
       - kasse
       operationId: listFoundationBookings
-      summary: List foundation bookings
+      summary: List foundation bookings, oldest first, one page at a time
       parameters:
       - name: id
         in: path
@@ -902,6 +902,16 @@ paths:
         schema:
           type: integer
           format: int64
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: Success
