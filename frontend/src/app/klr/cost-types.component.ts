@@ -58,6 +58,18 @@ import { CampusErpApi, CostType, CostTypeAccount } from '../core/api/generated';
               }
             </tbody>
           </table>
+          @if (hasMore()) {
+            <p>
+              <button
+                type="button"
+                data-testid="load-more"
+                [disabled]="loadingMore()"
+                (click)="loadMore()"
+              >
+                {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
+              </button>
+            </p>
+          }
 
           @if (chosen(); as id) {
             <h3 id="klr-accounts-heading">Konten der gewählten Kostenart</h3>
@@ -150,6 +162,15 @@ export class KlrCostTypesComponent implements OnInit {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly mapping = signal(false);
+  /**
+   * One page of cost types, sent explicitly rather than left to the server's default: a chart of
+   * accounts grows with the institution, and a screen whose page size changed when the server did
+   * would be a surprise nobody could see in the code.
+   */
+  private readonly pageSize = 50;
+  /** True while the last page came back full, so there may be another. */
+  readonly hasMore = signal(false);
+  readonly loadingMore = signal(false);
   readonly loadError = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
@@ -165,10 +186,12 @@ export class KlrCostTypesComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.loadError.set(null);
-    this.api.listCostTypes().subscribe({
+    this.api.listCostTypes(String(this.pageSize), '0').subscribe({
       next: (types) => {
         const list = types ?? [];
         this.types.set(list);
+        // A full page means there may be more; a short one is the end of the catalogue.
+        this.hasMore.set(list.length === this.pageSize);
         // A cost type that was chosen before a reload stays chosen, so the accounts below are
         // never about a different row than the one the operator picked.
         const stillThere = list.some((t) => String(t.ID) === this.chosen());
@@ -182,7 +205,36 @@ export class KlrCostTypesComponent implements OnInit {
       },
       error: () => {
         this.loadError.set('Konnte die Kostenarten nicht laden.');
+        this.hasMore.set(false);
         this.loading.set(false);
+      },
+    });
+  }
+
+  /**
+   * Reads the next page of the catalogue and appends it. The offset is the number of rows already on
+   * screen, which is why the list is never re-sorted in the browser: the pages only line up while the
+   * order the server answered with — by code — is the order they are shown in.
+   *
+   * A failed page is reported without clearing what is already there, and it leaves the selection
+   * alone: the cost type whose accounts are shown is still a row of the catalogue.
+   */
+  loadMore(): void {
+    if (!this.hasMore() || this.loadingMore()) {
+      return;
+    }
+    this.loadingMore.set(true);
+    this.actionError.set(null);
+    this.api.listCostTypes(String(this.pageSize), String(this.types().length)).subscribe({
+      next: (types) => {
+        const page = types ?? [];
+        this.types.set([...this.types(), ...page]);
+        this.hasMore.set(page.length === this.pageSize);
+        this.loadingMore.set(false);
+      },
+      error: () => {
+        this.loadingMore.set(false);
+        this.actionError.set('Konnte die weiteren Kostenarten nicht laden.');
       },
     });
   }

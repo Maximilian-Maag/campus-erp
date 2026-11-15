@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.132.0] - 2026-11-15
+
+`GET /api/klr/cost-types` takes `limit` and `offset`, and both screens that read it page it:
+*Kostenarten* and the two cost-type pickers of *Verrechnungspreise*. Ninth paged list. `code` is
+`UNIQUE`, so `ORDER BY code` was already total and needed no tiebreaker.
+
+The *Verrechnungspreise* **report** names a cost type per rate and is over the whole catalogue by
+definition, so `internal/platform/reports` walks the pages (200 at a time) instead of asking for one;
+the new test prices the 201st cost type, which a single read would not have reached.
+
+Covered by a repository paging test against a window, an HTTP test for the default page, both pages of
+a walk, a page past the end and both refusals (`invalid_limit`, `invalid_offset`), the two screens'
+unit tests and an e2e that asserts the offsets actually sent.
+
 ## [0.131.0] - 2026-11-15
 
 `GET /api/budget/positions` takes `limit` and `offset`, and both screens that read it page it:
@@ -15,7 +29,6 @@ is now a read per row of the page.
 order was total and needed no tiebreaker. The *Mittelherkunft* picker grows its table and its
 Haushaltsstellen select with the same page, so a position can never be assignable without being shown
 as assigned.
-
 Covered by a repository paging test against a window, an HTTP test for the default page, both pages of
 a walk, a page past the end and both refusals (`invalid_limit`, `invalid_offset`), the two screens'
 unit tests and an e2e that asserts the offsets actually sent.

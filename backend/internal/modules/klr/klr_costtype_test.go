@@ -110,7 +110,7 @@ func TestCostTypeReads(t *testing.T) {
 	svc := NewService(repo, okAudit{})
 	ctx := context.Background()
 
-	types, err := svc.CostTypes(ctx)
+	types, err := svc.CostTypes(ctx, 200, 0)
 	if err != nil || len(types) != 1 || types[0].Code != "4711" {
 		t.Fatalf("CostTypes = %v, %v", types, err)
 	}

@@ -455,7 +455,7 @@ func (s stubKLR) AllocateToCostUnits(context.Context, int64, time.Time, time.Tim
 	return klr.Run{}, s.err
 }
 
-func (s stubKLR) CostTypes(context.Context) ([]klr.CostType, error) {
+func (s stubKLR) CostTypes(context.Context, int, int) ([]klr.CostType, error) {
 	return nil, s.err
 }
 

@@ -38,7 +38,7 @@ describe('KlrCostTypesComponent', () => {
     const fixture = TestBed.createComponent(KlrCostTypesComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').flush(types);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush(types);
     if (types.length > 0) {
       http.expectOne(accountsURL(types[0].ID)).flush(accounts);
     }
@@ -97,7 +97,7 @@ describe('KlrCostTypesComponent', () => {
     const fixture = TestBed.createComponent(KlrCostTypesComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').flush([]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([]);
     fixture.detectChanges();
 
     expect(component.types()).toEqual([]);
@@ -114,7 +114,7 @@ describe('KlrCostTypesComponent', () => {
   it('treats an empty response body as no cost types', () => {
     const fixture = TestBed.createComponent(KlrCostTypesComponent);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').flush(null);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush(null);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.types()).toEqual([]);
@@ -141,7 +141,7 @@ describe('KlrCostTypesComponent', () => {
 
     component.load();
     expect(component.loading()).toBeTrue();
-    http.expectOne('/api/klr/cost-types').flush([type(1)]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([type(1)]);
     http.expectOne(accountsURL(1)).flush([]);
     expect(component.loading()).toBeFalse();
   });
@@ -154,7 +154,7 @@ describe('KlrCostTypesComponent', () => {
     expect(component.chosen()).toBe('2');
 
     component.load();
-    http.expectOne('/api/klr/cost-types').flush([type(1), type(2)]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([type(1), type(2)]);
     http.expectOne(accountsURL(2)).flush([]);
 
     expect(component.chosen()).toBe('2');
@@ -167,7 +167,7 @@ describe('KlrCostTypesComponent', () => {
     http.expectOne(accountsURL(2)).flush([]);
 
     component.load();
-    http.expectOne('/api/klr/cost-types').flush([type(1)]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([type(1)]);
     http.expectOne(accountsURL(1)).flush([]);
 
     // The list moved on to the first entry rather than keeping a row that no longer exists.
@@ -177,7 +177,7 @@ describe('KlrCostTypesComponent', () => {
   it('reports a catalogue that could not be loaded', () => {
     const fixture = TestBed.createComponent(KlrCostTypesComponent);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-types').error(new ProgressEvent('error'));
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').error(new ProgressEvent('error'));
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -261,7 +261,7 @@ describe('KlrCostTypesComponent', () => {
     // The catalogue is reloaded and the screen moves to the new cost type. The list comes back
     // with another entry first, so "7" is only chosen because the create response said so — a
     // reload that simply picks the first entry would land on 1.
-    http.expectOne('/api/klr/cost-types').flush([type(1), type(7)]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([type(1), type(7)]);
     http.expectOne(accountsURL(7)).flush([]);
     expect(component.chosen()).toBe('7');
   });
@@ -275,7 +275,7 @@ describe('KlrCostTypesComponent', () => {
     http.expectOne('/api/klr/cost-types').flush(null);
 
     expect(component.notice()).toBe('Kostenart angelegt.');
-    http.expectOne('/api/klr/cost-types').flush([type(1)]);
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([type(1)]);
     http.expectOne(accountsURL(1)).flush([]);
   });
 
@@ -396,5 +396,50 @@ describe('KlrCostTypesComponent', () => {
     expect(html.querySelector('[data-testid="lookup-result"]')).toBeNull();
     expect(html.querySelector('[data-testid="lookup-miss"]')).toBeNull();
     expect(html.querySelector('[data-testid="lookup-account"]')).not.toBeNull();
+  });
+  it('reads the catalogue one page at a time, offering more only while a page comes back full', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => type(i + 1, { Code: 'K-' + (i + 1) }));
+    const { fixture, component } = loaded(fifty);
+    const el = fixture.nativeElement as HTMLElement;
+    expect(component.hasMore()).toBeTrue();
+    expect(el.querySelector('[data-testid="load-more"]')).not.toBeNull();
+
+    component.loadMore();
+    expect(component.loadingMore()).toBeTrue();
+    http
+      .expectOne('/api/klr/cost-types?limit=50&offset=50')
+      .flush([type(51, { Code: 'K-51' })]);
+    fixture.detectChanges();
+
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.types().length).toBe(51);
+    expect(el.querySelector('[data-testid="cost-type-51"]')).not.toBeNull();
+    // The selection is untouched: the accounts below are still about the row the operator picked.
+    expect(component.chosen()).toBe('1');
+    // A short page is the end of the catalogue: the offer goes and asking again asks nobody.
+    expect(component.hasMore()).toBeFalse();
+    expect(el.querySelector('[data-testid="load-more"]')).toBeNull();
+    component.loadMore();
+    http.expectNone('/api/klr/cost-types?limit=50&offset=51');
+  });
+
+  it('keeps the catalogue it already shows when the next page fails', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => type(i + 1, { Code: 'K-' + (i + 1) }));
+    const { fixture, component } = loaded(fifty);
+    expect(component.hasMore()).toBeTrue();
+
+    component.loadMore();
+    http
+      .expectOne('/api/klr/cost-types?limit=50&offset=50')
+      .flush('no', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    // The rows that were read are still valid, so the failure is reported beside them, not over them.
+    expect(component.types().length).toBe(50);
+    expect(component.actionError()).toBe('Konnte die weiteren Kostenarten nicht laden.');
+    expect(component.loadError()).toBeNull();
+    expect(component.loadingMore()).toBeFalse();
+    // The page failed rather than came back short, so there may still be one.
+    expect(component.hasMore()).toBeTrue();
   });
 });

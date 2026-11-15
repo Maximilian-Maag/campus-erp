@@ -14,7 +14,7 @@ test('Verrechnungspreise shows the rates, defines one and charges a service, and
   const defined: unknown[] = [];
   const charges: unknown[] = [];
 
-  await page.route('**/api/klr/cost-types', (route) => route.fulfill({ json: costTypes }));
+  await page.route(/\/api\/klr\/cost-types(\?.*)?$/, (route) => route.fulfill({ json: costTypes }));
   await page.route('**/api/klr/cost-centers', (route) => route.fulfill({ json: centers }));
   await page.route('**/api/klr/service-rates', (route) => {
     if (route.request().method() === 'POST') {
@@ -60,7 +60,7 @@ test('Verrechnungspreise shows the rates, defines one and charges a service, and
 });
 
 test('Verrechnungspreise reports refusals and an empty catalogue, and passes axe', async ({ page }) => {
-  await page.route('**/api/klr/cost-types', (route) => route.fulfill({ json: costTypes }));
+  await page.route(/\/api\/klr\/cost-types(\?.*)?$/, (route) => route.fulfill({ json: costTypes }));
   await page.route('**/api/klr/cost-centers', (route) => route.fulfill({ json: centers }));
   await page.route('**/api/klr/service-rates', (route) => {
     if (route.request().method() === 'POST') {

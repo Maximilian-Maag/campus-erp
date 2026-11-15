@@ -59,7 +59,7 @@ type CostTypes interface {
 // the Verrechnungspreise print view (docs/25).
 type Prices interface {
 	ServiceRates(ctx context.Context) ([]klr.ServiceRate, error)
-	CostTypes(ctx context.Context) ([]klr.CostType, error)
+	CostTypes(ctx context.Context, limit, offset int) ([]klr.CostType, error)
 }
 
 // Rules lists the apportionment rules with the centres they name (klr.Service satisfies it) —
@@ -268,9 +268,19 @@ func collectServiceRateOverview(prices Prices) func(context.Context, time.Time, 
 		if err != nil {
 			return report.Report{}, err
 		}
-		types, err := prices.CostTypes(ctx)
-		if err != nil {
-			return report.Report{}, err
+		// The store answers a page at a time (docs/15), and this view names a cost type per rate: the
+		// pages are walked here, a short one ending the walk.
+		const pageSize = 200
+		var types []klr.CostType
+		for offset := 0; ; offset += pageSize {
+			page, err := prices.CostTypes(ctx, pageSize, offset)
+			if err != nil {
+				return report.Report{}, err
+			}
+			types = append(types, page...)
+			if len(page) < pageSize {
+				break
+			}
 		}
 		byID := make(map[int64]klr.CostType, len(types))
 		for _, t := range types {

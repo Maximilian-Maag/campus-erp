@@ -283,8 +283,8 @@ export class CampusErpApi {
     return this.http.get<m.KlrReport>(this.base + `/api/klr/cost-centers/${id}/report`);
   }
 
-  listCostTypes(): Observable<m.CostType[]> {
-    return this.http.get<m.CostType[]>(this.base + `/api/klr/cost-types`);
+  listCostTypes(limit?: string, offset?: string): Observable<m.CostType[]> {
+    return this.http.get<m.CostType[]>(this.base + `/api/klr/cost-types${this._query({ limit, offset })}`);
   }
 
   createCostType(body: m.KlrCostTypeRequest): Observable<m.CostType> {

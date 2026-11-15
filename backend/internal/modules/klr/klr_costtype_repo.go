@@ -52,9 +52,11 @@ func (r *Repo) GetCostType(ctx context.Context, id int64) (CostType, error) {
 	return out, nil
 }
 
-// CostTypes lists every cost type by code, which is the order an operator reads them in.
-func (r *Repo) CostTypes(ctx context.Context) ([]CostType, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+costTypeColumns+` FROM cost_type ORDER BY code`)
+// CostTypes lists the cost types by code, which is the order an operator reads them in, one page at a
+// time. The code is UNIQUE, so the order is total: a page boundary can neither repeat nor skip a type.
+func (r *Repo) CostTypes(ctx context.Context, limit, offset int) ([]CostType, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+costTypeColumns+` FROM cost_type ORDER BY code LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("klr: list cost types: %w", err)
 	}
