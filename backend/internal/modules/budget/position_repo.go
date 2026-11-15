@@ -19,7 +19,7 @@ type PositionRepository interface {
 	CreatePosition(ctx context.Context, p Position) (Position, error)
 	GetPosition(ctx context.Context, id int64) (Position, error)
 	// ListPositions returns every position in budget order, for the Mittelübersicht (docs/25).
-	ListPositions(ctx context.Context) ([]Position, error)
+	ListPositions(ctx context.Context, limit, offset int) ([]Position, error)
 	InsertPosting(ctx context.Context, p Posting) (Posting, error)
 	Postings(ctx context.Context, positionID int64) ([]Posting, error)
 	Balance(ctx context.Context, positionID int64) (Balance, error)
@@ -75,11 +75,15 @@ func (r *PositionRepo) CreatePosition(ctx context.Context, p Position) (Position
 }
 
 // GetPosition loads a position by id.
-// ListPositions returns every position, ordered the way a budget is read: year, then chapter,
-// then title.
-func (r *PositionRepo) ListPositions(ctx context.Context) ([]Position, error) {
+// ListPositions returns the positions, ordered the way a budget is read — year, then chapter, then
+// title — one page at a time.
+//
+// The order ends in id, the primary key, so it is total: two positions can share a year, a chapter
+// and a title, and an order that did would repeat one row at a page boundary and skip another.
+func (r *PositionRepo) ListPositions(ctx context.Context, limit, offset int) ([]Position, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT `+positionColumns+` FROM budget_position ORDER BY year, chapter, title, id`)
+		`SELECT `+positionColumns+` FROM budget_position
+		  ORDER BY year, chapter, title, id LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("budget: list positions: %w", err)
 	}

@@ -77,7 +77,7 @@ func TestBudgetSourceAndCenter(t *testing.T) {
 		t.Fatalf("loaded = %+v", loaded)
 	}
 	// It is also in the list the Mittelübersicht reads.
-	list, err := svc.Positions(ctx)
+	list, err := svc.Positions(ctx, 200, 0)
 	if err != nil {
 		t.Fatalf("Positions: %v", err)
 	}

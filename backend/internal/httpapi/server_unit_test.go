@@ -314,7 +314,7 @@ func (s stubBudget) GetPosition(context.Context, int64) (budget.Position, error)
 	return s.position, s.err
 }
 
-func (s stubBudget) Positions(context.Context) ([]budget.Position, error) {
+func (s stubBudget) Positions(context.Context, int, int) ([]budget.Position, error) {
 	return nil, s.err
 }
 

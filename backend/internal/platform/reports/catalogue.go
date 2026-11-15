@@ -34,7 +34,7 @@ type Bookings interface {
 // Positions lists budget positions and reads their balances (budget.PositionService satisfies
 // it).
 type Positions interface {
-	Positions(ctx context.Context) ([]budget.Position, error)
+	Positions(ctx context.Context, limit, offset int) ([]budget.Position, error)
 	Balance(ctx context.Context, positionID int64) (budget.Balance, error)
 }
 
@@ -174,9 +174,20 @@ func collectPositionOverview(positions Positions) func(context.Context, time.Tim
 		if positions == nil {
 			return report.Report{}, ErrNoSource
 		}
-		list, err := positions.Positions(ctx)
-		if err != nil {
-			return report.Report{}, err
+		// A report is over the whole budget, while the store answers a page at a time (docs/15): the
+		// pages are walked here, and a short one ends the walk. Reading the list in one call is not an
+		// option the store offers, which is the point — nothing else should hold a whole budget.
+		const pageSize = 200
+		var list []budget.Position
+		for offset := 0; ; offset += pageSize {
+			page, err := positions.Positions(ctx, pageSize, offset)
+			if err != nil {
+				return report.Report{}, err
+			}
+			list = append(list, page...)
+			if len(page) < pageSize {
+				break
+			}
 		}
 		lines := make([]budget.PositionLine, 0, len(list))
 		for _, p := range list {

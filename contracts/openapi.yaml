@@ -1825,7 +1825,18 @@ paths:
       tags:
       - budget
       operationId: listBudgetPositions
-      summary: List every budget position with its balance
+      summary: List the budget positions with their balances, one page at a time
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: Success

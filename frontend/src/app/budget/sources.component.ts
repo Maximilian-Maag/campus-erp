@@ -173,6 +173,18 @@ import { formatCents } from '../core/format';
               }
             </tbody>
           </table>
+          @if (hasMore()) {
+            <p>
+              <button
+                type="button"
+                data-testid="load-more-positions"
+                [disabled]="loadingMore()"
+                (click)="loadMore()"
+              >
+                {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere Haushaltsstellen laden' }}
+              </button>
+            </p>
+          }
         }
 
         <form (submit)="runImport($event)">
@@ -207,6 +219,15 @@ export class BudgetSourcesComponent implements OnInit {
   readonly sources = signal<Source[]>([]);
   readonly centers = signal<Center[]>([]);
   readonly positions = signal<BudgetPositionResponse[]>([]);
+  /**
+   * One page of Haushaltsstellen, sent explicitly rather than left to the server's default: the
+   * picker and the table below it both read this list, so a page size that changed under the screen
+   * would silently hide positions from both.
+   */
+  private readonly pageSize = 50;
+  /** True while the last page came back full, so there may be another. */
+  readonly hasMore = signal(false);
+  readonly loadingMore = signal(false);
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly loadError = signal<string | null>(null);
@@ -248,10 +269,45 @@ export class BudgetSourcesComponent implements OnInit {
       next: (centers) => this.centers.set(centers),
       error: () => this.loadError.set('Die Bewirtschaftungsstellen konnten nicht geladen werden.'),
     });
-    this.api.listBudgetPositions().subscribe({
-      next: (positions) => this.positions.set(positions),
-      error: () => this.loadError.set('Die Haushaltsstellen konnten nicht geladen werden.'),
+    this.api.listBudgetPositions(String(this.pageSize), '0').subscribe({
+      next: (positions) => {
+        const page = positions ?? [];
+        this.positions.set(page);
+        // A full page means there may be more; a short one is the end of the budget.
+        this.hasMore.set(page.length === this.pageSize);
+      },
+      error: () => {
+        this.hasMore.set(false);
+        this.loadError.set('Die Haushaltsstellen konnten nicht geladen werden.');
+      },
     });
+  }
+
+  /**
+   * Reads the next page of Haushaltsstellen and appends it to both the picker and the table, since
+   * they are the same list: a position must not be assignable without being shown as assigned. A
+   * failed page leaves what is already offered where it is.
+   */
+  loadMore(): void {
+    if (!this.hasMore() || this.loadingMore()) {
+      return;
+    }
+    this.loadingMore.set(true);
+    this.actionError.set(null);
+    this.api
+      .listBudgetPositions(String(this.pageSize), String(this.positions().length))
+      .subscribe({
+        next: (positions) => {
+          const page = positions ?? [];
+          this.positions.set([...this.positions(), ...page]);
+          this.hasMore.set(page.length === this.pageSize);
+          this.loadingMore.set(false);
+        },
+        error: () => {
+          this.loadingMore.set(false);
+          this.actionError.set('Die weiteren Haushaltsstellen konnten nicht geladen werden.');
+        },
+      });
   }
 
   createSource(event: Event): void {

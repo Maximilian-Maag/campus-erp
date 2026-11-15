@@ -2,6 +2,24 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.131.0] - 2026-11-15
+
+`GET /api/budget/positions` takes `limit` and `offset`, and both screens that read it page it:
+*Mittelübersicht* and the *Mittelherkunft* picker. Eighth paged list.
+
+The page is also what keeps the route's shape affordable: it reads each position's balance separately
+so the answer carries the *Mittelüberwachung*'s own figure, which was a read per row of the budget and
+is now a read per row of the page.
+
+`budget_position` was already ordered `year, chapter, title` — ending in `id`, the primary key — so the
+order was total and needed no tiebreaker. The *Mittelherkunft* picker grows its table and its
+Haushaltsstellen select with the same page, so a position can never be assignable without being shown
+as assigned.
+
+Covered by a repository paging test against a window, an HTTP test for the default page, both pages of
+a walk, a page past the end and both refusals (`invalid_limit`, `invalid_offset`), the two screens'
+unit tests and an e2e that asserts the offsets actually sent.
+
 ## [0.130.0] - 2026-11-15
 
 `GET /api/foundation-books/{id}/bookings` takes `limit` and `offset`, and *Stiftungen* reads a book's

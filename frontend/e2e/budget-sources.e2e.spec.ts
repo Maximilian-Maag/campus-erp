@@ -45,7 +45,7 @@ test('Mittelherkunft creates a source and a centre and names a position, and pas
         route.fulfill({ status: 201, json: { ...center, ID: 4, Code: 'BW-2', Name: 'Fakultät 2' } }))
       : route.fulfill({ status: 200, json: [center] })
   );
-  await page.route('**/api/budget/positions', (route) =>
+  await page.route(/\/api\/budget\/positions(\?.*)?$/, (route) =>
     route.fulfill({ status: 200, json: [positionRow] })
   );
   await page.route('**/api/budget/positions/*/assignment', (route) => {
@@ -107,7 +107,7 @@ test('Mittelherkunft reads a budget file and states what it did, and passes axe'
   });
   await page.route('**/api/budget/sources', (route) => route.fulfill({ status: 200, json: [source] }));
   await page.route('**/api/budget/centers', (route) => route.fulfill({ status: 200, json: [center] }));
-  await page.route('**/api/budget/positions', (route) =>
+  await page.route(/\/api\/budget\/positions(\?.*)?$/, (route) =>
     route.fulfill({ status: 200, json: [positionRow] })
   );
 
@@ -138,7 +138,7 @@ test('Mittelherkunft reports a refused create and an empty budget, and passes ax
       : route.fulfill({ status: 200, json: [] })
   );
   await page.route('**/api/budget/centers', (route) => route.fulfill({ status: 200, json: [] }));
-  await page.route('**/api/budget/positions', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route(/\/api\/budget\/positions(\?.*)?$/, (route) => route.fulfill({ status: 200, json: [] }));
 
   await page.goto('/budget/mittelherkunft');
   await expect(page.getByText('Es ist keine Mittelquelle angelegt.')).toBeVisible();

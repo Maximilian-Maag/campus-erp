@@ -207,7 +207,7 @@ func findSource(list []budget.Source, code string) (budget.Source, bool) {
 
 func findPosition(t *testing.T, svc *budget.PositionService, year int, chapter, title string) (budget.Position, bool) {
 	t.Helper()
-	positions, err := svc.Positions(context.Background())
+	positions, err := svc.Positions(context.Background(), 200, 0)
 	if err != nil {
 		t.Fatalf("Positions: %v", err)
 	}
