@@ -13,7 +13,7 @@ import (
 type foundationBookService interface {
 	CreateBook(ctx context.Context, foundationID int64, reference, currency, by string) (kasse.FoundationBook, error)
 	Book(ctx context.Context, bookID, amountCents int64, kind kasse.BookingKind, purpose, by string) (kasse.FoundationBooking, error)
-	Bookings(ctx context.Context, bookID int64) ([]kasse.FoundationBooking, error)
+	Bookings(ctx context.Context, bookID int64, limit, offset int) ([]kasse.FoundationBooking, error)
 	Books(ctx context.Context, foundationID int64) ([]kasse.FoundationBook, error)
 	Balance(ctx context.Context, bookID int64) (kasse.FoundationBalance, error)
 	CarryOver(ctx context.Context, bookID int64, reference, by string) (kasse.CarryOver, error)
@@ -178,13 +178,20 @@ func (s *Server) reverseFoundationBooking(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// getFoundationBookings reads a book's movements, oldest first, one page at a time (docs/15): a
+// foundation's book is the account of a year, and a year is not a page.
 func (s *Server) getFoundationBookings(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	bookings, err := s.foundationBooks.Bookings(r.Context(), id)
+	limit, offset, problem := pageParams(r)
+	if problem != nil {
+		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
+		return
+	}
+	bookings, err := s.foundationBooks.Bookings(r.Context(), id, limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForFoundationBook(err), err)
 		return

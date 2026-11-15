@@ -3,6 +3,7 @@ package kasse_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
@@ -57,7 +58,7 @@ func TestFoundationBookIsolation(t *testing.T) {
 	}
 
 	// Bookings are scoped: A sees its two, B sees its one.
-	la, err := books.Bookings(ctx, bookA.ID)
+	la, err := books.Bookings(ctx, bookA.ID, 50, 0)
 	if err != nil {
 		t.Fatalf("Bookings A: %v", err)
 	}
@@ -69,7 +70,7 @@ func TestFoundationBookIsolation(t *testing.T) {
 			t.Fatalf("book A returned a booking of book %d", b.BookID)
 		}
 	}
-	lb, err := books.Bookings(ctx, bookB.ID)
+	lb, err := books.Bookings(ctx, bookB.ID, 50, 0)
 	if err != nil {
 		t.Fatalf("Bookings B: %v", err)
 	}
@@ -235,4 +236,74 @@ func currencyOf(list []kasse.FoundationBook, id int64) string {
 		}
 	}
 	return ""
+}
+
+// TestFoundationBookingsPage: a book's movements answer the page that was asked for, and walking the
+// pages reproduces a window of the list in order, with nothing repeated and nothing skipped. The
+// order is by id — the primary key — so it is total, which is what makes a page boundary safe here.
+func TestFoundationBookingsPage(t *testing.T) {
+	ctx := context.Background()
+	pool := testPool(t)
+	store := audit.NewStore(pool)
+	tax := kasse.NewTaxService(kasse.NewTaxRepo(pool), store)
+	books := kasse.NewFoundationBookService(kasse.NewFoundationBookRepo(pool), store)
+
+	f := newFoundation(t, tax)
+	book, err := books.CreateBook(ctx, f.ID, "PG-BOOK-"+uniqueSuffix(t), "EUR", "alice")
+	if err != nil {
+		t.Fatalf("CreateBook: %v", err)
+	}
+	// Five movements, so the window below is longer than one small page.
+	for i := 0; i < 5; i++ {
+		if _, err := books.Book(ctx, book.ID, int64(1000*(i+1)), kasse.Income,
+			fmt.Sprintf("Spende %d", i), "alice"); err != nil {
+			t.Fatalf("Book %d: %v", i, err)
+		}
+	}
+
+	const window = 4
+	head, err := books.Bookings(ctx, book.ID, window, 0)
+	if err != nil {
+		t.Fatalf("Bookings: %v", err)
+	}
+	if len(head) != window {
+		t.Fatalf("window = %d rows, want %d", len(head), window)
+	}
+
+	const pageSize = 2
+	first, err := books.Bookings(ctx, book.ID, pageSize, 0)
+	if err != nil {
+		t.Fatalf("Bookings(offset=0): %v", err)
+	}
+	second, err := books.Bookings(ctx, book.ID, pageSize, pageSize)
+	if err != nil {
+		t.Fatalf("Bookings(offset=%d): %v", pageSize, err)
+	}
+	if len(first) != pageSize || len(second) != pageSize {
+		t.Fatalf("pages hold %d and %d rows, want %d each", len(first), len(second), pageSize)
+	}
+	paged := append(append([]kasse.FoundationBooking{}, first...), second...)
+	for i := range head {
+		if paged[i].ID != head[i].ID {
+			t.Fatalf("the pages diverge from the window at %d: got %d, want %d", i, paged[i].ID, head[i].ID)
+		}
+	}
+
+	// A page past the end is empty rather than an error.
+	past, err := books.Bookings(ctx, book.ID, 5, 1000)
+	if err != nil {
+		t.Fatalf("Bookings(past the end): %v", err)
+	}
+	if len(past) != 0 {
+		t.Fatalf("a page past the end holds %d rows", len(past))
+	}
+
+	// One row is the whole answer to "has this book moved?" — the carry-over's question.
+	one, err := books.Bookings(ctx, book.ID, 1, 0)
+	if err != nil {
+		t.Fatalf("Bookings(one): %v", err)
+	}
+	if len(one) != 1 || one[0].ID != head[0].ID {
+		t.Fatalf("one row = %+v, want the first of the window", one)
+	}
 }

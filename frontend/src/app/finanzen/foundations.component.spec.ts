@@ -82,7 +82,7 @@ describe('FoundationsComponent', () => {
   function withBook(books: FoundationBook[] = [buch], bookings: FoundationBooking[] = [booking(3)], bal = balance()) {
     const fixture = withBooks([stiftung], books);
     fixture.componentInstance.selectBook(books[0]);
-    http.expectOne(`/api/foundation-books/${books[0].ID}/bookings`).flush(bookings);
+    http.expectOne(`/api/foundation-books/${books[0].ID}/bookings?limit=50&offset=0`).flush(bookings);
     http.expectOne(`/api/foundation-books/${books[0].ID}/balance`).flush(bal);
     fixture.detectChanges();
     return fixture;
@@ -419,7 +419,7 @@ describe('FoundationsComponent', () => {
 
     component.selectBook(buch);
     http
-      .expectOne('/api/foundation-books/7/bookings')
+      .expectOne('/api/foundation-books/7/bookings?limit=50&offset=0')
       .flush('no', { status: 500, statusText: 'Server Error' });
     http
       .expectOne('/api/foundation-books/7/balance')
@@ -437,7 +437,7 @@ describe('FoundationsComponent', () => {
 
     component.selectBook(buch);
     http
-      .expectOne('/api/foundation-books/7/bookings')
+      .expectOne('/api/foundation-books/7/bookings?limit=50&offset=0')
       .flush('no', { status: 500, statusText: 'Server Error' });
     http.expectOne('/api/foundation-books/7/balance').flush(balance());
     fixture.detectChanges();
@@ -482,7 +482,7 @@ describe('FoundationsComponent', () => {
     expect(component.actionError()).toBe('Zuerst ein Buch wählen.');
 
     component.selectBook(buch);
-    http.expectOne('/api/foundation-books/7/bookings').flush([]);
+    http.expectOne('/api/foundation-books/7/bookings?limit=50&offset=0').flush([]);
     http.expectOne('/api/foundation-books/7/balance').flush(balance());
 
     component.recordBooking(new Event('submit'));
@@ -656,7 +656,7 @@ describe('FoundationsComponent', () => {
 
     // The screen re-reads rather than adjusting: the mistake and its counter-movement are both rows.
     http
-      .expectOne('/api/foundation-books/7/bookings')
+      .expectOne('/api/foundation-books/7/bookings?limit=50&offset=0')
       .flush([{ ...movement, ReversedBy: 12 }, booking(12, { Kind: 'expense', Reverses: movement.ID })]);
     http.expectOne('/api/foundation-books/7/balance').flush(balance({ IncomeCents: 50000, ExpenseCents: 50000 }));
     fixture.detectChanges();
@@ -743,7 +743,7 @@ describe('FoundationsComponent', () => {
       amount_cents: 42500,
       purpose: `Storno zu Buchung ${movement.ID}`,
     });
-    http.expectOne('/api/foundation-books/7/bookings').flush(null);
+    http.expectOne('/api/foundation-books/7/bookings?limit=50&offset=0').flush(null);
     http.expectOne('/api/foundation-books/7/balance').flush(balance());
     fixture.detectChanges();
 
@@ -768,7 +768,7 @@ describe('FoundationsComponent', () => {
     // The cancellation itself went through, so the screen keeps its notice and reports the read that
     // failed rather than claiming the cancellation failed.
     http
-      .expectOne('/api/foundation-books/7/bookings')
+      .expectOne('/api/foundation-books/7/bookings?limit=50&offset=0')
       .flush({ error: 'unreadable' }, { status: 500, statusText: 'Internal Server Error' });
     http.expectOne('/api/foundation-books/7/balance').flush(balance());
     fixture.detectChanges();
@@ -791,5 +791,78 @@ describe('FoundationsComponent', () => {
     const created = host.querySelector('#foundation-year') as HTMLInputElement;
     expect(filter.value).toBe('2025');
     expect(created.value).toBe('2027');
+  });
+  it('reads a book one page of movements at a time, offering more only while a page comes back full', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => booking(i + 1));
+    const fixture = withBook([buch], fifty);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(component.hasMore()).toBeTrue();
+    expect(el.querySelector('[data-testid="load-more-bookings"]')).not.toBeNull();
+
+    component.loadMore();
+    expect(component.loadingMore()).toBeTrue();
+    http
+      .expectOne('/api/foundation-books/7/bookings?limit=50&offset=50')
+      .flush([booking(51)]);
+    fixture.detectChanges();
+
+    expect(component.loadingMore()).toBeFalse();
+    expect(component.bookings().length).toBe(51);
+    expect(el.querySelector('[data-testid="booking-51"]')).not.toBeNull();
+    // A short page is the end of the book's movements: the offer goes and asking again asks nobody.
+    expect(component.hasMore()).toBeFalse();
+    expect(el.querySelector('[data-testid="load-more-bookings"]')).toBeNull();
+    component.loadMore();
+    http.expectNone('/api/foundation-books/7/bookings?limit=50&offset=51');
+  });
+
+  it('keeps the movements it already has when the next page fails', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => booking(i + 1));
+    const fixture = withBook([buch], fifty);
+    const component = fixture.componentInstance;
+    expect(component.hasMore()).toBeTrue();
+
+    component.loadMore();
+    http
+      .expectOne('/api/foundation-books/7/bookings?limit=50&offset=50')
+      .flush('no', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    // The rows that were read are still valid, so the failure is reported beside them, not over them.
+    expect(component.bookings().length).toBe(50);
+    expect(component.actionError()).toBe('Konnte die weiteren Buchungen nicht laden.');
+    expect(component.loadingMore()).toBeFalse();
+    // The page failed rather than came back short, so there may still be one.
+    expect(component.hasMore()).toBeTrue();
+  });
+
+  it('re-reads the first page after recording while pages are unread, instead of appending out of order', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => booking(i + 1));
+    const fixture = withBook([buch], fifty);
+    const component = fixture.componentInstance;
+    component.bookingKind.set('income');
+    component.bookingAmount.set('10,00');
+    component.purpose.set('Spende');
+    expect(component.hasMore()).toBeTrue();
+
+    component.recordBooking(new Event('submit'));
+    const post = http.expectOne('/api/foundation-books/7/bookings');
+    expect(post.request.method).toBe('POST');
+    post.flush(booking(51));
+
+    // The new movement is the last by id, but the page the offset would return starts before it, so
+    // the screen reads the book again from its first page rather than putting 51 above 51..100.
+    http
+      .expectOne('/api/foundation-books/7/bookings?limit=50&offset=0')
+      .flush(Array.from({ length: 50 }, (_, i) => booking(i + 1)));
+    http.expectOne('/api/foundation-books/7/balance').flush(balance());
+    fixture.detectChanges();
+
+    expect(component.bookings().length).toBe(50);
+    expect(component.bookings().at(-1)?.ID).toBe(50);
+    expect(component.notice()).toBe('Buchung erfasst.');
+    expect(component.hasMore()).toBeTrue();
   });
 });

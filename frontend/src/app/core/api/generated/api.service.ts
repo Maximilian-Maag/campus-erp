@@ -215,8 +215,8 @@ export class CampusErpApi {
     return this.http.get<m.FoundationBalance>(this.base + `/api/foundation-books/${id}/balance`);
   }
 
-  listFoundationBookings(id: number | string): Observable<m.FoundationBooking[]> {
-    return this.http.get<m.FoundationBooking[]>(this.base + `/api/foundation-books/${id}/bookings`);
+  listFoundationBookings(id: number | string, limit?: string, offset?: string): Observable<m.FoundationBooking[]> {
+    return this.http.get<m.FoundationBooking[]>(this.base + `/api/foundation-books/${id}/bookings${this._query({ limit, offset })}`);
   }
 
   bookFoundation(id: number | string, body: m.BookFoundationRequest): Observable<m.FoundationBooking> {

@@ -2,6 +2,26 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.130.0] - 2026-11-15
+
+`GET /api/foundation-books/{id}/bookings` takes `limit` and `offset`, and *Stiftungen* reads a book's
+movements one page at a time (*Weitere laden*) instead of holding a year of them to show the first.
+This is the seventh paged list. `id` is the primary key and the list is ordered by it, so the order
+was already total and needed no tiebreaker.
+
+Two things came out of it that are worth naming. The year's carry-over used to read the whole target
+book to ask whether it had moved at all; it now asks for **one row**, which is the question. And the
+screen **re-reads the first page** instead of appending in two places, because a page is only a page
+while it starts at the first movement: after recording a movement while pages are still unread (the
+new row is the last by id, so appending it would put it above rows the next page returns again, and
+the next page's offset — the number of rows on screen — would duplicate it), and after cancelling one
+(the server appends the counter-movement at the end).
+
+Covered by a repository paging test against a window plus the one-row query the carry-over relies on,
+an HTTP test for the default page, both pages of a walk, a page past the end, the clamp and both
+refusals (`invalid_limit`, `invalid_offset`), the screen's unit tests and an e2e that asserts the
+offsets actually sent.
+
 ## [0.129.0] - 2026-11-15
 
 `GET /api/direct-debit/mandates` (*Mandate*) takes `limit` and `offset` beside its `active` and

@@ -265,6 +265,18 @@ import { problemCode } from '../core/problem';
                     }
                   </tbody>
                 </table>
+                @if (hasMore()) {
+                  <p>
+                    <button
+                      type="button"
+                      data-testid="load-more-bookings"
+                      [disabled]="loadingMore()"
+                      (click)="loadMore()"
+                    >
+                      {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
+                    </button>
+                  </p>
+                }
               }
 
               <form (submit)="recordBooking($event)">
@@ -332,6 +344,14 @@ export class FoundationsComponent implements OnInit {
 
   readonly selectedBook = signal<FoundationBook | null>(null);
   readonly bookings = signal<FoundationBooking[]>([]);
+  /**
+   * One page of movements, sent explicitly rather than left to the server's default: a screen whose
+   * page size changed when the server did would be a surprise nobody could see in the code.
+   */
+  private readonly pageSize = 50;
+  /** True while the last page of movements came back full, so there may be another. */
+  readonly hasMore = signal(false);
+  readonly loadingMore = signal(false);
   readonly balance = signal<FoundationBalance | null>(null);
   readonly bookingKind = signal('income');
   readonly bookingAmount = signal('');
@@ -414,6 +434,7 @@ export class FoundationsComponent implements OnInit {
     this.selectedFoundation.set(foundation);
     this.selectedBook.set(null);
     this.bookings.set([]);
+    this.hasMore.set(false);
     this.balance.set(null);
     this.booksLoading.set(true);
     this.actionError.set(null);
@@ -472,10 +493,9 @@ export class FoundationsComponent implements OnInit {
         this.notice.set(
           `Buchung ${res.original_id} storniert — Gegenbuchung ${res.counter_booking_id} angelegt.`,
         );
-        this.api.listFoundationBookings(book.ID).subscribe({
-          next: (bookings) => this.bookings.set(bookings ?? []),
-          error: () => this.actionError.set('Konnte die Buchungen nicht laden.'),
-        });
+        // The counter-movement is appended by the server at the end of the book, so a screen holding
+        // a page of it starts again: a page is only a page while it starts at the first movement.
+        this.loadBookings(book);
         this.loadBalance(book);
       },
       error: (err: unknown) => {
@@ -525,11 +545,55 @@ export class FoundationsComponent implements OnInit {
   selectBook(book: FoundationBook): void {
     this.selectedBook.set(book);
     this.actionError.set(null);
-    this.api.listFoundationBookings(book.ID).subscribe({
-      next: (bookings) => this.bookings.set(bookings ?? []),
+    this.loadBookings(book);
+    this.loadBalance(book);
+  }
+
+  /**
+   * Reads the first page of a book's movements and forgets the rest, which is what a fresh question
+   * means: the movements are ordered by id, so a page is only a page while it starts at the first
+   * one. The offset of the next page is the number of movements already on screen, which is why the
+   * list is never re-sorted in the browser.
+   */
+  private loadBookings(book: FoundationBook): void {
+    this.hasMore.set(false);
+    this.api.listFoundationBookings(book.ID, String(this.pageSize), '0').subscribe({
+      next: (bookings) => {
+        const page = bookings ?? [];
+        this.bookings.set(page);
+        // A full page means there may be more; a short one is the end of the book's movements.
+        this.hasMore.set(page.length === this.pageSize);
+      },
       error: () => this.actionError.set('Konnte die Buchungen nicht laden.'),
     });
-    this.loadBalance(book);
+  }
+
+  /**
+   * Reads the next page of movements and appends it. A failed page is reported without clearing what
+   * is already there — the movements that were read are still valid, and blanking the screen would
+   * suggest they are not.
+   */
+  loadMore(): void {
+    const book = this.selectedBook();
+    if (book === null || !this.hasMore() || this.loadingMore()) {
+      return;
+    }
+    this.loadingMore.set(true);
+    this.actionError.set(null);
+    this.api
+      .listFoundationBookings(book.ID, String(this.pageSize), String(this.bookings().length))
+      .subscribe({
+        next: (bookings) => {
+          const page = bookings ?? [];
+          this.bookings.set([...this.bookings(), ...page]);
+          this.hasMore.set(page.length === this.pageSize);
+          this.loadingMore.set(false);
+        },
+        error: () => {
+          this.loadingMore.set(false);
+          this.actionError.set('Konnte die weiteren Buchungen nicht laden.');
+        },
+      });
   }
 
   recordBooking(event: Event): void {
@@ -557,7 +621,15 @@ export class FoundationsComponent implements OnInit {
       .subscribe({
         next: (booking) => {
           this.submitting.set(false);
-          this.bookings.set([...this.bookings(), booking]);
+          // The new movement is the last one by id, so appending it is only right while the screen
+          // holds every movement before it. With pages still unread it is not the next row: the page
+          // the offset would return starts before it, and appending would either duplicate it later
+          // or show it out of order — so the screen reads the book again from its first page.
+          if (this.hasMore()) {
+            this.loadBookings(book);
+          } else {
+            this.bookings.set([...this.bookings(), booking]);
+          }
           this.notice.set('Buchung erfasst.');
           this.bookingAmount.set('');
           this.purpose.set('');

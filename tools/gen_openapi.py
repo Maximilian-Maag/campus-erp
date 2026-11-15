@@ -107,7 +107,7 @@ CONTRACT: dict[str, dict[str, tuple]] = {
     },
     "/api/foundation-books/{id}/bookings": {
         "post": ("bookFoundation", "kasse", "Post to a foundation book", "httpapi.bookFoundationRequest", "kasse.FoundationBooking", 201, "json"),
-        "get": ("listFoundationBookings", "kasse", "List foundation bookings", None, "[]kasse.FoundationBooking", 200, "json"),
+        "get": ("listFoundationBookings", "kasse", "List foundation bookings, oldest first, one page at a time", None, "[]kasse.FoundationBooking", 200, "json", [("limit", "integer", False), ("offset", "integer", False)]),
     },
     "/api/foundation-books/{id}/balance": {
         "get": ("getFoundationBalance", "kasse", "Read a foundation balance", None, "kasse.FoundationBalance", 200, "json"),
