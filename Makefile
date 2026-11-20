@@ -28,6 +28,15 @@ export
 TAG            ?= $(shell git -C $(ROOT) describe --tags --always --dirty 2>/dev/null || echo dev)
 IMAGE_BACKEND  ?= campus-erp-backend:$(TAG)
 IMAGE_FRONTEND ?= campus-erp-frontend:$(TAG)
+# Registry of record and the account that may write to it. The credential is
+# DOCKER_HUB_TOKEN - a Docker Hub access token with read/write, never the account
+# password - and it is read from the environment only, so nothing is stored in the
+# repository. `make docker-login docker-publish`.
+REGISTRY      ?= docker.io/maximilianmaag
+REGISTRY_USER ?= maximilianmaag
+REGISTRY_HOST ?= $(firstword $(subst /, ,$(REGISTRY)))
+# Further tags to publish alongside TAG (space separated), e.g. PUSH_TAGS="v1.2.3 latest".
+PUSH_TAGS     ?=
 COMPOSE        ?= docker compose
 # Read from go.mod, never hand-pinned: a `go` directive bump that does not reach the
 # image is a build that fails at `go mod download` (or worse, compiles with an older
@@ -73,6 +82,7 @@ help: ## Show this help
 	@awk 'BEGIN{FS=":.*## "} /^[a-zA-Z0-9_.-]+:.*## /{printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 	@echo "vars: TAG=$(TAG)  IMAGE_BACKEND=$(IMAGE_BACKEND)  IMAGE_FRONTEND=$(IMAGE_FRONTEND)"
+	@echo "      registry=$(REGISTRY)  push_tags=$(if $(PUSH_TAGS),$(PUSH_TAGS),-)"
 	@echo "      go=$(if $(filter 1,$(GO_IN_DOCKER)),docker,$(shell command -v go))"
 
 version: ## Print the resolved build tag
@@ -261,7 +271,7 @@ contracts-gen: ## Regenerate contracts/openapi.yaml, the Angular client and the 
 # Container images
 # ════════════════════════════════════════════════════════════════════════════
 
-.PHONY: docker docker-backend docker-frontend docker-images docker-push
+.PHONY: docker docker-backend docker-frontend docker-images docker-login docker-push docker-publish
 
 docker: docker-images ## Alias for docker-images
 
@@ -276,10 +286,36 @@ docker-frontend: ## Build the frontend image (IMAGE_FRONTEND)
 
 docker-images: docker-backend docker-frontend ## Build both images
 
+docker-login: ## Log in to $(REGISTRY_HOST) as $(REGISTRY_USER) using DOCKER_HUB_TOKEN
+	$(call require,docker)
+	if [[ -z $${DOCKER_HUB_TOKEN:-} ]]; then
+	  echo "error: DOCKER_HUB_TOKEN is not set (a Docker Hub access token with read/write)"
+	  exit 1
+	fi
+	# Through the environment, not argv: a token in the command line is visible to
+	# every process on the machine.
+	printenv DOCKER_HUB_TOKEN | docker login --username "$(REGISTRY_USER)" --password-stdin "$(REGISTRY_HOST)"
+
 docker-push: ## Push both images (set IMAGE_* to a registry ref first)
 	$(call require,docker)
 	docker push "$(IMAGE_BACKEND)"
 	docker push "$(IMAGE_FRONTEND)"
+
+docker-publish: ## Build both images and push them to $(REGISTRY)
+	$(call require,docker)
+	# Build once, retag for publication: a second build would only re-push the same
+	# bytes under a different name (and could differ if the tree moved on).
+	$(MAKE) --no-print-directory docker-images \
+	  IMAGE_BACKEND="$(REGISTRY)/campus-erp-backend:$(TAG)" \
+	  IMAGE_FRONTEND="$(REGISTRY)/campus-erp-frontend:$(TAG)"
+	for image in campus-erp-backend campus-erp-frontend; do
+	  for tag in $(TAG) $(PUSH_TAGS); do
+	    if [[ $$tag != "$(TAG)" ]]; then
+	      docker tag "$(REGISTRY)/$$image:$(TAG)" "$(REGISTRY)/$$image:$$tag"
+	    fi
+	    docker push "$(REGISTRY)/$$image:$$tag"
+	  done
+	done
 
 # ════════════════════════════════════════════════════════════════════════════
 # Local stack (docker compose)

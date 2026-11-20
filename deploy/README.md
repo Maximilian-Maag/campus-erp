@@ -68,9 +68,9 @@ Directly with helm:
 ```bash
 helm upgrade --install campus-erp deploy/helm/campus-erp \
   --namespace campus-erp --create-namespace \
-  --set images.backend.repository=ghcr.io/maximilian-maag/campus-erp-backend \
+  --set images.backend.repository=docker.io/maximilianmaag/campus-erp-backend \
   --set images.backend.tag=0.6.1 \
-  --set images.frontend.repository=ghcr.io/maximilian-maag/campus-erp-frontend \
+  --set images.frontend.repository=docker.io/maximilianmaag/campus-erp-frontend \
   --set images.frontend.tag=0.6.1 \
   --set database.existingSecret=campus-erp-dsn \
   --set ingress.enabled=true

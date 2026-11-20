@@ -31,7 +31,7 @@ removes a table must be followed by `make test-tools` by hand — the expected e
 | Backend | `backend`, `backend-build`, `backend-vet`, `backend-fmt`, `backend-tidy`, `backend-test`, `backend-test-integration`, `backend-mutation`, `backend-run-api` |
 | Frontend | `frontend`, `frontend-install`, `frontend-build`, `frontend-test`, `frontend-e2e-install`, `frontend-e2e`, `frontend-mutation`, `frontend-serve` |
 | Contract | `contracts-validate` |
-| Images | `docker`, `docker-backend`, `docker-frontend`, `docker-images`, `docker-push` |
+| Images | `docker`, `docker-backend`, `docker-frontend`, `docker-images`, `docker-login`, `docker-push`, `docker-publish` |
 | Local stack | `up`, `down`, `restart`, `ps`, `logs`, `db-up`, `db-shell`, `clean-data` |
 | Deploy (one host) | `deploy`, `deploy-backend`, `deploy-frontend` |
 | Iterate on one half | `workon-frontend`, `workon-backend`, `dev-up` |
@@ -111,12 +111,35 @@ Two pitfalls, both handled by the script:
 
 ## Images
 
+The registry of record is **Docker Hub**, namespace `maximilianmaag`:
+
 ```bash
 make docker-images                 # campus-erp-backend:<tag>, campus-erp-frontend:<tag>
 make docker-images TAG=1.2.3
-make docker-push IMAGE_BACKEND=ghcr.io/maximilian-maag/campus-erp-backend:1.2.3 \
-                 IMAGE_FRONTEND=ghcr.io/maximilian-maag/campus-erp-frontend:1.2.3
+make docker-login                  # needs DOCKER_HUB_TOKEN in the environment
+make docker-publish TAG=v1.2.3 PUSH_TAGS=latest
 ```
+
+```bash
+make docker-push IMAGE_BACKEND=docker.io/maximilianmaag/campus-erp-backend:1.2.3 \
+                 IMAGE_FRONTEND=docker.io/maximilianmaag/campus-erp-frontend:1.2.3
+```
+
+`make docker-publish` builds both images once, then pushes them to `$(REGISTRY)` as
+`$(TAG)` and every tag in `PUSH_TAGS` — the same bytes under each name. It does not
+log in itself: `make docker-login` does that, reading `DOCKER_HUB_TOKEN` (a Hub
+*access token* with read/write, never the account password) from the environment and
+piping it to `docker login` on stdin, so the token is never a process argument. The
+namespace is `$(REGISTRY_USER)` (defaults to the owner of `$(REGISTRY)`).
+
+CI publishes on a `v*` tag: `.github/workflows/release.yml` runs
+`make docker-login docker-publish` inside the `release` environment, which holds
+`DOCKER_HUB_TOKEN` as an environment secret, and then pulls every tag it claims to have
+pushed back and compares its image ID with the build. A manual `workflow_dispatch` publishes
+`sha-<short>` (plus `latest`) from any branch. The workflow does not re-run the quality
+gate, so tag a commit that is green on `master`.
+
+Both images are public, so a cluster needs no pull secret for them.
 
 - **backend** (`backend/Dockerfile`): multi-stage; builds `api`, `worker` and
   `connectors` from one source tree into one image. The entrypoint is `/app/api`;
@@ -125,6 +148,10 @@ make docker-push IMAGE_BACKEND=ghcr.io/maximilian-maag/campus-erp-backend:1.2.3 
 - **frontend** (`frontend/Dockerfile`): Angular production build served by nginx;
   `frontend/nginx.conf` proxies `/api` to `${API_UPSTREAM}` (same-origin API,
   ADR-0002) and does the SPA fallback.
+
+`quality.yml` builds both images on every push (the `images` job, build only, no push), so a
+Dockerfile whose Go or Node base image drifts from `backend/go.mod` / `frontend/package.json`
+fails a pull request rather than the next release.
 
 ## Local stack (docker compose)
 
@@ -195,6 +222,7 @@ helm upgrade --install campus-erp deploy/helm/campus-erp \
 
 ## Knobs (override on the command line or in `.env`)
 
-`TAG`, `IMAGE_BACKEND`, `IMAGE_FRONTEND`, `API_PROXY_TARGET`, `DATABASE_URL`,
-`NAMESPACE`, `RELEASE`, `KUBE_CONTEXT`, `GO_IMAGE`, `STRUCTURIZR_IMAGE`,
-`PLANTUML_IMAGE`, `MUTATION_THRESHOLD`.
+`TAG`, `IMAGE_BACKEND`, `IMAGE_FRONTEND`, `REGISTRY`, `REGISTRY_USER`, `PUSH_TAGS`,
+`API_PROXY_TARGET`, `DATABASE_URL`, `NAMESPACE`, `RELEASE`, `KUBE_CONTEXT`, `GO_IMAGE`,
+`STRUCTURIZR_IMAGE`, `PLANTUML_IMAGE`, `MUTATION_THRESHOLD`, `DOCKER_HUB_TOKEN` (the
+credential `docker-login` reads — environment only, never written to `.env` in a run).
