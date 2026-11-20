@@ -15,7 +15,11 @@
 #   docker run --rm -e DATABASE_URL=... campus-erp-backend:dev /app/worker
 
 # ── build ────────────────────────────────────────────────────────────────────
-FROM golang:1.25-alpine AS build
+# GO_VERSION must satisfy the `go` directive in go.mod, and the Makefile passes the
+# version it reads from there (--build-arg GO_VERSION), so the image and the module
+# cannot drift apart. Override it only when building this Dockerfile by hand.
+ARG GO_VERSION=1.26
+FROM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
 
 # Cache the module download as its own layer.

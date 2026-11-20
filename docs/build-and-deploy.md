@@ -9,7 +9,7 @@ make check-tools
 ```
 
 The Makefile needs only **docker**; the Go toolchain is optional (backend builds
-fall back to the `golang:1.25-alpine` image), Node/npm is required for the
+fall back to the `golang:<go.mod version>-alpine` image), Node/npm is required for the
 frontend, and `tectonic` for the architecture report PDF.
 
 ## Targets at a glance

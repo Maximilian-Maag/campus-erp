@@ -2,6 +2,21 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.133.0] - 2026-11-20
+
+The image build works again. `backend/go.mod` declares `go 1.26.0` and CI has been building
+with Go 1.26, but the image pins were never bumped with it: `backend/Dockerfile` started
+`FROM golang:1.25-alpine` and the Makefile's docker fallback (`GO_IMAGE`) named the same
+image, so `go mod download` died with `go.mod requires go >= 1.26.0 (running go
+1.25.10)`. `make docker-images`, and with it `make up`, `make deploy` and `make
+deploy-k8s`, was not usable. Nothing noticed because no workflow builds the images (#146).
+
+The version is no longer written down twice: the Makefile reads it from the `go` directive
+in `backend/go.mod`, uses it for `GO_IMAGE` and passes it to the Dockerfile as
+`GO_VERSION`, whose `FROM golang:${GO_VERSION}-alpine` defaults to the same version. A
+future bump of the module's Go version now reaches the image by construction; the ARG keeps
+a plain `docker build backend` working too.
+
 ## [0.132.0] - 2026-11-15
 
 `GET /api/klr/cost-types` takes `limit` and `offset`, and both screens that read it page it:
