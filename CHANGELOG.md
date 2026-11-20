@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.135.0] - 2026-11-20
+
+The image tags are channels now, one per environment, instead of `latest` riding along with
+every release:
+
+| tag | what it is | what moves it |
+|---|---|---|
+| `latest` | dev — whatever was just merged | every push to `master` |
+| `staging` | release candidate | every push to `staging` |
+| `v1.2.3` | prod — built once, never moved | a `v*` tag |
+
+A version tag no longer moves `latest`, so a prod image is not silently replaced by the next
+release, and a dev cluster gets a new `latest` on every merge without a tag being cut.
+
+A channel tag says nothing about the commit, so the image records it: `docker-publish` passes
+`git describe` as `BUILD_VERSION` (new knob) to the build, which the backend binary and
+`/app/VERSION` report. `TAG=latest` names the channel, never the version of the code in it.
+
+`release.yml` triggers on `master`, `staging` and `v*` (plus `workflow_dispatch` with the tag
+as an input) and publishes exactly one tag per run; the verification step now checks that one
+tag instead of `tag` + `latest`.
+
 ## [0.134.0] - 2026-11-20
 
 The images have a registry of record: Docker Hub, `docker.io/maximilianmaag/campus-erp-backend`

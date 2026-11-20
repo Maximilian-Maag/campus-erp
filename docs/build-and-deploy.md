@@ -111,18 +111,27 @@ Two pitfalls, both handled by the script:
 
 ## Images
 
-The registry of record is **Docker Hub**, namespace `maximilianmaag`:
+The registry of record is **Docker Hub**, namespace `maximilianmaag`
+(`docker.io/maximilianmaag/campus-erp-backend`, `…-frontend`). One tag per channel:
+
+| tag | what it is | what moves it |
+|---|---|---|
+| `latest` | dev — whatever was just merged | every push to `master` |
+| `staging` | release candidate | every push to `staging` |
+| `v1.2.3` | prod — built once, never moved | a `v*` tag |
 
 ```bash
 make docker-images                 # campus-erp-backend:<tag>, campus-erp-frontend:<tag>
 make docker-images TAG=1.2.3
 make docker-login                  # needs DOCKER_HUB_TOKEN in the environment
-make docker-publish TAG=v1.2.3 PUSH_TAGS=latest
+make docker-publish TAG=latest     # dev
+make docker-publish TAG=staging    # release candidate
+make docker-publish TAG=v1.2.3     # prod
 ```
 
 ```bash
-make docker-push IMAGE_BACKEND=docker.io/maximilianmaag/campus-erp-backend:1.2.3 \
-                 IMAGE_FRONTEND=docker.io/maximilianmaag/campus-erp-frontend:1.2.3
+make docker-push IMAGE_BACKEND=docker.io/maximilianmaag/campus-erp-backend:v1.2.3 \
+                 IMAGE_FRONTEND=docker.io/maximilianmaag/campus-erp-frontend:v1.2.3
 ```
 
 `make docker-publish` builds both images once, then pushes them to `$(REGISTRY)` as
@@ -132,12 +141,23 @@ log in itself: `make docker-login` does that, reading `DOCKER_HUB_TOKEN` (a Hub
 piping it to `docker login` on stdin, so the token is never a process argument. The
 namespace is `$(REGISTRY_USER)` (defaults to the owner of `$(REGISTRY)`).
 
-CI publishes on a `v*` tag: `.github/workflows/release.yml` runs
-`make docker-login docker-publish` inside the `release` environment, which holds
-`DOCKER_HUB_TOKEN` as an environment secret, and then pulls every tag it claims to have
-pushed back and compares its image ID with the build. A manual `workflow_dispatch` publishes
-`sha-<short>` (plus `latest`) from any branch. The workflow does not re-run the quality
-gate, so tag a commit that is green on `master`.
+A channel tag says nothing about the commit, so the image records it instead:
+`docker-publish` passes the `git describe` value as `BUILD_VERSION`, which is what the
+backend binary and `/app/VERSION` report. `TAG=latest` is therefore a name for the
+channel, never the version of the code in it.
+
+`.github/workflows/release.yml` publishes those three channels — `master` → `latest`,
+`staging` → `staging`, a `v*` tag → that tag — inside the `release` environment, which holds
+`DOCKER_HUB_TOKEN` as an environment secret, and then pulls the tag back and compares its
+image ID with the build. `workflow_dispatch` takes the tag as an input, for republishing a
+channel by hand. The dev and staging channels may publish while their quality run is still
+in flight; tag a prod release on a commit that is green on `master`, because the workflow does
+not re-run the gate.
+
+**Prod pins the version tag.** `latest` and `staging` move, so a cluster that asks for one of
+them with `imagePullPolicy: IfNotPresent` keeps running whatever it pulled first — pin
+`images.backend.tag=v1.2.3` in prod, and use a channel tag with `pullPolicy: Always` only where
+"the newest dev build" is the point.
 
 Both images are public, so a cluster needs no pull secret for them.
 
@@ -222,7 +242,7 @@ helm upgrade --install campus-erp deploy/helm/campus-erp \
 
 ## Knobs (override on the command line or in `.env`)
 
-`TAG`, `IMAGE_BACKEND`, `IMAGE_FRONTEND`, `REGISTRY`, `REGISTRY_USER`, `PUSH_TAGS`,
-`API_PROXY_TARGET`, `DATABASE_URL`, `NAMESPACE`, `RELEASE`, `KUBE_CONTEXT`, `GO_IMAGE`,
-`STRUCTURIZR_IMAGE`, `PLANTUML_IMAGE`, `MUTATION_THRESHOLD`, `DOCKER_HUB_TOKEN` (the
-credential `docker-login` reads — environment only, never written to `.env` in a run).
+`TAG`, `BUILD_VERSION`, `IMAGE_BACKEND`, `IMAGE_FRONTEND`, `REGISTRY`, `REGISTRY_USER`,
+`PUSH_TAGS`, `API_PROXY_TARGET`, `DATABASE_URL`, `NAMESPACE`, `RELEASE`, `KUBE_CONTEXT`,
+`GO_IMAGE`, `STRUCTURIZR_IMAGE`, `PLANTUML_IMAGE`, `MUTATION_THRESHOLD`, `DOCKER_HUB_TOKEN`
+(the credential `docker-login` reads — environment only, never written into `.env`).

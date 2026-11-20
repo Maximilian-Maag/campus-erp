@@ -69,9 +69,9 @@ Directly with helm:
 helm upgrade --install campus-erp deploy/helm/campus-erp \
   --namespace campus-erp --create-namespace \
   --set images.backend.repository=docker.io/maximilianmaag/campus-erp-backend \
-  --set images.backend.tag=0.6.1 \
+  --set images.backend.tag=v0.134.0 \
   --set images.frontend.repository=docker.io/maximilianmaag/campus-erp-frontend \
-  --set images.frontend.tag=0.6.1 \
+  --set images.frontend.tag=v0.134.0 \
   --set database.existingSecret=campus-erp-dsn \
   --set ingress.enabled=true
 ```
@@ -79,6 +79,12 @@ helm upgrade --install campus-erp deploy/helm/campus-erp \
 `database.existingSecret` is recommended for production (an external secrets
 operator keeps the per-tenant DSN fresh). For a first install you can set
 `--set database.url=postgres://…` and the chart creates the Secret itself.
+
+Image tags are channels: `latest` follows `master` (dev), `staging` follows the `staging`
+branch, and `vX.Y.Z` is prod — built once and never moved. A prod install pins the version
+tag; a dev or staging install that wants the newest build must also set
+`images.*.pullPolicy=Always`, because the default `IfNotPresent` keeps a moving tag where it
+was first pulled.
 
 ## Platform configuration
 
