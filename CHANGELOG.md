@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.136.0] - 2026-11-20
+
+The first version-tagged release, and the one a prod install pins:
+`docker.io/maximilianmaag/campus-erp-{backend,frontend}:v0.136.0` is built once from `master`
+and never moved. The channel tags from 0.135.0 keep moving instead — `latest` on every merge to
+`master`, `staging` on every push to `staging` — so a version number in a deployment now means a
+fixed tree rather than "whatever the last build was".
+
+Nothing in this tree differs from 0.135.0: the change is the publication, and the `release`
+environment no longer holds a wait timer, so a publish starts when its push lands instead of
+fifteen minutes later.
+
 ## [0.135.0] - 2026-11-20
 
 The image tags are channels now, one per environment, instead of `latest` riding along with
