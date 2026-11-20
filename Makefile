@@ -37,6 +37,10 @@ REGISTRY_USER ?= maximilianmaag
 REGISTRY_HOST ?= $(firstword $(subst /, ,$(REGISTRY)))
 # Further tags to publish alongside TAG (space separated), e.g. PUSH_TAGS="v1.2.3 latest".
 PUSH_TAGS     ?=
+# What the binary/image records as its version. It follows TAG, but a channel build
+# (`TAG=latest` for dev, `TAG=staging`) must still say which commit it came from, so
+# docker-publish passes the `git describe` value here instead.
+BUILD_VERSION ?= $(TAG)
 COMPOSE        ?= docker compose
 # Read from go.mod, never hand-pinned: a `go` directive bump that does not reach the
 # image is a build that fails at `go mod download` (or worse, compiles with an older
@@ -277,7 +281,7 @@ docker: docker-images ## Alias for docker-images
 
 docker-backend: ## Build the backend image (IMAGE_BACKEND)
 	$(call require,docker)
-	docker build --tag "$(IMAGE_BACKEND)" --build-arg VERSION="$(TAG)" \
+	docker build --tag "$(IMAGE_BACKEND)" --build-arg VERSION="$(BUILD_VERSION)" \
 	  --build-arg GO_VERSION="$(GO_VERSION)" $(BACKEND)
 
 docker-frontend: ## Build the frontend image (IMAGE_FRONTEND)
@@ -306,6 +310,7 @@ docker-publish: ## Build both images and push them to $(REGISTRY)
 	# Build once, retag for publication: a second build would only re-push the same
 	# bytes under a different name (and could differ if the tree moved on).
 	$(MAKE) --no-print-directory docker-images \
+	  BUILD_VERSION="$(shell git -C $(ROOT) describe --tags --always --dirty 2>/dev/null || echo dev)" \
 	  IMAGE_BACKEND="$(REGISTRY)/campus-erp-backend:$(TAG)" \
 	  IMAGE_FRONTEND="$(REGISTRY)/campus-erp-frontend:$(TAG)"
 	for image in campus-erp-backend campus-erp-frontend; do

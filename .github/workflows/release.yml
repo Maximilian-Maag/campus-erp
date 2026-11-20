@@ -1,29 +1,44 @@
 name: release
 
-# Publishing is tag-driven: `git tag -a v1.2.3 -m ... && git push origin v1.2.3`.
-# The images go to Docker Hub, the registry of record, in the namespace the `release`
-# environment's DOCKER_HUB_TOKEN may write to. The secret is a Hub *access token*
-# (read/write), not the account password, so it can be revoked without touching the
-# account and it never has to be typed into a runner by hand.
+# One image tag per channel, so a deployment names the channel it wants and nothing
+# else moves underneath it:
 #
-# This workflow builds and pushes; it does not re-run the quality gate. Tag a commit
-# that is green on master - quality.yml also runs on the tag push, but a release that
-# waits for it would have to be a second, slower pipeline for no extra safety.
+#   push to master   -> latest    dev: whatever was just merged
+#   push to staging  -> staging   release candidate
+#   tag v1.2.3       -> v1.2.3    prod: built once, never moved
+#
+# `latest` and `staging` are mutable by design; a prod cluster pins the version tag
+# (a moving tag with `imagePullPolicy: IfNotPresent` is a deployment that keeps running
+# yesterday's bytes). Every image records the commit it came from as BUILD_VERSION,
+# whatever channel tag it carries.
+#
+# The images go to Docker Hub, in the namespace the `release` environment's
+# DOCKER_HUB_TOKEN may write to. The secret is a Hub *access token* (read/write), not
+# the account password, so it can be revoked without touching the account and it never
+# has to be typed into a runner by hand.
+#
+# This workflow builds and pushes; it does not re-run the quality gate. A dev or
+# staging channel may publish while its quality run is still in flight - it is a dev
+# channel, and waiting would put `latest` behind master by the length of the mutation
+# sweep. Tag a prod release on a commit that is green on master; quality.yml runs on
+# the tag push as well.
 on:
   push:
+    branches: [master, staging]
     tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Image tag to publish (defaults to sha-<short>)'
-        required: false
+        description: 'Image tag: latest (dev), staging, or vX.Y.Z (prod)'
+        required: true
+        default: latest
         type: string
 
 permissions:
   contents: read
 
-# One publication at a time. Two tags pushed together must not interleave their
-# pushes of the same `latest` tag, or the older build can land last.
+# One publication at a time. Two channel pushes together must not interleave their
+# builds of the same image name, or the older tree can land last under a channel tag.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -43,59 +58,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # `make docker-images` tags the build with `git describe --tags`, which
-          # needs the tags: the default shallow clone has none and yields `dev`.
+          # The commit is baked into the image as BUILD_VERSION and `make` reads it
+          # with `git describe`, which needs the history: a shallow clone has none.
           fetch-depth: 0
 
-      - name: resolve the tags to publish
+      - name: resolve the channel tag
         id: tags
         env:
           INPUT_TAG: ${{ inputs.tag }}
           REF_NAME: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
-          if [[ -n ${INPUT_TAG:-} ]]; then
-            primary=$INPUT_TAG
-          elif [[ $REF_NAME == v* ]]; then
+          if [[ $REF_TYPE == tag ]]; then
+            # A version tag is prod: it is the image tag, unchanged.
             primary=$REF_NAME
+          elif [[ -n ${INPUT_TAG:-} ]]; then
+            primary=$INPUT_TAG
+          elif [[ $REF_NAME == staging ]]; then
+            primary=staging
           else
-            # A manual dispatch from a branch has no version to name the image after.
-            primary="sha-${SHA:0:7}"
+            primary=latest
           fi
           echo "primary=$primary" >> "$GITHUB_OUTPUT"
-          echo "publishing $primary and latest"
+          echo "publishing $primary"
 
       - name: log in to Docker Hub
         env:
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
         run: make docker-login
 
-      # One build, both tags: `make docker-publish` builds the images once and then
-      # retags them, so the version tag and `latest` are the same bytes.
       - name: build and push the images
         env:
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
-        run: make docker-publish TAG="${{ steps.tags.outputs.primary }}" PUSH_TAGS=latest
+        run: make docker-publish TAG="${{ steps.tags.outputs.primary }}"
 
-      # A push that reported success is not proof the tag is pullable. Pull every
-      # image/tag the run claims to have published and compare its image ID with the
-      # build: a tag that resolves to different bytes is as bad as a missing one.
-      # `docker pull` also keeps the check free of the buildx plugin, which a runner
-      # does not always have.
-      - name: verify the published tags are pullable and are the built bytes
+      # A push that reported success is not proof the tag is pullable. Pull both
+      # images back and compare their image IDs with the build: a channel tag that
+      # resolves to different bytes is as bad as a missing one. `docker pull` also
+      # keeps the check free of the buildx plugin, which a runner does not always have.
+      - name: verify the published tag is pullable and is the built bytes
         env:
           PRIMARY: ${{ steps.tags.outputs.primary }}
         run: |
           for image in campus-erp-backend campus-erp-frontend; do
             built=$(docker image inspect --format '{{.Id}}' "$REGISTRY/$image:$PRIMARY")
-            for tag in "$PRIMARY" latest; do
-              ref="$REGISTRY/$image:$tag"
-              docker pull --quiet "$ref" > /dev/null
-              pulled=$(docker image inspect --format '{{.Id}}' "$ref")
-              if [[ $pulled != "$built" ]]; then
-                echo "error: $ref resolves to $pulled, the build is $built"
-                exit 1
-              fi
-              echo "ok $ref -> $pulled"
-            done
+            ref="$REGISTRY/$image:$PRIMARY"
+            docker pull --quiet "$ref" > /dev/null
+            pulled=$(docker image inspect --format '{{.Id}}' "$ref")
+            if [[ $pulled != "$built" ]]; then
+              echo "error: $ref resolves to $pulled, the build is $built"
+              exit 1
+            fi
+            echo "ok $ref -> $pulled"
           done
