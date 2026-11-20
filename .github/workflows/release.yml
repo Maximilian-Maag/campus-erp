@@ -1,0 +1,101 @@
+name: release
+
+# Publishing is tag-driven: `git tag -a v1.2.3 -m ... && git push origin v1.2.3`.
+# The images go to Docker Hub, the registry of record, in the namespace the `release`
+# environment's DOCKER_HUB_TOKEN may write to. The secret is a Hub *access token*
+# (read/write), not the account password, so it can be revoked without touching the
+# account and it never has to be typed into a runner by hand.
+#
+# This workflow builds and pushes; it does not re-run the quality gate. Tag a commit
+# that is green on master - quality.yml also runs on the tag push, but a release that
+# waits for it would have to be a second, slower pipeline for no extra safety.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to publish (defaults to sha-<short>)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# One publication at a time. Two tags pushed together must not interleave their
+# pushes of the same `latest` tag, or the older build can land last.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  # Both values are knobs of the top-level Makefile; setting them here means the
+  # workflow uses the same targets a maintainer runs by hand (docs/build-and-deploy.md).
+  REGISTRY: docker.io/maximilianmaag
+  REGISTRY_USER: maximilianmaag
+
+jobs:
+  publish:
+    name: publish to Docker Hub
+    runs-on: ubuntu-latest
+    environment: release # holds DOCKER_HUB_TOKEN
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `make docker-images` tags the build with `git describe --tags`, which
+          # needs the tags: the default shallow clone has none and yields `dev`.
+          fetch-depth: 0
+
+      - name: resolve the tags to publish
+        id: tags
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [[ -n ${INPUT_TAG:-} ]]; then
+            primary=$INPUT_TAG
+          elif [[ $REF_NAME == v* ]]; then
+            primary=$REF_NAME
+          else
+            # A manual dispatch from a branch has no version to name the image after.
+            primary="sha-${SHA:0:7}"
+          fi
+          echo "primary=$primary" >> "$GITHUB_OUTPUT"
+          echo "publishing $primary and latest"
+
+      - name: log in to Docker Hub
+        env:
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+        run: make docker-login
+
+      # One build, both tags: `make docker-publish` builds the images once and then
+      # retags them, so the version tag and `latest` are the same bytes.
+      - name: build and push the images
+        env:
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+        run: make docker-publish TAG="${{ steps.tags.outputs.primary }}" PUSH_TAGS=latest
+
+      # A push that reported success is not proof the tag is pullable. Pull every
+      # image/tag the run claims to have published and compare its image ID with the
+      # build: a tag that resolves to different bytes is as bad as a missing one.
+      # `docker pull` also keeps the check free of the buildx plugin, which a runner
+      # does not always have.
+      - name: verify the published tags are pullable and are the built bytes
+        env:
+          PRIMARY: ${{ steps.tags.outputs.primary }}
+        run: |
+          for image in campus-erp-backend campus-erp-frontend; do
+            built=$(docker image inspect --format '{{.Id}}' "$REGISTRY/$image:$PRIMARY")
+            for tag in "$PRIMARY" latest; do
+              ref="$REGISTRY/$image:$tag"
+              docker pull --quiet "$ref" > /dev/null
+              pulled=$(docker image inspect --format '{{.Id}}' "$ref")
+              if [[ $pulled != "$built" ]]; then
+                echo "error: $ref resolves to $pulled, the build is $built"
+                exit 1
+              fi
+              echo "ok $ref -> $pulled"
+            done
+          done

@@ -194,6 +194,18 @@ jobs:
       - run: npm ci
       - run: npx stryker run
 
+  # The release workflow publishes these images, so the thing they are published
+  # from has to build: a Dockerfile whose toolchain pin drifts from go.mod fails at
+  # the first release otherwise (#146). Build only - pushing belongs to release.yml.
+  images:
+    name: images (docker build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: build both images
+        run: make docker-images TAG=ci
+
   e2e:
     name: e2e (playwright + a11y)
     runs-on: ubuntu-latest

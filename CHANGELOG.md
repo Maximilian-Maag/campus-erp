@@ -2,6 +2,26 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.134.0] - 2026-11-20
+
+The images have a registry of record: Docker Hub, `docker.io/maximilianmaag/campus-erp-backend`
+and `…-frontend`. Until now `make docker-push` pushed whatever `IMAGE_*` pointed at and nothing
+published on its own, so a deployed cluster pulled images somebody had built by hand on their
+laptop.
+
+`make docker-publish` builds both images once and pushes them as `$(TAG)` plus every tag in
+`PUSH_TAGS` — the version tag and `latest` are the same bytes, not two builds that raced.
+`make docker-login` authenticates with `DOCKER_HUB_TOKEN`, a Hub access token fed to
+`docker login` on stdin, so the credential is never a process argument and never enters the repo.
+
+`.github/workflows/release.yml` runs those two targets in the `release` environment (which holds
+the token as an environment secret) on a `v*` tag, or on demand for a `sha-<short>` build, and
+then pulls every tag it claims to have pushed back and compares its image ID with the build —
+a push that exits 0 is not proof the tag is pullable.
+
+`quality.yml` now builds both images on every push (`images`), which is what would have caught
+the pin that had drifted from `go.mod` (#146) before a release needed it.
+
 ## [0.133.0] - 2026-11-20
 
 The image build works again. `backend/go.mod` declares `go 1.26.0` and CI has been building
