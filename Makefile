@@ -6,7 +6,7 @@
 #   make c4-pdf     # the landscape architecture report (C4 + database ER models)
 #
 # Everything is driven from the repo root and is meant to work with only docker
-# installed (Go runs in the golang:1.25-alpine image when the local toolchain is
+# installed (Go runs in the golang:$(GO_VERSION)-alpine image when the local toolchain is
 # absent; Node is required for the frontend). See AGENTS.md for the quality floor.
 
 SHELL := /bin/bash
@@ -29,7 +29,11 @@ TAG            ?= $(shell git -C $(ROOT) describe --tags --always --dirty 2>/dev
 IMAGE_BACKEND  ?= campus-erp-backend:$(TAG)
 IMAGE_FRONTEND ?= campus-erp-frontend:$(TAG)
 COMPOSE        ?= docker compose
-GO_IMAGE       ?= golang:1.25-alpine
+# Read from go.mod, never hand-pinned: a `go` directive bump that does not reach the
+# image is a build that fails at `go mod download` (or worse, compiles with an older
+# toolchain silently). Passed to backend/Dockerfile as GO_VERSION.
+GO_VERSION     ?= $(shell sed -n 's/^go \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' $(BACKEND)/go.mod)
+GO_IMAGE       ?= golang:$(GO_VERSION)-alpine
 STRUCTURIZR_IMAGE ?= structurizr/structurizr:latest
 STRUCTURIZR_LITE  ?= structurizr/lite:latest
 PLANTUML_IMAGE    ?= plantuml/plantuml:latest
@@ -263,7 +267,8 @@ docker: docker-images ## Alias for docker-images
 
 docker-backend: ## Build the backend image (IMAGE_BACKEND)
 	$(call require,docker)
-	docker build --tag "$(IMAGE_BACKEND)" --build-arg VERSION="$(TAG)" $(BACKEND)
+	docker build --tag "$(IMAGE_BACKEND)" --build-arg VERSION="$(TAG)" \
+	  --build-arg GO_VERSION="$(GO_VERSION)" $(BACKEND)
 
 docker-frontend: ## Build the frontend image (IMAGE_FRONTEND)
 	$(call require,docker)
