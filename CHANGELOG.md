@@ -2,6 +2,19 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.137.0] - 2026-11-20
+
+The README is readable now. It opened with "university-ERP replacement" and then listed 20
+documentation files, the whole repository layout, every one of the shipped slices and the
+exclusions in full — 166 lines before a reader reached the licence, with the application's own
+name nowhere in the first headline.
+
+It is 70 lines: the application name is the title, and the sections that remain are the ones a
+reader arrives with a question for — what is shipped, how to start it, how it is put together,
+which image tag means which environment, the quality floor, and a four-link entry into `docs/`.
+The rest was either already documented (`docs/build-and-deploy.md`, `docs/plan/roadmap.md`,
+`CONTRIBUTING.md`) or restated four times over.
+
 ## [0.136.0] - 2026-11-20
 
 The first version-tagged release, and the one a prod install pins:
