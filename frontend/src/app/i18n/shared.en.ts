@@ -58,6 +58,11 @@ export const sharedEn: Messages = {
     },
   },
   page: {
+    notFound: {
+      title: 'Page not found',
+      subtitle: 'This address does not lead to a Campus ERP screen.',
+      back: 'Go to the day close',
+    },
     kasseTag: {
       title: 'Day close',
       subtitle: 'Open the business day in the cash desk and record the opening balance.',

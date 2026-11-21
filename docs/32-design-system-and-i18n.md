@@ -115,6 +115,16 @@ interface language still has to find their own.
    the dictionaries ("Deutsch", "English", …).
 3. Add it to `DICTIONARIES`. The compiler will name every fragment that is still missing.
 
+## The two guards
+
+`npm run i18n` (run by `make frontend-test`) enforces the two rules that a compiler cannot:
+
+- `scripts/check-copy.mjs` — no component template carries a word; every string is a message key.
+- `scripts/check-keys.mjs` — every key a component asks for (`| transloco`, `translate('…')`,
+  `titleKey`/`subtitleKey`) exists in the German dictionary. The typed dictionaries catch a missing
+  translation, but `titleKey="page.haushaltHerkunft"` — one suffix short — compiles and renders the
+  key itself; this is what catches that.
+
 ## Tests
 
 Every spec that renders a component with text provides `provideI18n()`:

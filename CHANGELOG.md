@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.142.0] - 2026-11-21
+
+Two gaps a clerk would have met on the first day with the new interface.
+
+**An unknown address rendered nothing.** `/kasse/anordnugnen` — one letter out — produced an empty
+content area with no heading, which reads as an outage to a user and fails the accessibility gate.
+There is now a not-found screen that says the address leads nowhere and offers the way back to the
+day close, and the route table ends with the catch-all that serves it.
+
+**The browser tab said "Campus ERP" on every screen.** A clerk with the payment orders, the dunning
+run and the open items open in three tabs could not tell them apart. `<app-page>` now names the tab
+after the screen — "Zahlungsanordnungen · Campus ERP" — and renames it when the language changes,
+because it is the same heading as on the page.
+
+The tab also carries the product mark now: `public/favicon.svg` is the same blue tile with "CE"
+that the application bar shows, instead of the Angular default the scaffold left behind.
+
 ## [0.141.0] - 2026-11-21
 
 The typed dictionaries catch a *missing* translation, but not a key that names no entry at all:
@@ -20,7 +37,6 @@ Two guards now close that gap, and both run in `make frontend-test` (`npm run i1
 The shell was the weakest file under mutation (71.43%, four survivors: the breakpoint query and
 the assumption that the layout is wide before it has been measured). Its spec now asserts the
 query it asks about and the fallback it starts from; the file is at 100%.
-
 ## [0.140.0] - 2026-11-21
 
 The interface was twenty-five screens that each invented their own markup and their own German
