@@ -154,6 +154,7 @@ func TestStatusForRun(t *testing.T) {
 		{"reference required", kasse.ErrRunReferenceRequired, http.StatusUnprocessableEntity},
 		{"no orders", kasse.ErrNoOrders, http.StatusUnprocessableEntity},
 		{"order not approved", kasse.ErrOrderNotApproved, http.StatusUnprocessableEntity},
+		{"order in another currency", kasse.ErrOrderCurrencyMismatch, http.StatusUnprocessableEntity},
 		{"cash account required", kasse.ErrCashAccountRequired, http.StatusUnprocessableEntity},
 		{"execution date required", kasse.ErrExecutionDateRequired, http.StatusUnprocessableEntity},
 		{"iban invalid", kasse.ErrIBANInvalid, http.StatusUnprocessableEntity},

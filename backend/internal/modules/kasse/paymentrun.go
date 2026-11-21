@@ -23,6 +23,13 @@ var (
 	ErrOrderNotApproved = errors.New("kasse: only approved orders can be paid")
 	// ErrOrderAlreadyPaid is returned when an order already belongs to a run.
 	ErrOrderAlreadyPaid = errors.New("kasse: the order is already part of a payment run")
+	// ErrOrderCurrencyMismatch is returned when an order is not in the account's currency.
+	//
+	// The file carries one currency for the whole message (the debtor account's), and each
+	// transaction's amount is written as it stands, so paying a USD order from an EUR account
+	// would instruct the bank to transfer that many euros. The collection path has refused this
+	// from the start (ErrReceivableCurrencyMismatch); this is the same rule on the paying side.
+	ErrOrderCurrencyMismatch = errors.New("kasse: the order's currency is not the account's")
 	// ErrCashAccountRequired is returned when no debtor account is given.
 	ErrCashAccountRequired = errors.New("kasse: a cash account is required")
 	// ErrExecutionDateRequired is returned when the execution date is missing.

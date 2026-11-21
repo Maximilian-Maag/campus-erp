@@ -152,6 +152,51 @@ func TestPaymentRunRejectsUnapprovedOrder(t *testing.T) {
 	}
 }
 
+// A run pays from one cash account, and the file carries that account's currency for the whole
+// message while every amount is written as it stands. An order in another currency would therefore
+// be paid as if its cents were the account's — the collection path refuses that already.
+func TestPaymentRunRejectsForeignCurrencyOrder(t *testing.T) {
+	ctx := context.Background()
+	runSvc, orderSvc := newRunService(t)
+	account, err := runSvc.CreateCashAccount(ctx, "Uni", "DE02120300000000202051", "BYLADEM1001", "EUR")
+	if err != nil {
+		t.Fatalf("CreateCashAccount: %v", err)
+	}
+	rec, err := orderSvc.CreateRecipient(ctx, kasse.Recipient{
+		Name: "Empfänger " + uniqueSuffix(t), AccountHolder: "Empfänger GmbH",
+		IBAN: uniqueIBAN(t), BIC: "COBADEFFXXX", BankName: "Commerzbank",
+	})
+	if err != nil {
+		t.Fatalf("CreateRecipient: %v", err)
+	}
+	pos, err := orderSvc.CreateBudgetPosition(ctx, kasse.BudgetPosition{
+		Year: 2026, Chapter: "0710", Title: "6810", CostCentre: "KST-" + uniqueSuffix(t),
+		CostCarrier: "KT", AllocatedCents: 100000,
+	})
+	if err != nil {
+		t.Fatalf("CreateBudgetPosition: %v", err)
+	}
+	order, err := kasse.NewPaymentOrder("AO-"+uniqueSuffix(t), 2026, 50000, "USD",
+		rec.ID, pos.ID, "Lizenz USA", time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC), "alice")
+	if err != nil {
+		t.Fatalf("NewPaymentOrder: %v", err)
+	}
+	created, err := orderSvc.Create(ctx, order)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := orderSvc.Submit(ctx, created.ID, "alice"); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	if _, err := orderSvc.Approve(ctx, created.ID, "bob"); err != nil {
+		t.Fatalf("Approve: %v", err)
+	}
+	if _, err := runSvc.CreateRun(ctx, "RUN-"+uniqueSuffix(t), account.ID,
+		time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC), []int64{created.ID}, "carol"); !errors.Is(err, kasse.ErrOrderCurrencyMismatch) {
+		t.Fatalf("want ErrOrderCurrencyMismatch, got %v", err)
+	}
+}
+
 func TestPaymentRunValidation(t *testing.T) {
 	ctx := context.Background()
 	runSvc, orderSvc := newRunService(t)
