@@ -1,7 +1,7 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 
 import { ShellComponent } from './shell.component';
 import { NAV_GROUPS } from './nav-model';
@@ -11,6 +11,16 @@ import { LanguageService } from '../i18n/language.service';
 /** A breakpoint observer that answers one fixed question: is this a narrow screen? */
 function breakpointMatches(matches: boolean): Partial<BreakpointObserver> {
   return { observe: () => of({ matches, breakpoints: {} }) };
+}
+
+/** A breakpoint observer that never answers, as before the layout has been measured. */
+function breakpointSilent(observed: string[]): Partial<BreakpointObserver> {
+  return {
+    observe: (query: string) => {
+      observed.push(query);
+      return NEVER;
+    },
+  };
 }
 
 async function render(matches = false) {
@@ -63,6 +73,29 @@ describe('ShellComponent', () => {
 
     expect(component.navOpen()).toBe(false);
     expect(toggle.getAttribute('aria-label')).toBe('Navigation öffnen');
+  });
+
+  it('asks about the handset breakpoint and assumes a wide screen until answered', async () => {
+    // The shell is created before the layout has been measured, so it has to start wide;
+    // and it has to ask about the breakpoint the stylesheet actually uses.
+    const observed: string[] = [];
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [ShellComponent],
+      providers: [
+        provideRouter([]),
+        provideI18n(),
+        { provide: BreakpointObserver, useValue: breakpointSilent(observed) },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ShellComponent);
+    fixture.detectChanges();
+
+    // Material's own components observe their media queries too, so this is a containment
+    // check rather than an equality one: the shell must have asked about the shared breakpoint.
+    expect(observed).toContain('(max-width: 900px)');
+    expect(fixture.componentInstance.isHandset()).toBe(false);
   });
 
   it('gets the menu out of the way after a choice on a narrow screen', async () => {

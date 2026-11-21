@@ -207,9 +207,9 @@ frontend-build: ## Production build (frontend/dist/)
 	$(needs_npm)
 	cd $(FRONTEND) && npm run build -- --configuration production
 
-frontend-test: ## Karma unit tests (headless) and the no-hard-coded-copy guard
+frontend-test: ## Karma unit tests (headless) and the two i18n guards
 	$(needs_npm)
-	cd $(FRONTEND) && npm run copy
+	cd $(FRONTEND) && npm run i18n
 	cd $(FRONTEND) && npm run test:ci
 
 frontend-e2e-install: ## Install the Playwright browsers

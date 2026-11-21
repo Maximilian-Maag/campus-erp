@@ -2,6 +2,25 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.141.0] - 2026-11-21
+
+The typed dictionaries catch a *missing* translation, but not a key that names no entry at all:
+`titleKey="page.haushaltHerkunft"` — one suffix short of the real key — compiles, passes every
+unit test that does not read the heading, and renders the key itself in the middle of the
+interface. One screen shipped that way and the e2e suite caught it only because it happened to
+assert that heading.
+
+Two guards now close that gap, and both run in `make frontend-test` (`npm run i18n`):
+
+- `scripts/check-copy.mjs` — no component template may carry a word; it must be a message key.
+- `scripts/check-keys.mjs` — every key a component asks for (`| transloco`, `translate('…')`,
+  `titleKey`/`subtitleKey`) must exist in the German dictionary. It bundles the dictionary with
+  esbuild and resolves 839 keys across the application.
+
+The shell was the weakest file under mutation (71.43%, four survivors: the breakpoint query and
+the assumption that the layout is wide before it has been measured). Its spec now asserts the
+query it asks about and the fallback it starts from; the file is at 100%.
+
 ## [0.140.0] - 2026-11-21
 
 The interface was twenty-five screens that each invented their own markup and their own German
