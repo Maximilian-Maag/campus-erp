@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, ProcurementOrderSummary } from '../core/api/generated';
 import { formatCents } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Procurement — purchase orders (Bestellungen).
@@ -9,94 +11,99 @@ import { formatCents } from '../core/format';
  * budget. The status filter is the server's own: choosing one asks the API for that status
  * rather than sifting what happens to be loaded, so the screen works on a list it never holds
  * in full.
+ *
+ * The heading and the labels are message keys, so the screen names itself in whatever language
+ * the clerk picked; the API's own status values are shown as the API reports them.
  */
 @Component({
   selector: 'app-purchase-orders',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="orders-heading">
-      <h2 id="orders-heading">Bestellungen</h2>
+    <app-page titleKey="page.beschaffungBestellungen.title" subtitleKey="page.beschaffungBestellungen.subtitle">
+      <section>
+        <div class="filter">
+          <label for="order-status">{{ 'common.status' | transloco }}</label>
+          <select id="order-status" [value]="status()" (change)="filterTo($any($event.target).value)">
+            <option value="">{{ 'common.all' | transloco }}</option>
+            <option value="draft">{{ 'status.draft' | transloco }}</option>
+            <option value="approved">{{ 'status.approved' | transloco }}</option>
+            <option value="received">{{ 'beschaffung.orders.statusReceived' | transloco }}</option>
+            <option value="cancelled">{{ 'status.cancelled' | transloco }}</option>
+          </select>
+        </div>
 
-      <div class="filter">
-        <label for="order-status">Status</label>
-        <select id="order-status" [value]="status()" (change)="filterTo($any($event.target).value)">
-          <option value="">Alle</option>
-          <option value="draft">Entwurf</option>
-          <option value="approved">Genehmigt</option>
-          <option value="received">Erhalten</option>
-          <option value="cancelled">Storniert</option>
-        </select>
-      </div>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Bestellungen werden geladen.</p>
-      } @else if (orders().length === 0 && !loadError()) {
-        <p role="status">
-          {{ status() ? 'Keine Bestellung in diesem Status.' : 'Es sind keine Bestellungen angelegt.' }}
-        </p>
-      } @else if (!loadError()) {
-        <table>
-          <caption>
-            Bestellungen mit Lieferant, Betrag und Status
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Nummer</th>
-              <th scope="col">Lieferant</th>
-              <th scope="col" class="amount">Betrag</th>
-              <th scope="col" class="amount">Abgerechnet</th>
-              <th scope="col">Status</th>
-              <th scope="col">Aktion</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (order of orders(); track order.ID) {
-              <tr [attr.data-testid]="'order-' + order.Number">
-                <td>{{ order.Number }}</td>
-                <td>{{ order.Supplier }}</td>
-                <td class="amount">{{ euro(order.GrossCents) }}</td>
-                <td class="amount" [attr.data-testid]="'billed-' + order.Number">{{ billedLabel(order) }}</td>
-                <td [attr.data-testid]="'status-' + order.Number">{{ statusLabel(order.Status) }}</td>
-                <td>
-                  @if (order.Status === 'draft') {
-                    <button
-                      type="button"
-                      [disabled]="approving() !== null"
-                      [attr.aria-label]="'Bestellung ' + order.Number + ' genehmigen'"
-                      (click)="approve(order)"
-                    >
-                      Genehmigen
-                    </button>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        @if (hasMore()) {
-          <p>
-            <button
-              type="button"
-              data-testid="load-more"
-              [disabled]="loadingMore()"
-              (click)="loadMore()"
-            >
-              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
-            </button>
-          </p>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
-    </section>
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+
+        @if (loading()) {
+          <p role="status">{{ 'beschaffung.orders.loading' | transloco }}</p>
+        } @else if (orders().length === 0 && !loadError()) {
+          <p role="status">
+            {{ (status() ? 'beschaffung.orders.emptyFiltered' : 'beschaffung.orders.empty') | transloco }}
+          </p>
+        } @else if (!loadError()) {
+          <table>
+            <caption>
+              {{ 'beschaffung.orders.caption' | transloco }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'common.number' | transloco }}</th>
+                <th scope="col">{{ 'beschaffung.orders.supplier' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'common.amount' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'beschaffung.orders.billed' | transloco }}</th>
+                <th scope="col">{{ 'common.status' | transloco }}</th>
+                <th scope="col">{{ 'common.action' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (order of orders(); track order.ID) {
+                <tr [attr.data-testid]="'order-' + order.Number">
+                  <td>{{ order.Number }}</td>
+                  <td>{{ order.Supplier }}</td>
+                  <td class="amount">{{ euro(order.GrossCents) }}</td>
+                  <td class="amount" [attr.data-testid]="'billed-' + order.Number">{{ billedLabel(order) }}</td>
+                  <td [attr.data-testid]="'status-' + order.Number">{{ statusLabel(order.Status) }}</td>
+                  <td>
+                    @if (order.Status === 'draft') {
+                      <button
+                        type="button"
+                        [disabled]="approving() !== null"
+                        [attr.aria-label]="'beschaffung.orders.approveLabel' | transloco: { number: order.Number }"
+                        (click)="approve(order)"
+                      >
+                        {{ 'beschaffung.orders.approve' | transloco }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (hasMore()) {
+            <p>
+              <button
+                type="button"
+                data-testid="load-more"
+                [disabled]="loadingMore()"
+                (click)="loadMore()"
+              >
+                {{ (loadingMore() ? 'beschaffung.orders.loadingMore' : 'beschaffung.orders.loadMore') | transloco }}
+              </button>
+            </p>
+          }
+        }
+      </section>
+    </app-page>
   `,
 })
 export class PurchaseOrdersComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly orders = signal<ProcurementOrderSummary[]>([]);
   /**
@@ -141,7 +148,7 @@ export class PurchaseOrdersComponent implements OnInit {
           this.loading.set(false);
         },
         error: () => {
-          this.loadError.set('Konnte die Bestellungen nicht laden.');
+          this.loadError.set(this.i18n.translate('beschaffung.orders.loadFailed'));
           this.loading.set(false);
         },
       });
@@ -176,7 +183,7 @@ export class PurchaseOrdersComponent implements OnInit {
         },
         error: () => {
           this.loadingMore.set(false);
-          this.actionError.set('Konnte die weiteren Bestellungen nicht laden.');
+          this.actionError.set(this.i18n.translate('beschaffung.orders.loadMoreFailed'));
         },
       });
   }
@@ -191,7 +198,9 @@ export class PurchaseOrdersComponent implements OnInit {
       },
       error: () => {
         this.approving.set(null);
-        this.actionError.set('Konnte die Bestellung ' + order.Number + ' nicht genehmigen.');
+        this.actionError.set(
+          this.i18n.translate('beschaffung.orders.approveFailed', { number: order.Number }),
+        );
       },
     });
   }
@@ -200,13 +209,13 @@ export class PurchaseOrdersComponent implements OnInit {
   statusLabel(status: string): string {
     switch (status) {
       case 'draft':
-        return 'Entwurf';
+        return this.i18n.translate('status.draft');
       case 'approved':
-        return 'Genehmigt';
+        return this.i18n.translate('status.approved');
       case 'received':
-        return 'Erhalten';
+        return this.i18n.translate('beschaffung.orders.statusReceived');
       case 'cancelled':
-        return 'Storniert';
+        return this.i18n.translate('status.cancelled');
       default:
         return status;
     }
@@ -225,8 +234,13 @@ export class PurchaseOrdersComponent implements OnInit {
       return '—';
     }
     if (order.InvoicedCents >= order.GrossCents) {
-      return formatCents(order.InvoicedCents) + ' (vollständig)';
+      return this.i18n.translate('beschaffung.orders.billedFull', {
+        amount: formatCents(order.InvoicedCents),
+      });
     }
-    return formatCents(order.InvoicedCents) + ' von ' + formatCents(order.GrossCents);
+    return this.i18n.translate('beschaffung.orders.billedPartial', {
+      amount: formatCents(order.InvoicedCents),
+      total: formatCents(order.GrossCents),
+    });
   }
 }

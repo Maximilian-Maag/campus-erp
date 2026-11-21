@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PaymentOrdersComponent } from './payment-orders.component';
+import { provideI18n } from '../i18n/provide-i18n';
 import { KasseOrderSummary } from '../core/api/generated';
 
 describe('PaymentOrdersComponent', () => {
@@ -10,7 +11,7 @@ describe('PaymentOrdersComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PaymentOrdersComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

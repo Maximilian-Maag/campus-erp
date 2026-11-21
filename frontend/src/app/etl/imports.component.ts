@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, EtlReport, EtlRun } from '../core/api/generated';
 import { formatDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Importe — Datenübernahmen aus dem Altsystem (docs/19).
@@ -16,74 +18,76 @@ import { formatDay } from '../core/format';
  */
 @Component({
   selector: 'app-imports',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="imports-heading">
-      <h2 id="imports-heading">Importe</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading() && datasets().length === 0) {
-        <p role="status">Datenübernahmen werden geladen.</p>
-      } @else if (datasets().length === 0 && !loadError()) {
-        <p role="status">Es sind keine Datenübernahmen eingerichtet.</p>
-      } @else if (!loadError()) {
-        <p>
-          <label for="import-dataset">Datensatz</label>
-          <select id="import-dataset" [value]="dataset()" (change)="choose($any($event.target).value)">
-            <option value="">alle</option>
-            @for (name of datasets(); track name) {
-              <option [value]="name">{{ name }}</option>
-            }
-          </select>
-        </p>
-        <p>
-          <button type="button" [disabled]="dataset() === '' || running()" (click)="run()">
-            Datenübernahme starten
-          </button>
-          @if (dataset() === '') {
-            <span class="hint">Für eine Datenübernahme ist ein Datensatz zu wählen.</span>
-          }
-        </p>
-
-        @if (runs().length === 0) {
-          <p role="status">Es ist noch keine Datenübernahme gelaufen.</p>
-        } @else {
-          <table>
-            <caption>
-              Die letzten Datenübernahmen mit Zeitpunkt, Person und Ergebnis
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Zeitpunkt (UTC)</th>
-                <th scope="col">Person</th>
-                <th scope="col">Ergebnis</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (run of runs(); track $index) {
-                <tr [attr.data-testid]="'run-' + $index">
-                  <td>{{ at(run.at) }}</td>
-                  <td>{{ run.actor }}</td>
-                  <td>{{ run.summary }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+    <app-page titleKey="page.importe.title" subtitleKey="page.importe.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
-    </section>
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
+
+        @if (loading() && datasets().length === 0) {
+          <p role="status">{{ 'auswertung.imports.loading' | transloco }}</p>
+        } @else if (datasets().length === 0 && !loadError()) {
+          <p role="status">{{ 'auswertung.imports.empty' | transloco }}</p>
+        } @else if (!loadError()) {
+          <div class="field">
+            <label for="import-dataset">{{ 'auswertung.imports.dataset' | transloco }}</label>
+            <select id="import-dataset" [value]="dataset()" (change)="choose($any($event.target).value)">
+              <option value="">{{ 'auswertung.imports.allDatasets' | transloco }}</option>
+              @for (name of datasets(); track name) {
+                <option [value]="name">{{ name }}</option>
+              }
+            </select>
+          </div>
+          <p>
+            <button type="button" [disabled]="dataset() === '' || running()" (click)="run()">
+              {{ 'auswertung.imports.run' | transloco }}
+            </button>
+            @if (dataset() === '') {
+              <span class="hint">{{ 'auswertung.imports.datasetRequiredHint' | transloco }}</span>
+            }
+          </p>
+
+          @if (runs().length === 0) {
+            <p role="status">{{ 'auswertung.imports.noRuns' | transloco }}</p>
+          } @else {
+            <table>
+              <caption>
+                {{ 'auswertung.imports.historyCaption' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'auswertung.imports.timestampUtc' | transloco }}</th>
+                  <th scope="col">{{ 'auswertung.imports.person' | transloco }}</th>
+                  <th scope="col">{{ 'auswertung.imports.result' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (run of runs(); track $index) {
+                  <tr [attr.data-testid]="'run-' + $index">
+                    <td>{{ at(run.at) }}</td>
+                    <td>{{ run.actor }}</td>
+                    <td>{{ run.summary }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      </section>
+    </app-page>
   `,
 })
 export class ImportsComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly datasets = signal<string[]>([]);
   readonly runs = signal<EtlRun[]>([]);
@@ -97,7 +101,7 @@ export class ImportsComponent implements OnInit {
   ngOnInit(): void {
     this.api.listETLDatasets().subscribe({
       next: (response) => this.datasets.set(response?.datasets ?? []),
-      error: () => this.loadError.set('Die Datenübernahmen konnten nicht geladen werden.'),
+      error: () => this.loadError.set(this.i18n.translate('auswertung.imports.datasetsLoadFailed')),
     });
     this.loadHistory();
   }
@@ -112,7 +116,7 @@ export class ImportsComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Die Läufe konnten nicht gelesen werden.');
+        this.loadError.set(this.i18n.translate('auswertung.imports.runsLoadFailed'));
         this.loading.set(false);
       },
     });
@@ -129,7 +133,7 @@ export class ImportsComponent implements OnInit {
   run(): void {
     const dataset = this.dataset();
     if (dataset === '') {
-      this.actionError.set('Es ist kein Datensatz gewählt.');
+      this.actionError.set(this.i18n.translate('auswertung.imports.datasetRequired'));
       return;
     }
     this.running.set(true);
@@ -144,7 +148,7 @@ export class ImportsComponent implements OnInit {
       },
       error: () => {
         this.running.set(false);
-        this.actionError.set(`Die Datenübernahme „${dataset}“ ist fehlgeschlagen.`);
+        this.actionError.set(this.i18n.translate('auswertung.imports.runFailed', { dataset }));
       },
     });
   }
@@ -152,11 +156,17 @@ export class ImportsComponent implements OnInit {
   /** What a run did, in prose: read, loaded, and whether the source moved under it. */
   report(report: EtlReport): string {
     const drift = report.drift
-      ? 'Die Quelle hat sich seit dem letzten Lauf geändert.'
+      ? this.i18n.translate('auswertung.imports.driftChanged')
       : report.previous
-        ? 'Die Quelle ist gegenüber dem letzten Lauf unverändert.'
-        : 'Es war der erste Lauf dieses Datensatzes.';
-    return `Datenübernahme „${report.dataset}“: ${report.source} Zeilen gelesen, ${report.loaded} übernommen, Prüfsumme ${report.checksum}. ${drift}`;
+        ? this.i18n.translate('auswertung.imports.driftUnchanged')
+        : this.i18n.translate('auswertung.imports.firstRun');
+    return this.i18n.translate('auswertung.imports.summary', {
+      dataset: report.dataset,
+      source: report.source,
+      loaded: report.loaded,
+      checksum: report.checksum,
+      drift,
+    });
   }
 
   /**

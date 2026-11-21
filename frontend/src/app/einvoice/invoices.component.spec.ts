@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { EInvoicesComponent } from './invoices.component';
 import { InvoiceSummary } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('EInvoicesComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('EInvoicesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [EInvoicesComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

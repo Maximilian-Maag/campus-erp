@@ -1,5 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, CostType, CostTypeAccount } from '../core/api/generated';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * KLR — Kostenarten und ihre Kontenüberleitung.
@@ -9,148 +11,163 @@ import { CampusErpApi, CostType, CostTypeAccount } from '../core/api/generated';
  * shown from both directions: the accounts a chosen cost type owns, and — for a typed account
  * code — the cost type it belongs to. That second direction is what tells an operator whether a
  * mapping already exists before they try to make it.
+ *
+ * Every label and every message is a key: the catalogue reads the same way in either language,
+ * and the cost type's own code and name are shown as the API reports them.
  */
 @Component({
   selector: 'app-klr-cost-types',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="klr-cost-types-heading">
-      <h2 id="klr-cost-types-heading">Kostenarten</h2>
+    <app-page titleKey="page.klrKostenarten.title" subtitleKey="page.klrKostenarten.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Kostenarten werden geladen.</p>
-      } @else if (!loadError()) {
-        @if (types().length === 0) {
-          <p role="status">Es sind keine Kostenarten angelegt.</p>
-        } @else {
-          <h3 id="klr-types-heading">Katalog</h3>
-          <table aria-labelledby="klr-types-heading">
-            <caption>
-              Angelegte Kostenarten
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Schlüssel</th>
-                <th scope="col">Bezeichnung</th>
-                <th scope="col">Konten</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (type of types(); track type.ID) {
-                <tr [attr.data-testid]="'cost-type-' + type.ID" [class.chosen]="String(type.ID) === chosen()">
-                  <td [attr.data-testid]="'cost-type-code-' + type.ID">{{ type.Code }}</td>
-                  <td [attr.data-testid]="'cost-type-name-' + type.ID">{{ type.Name }}</td>
-                  <td>
-                    <button type="button" [attr.data-testid]="'choose-' + type.ID" (click)="choose(type)">
-                      Konten anzeigen
-                    </button>
-                  </td>
+        @if (loading()) {
+          <p role="status">{{ 'klr.costTypes.loading' | transloco }}</p>
+        } @else if (!loadError()) {
+          @if (types().length === 0) {
+            <p role="status">{{ 'klr.common.noCostTypes' | transloco }}</p>
+          } @else {
+            <h2 id="klr-types-heading">{{ 'klr.costTypes.catalogHeading' | transloco }}</h2>
+            <table aria-labelledby="klr-types-heading">
+              <caption>
+                {{ 'klr.costTypes.catalogCaption' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'common.code' | transloco }}</th>
+                  <th scope="col">{{ 'common.description' | transloco }}</th>
+                  <th scope="col">{{ 'klr.costTypes.accountsColumn' | transloco }}</th>
                 </tr>
-              }
-            </tbody>
-          </table>
-          @if (hasMore()) {
-            <p>
-              <button
-                type="button"
-                data-testid="load-more"
-                [disabled]="loadingMore()"
-                (click)="loadMore()"
-              >
-                {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
-              </button>
-            </p>
-          }
-
-          @if (chosen(); as id) {
-            <h3 id="klr-accounts-heading">Konten der gewählten Kostenart</h3>
-            @if (accounts().length === 0) {
-              <p role="status" data-testid="no-accounts">
-                Dieser Kostenart ist noch kein Konto zugeordnet.
-              </p>
-            } @else {
-              <table aria-labelledby="klr-accounts-heading">
-                <caption>
-                  Zugeordnete Konten
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Konto</th>
+              </thead>
+              <tbody>
+                @for (type of types(); track type.ID) {
+                  <tr [attr.data-testid]="'cost-type-' + type.ID" [class.chosen]="String(type.ID) === chosen()">
+                    <td [attr.data-testid]="'cost-type-code-' + type.ID">{{ type.Code }}</td>
+                    <td [attr.data-testid]="'cost-type-name-' + type.ID">{{ type.Name }}</td>
+                    <td>
+                      <button type="button" [attr.data-testid]="'choose-' + type.ID" (click)="choose(type)">
+                        {{ 'klr.costTypes.showAccounts' | transloco }}
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  @for (account of accounts(); track account.ID) {
-                    <tr [attr.data-testid]="'account-' + account.AccountCode">
-                      <td>{{ account.AccountCode }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
+                }
+              </tbody>
+            </table>
+            @if (hasMore()) {
+              <p>
+                <button
+                  type="button"
+                  data-testid="load-more"
+                  [disabled]="loadingMore()"
+                  (click)="loadMore()"
+                >
+                  {{ (loadingMore() ? 'klr.common.loadingMore' : 'klr.common.loadMore') | transloco }}
+                </button>
+              </p>
             }
 
-            <form (submit)="map($event)">
-              <h4 id="klr-map-heading">Konto zuordnen</h4>
-              <p>
-                <label for="klr-account-code">Kontonummer</label>
-                <input
-                  id="klr-account-code"
-                  type="text"
-                  [value]="accountCode()"
-                  (input)="accountCode.set($any($event.target).value)"
-                />
-              </p>
-              <button type="submit" data-testid="map-account" [disabled]="mapping()">Zuordnen</button>
-            </form>
+            @if (chosen(); as id) {
+              <h2 id="klr-accounts-heading">{{ 'klr.costTypes.accountsHeading' | transloco }}</h2>
+              @if (accounts().length === 0) {
+                <p role="status" data-testid="no-accounts">
+                  {{ 'klr.costTypes.noAccounts' | transloco }}
+                </p>
+              } @else {
+                <table aria-labelledby="klr-accounts-heading">
+                  <caption>
+                    {{ 'klr.costTypes.accountsCaption' | transloco }}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">{{ 'common.account' | transloco }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (account of accounts(); track account.ID) {
+                      <tr [attr.data-testid]="'account-' + account.AccountCode">
+                        <td>{{ account.AccountCode }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+
+              <form (submit)="map($event)">
+                <h3 id="klr-map-heading">{{ 'klr.costTypes.mapHeading' | transloco }}</h3>
+                <div class="field">
+                  <label for="klr-account-code">{{ 'klr.common.accountNumber' | transloco }}</label>
+                  <input
+                    id="klr-account-code"
+                    type="text"
+                    [value]="accountCode()"
+                    (input)="accountCode.set($any($event.target).value)"
+                  />
+                </div>
+                <div class="field">
+                  <button type="submit" data-testid="map-account" [disabled]="mapping()">
+                    {{ 'klr.common.map' | transloco }}
+                  </button>
+                </div>
+              </form>
+            }
           }
+
+          <form (submit)="create($event)">
+            <h2 id="klr-create-heading">{{ 'klr.costTypes.createHeading' | transloco }}</h2>
+            <div class="field">
+              <label for="klr-code">{{ 'common.code' | transloco }}</label>
+              <input id="klr-code" type="text" [value]="code()" (input)="code.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="klr-name">{{ 'common.description' | transloco }}</label>
+              <input id="klr-name" type="text" [value]="name()" (input)="name.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <button type="submit" data-testid="create-cost-type" [disabled]="saving()">
+                {{ 'klr.common.create' | transloco }}
+              </button>
+            </div>
+          </form>
         }
 
-        <form (submit)="create($event)">
-          <h3 id="klr-create-heading">Kostenart anlegen</h3>
-          <p>
-            <label for="klr-code">Schlüssel</label>
-            <input id="klr-code" type="text" [value]="code()" (input)="code.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="klr-name">Bezeichnung</label>
-            <input id="klr-name" type="text" [value]="name()" (input)="name.set($any($event.target).value)" />
-          </p>
-          <button type="submit" data-testid="create-cost-type" [disabled]="saving()">Anlegen</button>
+        <form (submit)="lookup($event)">
+          <h2 id="klr-lookup-heading">{{ 'klr.costTypes.lookupHeading' | transloco }}</h2>
+          <div class="field">
+            <label for="klr-lookup-code">{{ 'klr.common.accountNumber' | transloco }}</label>
+            <input
+              id="klr-lookup-code"
+              type="text"
+              [value]="lookupCode()"
+              (input)="lookupCode.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <button type="submit" data-testid="lookup-account">{{ 'klr.costTypes.lookupButton' | transloco }}</button>
+          </div>
+          @if (lookupResult(); as found) {
+            <p role="status" data-testid="lookup-result">{{ found.Code }} {{ found.Name }}</p>
+          }
+          @if (lookupMiss()) {
+            <p role="status" data-testid="lookup-miss">{{ 'klr.costTypes.lookupMiss' | transloco }}</p>
+          }
         </form>
-      }
-
-      <form (submit)="lookup($event)">
-        <h3 id="klr-lookup-heading">Konto nachschlagen</h3>
-        <p>
-          <label for="klr-lookup-code">Kontonummer</label>
-          <input
-            id="klr-lookup-code"
-            type="text"
-            [value]="lookupCode()"
-            (input)="lookupCode.set($any($event.target).value)"
-          />
-        </p>
-        <button type="submit" data-testid="lookup-account">Nachschlagen</button>
-        @if (lookupResult(); as found) {
-          <p role="status" data-testid="lookup-result">{{ found.Code }} {{ found.Name }}</p>
-        }
-        @if (lookupMiss()) {
-          <p role="status" data-testid="lookup-miss">Für dieses Konto ist keine Kostenart hinterlegt.</p>
-        }
-      </form>
-    </section>
+      </section>
+    </app-page>
   `,
 })
 export class KlrCostTypesComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly types = signal<CostType[]>([]);
   readonly accounts = signal<CostTypeAccount[]>([]);
@@ -204,7 +221,7 @@ export class KlrCostTypesComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Kostenarten nicht laden.');
+        this.loadError.set(this.i18n.translate('klr.common.loadCostTypesFailed'));
         this.hasMore.set(false);
         this.loading.set(false);
       },
@@ -234,7 +251,7 @@ export class KlrCostTypesComponent implements OnInit {
       },
       error: () => {
         this.loadingMore.set(false);
-        this.actionError.set('Konnte die weiteren Kostenarten nicht laden.');
+        this.actionError.set(this.i18n.translate('klr.common.loadMoreCostTypesFailed'));
       },
     });
   }
@@ -247,7 +264,7 @@ export class KlrCostTypesComponent implements OnInit {
     }
     this.api.listCostTypeAccounts(id).subscribe({
       next: (accounts) => this.accounts.set(accounts ?? []),
-      error: () => this.loadError.set('Konnte die Konten nicht laden.'),
+      error: () => this.loadError.set(this.i18n.translate('klr.costTypes.loadAccountsFailed')),
     });
   }
 
@@ -261,7 +278,7 @@ export class KlrCostTypesComponent implements OnInit {
   create(event: Event): void {
     event.preventDefault();
     if (!this.code().trim() || !this.name().trim()) {
-      this.actionError.set('Schlüssel und Bezeichnung sind erforderlich.');
+      this.actionError.set(this.i18n.translate('klr.costTypes.createRequired'));
       return;
     }
     this.saving.set(true);
@@ -270,7 +287,7 @@ export class KlrCostTypesComponent implements OnInit {
     this.api.createCostType({ code: this.code(), name: this.name() }).subscribe({
       next: (created) => {
         this.saving.set(false);
-        this.notice.set('Kostenart angelegt.');
+        this.notice.set(this.i18n.translate('klr.costTypes.created'));
         this.code.set('');
         this.name.set('');
         // The new cost type is the one the operator just made, so the screen moves to it.
@@ -281,7 +298,7 @@ export class KlrCostTypesComponent implements OnInit {
       },
       error: () => {
         this.saving.set(false);
-        this.actionError.set('Konnte die Kostenart nicht anlegen.');
+        this.actionError.set(this.i18n.translate('klr.costTypes.createFailed'));
       },
     });
   }
@@ -290,7 +307,7 @@ export class KlrCostTypesComponent implements OnInit {
     event.preventDefault();
     const account = this.accountCode().trim();
     if (!account) {
-      this.actionError.set('Eine Kontonummer ist erforderlich.');
+      this.actionError.set(this.i18n.translate('klr.common.accountNumberRequired'));
       return;
     }
     this.mapping.set(true);
@@ -299,13 +316,13 @@ export class KlrCostTypesComponent implements OnInit {
     this.api.mapCostTypeAccount(this.chosen(), { account_code: account }).subscribe({
       next: () => {
         this.mapping.set(false);
-        this.notice.set('Konto zugeordnet.');
+        this.notice.set(this.i18n.translate('klr.costTypes.accountMapped'));
         this.accountCode.set('');
         this.loadAccounts();
       },
       error: () => {
         this.mapping.set(false);
-        this.actionError.set('Konnte das Konto nicht zuordnen.');
+        this.actionError.set(this.i18n.translate('klr.costTypes.mapFailed'));
       },
     });
   }
@@ -314,7 +331,7 @@ export class KlrCostTypesComponent implements OnInit {
     event.preventDefault();
     const account = this.lookupCode().trim();
     if (!account) {
-      this.actionError.set('Eine Kontonummer ist erforderlich.');
+      this.actionError.set(this.i18n.translate('klr.common.accountNumberRequired'));
       return;
     }
     this.actionError.set(null);

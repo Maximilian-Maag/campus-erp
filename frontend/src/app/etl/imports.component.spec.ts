@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ImportsComponent } from './imports.component';
 import { EtlReport, EtlRun } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('ImportsComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('ImportsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ImportsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BudgetSourcesComponent } from './sources.component';
 import { BudgetPositionResponse, Center, ImportResult, Position, Source } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('BudgetSourcesComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('BudgetSourcesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [BudgetSourcesComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
@@ -91,6 +92,8 @@ describe('BudgetSourcesComponent', () => {
     screen([source()], [center()], [row({ SourceID: 1, CenterID: 2 })]);
     expect(component.loading()).toBeFalse();
     expect(component.loadError()).toBeNull();
+    // The screen names itself through `app-page` rather than its own heading.
+    expect(el.querySelector('[data-testid="page-title"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="source-1"]')!.textContent).toContain('Landesmittel');
     expect(el.querySelector('[data-testid="center-2"]')!.textContent).toContain('Fakultät 1');
     const cells = el.querySelector('[data-testid="position-7"]')!.querySelectorAll('td');

@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { Allocation, CampusErpApi, CostCenter } from '../core/api/generated';
 import { basisPointsToPercent, formatCents, percentToBasisPoints } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * KLR — Umlage (Kostenstellen-Umlage).
@@ -9,120 +11,132 @@ import { basisPointsToPercent, formatCents, percentToBasisPoints } from '../core
  * shows the keys of the chosen centre, and runs a period's distribution — the shares are typed
  * as percentages and stored as basis points, and the API owns the rule that they must add up to
  * 100 %.
+ *
+ * The copy is message keys rather than text, so the screen names itself in whatever language the
+ * clerk picked; the shares and the amounts are still spelled by the shared formatters.
  */
 @Component({
   selector: 'app-klr-allocation',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="klr-heading">
-      <h2 id="klr-heading">Umlage</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Kostenstellen werden geladen.</p>
-      } @else if (centers().length === 0 && !loadError()) {
-        <p role="status">Es sind keine Kostenstellen angelegt.</p>
-      } @else if (!loadError()) {
-        <div class="picker">
-          <label for="klr-source">Kostenstelle</label>
-          <select id="klr-source" [value]="source()" (change)="chooseSource($any($event.target).value)">
-            @for (center of centers(); track center.ID) {
-              <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
-            }
-          </select>
-        </div>
-
-        <h3 id="klr-keys-heading">Verteilerschlüssel</h3>
-        @if (keys().length === 0) {
-          <p role="status">Für diese Kostenstelle ist kein Schlüssel hinterlegt.</p>
-        } @else {
-          <table aria-labelledby="klr-keys-heading">
-            <caption>
-              Schlüssel der gewählten Kostenstelle
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Empfänger</th>
-                <th scope="col" class="amount">Anteil</th>
-                <th scope="col">Gültig ab</th>
-                <th scope="col">Gültig bis</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (key of keys(); track key.ID) {
-                <tr [attr.data-testid]="'key-' + key.ID">
-                  <td [attr.data-testid]="'key-target-' + key.ID">{{ centerLabel(key.TargetCenterID) }}</td>
-                  <td class="amount" [attr.data-testid]="'key-share-' + key.ID">{{ share(key.ShareBP) }}</td>
-                  <td>{{ day(key.ValidFrom) }}</td>
-                  <td>{{ key.ValidTo ? day(key.ValidTo) : 'unbegrenzt' }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+    <app-page titleKey="page.klrUmlage.title" subtitleKey="page.klrUmlage.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
         }
 
-        <form (submit)="define($event)">
-          <h3 id="klr-define-heading">Schlüssel anlegen</h3>
-          <p>
-            <label for="klr-target">Empfänger</label>
-            <select id="klr-target" [value]="target()" (change)="target.set($any($event.target).value)">
-              @for (center of receivers(); track center.ID) {
+        @if (loading()) {
+          <p role="status">{{ 'klr.common.loadingCostCentres' | transloco }}</p>
+        } @else if (centers().length === 0 && !loadError()) {
+          <p role="status">{{ 'klr.common.noCostCentres' | transloco }}</p>
+        } @else if (!loadError()) {
+          <div class="picker">
+            <label for="klr-source">{{ 'common.costCenter' | transloco }}</label>
+            <select id="klr-source" [value]="source()" (change)="chooseSource($any($event.target).value)">
+              @for (center of centers(); track center.ID) {
                 <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
               }
             </select>
-          </p>
-          <p>
-            <label for="klr-share">Anteil in Prozent</label>
-            <input
-              id="klr-share"
-              type="text"
-              inputmode="decimal"
-              [value]="sharePercent()"
-              (input)="sharePercent.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="klr-from">Gültig ab</label>
-            <input id="klr-from" type="date" [value]="validFrom()" (input)="validFrom.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="klr-until">Gültig bis</label>
-            <input id="klr-until" type="date" [value]="validUntil()" (input)="validUntil.set($any($event.target).value)" />
-          </p>
-          <button type="submit" [disabled]="saving()">Anlegen</button>
-        </form>
+          </div>
 
-        <form (submit)="run($event)">
-          <h3 id="klr-run-heading">Umlage ausführen</h3>
-          <p>
-            <label for="klr-run-from">Von</label>
-            <input id="klr-run-from" type="date" [value]="runFrom()" (input)="runFrom.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="klr-run-to">Bis</label>
-            <input id="klr-run-to" type="date" [value]="runTo()" (input)="runTo.set($any($event.target).value)" />
-          </p>
-          <button type="submit" [disabled]="running()">Ausführen</button>
-          @if (result(); as r) {
-            <p role="status" data-testid="run-result">
-              {{ euro(r.AllocatedCents) }} auf {{ r.Receivers }} Empfänger verteilt.
-            </p>
+          <h2 id="klr-keys-heading">{{ 'common.distributionKey' | transloco }}</h2>
+          @if (keys().length === 0) {
+            <p role="status">{{ 'klr.allocation.noKeys' | transloco }}</p>
+          } @else {
+            <table aria-labelledby="klr-keys-heading">
+              <caption>
+                {{ 'klr.allocation.keysCaption' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'klr.common.receiver' | transloco }}</th>
+                  <th scope="col" class="amount">{{ 'klr.common.share' | transloco }}</th>
+                  <th scope="col">{{ 'common.validFrom' | transloco }}</th>
+                  <th scope="col">{{ 'common.validUntil' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (key of keys(); track key.ID) {
+                  <tr [attr.data-testid]="'key-' + key.ID">
+                    <td [attr.data-testid]="'key-target-' + key.ID">{{ centerLabel(key.TargetCenterID) }}</td>
+                    <td class="amount" [attr.data-testid]="'key-share-' + key.ID">{{ share(key.ShareBP) }}</td>
+                    <td>{{ day(key.ValidFrom) }}</td>
+                    <td>{{ key.ValidTo ? day(key.ValidTo) : ('klr.common.unbounded' | transloco) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           }
-        </form>
-      }
-    </section>
+
+          <form (submit)="define($event)">
+            <h2 id="klr-define-heading">{{ 'klr.common.createKey' | transloco }}</h2>
+            <div class="field">
+              <label for="klr-target">{{ 'klr.common.receiver' | transloco }}</label>
+              <select id="klr-target" [value]="target()" (change)="target.set($any($event.target).value)">
+                @for (center of receivers(); track center.ID) {
+                  <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="klr-share">{{ 'klr.common.sharePercent' | transloco }}</label>
+              <input
+                id="klr-share"
+                type="text"
+                inputmode="decimal"
+                [value]="sharePercent()"
+                (input)="sharePercent.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="klr-from">{{ 'common.validFrom' | transloco }}</label>
+              <input id="klr-from" type="date" [value]="validFrom()" (input)="validFrom.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="klr-until">{{ 'common.validUntil' | transloco }}</label>
+              <input id="klr-until" type="date" [value]="validUntil()" (input)="validUntil.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="saving()">{{ 'klr.common.create' | transloco }}</button>
+            </div>
+          </form>
+
+          <form (submit)="run($event)">
+            <h2 id="klr-run-heading">{{ 'klr.allocation.runHeading' | transloco }}</h2>
+            <div class="field">
+              <label for="klr-run-from">{{ 'common.from' | transloco }}</label>
+              <input id="klr-run-from" type="date" [value]="runFrom()" (input)="runFrom.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="klr-run-to">{{ 'common.to' | transloco }}</label>
+              <input id="klr-run-to" type="date" [value]="runTo()" (input)="runTo.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="running()">{{ 'klr.common.run' | transloco }}</button>
+            </div>
+            @if (result(); as r) {
+              <p role="status" data-testid="run-result">
+                {{
+                  'klr.allocation.runResult'
+                    | transloco: { amount: euro(r.AllocatedCents), receivers: r.Receivers }
+                }}
+              </p>
+            }
+          </form>
+        }
+      </section>
+    </app-page>
   `,
 })
 export class KlrAllocationComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly centers = signal<CostCenter[]>([]);
   readonly keys = signal<Allocation[]>([]);
@@ -162,7 +176,7 @@ export class KlrAllocationComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Kostenstellen nicht laden.');
+        this.loadError.set(this.i18n.translate('klr.common.loadCostCentresFailed'));
         this.loading.set(false);
       },
     });
@@ -176,7 +190,7 @@ export class KlrAllocationComponent implements OnInit {
     }
     this.api.listAllocations(id).subscribe({
       next: (keys) => this.keys.set(keys ?? []),
-      error: () => this.loadError.set('Konnte die Schlüssel nicht laden.'),
+      error: () => this.loadError.set(this.i18n.translate('klr.common.loadKeysFailed')),
     });
   }
 
@@ -197,11 +211,11 @@ export class KlrAllocationComponent implements OnInit {
     event.preventDefault();
     const shareBP = percentToBasisPoints(this.sharePercent());
     if (shareBP === null) {
-      this.actionError.set('Der Anteil muss eine Prozentzahl zwischen 0 und 100 sein.');
+      this.actionError.set(this.i18n.translate('klr.common.shareInvalid'));
       return;
     }
     if (!this.validFrom()) {
-      this.actionError.set('Ein Gültig-ab-Datum ist erforderlich.');
+      this.actionError.set(this.i18n.translate('klr.common.validFromRequired'));
       return;
     }
     this.saving.set(true);
@@ -217,12 +231,12 @@ export class KlrAllocationComponent implements OnInit {
       .subscribe({
         next: () => {
           this.saving.set(false);
-          this.notice.set('Schlüssel angelegt.');
+          this.notice.set(this.i18n.translate('klr.common.keyCreated'));
           this.loadKeys();
         },
         error: () => {
           this.saving.set(false);
-          this.actionError.set('Konnte den Schlüssel nicht anlegen.');
+          this.actionError.set(this.i18n.translate('klr.common.keyCreateFailed'));
         },
       });
   }
@@ -230,7 +244,7 @@ export class KlrAllocationComponent implements OnInit {
   run(event: Event): void {
     event.preventDefault();
     if (!this.runFrom() || !this.runTo()) {
-      this.actionError.set('Für die Umlage sind Von und Bis erforderlich.');
+      this.actionError.set(this.i18n.translate('klr.allocation.periodRequired'));
       return;
     }
     this.running.set(true);
@@ -243,7 +257,7 @@ export class KlrAllocationComponent implements OnInit {
       },
       error: () => {
         this.running.set(false);
-        this.actionError.set('Konnte die Umlage nicht ausführen.');
+        this.actionError.set(this.i18n.translate('klr.allocation.runFailed'));
       },
     });
   }

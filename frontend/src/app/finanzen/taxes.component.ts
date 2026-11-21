@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, TaxOffice, VATType } from '../core/api/generated';
 import { basisPointsToPercent, percentToBasisPoints } from '../core/format';
-import { VAT_KINDS, vatKindLabel } from '../core/tax';
+import { VAT_KINDS } from '../core/tax';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Finanzen — Steuersätze und Finanzämter (docs/07).
@@ -16,165 +18,171 @@ import { VAT_KINDS, vatKindLabel } from '../core/tax';
  */
 @Component({
   selector: 'app-taxes',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="taxes-heading">
-      <h2 id="taxes-heading">Steuersätze und Finanzämter</h2>
+    <app-page titleKey="page.finanzenSteuern.title" subtitleKey="page.finanzenSteuern.subtitle">
+      <section>
+        @if (vatLoadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (officeLoadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      @if (vatLoadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (officeLoadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Steuersätze werden geladen.</p>
-      } @else {
-        <table>
-          <caption>
-            Steuersätze mit Bezeichnung, Satz und Art
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Schlüssel</th>
-              <th scope="col">Bezeichnung</th>
-              <th scope="col" class="amount">Satz</th>
-              <th scope="col">Art</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (vat of vatTypes(); track vat.ID) {
-              <tr [attr.data-testid]="'vat-' + vat.Code">
-                <td>{{ vat.Code }}</td>
-                <td>{{ vat.Description }}</td>
-                <td class="amount">{{ rate(vat.RateBasisPoints) }}</td>
-                <td>{{ kind(vat.Kind) }}</td>
-              </tr>
-            } @empty {
+        @if (loading()) {
+          <p role="status">{{ 'finanzen.taxes.loading' | transloco }}</p>
+        } @else {
+          <table>
+            <caption>
+              {{ 'finanzen.taxes.ratesCaption' | transloco }}
+            </caption>
+            <thead>
               <tr>
-                <td colspan="4">Es ist kein Steuersatz erfasst.</td>
+                <th scope="col">{{ 'common.code' | transloco }}</th>
+                <th scope="col">{{ 'common.description' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'finanzen.taxes.rate' | transloco }}</th>
+                <th scope="col">{{ 'common.type' | transloco }}</th>
               </tr>
-            }
-          </tbody>
-        </table>
-
-        <form (submit)="createVAT($event)">
-          <h3 id="vat-heading">Steuersatz aufnehmen</h3>
-          <p>
-            <label for="vat-code">Schlüssel</label>
-            <input id="vat-code" [value]="vatCode()" (input)="vatCode.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="vat-description">Bezeichnung</label>
-            <input
-              id="vat-description"
-              [value]="vatDescription()"
-              (input)="vatDescription.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="vat-rate">Satz (in Prozent)</label>
-            <input id="vat-rate" [value]="vatRate()" (input)="vatRate.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="vat-kind">Art</label>
-            <select id="vat-kind" [value]="vatKind()" (change)="vatKind.set($any($event.target).value)">
-              @for (k of kinds; track k.value) {
-                <option [value]="k.value">{{ k.label }}</option>
+            </thead>
+            <tbody>
+              @for (vat of vatTypes(); track vat.ID) {
+                <tr [attr.data-testid]="'vat-' + vat.Code">
+                  <td>{{ vat.Code }}</td>
+                  <td>{{ vat.Description }}</td>
+                  <td class="amount">{{ rate(vat.RateBasisPoints) }}</td>
+                  <td>{{ kind(vat.Kind) }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4">{{ 'finanzen.taxes.ratesEmpty' | transloco }}</td>
+                </tr>
               }
-            </select>
+            </tbody>
+          </table>
+
+          <form (submit)="createVAT($event)">
+            <h2 id="vat-heading">{{ 'finanzen.taxes.newRateTitle' | transloco }}</h2>
+            <div class="field">
+              <label for="vat-code">{{ 'common.code' | transloco }}</label>
+              <input id="vat-code" [value]="vatCode()" (input)="vatCode.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="vat-description">{{ 'common.description' | transloco }}</label>
+              <input
+                id="vat-description"
+                [value]="vatDescription()"
+                (input)="vatDescription.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="vat-rate">{{ 'finanzen.taxes.ratePercent' | transloco }}</label>
+              <input id="vat-rate" [value]="vatRate()" (input)="vatRate.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="vat-kind">{{ 'common.type' | transloco }}</label>
+              <select id="vat-kind" [value]="vatKind()" (change)="vatKind.set($any($event.target).value)">
+                @for (k of kinds; track k.value) {
+                  <option [value]="k.value">{{ kind(k.value) }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="busy()">{{ 'finanzen.taxes.newRate' | transloco }}</button>
+            </div>
+          </form>
+
+          <p>
+            <label for="office-year">{{ 'finanzen.taxes.displayYear' | transloco }}</label>
+            <input id="office-year" [value]="year()" (input)="year.set($any($event.target).value)" />
+            <button type="button" (click)="loadOffices()">{{ 'finanzen.taxes.show' | transloco }}</button>
           </p>
-          <button type="submit" [disabled]="busy()">Steuersatz aufnehmen</button>
-        </form>
 
-        <p>
-          <label for="office-year">Jahr der Anzeige</label>
-          <input id="office-year" [value]="year()" (input)="year.set($any($event.target).value)" />
-          <button type="button" (click)="loadOffices()">Anzeigen</button>
-        </p>
-
-        <table>
-          <caption>
-            Finanzämter mit Anschrift und Bankverbindung
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Jahr</th>
-              <th scope="col">Nummer</th>
-              <th scope="col">Name</th>
-              <th scope="col">Ort</th>
-              <th scope="col">IBAN</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (office of offices(); track office.ID) {
-              <tr [attr.data-testid]="'office-' + office.ID">
-                <td>{{ office.Year }}</td>
-                <td>{{ office.Number }}</td>
-                <td>{{ office.Name }}</td>
-                <td>{{ office.City }}</td>
-                <td>{{ office.IBAN || '—' }}</td>
-              </tr>
-            } @empty {
+          <table>
+            <caption>
+              {{ 'finanzen.taxes.officesCaption' | transloco }}
+            </caption>
+            <thead>
               <tr>
-                <td colspan="5">Es ist kein Finanzamt erfasst.</td>
+                <th scope="col">{{ 'common.year' | transloco }}</th>
+                <th scope="col">{{ 'common.number' | transloco }}</th>
+                <th scope="col">{{ 'common.name' | transloco }}</th>
+                <th scope="col">{{ 'finanzen.taxes.city' | transloco }}</th>
+                <th scope="col">{{ 'common.iban' | transloco }}</th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @for (office of offices(); track office.ID) {
+                <tr [attr.data-testid]="'office-' + office.ID">
+                  <td>{{ office.Year }}</td>
+                  <td>{{ office.Number }}</td>
+                  <td>{{ office.Name }}</td>
+                  <td>{{ office.City }}</td>
+                  <td>{{ office.IBAN || '—' }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5">{{ 'finanzen.taxes.officesEmpty' | transloco }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
 
-        <form (submit)="createOffice($event)">
-          <h3 id="office-heading">Finanzamt aufnehmen</h3>
-          <p>
-            <label for="office-new-year">Jahr</label>
-            <input id="office-new-year" [value]="officeYear()" (input)="officeYear.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="office-number">Nummer</label>
-            <input id="office-number" [value]="officeNumber()" (input)="officeNumber.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="office-name">Name</label>
-            <input id="office-name" [value]="officeName()" (input)="officeName.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="office-street">Straße</label>
-            <input id="office-street" [value]="officeStreet()" (input)="officeStreet.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="office-postal">PLZ</label>
-            <input id="office-postal" [value]="officePostal()" (input)="officePostal.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="office-city">Ort</label>
-            <input id="office-city" [value]="officeCity()" (input)="officeCity.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="office-holder">Kontoinhaber</label>
-            <input id="office-holder" [value]="officeHolder()" (input)="officeHolder.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="office-iban">IBAN</label>
-            <input id="office-iban" [value]="officeIBAN()" (input)="officeIBAN.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="office-bic">BIC</label>
-            <input id="office-bic" [value]="officeBIC()" (input)="officeBIC.set($any($event.target).value)" />
-          </p>
-          <button type="submit" [disabled]="busy()">Finanzamt aufnehmen</button>
-        </form>
-      }
-    </section>
+          <form (submit)="createOffice($event)">
+            <h2 id="office-heading">{{ 'finanzen.taxes.newOfficeTitle' | transloco }}</h2>
+            <div class="field">
+              <label for="office-new-year">{{ 'common.year' | transloco }}</label>
+              <input id="office-new-year" [value]="officeYear()" (input)="officeYear.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="office-number">{{ 'common.number' | transloco }}</label>
+              <input id="office-number" [value]="officeNumber()" (input)="officeNumber.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="office-name">{{ 'common.name' | transloco }}</label>
+              <input id="office-name" [value]="officeName()" (input)="officeName.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="office-street">{{ 'finanzen.taxes.street' | transloco }}</label>
+              <input id="office-street" [value]="officeStreet()" (input)="officeStreet.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="office-postal">{{ 'finanzen.taxes.postalCode' | transloco }}</label>
+              <input id="office-postal" [value]="officePostal()" (input)="officePostal.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="office-city">{{ 'finanzen.taxes.city' | transloco }}</label>
+              <input id="office-city" [value]="officeCity()" (input)="officeCity.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="office-holder">{{ 'finanzen.taxes.accountHolder' | transloco }}</label>
+              <input id="office-holder" [value]="officeHolder()" (input)="officeHolder.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="office-iban">{{ 'common.iban' | transloco }}</label>
+              <input id="office-iban" [value]="officeIBAN()" (input)="officeIBAN.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="office-bic">{{ 'common.bic' | transloco }}</label>
+              <input id="office-bic" [value]="officeBIC()" (input)="officeBIC.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="busy()">{{ 'finanzen.taxes.newOffice' | transloco }}</button>
+            </div>
+          </form>
+        }
+      </section>
+    </app-page>
   `,
 })
 export class TaxesComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly vatTypes = signal<VATType[]>([]);
   readonly offices = signal<TaxOffice[]>([]);
@@ -224,7 +232,7 @@ export class TaxesComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.vatLoadError.set('Die Steuersätze konnten nicht geladen werden.');
+        this.vatLoadError.set(this.i18n.translate('finanzen.taxes.ratesLoadFailed'));
         this.loading.set(false);
       },
     });
@@ -235,7 +243,7 @@ export class TaxesComponent implements OnInit {
     this.officeLoadError.set(null);
     this.api.listTaxOffices(this.year()).subscribe({
       next: (offices) => this.offices.set(offices ?? []),
-      error: () => this.officeLoadError.set('Die Finanzämter konnten nicht geladen werden.'),
+      error: () => this.officeLoadError.set(this.i18n.translate('finanzen.taxes.officesLoadFailed')),
     });
   }
 
@@ -244,12 +252,12 @@ export class TaxesComponent implements OnInit {
     this.actionError.set(null);
     this.notice.set(null);
     if (this.vatCode().trim() === '' || this.vatDescription().trim() === '') {
-      this.actionError.set('Schlüssel und Bezeichnung des Steuersatzes sind erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.taxes.rateKeyRequired'));
       return;
     }
     const rate = percentToBasisPoints(this.vatRate());
     if (rate === null) {
-      this.actionError.set('Der Satz muss eine Prozentangabe sein, zum Beispiel 19 oder 7,5.');
+      this.actionError.set(this.i18n.translate('finanzen.taxes.rateInvalid'));
       return;
     }
     this.busy.set(true);
@@ -266,11 +274,11 @@ export class TaxesComponent implements OnInit {
           this.vatCode.set('');
           this.vatDescription.set('');
           this.vatRate.set('');
-          this.notice.set(`Steuersatz ${saved.Code} aufgenommen.`);
+          this.notice.set(this.i18n.translate('finanzen.taxes.rateCreated', { code: saved.Code }));
           this.busy.set(false);
         },
         error: () => {
-          this.actionError.set('Der Steuersatz konnte nicht aufgenommen werden.');
+          this.actionError.set(this.i18n.translate('finanzen.taxes.rateCreateFailed'));
           this.busy.set(false);
         },
       });
@@ -290,11 +298,11 @@ export class TaxesComponent implements OnInit {
     // twice.
     const year = Number(this.officeYear());
     if (!Number.isInteger(year) || year <= 0) {
-      this.actionError.set('Das Jahr des Finanzamts ist erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.taxes.officeYearRequired'));
       return;
     }
     if (this.officeNumber().trim() === '' || this.officeName().trim() === '') {
-      this.actionError.set('Nummer und Name des Finanzamts sind erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.taxes.officeNumberRequired'));
       return;
     }
     this.busy.set(true);
@@ -321,11 +329,11 @@ export class TaxesComponent implements OnInit {
           this.officeHolder.set('');
           this.officeIBAN.set('');
           this.officeBIC.set('');
-          this.notice.set(`Finanzamt ${saved.Number} aufgenommen.`);
+          this.notice.set(this.i18n.translate('finanzen.taxes.officeCreated', { number: saved.Number }));
           this.busy.set(false);
         },
         error: () => {
-          this.actionError.set('Das Finanzamt konnte nicht aufgenommen werden.');
+          this.actionError.set(this.i18n.translate('finanzen.taxes.officeCreateFailed'));
           this.busy.set(false);
         },
       });
@@ -336,8 +344,13 @@ export class TaxesComponent implements OnInit {
     return basisPointsToPercent(basisPoints);
   }
 
-  /** The German word for a VAT kind, from the list both this screen and the API's values share. */
+  /**
+   * The word for a VAT kind, from the dictionary both this screen and the API's values share. A kind
+   * this build does not know is shown as its own code rather than blanked out.
+   */
   kind(value: string): string {
-    return vatKindLabel(value);
+    const key = `finanzen.taxes.kind.${value}`;
+    const label = this.i18n.translate(key);
+    return label === key ? value : label;
   }
 }

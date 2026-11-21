@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { CashbookDayComponent } from './cashbook-day.component';
 import { Day } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('CashbookDayComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('CashbookDayComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [CashbookDayComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
@@ -64,7 +65,7 @@ describe('CashbookDayComponent', () => {
     http.expectOne('/api/cashbook/days').flush('nope', { status: 409, statusText: 'Conflict' });
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.error()).toBe('Konnte den Kassenbuch-Tag nicht eröffnen.');
+    expect(fixture.componentInstance.error()).toBe('Der Kassenbuch-Tag konnte nicht eröffnet werden.');
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).toBeTruthy();
   });
 });

@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, KasseOrderSummary } from '../core/api/generated';
 import { formatCents, formatDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Kasse — Zahlungsanordnungen (payment orders).
@@ -13,139 +15,144 @@ import { formatCents, formatDay } from '../core/format';
  *
  * The rules of the workflow — that only a draft may be submitted, that approval is four-eyes —
  * stay with the API. The screen offers the actions a state allows and reports a refusal as it
- * comes back, rather than re-deriving a backend guard in TypeScript.
+ * comes back, rather than re-deriving a backend guard in TypeScript. The states are named with
+ * the shared vocabulary's status keys, so a workflow state reads the same here as anywhere else.
  */
 @Component({
   selector: 'app-payment-orders',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="orders-heading">
-      <h2 id="orders-heading">Zahlungsanordnungen</h2>
+    <app-page titleKey="page.kasseAnordnungen.title" subtitleKey="page.kasseAnordnungen.subtitle">
+      <section>
+        <div class="filter">
+          <label for="order-status">{{ 'common.status' | transloco }}</label>
+          <select id="order-status" [value]="status()" (change)="filterTo($any($event.target).value)">
+            <option value="">{{ 'common.all' | transloco }}</option>
+            <option value="draft">{{ 'status.draft' | transloco }}</option>
+            <option value="submitted">{{ 'status.submitted' | transloco }}</option>
+            <option value="approved">{{ 'status.approved' | transloco }}</option>
+            <option value="rejected">{{ 'status.rejected' | transloco }}</option>
+            <option value="cancelled">{{ 'status.cancelled' | transloco }}</option>
+          </select>
+        </div>
 
-      <div class="filter">
-        <label for="order-status">Status</label>
-        <select id="order-status" [value]="status()" (change)="filterTo($any($event.target).value)">
-          <option value="">Alle</option>
-          <option value="draft">Entwurf</option>
-          <option value="submitted">Vorgelegt</option>
-          <option value="approved">Genehmigt</option>
-          <option value="rejected">Abgelehnt</option>
-          <option value="cancelled">Storniert</option>
-        </select>
-      </div>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Zahlungsanordnungen werden geladen.</p>
-      } @else if (orders().length === 0 && !loadError()) {
-        <p role="status">
-          {{ status() ? 'Keine Anordnung in diesem Status.' : 'Es sind keine Zahlungsanordnungen angelegt.' }}
-        </p>
-      } @else if (!loadError()) {
-        <table>
-          <caption>
-            Zahlungsanordnungen mit Verwendungszweck, Betrag, Fälligkeit und Status
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Referenz</th>
-              <th scope="col">Verwendungszweck</th>
-              <th scope="col" class="amount">Betrag</th>
-              <th scope="col">Fällig</th>
-              <th scope="col">Status</th>
-              <th scope="col">Aktion</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (order of orders(); track order.ID) {
-              <tr [attr.data-testid]="'order-' + order.Reference">
-                <td>{{ order.Reference }}</td>
-                <td>{{ order.Purpose }}</td>
-                <td class="amount">{{ euro(order.AmountCents) }}</td>
-                <td>{{ day(order.DueDate) }}</td>
-                <td [attr.data-testid]="'status-' + order.Reference">{{ statusLabel(order.Status) }}</td>
-                <td>
-                  @if (order.Status === 'draft') {
-                    <button
-                      type="button"
-                      [disabled]="busy() !== null"
-                      [attr.aria-label]="'Anordnung ' + order.Reference + ' vorlegen'"
-                      (click)="submit(order)"
-                    >
-                      Vorlegen
-                    </button>
-                  }
-                  @if (order.Status === 'submitted') {
-                    <button
-                      type="button"
-                      [disabled]="busy() !== null"
-                      [attr.aria-label]="'Anordnung ' + order.Reference + ' genehmigen'"
-                      (click)="approve(order)"
-                    >
-                      Genehmigen
-                    </button>
-                    <button
-                      type="button"
-                      [disabled]="busy() !== null"
-                      [attr.aria-label]="'Anordnung ' + order.Reference + ' ablehnen'"
-                      (click)="startReject(order)"
-                    >
-                      Ablehnen
-                    </button>
-                  }
-                  @if (order.Status === 'draft' || order.Status === 'submitted') {
-                    <button
-                      type="button"
-                      [disabled]="busy() !== null"
-                      [attr.aria-label]="'Anordnung ' + order.Reference + ' stornieren'"
-                      (click)="cancel(order)"
-                    >
-                      Stornieren
-                    </button>
-                  }
-                  @if (rejecting() === order.ID) {
-                    <div class="reject">
-                      <label [attr.for]="'reason-' + order.ID">Grund</label>
-                      <input
-                        [id]="'reason-' + order.ID"
-                        type="text"
-                        [value]="reason()"
-                        (input)="reason.set($any($event.target).value)"
-                      />
-                      <button type="button" [disabled]="busy() !== null" (click)="reject(order)">
-                        Ablehnung bestätigen
-                      </button>
-                      <button type="button" (click)="stopReject()">Abbrechen</button>
-                    </div>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        @if (hasMore()) {
-          <p>
-            <button
-              type="button"
-              data-testid="load-more"
-              [disabled]="loadingMore()"
-              (click)="loadMore()"
-            >
-              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
-            </button>
-          </p>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
-    </section>
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+
+        @if (loading()) {
+          <p role="status">{{ 'kasse.orders.loading' | transloco }}</p>
+        } @else if (orders().length === 0 && !loadError()) {
+          <p role="status">
+            {{ (status() ? 'kasse.orders.emptyFiltered' : 'kasse.orders.empty') | transloco }}
+          </p>
+        } @else if (!loadError()) {
+          <table>
+            <caption>
+              {{ 'kasse.orders.caption' | transloco }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'common.reference' | transloco }}</th>
+                <th scope="col">{{ 'common.purpose' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'common.amount' | transloco }}</th>
+                <th scope="col">{{ 'common.due' | transloco }}</th>
+                <th scope="col">{{ 'common.status' | transloco }}</th>
+                <th scope="col">{{ 'common.action' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (order of orders(); track order.ID) {
+                <tr [attr.data-testid]="'order-' + order.Reference">
+                  <td>{{ order.Reference }}</td>
+                  <td>{{ order.Purpose }}</td>
+                  <td class="amount">{{ euro(order.AmountCents) }}</td>
+                  <td>{{ day(order.DueDate) }}</td>
+                  <td [attr.data-testid]="'status-' + order.Reference">{{ statusLabel(order.Status) }}</td>
+                  <td>
+                    @if (order.Status === 'draft') {
+                      <button
+                        type="button"
+                        [disabled]="busy() !== null"
+                        [attr.aria-label]="'kasse.orders.submitLabel' | transloco: { reference: order.Reference }"
+                        (click)="submit(order)"
+                      >
+                        {{ 'kasse.orders.submit' | transloco }}
+                      </button>
+                    }
+                    @if (order.Status === 'submitted') {
+                      <button
+                        type="button"
+                        [disabled]="busy() !== null"
+                        [attr.aria-label]="'kasse.orders.approveLabel' | transloco: { reference: order.Reference }"
+                        (click)="approve(order)"
+                      >
+                        {{ 'kasse.orders.approve' | transloco }}
+                      </button>
+                      <button
+                        type="button"
+                        [disabled]="busy() !== null"
+                        [attr.aria-label]="'kasse.orders.rejectLabel' | transloco: { reference: order.Reference }"
+                        (click)="startReject(order)"
+                      >
+                        {{ 'kasse.orders.reject' | transloco }}
+                      </button>
+                    }
+                    @if (order.Status === 'draft' || order.Status === 'submitted') {
+                      <button
+                        type="button"
+                        [disabled]="busy() !== null"
+                        [attr.aria-label]="'kasse.orders.cancelLabel' | transloco: { reference: order.Reference }"
+                        (click)="cancel(order)"
+                      >
+                        {{ 'common.cancel' | transloco }}
+                      </button>
+                    }
+                    @if (rejecting() === order.ID) {
+                      <div class="reject">
+                        <label [attr.for]="'reason-' + order.ID">{{ 'kasse.orders.reason' | transloco }}</label>
+                        <input
+                          [id]="'reason-' + order.ID"
+                          type="text"
+                          [value]="reason()"
+                          (input)="reason.set($any($event.target).value)"
+                        />
+                        <button type="button" [disabled]="busy() !== null" (click)="reject(order)">
+                          {{ 'kasse.orders.confirmReject' | transloco }}
+                        </button>
+                        <button type="button" (click)="stopReject()">
+                          {{ 'kasse.orders.abandon' | transloco }}
+                        </button>
+                      </div>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (hasMore()) {
+            <p>
+              <button
+                type="button"
+                data-testid="load-more"
+                [disabled]="loadingMore()"
+                (click)="loadMore()"
+              >
+                {{ (loadingMore() ? 'kasse.common.loadingMore' : 'kasse.common.loadMore') | transloco }}
+              </button>
+            </p>
+          }
+        }
+      </section>
+    </app-page>
   `,
 })
 export class PaymentOrdersComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly orders = signal<KasseOrderSummary[]>([]);
   readonly status = signal('');
@@ -190,7 +197,7 @@ export class PaymentOrdersComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Zahlungsanordnungen nicht laden.');
+        this.loadError.set(this.i18n.translate('kasse.orders.loadFailed'));
         this.hasMore.set(false);
         this.loading.set(false);
       },
@@ -222,21 +229,21 @@ export class PaymentOrdersComponent implements OnInit {
         },
         error: () => {
           this.loadingMore.set(false);
-          this.actionError.set('Konnte die weiteren Zahlungsanordnungen nicht laden.');
+          this.actionError.set(this.i18n.translate('kasse.orders.loadMoreFailed'));
         },
       });
   }
 
   submit(order: KasseOrderSummary): void {
-    this.act(order, 'vorlegen', this.api.submitPaymentOrder(order.ID));
+    this.act(order, 'kasse.orders.step.submit', this.api.submitPaymentOrder(order.ID));
   }
 
   approve(order: KasseOrderSummary): void {
-    this.act(order, 'genehmigen', this.api.approvePaymentOrder(order.ID));
+    this.act(order, 'kasse.orders.step.approve', this.api.approvePaymentOrder(order.ID));
   }
 
   cancel(order: KasseOrderSummary): void {
-    this.act(order, 'stornieren', this.api.cancelPaymentOrder(order.ID));
+    this.act(order, 'kasse.orders.step.cancel', this.api.cancelPaymentOrder(order.ID));
   }
 
   /** Rejection needs a reason, so it is a second step rather than a stray click. */
@@ -254,12 +261,12 @@ export class PaymentOrdersComponent implements OnInit {
   reject(order: KasseOrderSummary): void {
     const reason = this.reason().trim();
     if (reason === '') {
-      this.actionError.set('Für eine Ablehnung ist ein Grund erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.orders.reasonRequired'));
       return;
     }
     // A sent rejection closes the reason box; a refused one keeps it, so the reason is still
     // there to correct and send again.
-    this.act(order, 'ablehnen', this.api.rejectPaymentOrder(order.ID, { reason }), () => {
+    this.act(order, 'kasse.orders.step.reject', this.api.rejectPaymentOrder(order.ID, { reason }), () => {
       this.rejecting.set(null);
       this.reason.set('');
     });
@@ -268,9 +275,10 @@ export class PaymentOrdersComponent implements OnInit {
   /**
    * Runs a workflow action and reloads, so the row shows the state the server now holds. `done`
    * runs only on success, which is how a rejection closes its reason box without any other
-   * action touching one.
+   * action touching one. `step` is the message key of what was attempted, so the message names the
+   * step rather than a generic "action" — and in the clerk's language.
    */
-  private act(order: KasseOrderSummary, verb: string, request: Observable<unknown>, done?: () => void): void {
+  private act(order: KasseOrderSummary, step: string, request: Observable<unknown>, done?: () => void): void {
     this.busy.set(order.ID);
     this.actionError.set(null);
     request.subscribe({
@@ -283,24 +291,29 @@ export class PaymentOrdersComponent implements OnInit {
       },
       error: () => {
         this.busy.set(null);
-        this.actionError.set('Konnte die Anordnung ' + order.Reference + ' nicht ' + verb + '.');
+        this.actionError.set(
+          this.i18n.translate('kasse.orders.actionFailed', {
+            reference: order.Reference,
+            step: this.i18n.translate(step),
+          })
+        );
       },
     });
   }
 
-  /** The workflow state in the words the screen uses. */
+  /** The workflow state in the words the shared vocabulary gives it. */
   statusLabel(status: string): string {
     switch (status) {
       case 'draft':
-        return 'Entwurf';
+        return this.i18n.translate('status.draft');
       case 'submitted':
-        return 'Vorgelegt';
+        return this.i18n.translate('status.submitted');
       case 'approved':
-        return 'Genehmigt';
+        return this.i18n.translate('status.approved');
       case 'rejected':
-        return 'Abgelehnt';
+        return this.i18n.translate('status.rejected');
       case 'cancelled':
-        return 'Storniert';
+        return this.i18n.translate('status.cancelled');
       default:
         return status;
     }

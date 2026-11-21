@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { BudgetPositionResponse, CampusErpApi } from '../core/api/generated';
 import { formatCents } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Budget — Mittelübersicht.
@@ -9,73 +11,82 @@ import { formatCents } from '../core/format';
  * it. Read-only: the screen shows the budget, it does not move it. The available amount comes
  * from the API rather than being recomputed here, so the figure on screen is the one the
  * Mittelüberwachung actually applies.
+ *
+ * The heading comes from `app-page`, so the screen names itself in the same words the navigation
+ * uses for it; the column headings are the shared vocabulary, so "Ansatz" means the same figure
+ * here as on every other Haushalt screen.
  */
 @Component({
   selector: 'app-budget-positions',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="budget-heading">
-      <h2 id="budget-heading">Mittelübersicht</h2>
-
-      @if (error(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Haushaltsstellen werden geladen.</p>
-      } @else if (positions().length === 0 && !error()) {
-        <p role="status">Es sind keine Haushaltsstellen angelegt.</p>
-      } @else if (!error()) {
-        <table>
-          <caption>
-            Ansatz, Verpflichtungen und Ist je Haushaltsstelle, Beträge in Euro
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Jahr</th>
-              <th scope="col">Kapitel</th>
-              <th scope="col">Titel</th>
-              <th scope="col">Bezeichnung</th>
-              <th scope="col" class="amount">Ansatz</th>
-              <th scope="col" class="amount">Verpflichtet</th>
-              <th scope="col" class="amount">Ist</th>
-              <th scope="col" class="amount">Verfügbar</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of positions(); track row.position.ID) {
-              <tr [attr.data-testid]="'position-' + row.position.ID">
-                <td>{{ row.position.Year }}</td>
-                <td>{{ row.position.Chapter }}</td>
-                <td>{{ row.position.Title }}</td>
-                <td>{{ row.position.Description }}</td>
-                <td class="amount">{{ euro(row.balance.AllocatedCents) }}</td>
-                <td class="amount">{{ euro(row.balance.CommittedCents) }}</td>
-                <td class="amount">{{ euro(row.balance.ActualCents) }}</td>
-                <td class="amount" [attr.data-testid]="'available-' + row.position.ID">
-                  {{ euro(row.available_cents) }}
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        @if (hasMore()) {
-          <p>
-            <button
-              type="button"
-              data-testid="load-more"
-              [disabled]="loadingMore()"
-              (click)="loadMore()"
-            >
-              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
-            </button>
-          </p>
+    <app-page titleKey="page.haushaltStellen.title" subtitleKey="page.haushaltStellen.subtitle">
+      <section>
+        @if (error(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
-    </section>
+
+        @if (loading()) {
+          <p role="status">{{ 'haushalt.positions.loading' | transloco }}</p>
+        } @else if (positions().length === 0 && !error()) {
+          <p role="status">{{ 'haushalt.positions.empty' | transloco }}</p>
+        } @else if (!error()) {
+          <table>
+            <caption>
+              {{ 'haushalt.positions.caption' | transloco }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'common.year' | transloco }}</th>
+                <th scope="col">{{ 'common.chapter' | transloco }}</th>
+                <th scope="col">{{ 'common.title' | transloco }}</th>
+                <th scope="col">{{ 'common.description' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'haushalt.common.allocated' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'haushalt.common.committed' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'haushalt.common.actual' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'haushalt.common.available' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of positions(); track row.position.ID) {
+                <tr [attr.data-testid]="'position-' + row.position.ID">
+                  <td>{{ row.position.Year }}</td>
+                  <td>{{ row.position.Chapter }}</td>
+                  <td>{{ row.position.Title }}</td>
+                  <td>{{ row.position.Description }}</td>
+                  <td class="amount">{{ euro(row.balance.AllocatedCents) }}</td>
+                  <td class="amount">{{ euro(row.balance.CommittedCents) }}</td>
+                  <td class="amount">{{ euro(row.balance.ActualCents) }}</td>
+                  <td class="amount" [attr.data-testid]="'available-' + row.position.ID">
+                    {{ euro(row.available_cents) }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (hasMore()) {
+            <p>
+              <button
+                type="button"
+                data-testid="load-more"
+                [disabled]="loadingMore()"
+                (click)="loadMore()"
+              >
+                {{
+                  (loadingMore() ? 'haushalt.positions.loadingMore' : 'haushalt.positions.loadMore')
+                    | transloco
+                }}
+              </button>
+            </p>
+          }
+        }
+      </section>
+    </app-page>
   `,
 })
 export class BudgetPositionsComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly positions = signal<BudgetPositionResponse[]>([]);
   readonly loading = signal(true);
@@ -107,7 +118,7 @@ export class BudgetPositionsComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Konnte die Mittelübersicht nicht laden.');
+        this.error.set(this.i18n.translate('haushalt.positions.loadFailed'));
         this.hasMore.set(false);
         this.loading.set(false);
       },
@@ -139,7 +150,7 @@ export class BudgetPositionsComponent implements OnInit {
         },
         error: () => {
           this.loadingMore.set(false);
-          this.error.set('Konnte die weiteren Haushaltsstellen nicht laden.');
+          this.error.set(this.i18n.translate('haushalt.positions.loadMoreFailed'));
         },
       });
   }

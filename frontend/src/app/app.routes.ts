@@ -26,6 +26,9 @@ import { ImportsComponent } from './etl/imports.component';
 import { ReceivablesComponent } from './kasse/receivables.component';
 
 export const routes: Routes = [
+  // The product opens on the screen a clerk starts the day with, rather than on an empty
+  // outlet: the root is a redirect, not a screen of its own.
+  { path: '', pathMatch: 'full', redirectTo: 'kasse/tag' },
   { path: 'kasse/tag', component: CashbookDayComponent },
   { path: 'kasse/konten', component: CashAccountsComponent },
   { path: 'budget/haushaltsstellen', component: BudgetPositionsComponent },

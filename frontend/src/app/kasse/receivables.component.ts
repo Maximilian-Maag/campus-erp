@@ -1,18 +1,20 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, Receivable } from '../core/api/generated';
 import { euroToCents, formatCents, formatDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
-/** The state as the screen shows it. */
-export function stateLabel(state: string): string {
+/** The message key of a state as the screen shows it, or null for one the screen has no word for. */
+export function stateKey(state: string): string | null {
   switch (state) {
     case 'open':
-      return 'offen';
+      return 'kasse.receivables.state.open';
     case 'collected':
-      return 'eingezogen';
+      return 'kasse.receivables.state.collected';
     case 'cancelled':
-      return 'storniert';
+      return 'kasse.receivables.state.cancelled';
     default:
-      return state;
+      return null;
   }
 }
 
@@ -26,139 +28,146 @@ export function stateLabel(state: string): string {
  */
 @Component({
   selector: 'app-receivables',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="receivables-heading">
-      <h2 id="receivables-heading">Offene Posten</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      <div class="picker">
-        <label for="receivable-state">Status</label>
-        <select id="receivable-state" [value]="stateFilter()" (change)="choose($any($event.target).value)">
-          <option value="open">offen</option>
-          <option value="collected">eingezogen</option>
-          <option value="cancelled">storniert</option>
-          <option value="">alle</option>
-        </select>
-      </div>
-
-      @if (loading()) {
-        <p role="status">Offene Posten werden geladen.</p>
-      } @else if (items().length === 0 && !loadError()) {
-        <p role="status">Keine Posten in diesem Status.</p>
-      } @else if (!loadError()) {
-        <table>
-          <caption>
-            Offene Posten mit Mandat, Betrag und Fälligkeit
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Mandat</th>
-              <th scope="col" class="amount">Betrag</th>
-              <th scope="col">Fälligkeit</th>
-              <th scope="col">Zweck</th>
-              <th scope="col">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of items(); track item.ID) {
-              <tr [attr.data-testid]="'receivable-' + item.ID">
-                <td>{{ item.MandateReference }}</td>
-                <td class="amount">{{ euro(item.AmountCents) }} {{ item.Currency }}</td>
-                <td>{{ day(item.DueDate) }}</td>
-                <td>{{ item.Purpose }}</td>
-                <td>{{ label(item.State) }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        @if (hasMore()) {
-          <p>
-            <button
-              type="button"
-              data-testid="load-more"
-              [disabled]="loadingMore()"
-              (click)="loadMore()"
-            >
-              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
-            </button>
-          </p>
+    <app-page titleKey="page.kasseOffenePosten.title" subtitleKey="page.kasseOffenePosten.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      <form (submit)="record($event)">
-        <h3 id="receivable-new-heading">Posten erfassen</h3>
-        <p>
-          <label for="receivable-mandate">Mandat</label>
-          <input
-            id="receivable-mandate"
-            type="text"
-            [value]="mandate()"
-            (input)="mandate.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="receivable-amount">Betrag in Euro</label>
-          <input
-            id="receivable-amount"
-            type="text"
-            inputmode="decimal"
-            [value]="amount()"
-            (input)="amount.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="receivable-currency">Währung</label>
-          <input
-            id="receivable-currency"
-            type="text"
-            maxlength="3"
-            [value]="currency()"
-            (input)="currency.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="receivable-due">Fälligkeit</label>
-          <input
-            id="receivable-due"
-            type="date"
-            [value]="dueDate()"
-            (input)="dueDate.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="receivable-purpose">Zweck</label>
-          <input
-            id="receivable-purpose"
-            type="text"
-            [value]="purpose()"
-            (input)="purpose.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="receivable-source">Quelle</label>
-          <input
-            id="receivable-source"
-            type="text"
-            [value]="source()"
-            (input)="source.set($any($event.target).value)"
-          />
-        </p>
-        <button type="submit" [disabled]="saving()">Erfassen</button>
-      </form>
-    </section>
+        <div class="picker">
+          <label for="receivable-state">{{ 'common.status' | transloco }}</label>
+          <select id="receivable-state" [value]="stateFilter()" (change)="choose($any($event.target).value)">
+            <option value="open">{{ 'kasse.receivables.state.open' | transloco }}</option>
+            <option value="collected">{{ 'kasse.receivables.state.collected' | transloco }}</option>
+            <option value="cancelled">{{ 'kasse.receivables.state.cancelled' | transloco }}</option>
+            <option value="">{{ 'common.all' | transloco }}</option>
+          </select>
+        </div>
+
+        @if (loading()) {
+          <p role="status">{{ 'kasse.receivables.loading' | transloco }}</p>
+        } @else if (items().length === 0 && !loadError()) {
+          <p role="status">{{ 'kasse.receivables.empty' | transloco }}</p>
+        } @else if (!loadError()) {
+          <table>
+            <caption>
+              {{ 'kasse.receivables.caption' | transloco }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'common.mandate' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'common.amount' | transloco }}</th>
+                <th scope="col">{{ 'common.dueDate' | transloco }}</th>
+                <th scope="col">{{ 'common.purpose' | transloco }}</th>
+                <th scope="col">{{ 'common.status' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items(); track item.ID) {
+                <tr [attr.data-testid]="'receivable-' + item.ID">
+                  <td>{{ item.MandateReference }}</td>
+                  <td class="amount">{{ euro(item.AmountCents) }} {{ item.Currency }}</td>
+                  <td>{{ day(item.DueDate) }}</td>
+                  <td>{{ item.Purpose }}</td>
+                  <td>{{ label(item.State) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (hasMore()) {
+            <p>
+              <button
+                type="button"
+                data-testid="load-more"
+                [disabled]="loadingMore()"
+                (click)="loadMore()"
+              >
+                {{
+                  (loadingMore()
+                    ? 'kasse.receivables.loadingMore'
+                    : 'kasse.receivables.loadMore'
+                  ) | transloco
+                }}
+              </button>
+            </p>
+          }
+        }
+
+        <form (submit)="record($event)">
+          <h2 id="receivable-new-heading">{{ 'kasse.receivables.recordHeading' | transloco }}</h2>
+          <div class="field">
+            <label for="receivable-mandate">{{ 'common.mandate' | transloco }}</label>
+            <input
+              id="receivable-mandate"
+              type="text"
+              [value]="mandate()"
+              (input)="mandate.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="receivable-amount">{{ 'kasse.receivables.amountEuro' | transloco }}</label>
+            <input
+              id="receivable-amount"
+              type="text"
+              inputmode="decimal"
+              [value]="amount()"
+              (input)="amount.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="receivable-currency">{{ 'common.currency' | transloco }}</label>
+            <input
+              id="receivable-currency"
+              type="text"
+              maxlength="3"
+              [value]="currency()"
+              (input)="currency.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="receivable-due">{{ 'common.dueDate' | transloco }}</label>
+            <input
+              id="receivable-due"
+              type="date"
+              [value]="dueDate()"
+              (input)="dueDate.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="receivable-purpose">{{ 'common.purpose' | transloco }}</label>
+            <input
+              id="receivable-purpose"
+              type="text"
+              [value]="purpose()"
+              (input)="purpose.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="receivable-source">{{ 'kasse.receivables.source' | transloco }}</label>
+            <input
+              id="receivable-source"
+              type="text"
+              [value]="source()"
+              (input)="source.set($any($event.target).value)"
+            />
+          </div>
+          <button type="submit" [disabled]="saving()">{{ 'kasse.receivables.record' | transloco }}</button>
+        </form>
+      </section>
+    </app-page>
   `,
 })
 export class ReceivablesComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly items = signal<Receivable[]>([]);
   readonly stateFilter = signal('open');
@@ -199,7 +208,7 @@ export class ReceivablesComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die offenen Posten nicht laden.');
+        this.loadError.set(this.i18n.translate('kasse.receivables.loadFailed'));
         this.hasMore.set(false);
         this.loading.set(false);
       },
@@ -235,7 +244,7 @@ export class ReceivablesComponent implements OnInit {
         },
         error: () => {
           this.loadingMore.set(false);
-          this.actionError.set('Konnte die weiteren offenen Posten nicht laden.');
+          this.actionError.set(this.i18n.translate('kasse.receivables.loadMoreFailed'));
         },
       });
   }
@@ -252,11 +261,11 @@ export class ReceivablesComponent implements OnInit {
     event.preventDefault();
     const cents = euroToCents(this.amount());
     if (cents === null) {
-      this.actionError.set('Der Betrag muss eine positive Zahl in Euro sein.');
+      this.actionError.set(this.i18n.translate('kasse.receivables.amountRequired'));
       return;
     }
     if (this.dueDate().trim() === '') {
-      this.actionError.set('Eine Fälligkeit ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.receivables.dueDateRequired'));
       return;
     }
     this.saving.set(true);
@@ -276,7 +285,7 @@ export class ReceivablesComponent implements OnInit {
           this.saving.set(false);
           this.amount.set('');
           this.purpose.set('');
-          this.notice.set('Posten erfasst.');
+          this.notice.set(this.i18n.translate('kasse.receivables.recorded'));
           // A new item is open, so it belongs in the open list whatever was being shown.
           if (this.stateFilter() === 'open') {
             this.load();
@@ -286,7 +295,7 @@ export class ReceivablesComponent implements OnInit {
         },
         error: () => {
           this.saving.set(false);
-          this.actionError.set('Konnte den Posten nicht erfassen.');
+          this.actionError.set(this.i18n.translate('kasse.receivables.recordFailed'));
         },
       });
   }
@@ -294,5 +303,10 @@ export class ReceivablesComponent implements OnInit {
   /** Amounts, dates and states are rendered by the shared helpers, not each screen's own. */
   readonly euro = formatCents;
   readonly day = formatDay;
-  readonly label = stateLabel;
+
+  /** The word for a state, from the message key the screen names it by. */
+  label(state: string): string {
+    const key = stateKey(state);
+    return key === null ? state : this.i18n.translate(key);
+  }
 }

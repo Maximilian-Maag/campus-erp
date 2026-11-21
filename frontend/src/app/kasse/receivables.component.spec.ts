@@ -1,9 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ReceivablesComponent, stateLabel } from './receivables.component';
+import { ReceivablesComponent, stateKey } from './receivables.component';
 import { euroToCents } from '../core/format';
 import { Receivable } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('euroToCents', () => {
   it('reads a plain, comma or point amount as cents', () => {
@@ -21,12 +22,12 @@ describe('euroToCents', () => {
   });
 });
 
-describe('stateLabel', () => {
-  it('names the states in German, and passes an unknown one through', () => {
-    expect(stateLabel('open')).toBe('offen');
-    expect(stateLabel('collected')).toBe('eingezogen');
-    expect(stateLabel('cancelled')).toBe('storniert');
-    expect(stateLabel('other')).toBe('other');
+describe('stateKey', () => {
+  it('names the states the screen has a word for, and nothing for one it does not', () => {
+    expect(stateKey('open')).toBe('kasse.receivables.state.open');
+    expect(stateKey('collected')).toBe('kasse.receivables.state.collected');
+    expect(stateKey('cancelled')).toBe('kasse.receivables.state.cancelled');
+    expect(stateKey('other')).toBeNull();
   });
 });
 
@@ -36,7 +37,7 @@ describe('ReceivablesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ReceivablesComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

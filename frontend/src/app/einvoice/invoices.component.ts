@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, InvoiceSummary } from '../core/api/generated';
 import { formatCents, formatDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * E-invoicing — Eingangsrechnungen.
@@ -15,106 +17,112 @@ import { formatCents, formatDay } from '../core/format';
  */
 @Component({
   selector: 'app-e-invoices',
-  imports: [FormsModule],
+  imports: [FormsModule, PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="einvoices-heading">
-      <h2 id="einvoices-heading">Eingangsrechnungen</h2>
+    <app-page titleKey="page.erechnungRechnungen.title" subtitleKey="page.erechnungRechnungen.subtitle">
+      <section>
+        <div class="import">
+          <label for="xrechnung">{{ 'erechnung.invoices.xml' | transloco }}</label>
+          <textarea
+            id="xrechnung"
+            name="xrechnung"
+            rows="6"
+            [ngModel]="xml()"
+            (ngModelChange)="xml.set($event)"
+          ></textarea>
+          <button type="button" [disabled]="importing()" (click)="importInvoice()">
+            {{ 'erechnung.invoices.importButton' | transloco }}
+          </button>
+        </div>
 
-      <div class="import">
-        <label for="xrechnung">XRechnung (XML)</label>
-        <textarea
-          id="xrechnung"
-          name="xrechnung"
-          rows="6"
-          [ngModel]="xml()"
-          (ngModelChange)="xml.set($event)"
-        ></textarea>
-        <button type="button" [disabled]="importing()" (click)="importInvoice()">
-          Rechnung einlesen
-        </button>
-      </div>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Rechnungen werden geladen.</p>
-      } @else if (invoices().length === 0 && !loadError()) {
-        <p role="status">Es sind keine Rechnungen erfasst.</p>
-      } @else if (!loadError()) {
-        <table>
-          <caption>
-            Eingangsrechnungen mit Datum, Betrag und der Bestellung, der sie zugeordnet sind
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Nummer</th>
-              <th scope="col">Richtung</th>
-              <th scope="col">Datum</th>
-              <th scope="col">Referenz</th>
-              <th scope="col" class="amount">Betrag</th>
-              <th scope="col">Zuordnung</th>
-              <th scope="col">Belege</th>
-              <th scope="col">Aktion</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (invoice of invoices(); track invoice.ID) {
-              <tr [attr.data-testid]="'invoice-' + invoice.Number">
-                <td>{{ invoice.Number }}</td>
-                <td [attr.data-testid]="'direction-' + invoice.Number">{{ direction(invoice.Direction) }}</td>
-                <td>{{ day(invoice.IssueDate) }}</td>
-                <td>{{ invoice.BuyerReference }}</td>
-                <td class="amount">{{ euro(invoice.GrossCents) }}</td>
-                <td [attr.data-testid]="'match-' + invoice.Number">
-                  @if (invoice.Direction !== 'inbound') {
-                    —
-                  } @else {
-                    {{ invoice.MatchedOrderID ? 'Bestellung ' + invoice.MatchedOrderID : 'offen' }}
-                  }
-                </td>
-                <td [attr.data-testid]="'documents-' + invoice.Number">
-                  <a [href]="documentUrl(invoice.ID, 'xrechnung')">XRechnung (UBL)</a>
-                  <a [href]="documentUrl(invoice.ID, 'cii')">ZUGFeRD (CII)</a>
-                </td>
-                <td>
-                  @if (invoice.Direction === 'inbound' && !invoice.MatchedOrderID) {
-                    <button
-                      type="button"
-                      [disabled]="matching() !== null"
-                      [attr.aria-label]="'Rechnung ' + invoice.Number + ' der Bestellung zuordnen'"
-                      (click)="match(invoice)"
-                    >
-                      Zuordnen
-                    </button>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        @if (hasMore()) {
-          <p>
-            <button
-              type="button"
-              data-testid="load-more"
-              [disabled]="loadingMore()"
-              (click)="loadMore()"
-            >
-              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
-            </button>
-          </p>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
-    </section>
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+
+        @if (loading()) {
+          <p role="status">{{ 'erechnung.invoices.loading' | transloco }}</p>
+        } @else if (invoices().length === 0 && !loadError()) {
+          <p role="status">{{ 'erechnung.invoices.empty' | transloco }}</p>
+        } @else if (!loadError()) {
+          <table>
+            <caption>
+              {{ 'erechnung.invoices.caption' | transloco }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'common.number' | transloco }}</th>
+                <th scope="col">{{ 'erechnung.invoices.direction' | transloco }}</th>
+                <th scope="col">{{ 'common.date' | transloco }}</th>
+                <th scope="col">{{ 'common.reference' | transloco }}</th>
+                <th scope="col" class="amount">{{ 'common.amount' | transloco }}</th>
+                <th scope="col">{{ 'erechnung.invoices.allocation' | transloco }}</th>
+                <th scope="col">{{ 'erechnung.invoices.documents' | transloco }}</th>
+                <th scope="col">{{ 'common.action' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (invoice of invoices(); track invoice.ID) {
+                <tr [attr.data-testid]="'invoice-' + invoice.Number">
+                  <td>{{ invoice.Number }}</td>
+                  <td [attr.data-testid]="'direction-' + invoice.Number">{{ direction(invoice.Direction) }}</td>
+                  <td>{{ day(invoice.IssueDate) }}</td>
+                  <td>{{ invoice.BuyerReference }}</td>
+                  <td class="amount">{{ euro(invoice.GrossCents) }}</td>
+                  <td [attr.data-testid]="'match-' + invoice.Number">
+                    @if (invoice.Direction !== 'inbound') {
+                      —
+                    } @else {
+                      {{
+                        (invoice.MatchedOrderID
+                          ? 'erechnung.invoices.matchedOrder'
+                          : 'erechnung.invoices.unmatched'
+                        ) | transloco: { number: invoice.MatchedOrderID }
+                      }}
+                    }
+                  </td>
+                  <td [attr.data-testid]="'documents-' + invoice.Number">
+                    <a [href]="documentUrl(invoice.ID, 'xrechnung')">{{ 'erechnung.invoices.ubl' | transloco }}</a>
+                    <a [href]="documentUrl(invoice.ID, 'cii')">{{ 'erechnung.invoices.cii' | transloco }}</a>
+                  </td>
+                  <td>
+                    @if (invoice.Direction === 'inbound' && !invoice.MatchedOrderID) {
+                      <button
+                        type="button"
+                        [disabled]="matching() !== null"
+                        [attr.aria-label]="'erechnung.invoices.matchLabel' | transloco: { number: invoice.Number }"
+                        (click)="match(invoice)"
+                      >
+                        {{ 'erechnung.invoices.match' | transloco }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (hasMore()) {
+            <p>
+              <button
+                type="button"
+                data-testid="load-more"
+                [disabled]="loadingMore()"
+                (click)="loadMore()"
+              >
+                {{ (loadingMore() ? 'erechnung.invoices.loadingMore' : 'erechnung.invoices.loadMore') | transloco }}
+              </button>
+            </p>
+          }
+        }
+      </section>
+    </app-page>
   `,
 })
 export class EInvoicesComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly invoices = signal<InvoiceSummary[]>([]);
   /**
@@ -151,7 +159,7 @@ export class EInvoicesComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Rechnungen nicht laden.');
+        this.loadError.set(this.i18n.translate('erechnung.invoices.loadFailed'));
         this.hasMore.set(false);
         this.loading.set(false);
       },
@@ -181,14 +189,14 @@ export class EInvoicesComponent implements OnInit {
       },
       error: () => {
         this.loadingMore.set(false);
-        this.actionError.set('Konnte die weiteren Rechnungen nicht laden.');
+        this.actionError.set(this.i18n.translate('erechnung.invoices.loadMoreFailed'));
       },
     });
   }
 
   importInvoice(): void {
     if (this.xml().trim() === '') {
-      this.actionError.set('Es ist kein XML eingegeben.');
+      this.actionError.set(this.i18n.translate('erechnung.invoices.noXml'));
       return;
     }
     this.importing.set(true);
@@ -201,7 +209,7 @@ export class EInvoicesComponent implements OnInit {
       },
       error: () => {
         this.importing.set(false);
-        this.actionError.set('Konnte die Rechnung nicht einlesen.');
+        this.actionError.set(this.i18n.translate('erechnung.invoices.importFailed'));
       },
     });
   }
@@ -216,7 +224,9 @@ export class EInvoicesComponent implements OnInit {
       },
       error: () => {
         this.matching.set(null);
-        this.actionError.set('Konnte die Rechnung ' + invoice.Number + ' nicht zuordnen.');
+        this.actionError.set(
+          this.i18n.translate('erechnung.invoices.matchFailed', { number: invoice.Number }),
+        );
       },
     });
   }
@@ -233,9 +243,9 @@ export class EInvoicesComponent implements OnInit {
   direction(direction: string): string {
     switch (direction) {
       case 'inbound':
-        return 'Eingang';
+        return this.i18n.translate('erechnung.invoices.inbound');
       case 'outbound':
-        return 'Ausgang';
+        return this.i18n.translate('erechnung.invoices.outbound');
       default:
         return direction;
     }

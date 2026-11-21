@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, BudgetPositionResponse, Center, ImportResult, Source } from '../core/api/generated';
 import { formatCents } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Budget — Mittelherkunft und Bewirtschaftung (sources and centres).
@@ -14,207 +16,224 @@ import { formatCents } from '../core/format';
  * A source's chapter is optional (a third-party funder has no state chapter), the codes are the
  * identity an import and a person share, and a position that is not named yet is shown as such —
  * "no source" and "source cleared" are the same state and must not read as a missing value.
+ *
+ * The headings and each subsection's h3 are message keys, so the screen keeps the vocabulary of the
+ * navigation — "Bewirtschaftungsstelle" is the same word here as in the dictionary, not a synonym
+ * chosen by this template.
  */
 @Component({
   selector: 'app-budget-sources',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="sources-heading">
-      <h2 id="sources-heading">Mittelherkunft und Bewirtschaftung</h2>
+    <app-page titleKey="page.haushaltHerkunft.title" subtitleKey="page.haushaltHerkunft.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Mittelherkunft wird geladen.</p>
-      } @else if (!loadError()) {
-        <table>
-          <caption>
-            Mittelquellen
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Schlüssel</th>
-              <th scope="col">Bezeichnung</th>
-              <th scope="col">Kapitel</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (s of sources(); track s.ID) {
-              <tr [attr.data-testid]="'source-' + s.ID">
-                <td>{{ s.Code }}</td>
-                <td>{{ s.Name }}</td>
-                <td>{{ s.Chapter }}</td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="3">Es ist keine Mittelquelle angelegt.</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-
-        <form (submit)="createSource($event)">
-          <p>
-            <label for="source-code">Schlüssel</label>
-            <input id="source-code" [value]="sourceCode()" (input)="sourceCode.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="source-name">Bezeichnung</label>
-            <input id="source-name" [value]="sourceName()" (input)="sourceName.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="source-chapter">Kapitel</label>
-            <input id="source-chapter" [value]="sourceChapter()" (input)="sourceChapter.set($any($event.target).value)" />
-          </p>
-          <button type="submit" [disabled]="busy()">Mittelquelle anlegen</button>
-        </form>
-
-        <table>
-          <caption>
-            Bewirtschaftungsstellen
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Schlüssel</th>
-              <th scope="col">Bezeichnung</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (c of centers(); track c.ID) {
-              <tr [attr.data-testid]="'center-' + c.ID">
-                <td>{{ c.Code }}</td>
-                <td>{{ c.Name }}</td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="2">Es ist keine Bewirtschaftungsstelle angelegt.</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-
-        <form (submit)="createCenter($event)">
-          <p>
-            <label for="center-code">Schlüssel</label>
-            <input id="center-code" [value]="centerCode()" (input)="centerCode.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="center-name">Bezeichnung</label>
-            <input id="center-name" [value]="centerName()" (input)="centerName.set($any($event.target).value)" />
-          </p>
-          <button type="submit" [disabled]="busy()">Bewirtschaftungsstelle anlegen</button>
-        </form>
-
-        @if (positions().length === 0) {
-          <p role="status">Es ist keine Haushaltsstelle angelegt.</p>
-        } @else {
-          <form (submit)="assign($event)">
-            <p>
-              <label for="assign-position">Haushaltsstelle</label>
-              <select id="assign-position" [value]="position()" (change)="position.set($any($event.target).value)">
-                <option value="">Bitte wählen</option>
-                @for (p of positions(); track p.position.ID) {
-                  <option [value]="p.position.ID">
-                    {{ p.position.Chapter }}/{{ p.position.Title }} — {{ p.position.Description }}
-                  </option>
-                }
-              </select>
-            </p>
-            <p>
-              <label for="assign-source">Mittelquelle</label>
-              <select id="assign-source" [value]="source()" (change)="source.set($any($event.target).value)">
-                <option value="">Keine</option>
-                @for (s of sources(); track s.ID) {
-                  <option [value]="s.ID">{{ s.Code }} — {{ s.Name }}</option>
-                }
-              </select>
-            </p>
-            <p>
-              <label for="assign-center">Bewirtschaftungsstelle</label>
-              <select id="assign-center" [value]="center()" (change)="center.set($any($event.target).value)">
-                <option value="">Keine</option>
-                @for (c of centers(); track c.ID) {
-                  <option [value]="c.ID">{{ c.Code }} — {{ c.Name }}</option>
-                }
-              </select>
-            </p>
-            <button type="submit" [disabled]="busy()">Zuordnung speichern</button>
-          </form>
-
+        @if (loading()) {
+          <p role="status">{{ 'haushalt.sources.loading' | transloco }}</p>
+        } @else if (!loadError()) {
           <table>
             <caption>
-              Haushaltsstellen mit Mittelherkunft und Bewirtschaftung
+              {{ 'haushalt.sources.sourcesCaption' | transloco }}
             </caption>
             <thead>
               <tr>
-                <th scope="col">Haushaltsstelle</th>
-                <th scope="col">Bezeichnung</th>
-                <th scope="col" class="amount">Ansatz</th>
-                <th scope="col">Mittelquelle</th>
-                <th scope="col">Bewirtschaftung</th>
+                <th scope="col">{{ 'common.code' | transloco }}</th>
+                <th scope="col">{{ 'common.description' | transloco }}</th>
+                <th scope="col">{{ 'common.chapter' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
-              @for (p of positions(); track p.position.ID) {
-                <tr [attr.data-testid]="'position-' + p.position.ID">
-                  <td>{{ p.position.Chapter }}/{{ p.position.Title }}</td>
-                  <td>{{ p.position.Description }}</td>
-                  <td class="amount">{{ amount(p.position.AllocatedCents) }}</td>
-                  <td>{{ sourceNameOf(p) }}</td>
-                  <td>{{ centerNameOf(p) }}</td>
+              @for (s of sources(); track s.ID) {
+                <tr [attr.data-testid]="'source-' + s.ID">
+                  <td>{{ s.Code }}</td>
+                  <td>{{ s.Name }}</td>
+                  <td>{{ s.Chapter }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="3">{{ 'haushalt.sources.emptySources' | transloco }}</td>
                 </tr>
               }
             </tbody>
           </table>
-          @if (hasMore()) {
-            <p>
-              <button
-                type="button"
-                data-testid="load-more-positions"
-                [disabled]="loadingMore()"
-                (click)="loadMore()"
-              >
-                {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere Haushaltsstellen laden' }}
-              </button>
-            </p>
-          }
-        }
 
-        <form (submit)="runImport($event)">
-          <h3 id="budget-import-heading">Budgetdatei einlesen</h3>
-          <p>
-            <label for="import-layout">Format</label>
-            <input
-              id="import-layout"
-              placeholder="budget-import/v1"
-              [value]="layout()"
-              (input)="layout.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="import-content">Inhalt der Budgetdatei</label>
-            <textarea
-              id="import-content"
-              rows="6"
-              [value]="file()"
-              (input)="file.set($any($event.target).value)"
-            ></textarea>
-          </p>
-          <button type="submit" [disabled]="busy()">Einlesen</button>
-        </form>
-      }
-    </section>
+          <form class="form" (submit)="createSource($event)">
+            <div class="field">
+              <label for="source-code">{{ 'common.code' | transloco }}</label>
+              <input id="source-code" [value]="sourceCode()" (input)="sourceCode.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="source-name">{{ 'common.description' | transloco }}</label>
+              <input id="source-name" [value]="sourceName()" (input)="sourceName.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="source-chapter">{{ 'common.chapter' | transloco }}</label>
+              <input id="source-chapter" [value]="sourceChapter()" (input)="sourceChapter.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="busy()">{{ 'haushalt.sources.createSource' | transloco }}</button>
+            </div>
+          </form>
+
+          <table>
+            <caption>
+              {{ 'haushalt.sources.centresCaption' | transloco }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'common.code' | transloco }}</th>
+                <th scope="col">{{ 'common.description' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of centers(); track c.ID) {
+                <tr [attr.data-testid]="'center-' + c.ID">
+                  <td>{{ c.Code }}</td>
+                  <td>{{ c.Name }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="2">{{ 'haushalt.sources.emptyCentres' | transloco }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <form class="form" (submit)="createCenter($event)">
+            <div class="field">
+              <label for="center-code">{{ 'common.code' | transloco }}</label>
+              <input id="center-code" [value]="centerCode()" (input)="centerCode.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="center-name">{{ 'common.description' | transloco }}</label>
+              <input id="center-name" [value]="centerName()" (input)="centerName.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="busy()">{{ 'haushalt.sources.createCentre' | transloco }}</button>
+            </div>
+          </form>
+
+          @if (positions().length === 0) {
+            <p role="status">{{ 'haushalt.sources.emptyPositions' | transloco }}</p>
+          } @else {
+            <form class="form" (submit)="assign($event)">
+              <div class="field">
+                <label for="assign-position">{{ 'haushalt.sources.position' | transloco }}</label>
+                <select id="assign-position" [value]="position()" (change)="position.set($any($event.target).value)">
+                  <option value="">{{ 'common.choose' | transloco }}</option>
+                  @for (p of positions(); track p.position.ID) {
+                    <option [value]="p.position.ID">
+                      {{ p.position.Chapter }}/{{ p.position.Title }} — {{ p.position.Description }}
+                    </option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="assign-source">{{ 'haushalt.sources.source' | transloco }}</label>
+                <select id="assign-source" [value]="source()" (change)="source.set($any($event.target).value)">
+                  <option value="">{{ 'haushalt.sources.noneChoice' | transloco }}</option>
+                  @for (s of sources(); track s.ID) {
+                    <option [value]="s.ID">{{ s.Code }} — {{ s.Name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="assign-center">{{ 'haushalt.sources.centre' | transloco }}</label>
+                <select id="assign-center" [value]="center()" (change)="center.set($any($event.target).value)">
+                  <option value="">{{ 'haushalt.sources.noneChoice' | transloco }}</option>
+                  @for (c of centers(); track c.ID) {
+                    <option [value]="c.ID">{{ c.Code }} — {{ c.Name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <button type="submit" [disabled]="busy()">{{ 'haushalt.sources.assign' | transloco }}</button>
+              </div>
+            </form>
+
+            <table>
+              <caption>
+                {{ 'haushalt.sources.positionsCaption' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'haushalt.sources.position' | transloco }}</th>
+                  <th scope="col">{{ 'common.description' | transloco }}</th>
+                  <th scope="col" class="amount">{{ 'haushalt.common.allocated' | transloco }}</th>
+                  <th scope="col">{{ 'haushalt.sources.source' | transloco }}</th>
+                  <th scope="col">{{ 'haushalt.sources.administration' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of positions(); track p.position.ID) {
+                  <tr [attr.data-testid]="'position-' + p.position.ID">
+                    <td>{{ p.position.Chapter }}/{{ p.position.Title }}</td>
+                    <td>{{ p.position.Description }}</td>
+                    <td class="amount">{{ amount(p.position.AllocatedCents) }}</td>
+                    <td>{{ sourceNameOf(p) }}</td>
+                    <td>{{ centerNameOf(p) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            @if (hasMore()) {
+              <p>
+                <button
+                  type="button"
+                  data-testid="load-more-positions"
+                  [disabled]="loadingMore()"
+                  (click)="loadMore()"
+                >
+                  {{
+                    (loadingMore() ? 'haushalt.sources.loadingMore' : 'haushalt.sources.loadMorePositions')
+                      | transloco
+                  }}
+                </button>
+              </p>
+            }
+          }
+
+          <form class="form" (submit)="runImport($event)">
+            <h2 id="budget-import-heading">{{ 'haushalt.sources.importHeading' | transloco }}</h2>
+            <div class="field">
+              <label for="import-layout">{{ 'haushalt.sources.format' | transloco }}</label>
+              <input
+                id="import-layout"
+                placeholder="budget-import/v1"
+                [value]="layout()"
+                (input)="layout.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="import-content">{{ 'haushalt.sources.fileContent' | transloco }}</label>
+              <textarea
+                id="import-content"
+                rows="6"
+                [value]="file()"
+                (input)="file.set($any($event.target).value)"
+              ></textarea>
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="busy()">{{ 'haushalt.sources.import' | transloco }}</button>
+            </div>
+          </form>
+        }
+      </section>
+    </app-page>
   `,
 })
 export class BudgetSourcesComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly sources = signal<Source[]>([]);
   readonly centers = signal<Center[]>([]);
@@ -261,13 +280,13 @@ export class BudgetSourcesComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Die Mittelherkunft konnte nicht geladen werden.');
+        this.loadError.set(this.i18n.translate('haushalt.sources.loadSourcesFailed'));
         this.loading.set(false);
       },
     });
     this.api.listBudgetCenters().subscribe({
       next: (centers) => this.centers.set(centers),
-      error: () => this.loadError.set('Die Bewirtschaftungsstellen konnten nicht geladen werden.'),
+      error: () => this.loadError.set(this.i18n.translate('haushalt.sources.loadCentresFailed')),
     });
     this.api.listBudgetPositions(String(this.pageSize), '0').subscribe({
       next: (positions) => {
@@ -278,7 +297,7 @@ export class BudgetSourcesComponent implements OnInit {
       },
       error: () => {
         this.hasMore.set(false);
-        this.loadError.set('Die Haushaltsstellen konnten nicht geladen werden.');
+        this.loadError.set(this.i18n.translate('haushalt.sources.loadPositionsFailed'));
       },
     });
   }
@@ -305,7 +324,7 @@ export class BudgetSourcesComponent implements OnInit {
         },
         error: () => {
           this.loadingMore.set(false);
-          this.actionError.set('Die weiteren Haushaltsstellen konnten nicht geladen werden.');
+          this.actionError.set(this.i18n.translate('haushalt.sources.loadMoreFailed'));
         },
       });
   }
@@ -315,7 +334,7 @@ export class BudgetSourcesComponent implements OnInit {
     this.actionError.set(null);
     this.notice.set(null);
     if (this.sourceCode().trim() === '' || this.sourceName().trim() === '') {
-      this.actionError.set('Schlüssel und Bezeichnung der Mittelquelle sind erforderlich.');
+      this.actionError.set(this.i18n.translate('haushalt.sources.sourceRequired'));
       return;
     }
     this.busy.set(true);
@@ -327,11 +346,11 @@ export class BudgetSourcesComponent implements OnInit {
           this.sourceCode.set('');
           this.sourceName.set('');
           this.sourceChapter.set('');
-          this.notice.set(`Mittelquelle ${saved.Code} angelegt.`);
+          this.notice.set(this.i18n.translate('haushalt.sources.sourceCreated', { code: saved.Code }));
           this.busy.set(false);
         },
         error: () => {
-          this.actionError.set('Die Mittelquelle konnte nicht angelegt werden.');
+          this.actionError.set(this.i18n.translate('haushalt.sources.sourceCreateFailed'));
           this.busy.set(false);
         },
       });
@@ -342,7 +361,7 @@ export class BudgetSourcesComponent implements OnInit {
     this.actionError.set(null);
     this.notice.set(null);
     if (this.centerCode().trim() === '' || this.centerName().trim() === '') {
-      this.actionError.set('Schlüssel und Bezeichnung der Bewirtschaftungsstelle sind erforderlich.');
+      this.actionError.set(this.i18n.translate('haushalt.sources.centreRequired'));
       return;
     }
     this.busy.set(true);
@@ -351,11 +370,11 @@ export class BudgetSourcesComponent implements OnInit {
         this.centers.update((list) => [...list, saved].sort((a, b) => a.Code.localeCompare(b.Code)));
         this.centerCode.set('');
         this.centerName.set('');
-        this.notice.set(`Bewirtschaftungsstelle ${saved.Code} angelegt.`);
+        this.notice.set(this.i18n.translate('haushalt.sources.centreCreated', { code: saved.Code }));
         this.busy.set(false);
       },
       error: () => {
-        this.actionError.set('Die Bewirtschaftungsstelle konnte nicht angelegt werden.');
+        this.actionError.set(this.i18n.translate('haushalt.sources.centreCreateFailed'));
         this.busy.set(false);
       },
     });
@@ -369,7 +388,7 @@ export class BudgetSourcesComponent implements OnInit {
 
     const id = Number(this.position());
     if (id <= 0) {
-      this.actionError.set('Es ist keine Haushaltsstelle gewählt.');
+      this.actionError.set(this.i18n.translate('haushalt.sources.noPosition'));
       return;
     }
     const body = {
@@ -382,11 +401,11 @@ export class BudgetSourcesComponent implements OnInit {
         this.positions.update((list) =>
           list.map((p) => (p.position.ID === saved.ID ? { ...p, position: saved } : p))
         );
-        this.notice.set('Die Zuordnung ist gespeichert.');
+        this.notice.set(this.i18n.translate('haushalt.sources.assignSaved'));
         this.busy.set(false);
       },
       error: () => {
-        this.actionError.set('Die Zuordnung konnte nicht gespeichert werden.');
+        this.actionError.set(this.i18n.translate('haushalt.sources.assignFailed'));
         this.busy.set(false);
       },
     });
@@ -402,7 +421,7 @@ export class BudgetSourcesComponent implements OnInit {
     this.actionError.set(null);
     this.notice.set(null);
     if (this.file().trim() === '') {
-      this.actionError.set('Es ist keine Budgetdatei eingelesen.');
+      this.actionError.set(this.i18n.translate('haushalt.sources.noFile'));
       return;
     }
     this.busy.set(true);
@@ -415,7 +434,7 @@ export class BudgetSourcesComponent implements OnInit {
         this.reload(false);
       },
       error: () => {
-        this.actionError.set('Die Budgetdatei konnte nicht eingelesen werden.');
+        this.actionError.set(this.i18n.translate('haushalt.sources.importFailed'));
         this.busy.set(false);
       },
     });
@@ -423,18 +442,20 @@ export class BudgetSourcesComponent implements OnInit {
 
   /** What an import did, in prose: created and already-there read differently. */
   importNotice(res: ImportResult): string {
-    return (
-      `${res.SourcesCreated} Mittelquellen, ${res.CentersCreated} Bewirtschaftungsstellen und ` +
-      `${res.PositionsCreated} Haushaltsstellen angelegt; ` +
-      `${res.SourcesKept} Mittelquellen und ${res.PositionsKept} Haushaltsstellen waren schon vorhanden; ` +
-      `${res.PositionsNamed} Haushaltsstellen sind zugeordnet.`
-    );
+    return this.i18n.translate('haushalt.sources.importNotice', {
+      sourcesCreated: res.SourcesCreated,
+      centresCreated: res.CentersCreated,
+      positionsCreated: res.PositionsCreated,
+      sourcesKept: res.SourcesKept,
+      positionsKept: res.PositionsKept,
+      positionsNamed: res.PositionsNamed,
+    });
   }
 
   /** The name of a position's source, or a plain "keine" when it names none. */
   sourceNameOf(p: BudgetPositionResponse): string {
     if (p.position.SourceID === null) {
-      return 'keine';
+      return this.i18n.translate('haushalt.sources.none');
     }
     const found = this.sources().find((s) => s.ID === p.position.SourceID);
     return found === undefined ? String(p.position.SourceID) : `${found.Code} — ${found.Name}`;
@@ -443,7 +464,7 @@ export class BudgetSourcesComponent implements OnInit {
   /** The name of a position's centre, or a plain "keine" when it names none. */
   centerNameOf(p: BudgetPositionResponse): string {
     if (p.position.CenterID === null) {
-      return 'keine';
+      return this.i18n.translate('haushalt.sources.none');
     }
     const found = this.centers().find((c) => c.ID === p.position.CenterID);
     return found === undefined ? String(p.position.CenterID) : `${found.Code} — ${found.Name}`;

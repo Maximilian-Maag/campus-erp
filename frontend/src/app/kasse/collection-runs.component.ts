@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, CashAccount, CollectionItemRequest, CollectionRun, Mandate } from '../core/api/generated';
-import { RUN_SEQUENCE_TYPES, runSequenceLabel } from '../core/direct-debit';
+import { RUN_SEQUENCE_TYPES, runSequenceKey } from '../core/direct-debit';
 import { euroToCents, formatCents, formatDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Kasse — Einzüge (SEPA direct-debit collection runs).
@@ -19,213 +21,231 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
  */
 @Component({
   selector: 'app-collection-runs',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="collection-runs-heading">
-      <h2 id="collection-runs-heading">Einzüge</h2>
+    <app-page titleKey="page.kasseEinzuege.title" subtitleKey="page.kasseEinzuege.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Konten werden geladen.</p>
-      } @else if (accounts().length === 0 && !loadError()) {
-        <p role="status">Es ist kein eigenes Konto angelegt.</p>
-      } @else if (!loadError()) {
-        <form (submit)="run($event)">
-          <h3 id="collection-run-new-heading">Einzug erstellen</h3>
-          <p>
-            <label for="run-reference">Referenz</label>
-            <input
-              id="run-reference"
-              type="text"
-              [value]="reference()"
-              (input)="reference.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="run-account">Konto</label>
-            <select id="run-account" [value]="account()" (change)="account.set($any($event.target).value)">
-              @for (a of accounts(); track a.ID) {
-                <option [value]="a.ID">{{ a.Name }} ({{ a.IBAN }})</option>
-              }
-            </select>
-          </p>
-          <p>
-            <label for="run-creditor">Gläubiger-ID</label>
-            <input
-              id="run-creditor"
-              type="text"
-              [value]="creditorID()"
-              (input)="creditorID.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="run-collection-date">Einzugsdatum</label>
-            <input
-              id="run-collection-date"
-              type="date"
-              [value]="collectionDate()"
-              (input)="collectionDate.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="run-sequence">Sequenztyp</label>
-            <select id="run-sequence" [value]="sequenceType()" (change)="changeSequence($any($event.target).value)">
-              @for (type of sequenceTypes; track type.value) {
-                <option [value]="type.value">
-                  {{ type.value ? type.value + ' — ' + type.label : type.label }}
-                </option>
-              }
-            </select>
-          </p>
-          <p>
-            <label for="run-instrument">Local Instrument</label>
-            <select id="run-instrument" [value]="localInstrument()" (change)="localInstrument.set($any($event.target).value)">
-              <option value="CORE">CORE</option>
-              <option value="B2B">B2B</option>
-            </select>
-          </p>
-
-          <fieldset>
-            <legend>Postenquelle</legend>
-            <label>
+        @if (loading()) {
+          <p role="status">{{ 'kasse.collections.accountsLoading' | transloco }}</p>
+        } @else if (accounts().length === 0 && !loadError()) {
+          <p role="status">{{ 'kasse.collections.noAccount' | transloco }}</p>
+        } @else if (!loadError()) {
+          <form (submit)="run($event)">
+            <h2 id="collection-run-new-heading">{{ 'kasse.collections.createHeading' | transloco }}</h2>
+            <div class="field">
+              <label for="run-reference">{{ 'common.reference' | transloco }}</label>
               <input
-                type="radio"
-                name="run-source"
-                value="open"
-                [checked]="source() === 'open'"
-                (change)="setSource('open')"
+                id="run-reference"
+                type="text"
+                [value]="reference()"
+                (input)="reference.set($any($event.target).value)"
               />
-              Aus offenen Posten
-            </label>
-            <label>
+            </div>
+            <div class="field">
+              <label for="run-account">{{ 'common.account' | transloco }}</label>
+              <select id="run-account" [value]="account()" (change)="account.set($any($event.target).value)">
+                @for (a of accounts(); track a.ID) {
+                  <option [value]="a.ID">{{ a.Name }} ({{ a.IBAN }})</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="run-creditor">{{ 'kasse.collections.creditorId' | transloco }}</label>
               <input
-                type="radio"
-                name="run-source"
-                value="mandates"
-                [checked]="source() === 'mandates'"
-                (change)="setSource('mandates')"
+                id="run-creditor"
+                type="text"
+                [value]="creditorID()"
+                (input)="creditorID.set($any($event.target).value)"
               />
-              Aus gewählten Mandaten
-            </label>
-          </fieldset>
-
-          @if (source() === 'open') {
-            <p>
-              <label for="run-due-by">Fälligkeit bis</label>
+            </div>
+            <div class="field">
+              <label for="run-collection-date">{{ 'kasse.collections.collectionDate' | transloco }}</label>
               <input
-                id="run-due-by"
+                id="run-collection-date"
                 type="date"
-                [value]="dueBy()"
-                (input)="dueBy.set($any($event.target).value)"
+                [value]="collectionDate()"
+                (input)="collectionDate.set($any($event.target).value)"
               />
-            </p>
-          } @else {
-            <h4 id="run-items-heading">Posten</h4>
-            @if (mandatesError(); as e) {
-              <p role="alert" class="error">{{ e }}</p>
-            }
-            @if (mandatesLoading()) {
-              <p role="status">Mandate werden geladen.</p>
-            } @else if (mandates().length === 0) {
-              @if (sequenceType() === '') {
-                <p role="status">Es ist kein aktives Mandat angelegt.</p>
-              } @else {
-                <p role="status">Es ist kein aktives Mandat für diesen Sequenztyp angelegt.</p>
-              }
+            </div>
+            <div class="field">
+              <label for="run-sequence">{{ 'common.sequenceType' | transloco }}</label>
+              <select id="run-sequence" [value]="sequenceType()" (change)="changeSequence($any($event.target).value)">
+                @for (type of sequenceTypes; track type.value) {
+                  <option [value]="type.value">
+                    {{ type.value ? type.value + ' — ' + (type.labelKey | transloco) : (type.labelKey | transloco) }}
+                  </option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="run-instrument">{{ 'kasse.collections.localInstrument' | transloco }}</label>
+              <select id="run-instrument" [value]="localInstrument()" (change)="localInstrument.set($any($event.target).value)">
+                <option value="CORE">CORE</option>
+                <option value="B2B">B2B</option>
+              </select>
+            </div>
+
+            <fieldset>
+              <legend>{{ 'kasse.collections.sourceLegend' | transloco }}</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="run-source"
+                  value="open"
+                  [checked]="source() === 'open'"
+                  (change)="setSource('open')"
+                />
+                {{ 'kasse.collections.fromOpenItems' | transloco }}
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="run-source"
+                  value="mandates"
+                  [checked]="source() === 'mandates'"
+                  (change)="setSource('mandates')"
+                />
+                {{ 'kasse.collections.fromMandates' | transloco }}
+              </label>
+            </fieldset>
+
+            @if (source() === 'open') {
+              <div class="field">
+                <label for="run-due-by">{{ 'kasse.collections.dueBy' | transloco }}</label>
+                <input
+                  id="run-due-by"
+                  type="date"
+                  [value]="dueBy()"
+                  (input)="dueBy.set($any($event.target).value)"
+                />
+              </div>
             } @else {
-              <p>
-                <label for="item-mandate">Mandat</label>
-                <select id="item-mandate" [value]="itemMandate()" (change)="itemMandate.set($any($event.target).value)">
-                  <option value=""></option>
-                  @for (m of mandates(); track m.Reference) {
-                    <option [value]="m.Reference">{{ m.Reference }} — {{ m.DebtorName }}</option>
-                  }
-                </select>
-              </p>
-              @if (mandatesHasMore()) {
-                <p>
-                  <button
-                    type="button"
-                    data-testid="load-more-mandates"
-                    [disabled]="mandatesLoadingMore()"
-                    (click)="loadMoreMandates()"
-                  >
-                    {{ mandatesLoadingMore() ? 'Weitere Mandate werden geladen …' : 'Weitere Mandate laden' }}
-                  </button>
-                </p>
+              <h3 id="run-items-heading">{{ 'kasse.collections.itemsHeading' | transloco }}</h3>
+              @if (mandatesError(); as e) {
+                <p role="alert" class="error">{{ e }}</p>
               }
-              <p>
-                <label for="item-amount">Betrag</label>
-                <input
-                  id="item-amount"
-                  type="text"
-                  inputmode="decimal"
-                  [value]="itemAmount()"
-                  (input)="itemAmount.set($any($event.target).value)"
-                />
-              </p>
-              <p>
-                <label for="item-purpose">Verwendungszweck</label>
-                <input
-                  id="item-purpose"
-                  type="text"
-                  [value]="itemPurpose()"
-                  (input)="itemPurpose.set($any($event.target).value)"
-                />
-              </p>
-              <button type="button" (click)="addItem()">Posten hinzufügen</button>
-            }
-            @if (itemError(); as e) {
-              <p role="alert" class="error">{{ e }}</p>
-            }
-            @if (items().length > 0) {
-              <ul aria-labelledby="run-items-heading">
-                @for (it of items(); track it.mandate_reference) {
-                  <li [attr.data-testid]="'item-' + it.mandate_reference">
-                    {{ it.mandate_reference }}: {{ euro(it.amount_cents) }}
+              @if (mandatesLoading()) {
+                <p role="status">{{ 'kasse.collections.mandatesLoading' | transloco }}</p>
+              } @else if (mandates().length === 0) {
+                @if (sequenceType() === '') {
+                  <p role="status">{{ 'kasse.collections.noMandates' | transloco }}</p>
+                } @else {
+                  <p role="status">{{ 'kasse.collections.noMandatesForType' | transloco }}</p>
+                }
+              } @else {
+                <div class="field">
+                  <label for="item-mandate">{{ 'common.mandate' | transloco }}</label>
+                  <select id="item-mandate" [value]="itemMandate()" (change)="itemMandate.set($any($event.target).value)">
+                    <option value=""></option>
+                    @for (m of mandates(); track m.Reference) {
+                      <option [value]="m.Reference">{{ m.Reference }} — {{ m.DebtorName }}</option>
+                    }
+                  </select>
+                </div>
+                @if (mandatesHasMore()) {
+                  <p>
                     <button
                       type="button"
-                      [attr.aria-label]="'Posten ' + it.mandate_reference + ' entfernen'"
-                      (click)="removeItem(it.mandate_reference)"
+                      data-testid="load-more-mandates"
+                      [disabled]="mandatesLoadingMore()"
+                      (click)="loadMoreMandates()"
                     >
-                      Entfernen
+                      {{
+                        (mandatesLoadingMore()
+                          ? 'kasse.collections.loadingMoreMandates'
+                          : 'kasse.collections.loadMoreMandates'
+                        ) | transloco
+                      }}
                     </button>
-                  </li>
+                  </p>
                 }
-              </ul>
+                <div class="field">
+                  <label for="item-amount">{{ 'common.amount' | transloco }}</label>
+                  <input
+                    id="item-amount"
+                    type="text"
+                    inputmode="decimal"
+                    [value]="itemAmount()"
+                    (input)="itemAmount.set($any($event.target).value)"
+                  />
+                </div>
+                <div class="field">
+                  <label for="item-purpose">{{ 'common.purpose' | transloco }}</label>
+                  <input
+                    id="item-purpose"
+                    type="text"
+                    [value]="itemPurpose()"
+                    (input)="itemPurpose.set($any($event.target).value)"
+                  />
+                </div>
+                <button type="button" (click)="addItem()">{{ 'kasse.collections.addItem' | transloco }}</button>
+              }
+              @if (itemError(); as e) {
+                <p role="alert" class="error">{{ e }}</p>
+              }
+              @if (items().length > 0) {
+                <ul aria-labelledby="run-items-heading">
+                  @for (it of items(); track it.mandate_reference) {
+                    <li [attr.data-testid]="'item-' + it.mandate_reference">
+                      {{ it.mandate_reference }}: {{ euro(it.amount_cents) }}
+                      <button
+                        type="button"
+                        [attr.aria-label]="
+                          'kasse.collections.removeItem' | transloco: { reference: it.mandate_reference }
+                        "
+                        (click)="removeItem(it.mandate_reference)"
+                      >
+                        {{ 'kasse.collections.remove' | transloco }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
             }
+
+            <button type="submit" [disabled]="submitting()">{{ 'kasse.collections.create' | transloco }}</button>
+          </form>
+
+          @if (created(); as r) {
+            <section aria-labelledby="collection-run-result-heading">
+              <h2 id="collection-run-result-heading">{{ 'kasse.collections.createdHeading' | transloco }}</h2>
+              <p role="status" [attr.data-testid]="'run-' + r.Reference">
+                {{
+                  'kasse.collections.result'
+                    | transloco
+                      : {
+                          reference: r.Reference,
+                          count: r.ItemCount,
+                          sum: euro(r.SumCents),
+                          date: day(r.CollectionDate),
+                          type: runLabel(r.SequenceType),
+                        }
+                }}
+              </p>
+              <button type="button" (click)="fetchFile()">{{ 'kasse.collections.showFile' | transloco }}</button>
+              @if (file(); as f) {
+                <pre [attr.data-testid]="'run-file-' + r.Reference">{{ f }}</pre>
+              }
+            </section>
           }
-
-          <button type="submit" [disabled]="submitting()">Einzug erstellen</button>
-        </form>
-
-        @if (created(); as r) {
-          <section aria-labelledby="collection-run-result-heading">
-            <h3 id="collection-run-result-heading">Erzeugter Einzug</h3>
-            <p role="status" [attr.data-testid]="'run-' + r.Reference">
-              {{ r.Reference }}: {{ r.ItemCount }} Posten, Summe {{ euro(r.SumCents) }},
-              Einzugsdatum {{ day(r.CollectionDate) }}, Art {{ runLabel(r.SequenceType) }}
-            </p>
-            <button type="button" (click)="fetchFile()">Datei anzeigen</button>
-            @if (file(); as f) {
-              <pre [attr.data-testid]="'run-file-' + r.Reference">{{ f }}</pre>
-            }
-          </section>
         }
-      }
-    </section>
+      </section>
+    </app-page>
   `,
 })
 export class CollectionRunsComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly accounts = signal<CashAccount[]>([]);
   readonly account = signal('');
@@ -284,7 +304,7 @@ export class CollectionRunsComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Konten nicht laden.');
+        this.loadError.set(this.i18n.translate('kasse.collections.accountsLoadFailed'));
         this.loading.set(false);
       },
     });
@@ -312,7 +332,7 @@ export class CollectionRunsComponent implements OnInit {
     if (this.source() === 'mandates') {
       if (this.items().length > 0) {
         this.items.set([]);
-        this.notice.set('Der Sequenztyp hat sich geändert: die gewählten Posten wurden verworfen.');
+        this.notice.set(this.i18n.translate('kasse.collections.sequenceChanged'));
       }
       this.loadMandates();
     }
@@ -337,7 +357,7 @@ export class CollectionRunsComponent implements OnInit {
         this.mandatesLoading.set(false);
       },
       error: () => {
-        this.mandatesError.set('Konnte die Mandate nicht laden.');
+        this.mandatesError.set(this.i18n.translate('kasse.collections.mandatesLoadFailed'));
         this.mandatesHasMore.set(false);
         this.mandatesLoading.set(false);
       },
@@ -366,7 +386,7 @@ export class CollectionRunsComponent implements OnInit {
         },
         error: () => {
           this.mandatesLoadingMore.set(false);
-          this.mandatesError.set('Konnte die weiteren Mandate nicht laden.');
+          this.mandatesError.set(this.i18n.translate('kasse.collections.mandatesLoadMoreFailed'));
         },
       });
   }
@@ -377,16 +397,16 @@ export class CollectionRunsComponent implements OnInit {
     // there is nothing to trim — a trim here would be dead code no test could distinguish.
     const mandate = this.itemMandate();
     if (mandate === '') {
-      this.itemError.set('Ein Mandat ist erforderlich.');
+      this.itemError.set(this.i18n.translate('kasse.collections.mandateRequired'));
       return;
     }
     if (this.items().some((it) => it.mandate_reference === mandate)) {
-      this.itemError.set('Dieses Mandat ist bereits gewählt.');
+      this.itemError.set(this.i18n.translate('kasse.collections.mandateDuplicate'));
       return;
     }
     const cents = euroToCents(this.itemAmount());
     if (cents === null) {
-      this.itemError.set('Ein positiver Betrag ist erforderlich.');
+      this.itemError.set(this.i18n.translate('kasse.collections.amountRequired'));
       return;
     }
     this.items.set([
@@ -420,11 +440,11 @@ export class CollectionRunsComponent implements OnInit {
     }
     const reference = this.reference().trim();
     if (reference === '') {
-      this.actionError.set('Eine Referenz ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.collections.referenceRequired'));
       return;
     }
     if (this.collectionDate().trim() === '' || this.dueBy().trim() === '') {
-      this.actionError.set('Einzugsdatum und Fälligkeit sind erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.collections.datesRequired'));
       return;
     }
     this.resetResult();
@@ -442,11 +462,11 @@ export class CollectionRunsComponent implements OnInit {
         next: (run) => {
           this.submitting.set(false);
           this.created.set(run);
-          this.notice.set('Einzug erstellt.');
+          this.notice.set(this.i18n.translate('kasse.collections.created'));
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte den Einzug nicht erstellen.');
+          this.actionError.set(this.i18n.translate('kasse.collections.createFailed'));
         },
       });
   }
@@ -455,15 +475,15 @@ export class CollectionRunsComponent implements OnInit {
   private submitItems(): void {
     const reference = this.reference().trim();
     if (reference === '') {
-      this.actionError.set('Eine Referenz ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.collections.referenceRequired'));
       return;
     }
     if (this.collectionDate().trim() === '') {
-      this.actionError.set('Einzugsdatum ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.collections.collectionDateRequired'));
       return;
     }
     if (this.items().length === 0) {
-      this.actionError.set('Mindestens ein Posten ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.collections.itemsRequired'));
       return;
     }
     this.resetResult();
@@ -481,11 +501,11 @@ export class CollectionRunsComponent implements OnInit {
         next: (run) => {
           this.submitting.set(false);
           this.created.set(run);
-          this.notice.set('Einzug erstellt.');
+          this.notice.set(this.i18n.translate('kasse.collections.created'));
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte den Einzug nicht erstellen.');
+          this.actionError.set(this.i18n.translate('kasse.collections.createFailed'));
         },
       });
   }
@@ -507,7 +527,7 @@ export class CollectionRunsComponent implements OnInit {
     }
     this.api.getCollectionRunFile(run.Reference).subscribe({
       next: (file) => this.file.set(file),
-      error: () => this.actionError.set('Konnte die Datei nicht laden.'),
+      error: () => this.actionError.set(this.i18n.translate('kasse.collections.fileLoadFailed')),
     });
   }
 
@@ -515,5 +535,8 @@ export class CollectionRunsComponent implements OnInit {
   readonly euro = formatCents;
   readonly day = formatDay;
   /** The word for the type a run collected under — "gemischt" when it has no single one. */
-  readonly runLabel = runSequenceLabel;
+  /** The word for the type a run collected under, in the active language. */
+  runLabel(value: string): string {
+    return this.i18n.translate(runSequenceKey(value));
+  }
 }

@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, Mandate } from '../core/api/generated';
-import { SEQUENCE_TYPES, sequenceLabel } from '../core/direct-debit';
+import { SEQUENCE_TYPES, sequenceKey } from '../core/direct-debit';
 import { formatDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Kasse — SEPA-Lastschriftmandate (docs/21).
@@ -17,164 +19,172 @@ import { formatDay } from '../core/format';
  */
 @Component({
   selector: 'app-mandates',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="mandates-heading">
-      <h2 id="mandates-heading">SEPA-Lastschriftmandate</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      <div class="filters">
-        <p>
-          <label for="mandate-state">Bestand</label>
-          <select id="mandate-state" [value]="active()" (change)="changeActive($any($event.target).value)">
-            <option value="">alle</option>
-            <option value="true">nur aktive</option>
-          </select>
-        </p>
-        <p>
-          <label for="mandate-sequence-filter">Sequenztyp</label>
-          <select id="mandate-sequence-filter" [value]="sequenceFilter()" (change)="changeSequenceFilter($any($event.target).value)">
-            <option value="">alle</option>
-            @for (type of sequenceTypes; track type.value) {
-              <option [value]="type.value">{{ type.value }} — {{ type.label }}</option>
-            }
-          </select>
-        </p>
-      </div>
-
-      @if (loading()) {
-        <p role="status">Mandate werden geladen.</p>
-      } @else if (mandates().length === 0 && !loadError()) {
-        <p role="status">Es sind keine Mandate erfasst.</p>
-      } @else if (!loadError()) {
-        <table>
-          <caption>
-            Lastschriftmandate mit Schuldner, Unterschriftsdatum und Sequenztyp
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Referenz</th>
-              <th scope="col">Schuldner</th>
-              <th scope="col">IBAN</th>
-              <th scope="col">BIC</th>
-              <th scope="col">Unterschrieben</th>
-              <th scope="col">Sequenztyp</th>
-              <th scope="col">Bestand</th>
-              <th scope="col">Aktion</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (mandate of mandates(); track mandate.ID) {
-              <tr [attr.data-testid]="'mandate-' + mandate.Reference">
-                <td>{{ mandate.Reference }}</td>
-                <td>{{ mandate.DebtorName }}</td>
-                <td>{{ mandate.DebtorIBAN }}</td>
-                <td>{{ mandate.DebtorBIC || '—' }}</td>
-                <td>{{ day(mandate.SignatureDate) }}</td>
-                <td [attr.data-testid]="'sequence-' + mandate.Reference">
-                  {{ sequence(mandate.SequenceType) }}
-                </td>
-                <td>{{ mandate.Active ? 'aktiv' : 'zurückgezogen' }}</td>
-                <td>
-                  @if (mandate.Active) {
-                    @if (confirming() === mandate.Reference) {
-                      <button
-                        type="button"
-                        [disabled]="retiring() !== null"
-                        [attr.aria-label]="'Mandat ' + mandate.Reference + ' wirklich zurückziehen'"
-                        (click)="retire(mandate)"
-                      >
-                        Ja, zurückziehen
-                      </button>
-                      <button type="button" (click)="cancelRetire()">Abbrechen</button>
-                    } @else {
-                      <button
-                        type="button"
-                        [disabled]="retiring() !== null"
-                        [attr.aria-label]="'Mandat ' + mandate.Reference + ' zurückziehen'"
-                        (click)="askRetire(mandate)"
-                      >
-                        Zurückziehen
-                      </button>
-                    }
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        @if (hasMore()) {
-          <p>
-            <button
-              type="button"
-              data-testid="load-more"
-              [disabled]="loadingMore()"
-              (click)="loadMore()"
-            >
-              {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
-            </button>
-          </p>
+    <app-page titleKey="page.kasseMandate.title" subtitleKey="page.kasseMandate.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      <form (submit)="register($event)">
-        <h3 id="mandate-register-heading">Mandat aufnehmen</h3>
-        <p>
-          <label for="mandate-reference">Referenz</label>
-          <input
-            id="mandate-reference"
-            [value]="reference()"
-            (input)="reference.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="mandate-debtor">Schuldner</label>
-          <input
-            id="mandate-debtor"
-            [value]="debtorName()"
-            (input)="debtorName.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="mandate-iban">IBAN</label>
-          <input id="mandate-iban" [value]="debtorIBAN()" (input)="debtorIBAN.set($any($event.target).value)" />
-        </p>
-        <p>
-          <label for="mandate-bic">BIC (optional)</label>
-          <input id="mandate-bic" [value]="debtorBIC()" (input)="debtorBIC.set($any($event.target).value)" />
-        </p>
-        <p>
-          <label for="mandate-signature">Unterschriftsdatum</label>
-          <input
-            id="mandate-signature"
-            type="date"
-            [value]="signatureDate()"
-            (input)="signatureDate.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="mandate-sequence">Sequenztyp</label>
-          <select id="mandate-sequence" [value]="sequenceType()" (change)="sequenceType.set($any($event.target).value)">
-            @for (type of sequenceTypes; track type.value) {
-              <option [value]="type.value">{{ type.value }} — {{ type.label }}</option>
-            }
-          </select>
-        </p>
-        <button type="submit" [disabled]="busy()">Mandat aufnehmen</button>
-      </form>
-    </section>
+        <div class="filters">
+          <p>
+            <label for="mandate-state">{{ 'kasse.mandates.holding' | transloco }}</label>
+            <select id="mandate-state" [value]="active()" (change)="changeActive($any($event.target).value)">
+              <option value="">{{ 'common.all' | transloco }}</option>
+              <option value="true">{{ 'kasse.mandates.onlyActive' | transloco }}</option>
+            </select>
+          </p>
+          <p>
+            <label for="mandate-sequence-filter">{{ 'common.sequenceType' | transloco }}</label>
+            <select id="mandate-sequence-filter" [value]="sequenceFilter()" (change)="changeSequenceFilter($any($event.target).value)">
+              <option value="">{{ 'common.all' | transloco }}</option>
+              @for (type of sequenceTypes; track type.value) {
+                <option [value]="type.value">{{ type.value }} — {{ type.labelKey | transloco }}</option>
+              }
+            </select>
+          </p>
+        </div>
+
+        @if (loading()) {
+          <p role="status">{{ 'kasse.mandates.loading' | transloco }}</p>
+        } @else if (mandates().length === 0 && !loadError()) {
+          <p role="status">{{ 'kasse.mandates.empty' | transloco }}</p>
+        } @else if (!loadError()) {
+          <table>
+            <caption>
+              {{ 'kasse.mandates.caption' | transloco }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'common.reference' | transloco }}</th>
+                <th scope="col">{{ 'common.debtor' | transloco }}</th>
+                <th scope="col">{{ 'common.iban' | transloco }}</th>
+                <th scope="col">{{ 'common.bic' | transloco }}</th>
+                <th scope="col">{{ 'kasse.mandates.signed' | transloco }}</th>
+                <th scope="col">{{ 'common.sequenceType' | transloco }}</th>
+                <th scope="col">{{ 'kasse.mandates.holding' | transloco }}</th>
+                <th scope="col">{{ 'common.action' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (mandate of mandates(); track mandate.ID) {
+                <tr [attr.data-testid]="'mandate-' + mandate.Reference">
+                  <td>{{ mandate.Reference }}</td>
+                  <td>{{ mandate.DebtorName }}</td>
+                  <td>{{ mandate.DebtorIBAN }}</td>
+                  <td>{{ mandate.DebtorBIC || '—' }}</td>
+                  <td>{{ day(mandate.SignatureDate) }}</td>
+                  <td [attr.data-testid]="'sequence-' + mandate.Reference">
+                    {{ sequence(mandate.SequenceType) }}
+                  </td>
+                  <td>{{ (mandate.Active ? 'kasse.mandates.active' : 'kasse.mandates.retired') | transloco }}</td>
+                  <td>
+                    @if (mandate.Active) {
+                      @if (confirming() === mandate.Reference) {
+                        <button
+                          type="button"
+                          [disabled]="retiring() !== null"
+                          [attr.aria-label]="
+                            'kasse.mandates.confirmRetireLabel' | transloco: { reference: mandate.Reference }
+                          "
+                          (click)="retire(mandate)"
+                        >
+                          {{ 'kasse.mandates.confirmRetire' | transloco }}
+                        </button>
+                        <button type="button" (click)="cancelRetire()">
+                          {{ 'kasse.mandates.cancel' | transloco }}
+                        </button>
+                      } @else {
+                        <button
+                          type="button"
+                          [disabled]="retiring() !== null"
+                          [attr.aria-label]="
+                            'kasse.mandates.retireLabel' | transloco: { reference: mandate.Reference }
+                          "
+                          (click)="askRetire(mandate)"
+                        >
+                          {{ 'kasse.mandates.retire' | transloco }}
+                        </button>
+                      }
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (hasMore()) {
+            <p>
+              <button
+                type="button"
+                data-testid="load-more"
+                [disabled]="loadingMore()"
+                (click)="loadMore()"
+              >
+                {{ (loadingMore() ? 'kasse.mandates.loadingMore' : 'kasse.mandates.loadMore') | transloco }}
+              </button>
+            </p>
+          }
+        }
+
+        <form (submit)="register($event)">
+          <h2 id="mandate-register-heading">{{ 'kasse.mandates.registerHeading' | transloco }}</h2>
+          <div class="field">
+            <label for="mandate-reference">{{ 'common.reference' | transloco }}</label>
+            <input
+              id="mandate-reference"
+              [value]="reference()"
+              (input)="reference.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="mandate-debtor">{{ 'common.debtor' | transloco }}</label>
+            <input
+              id="mandate-debtor"
+              [value]="debtorName()"
+              (input)="debtorName.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="mandate-iban">{{ 'common.iban' | transloco }}</label>
+            <input id="mandate-iban" [value]="debtorIBAN()" (input)="debtorIBAN.set($any($event.target).value)" />
+          </div>
+          <div class="field">
+            <label for="mandate-bic">{{ 'kasse.mandates.bicOptional' | transloco }}</label>
+            <input id="mandate-bic" [value]="debtorBIC()" (input)="debtorBIC.set($any($event.target).value)" />
+          </div>
+          <div class="field">
+            <label for="mandate-signature">{{ 'kasse.mandates.signatureDate' | transloco }}</label>
+            <input
+              id="mandate-signature"
+              type="date"
+              [value]="signatureDate()"
+              (input)="signatureDate.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="mandate-sequence">{{ 'common.sequenceType' | transloco }}</label>
+            <select id="mandate-sequence" [value]="sequenceType()" (change)="sequenceType.set($any($event.target).value)">
+              @for (type of sequenceTypes; track type.value) {
+                <option [value]="type.value">{{ type.value }} — {{ type.labelKey | transloco }}</option>
+              }
+            </select>
+          </div>
+          <button type="submit" [disabled]="busy()">{{ 'kasse.mandates.register' | transloco }}</button>
+        </form>
+      </section>
+    </app-page>
   `,
 })
 export class MandatesComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly mandates = signal<Mandate[]>([]);
   /**
@@ -240,11 +250,13 @@ export class MandatesComponent implements OnInit {
         );
         this.confirming.set(null);
         this.retiring.set(null);
-        this.notice.set(`Mandat ${retired.Reference} zurückgezogen.`);
+        this.notice.set(this.i18n.translate('kasse.mandates.retiredNotice', { reference: retired.Reference }));
       },
       error: () => {
         this.retiring.set(null);
-        this.actionError.set(`Mandat ${mandate.Reference} konnte nicht zurückgezogen werden.`);
+        this.actionError.set(
+          this.i18n.translate('kasse.mandates.retireFailed', { reference: mandate.Reference })
+        );
       },
     });
   }
@@ -262,7 +274,7 @@ export class MandatesComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Die Mandate konnten nicht geladen werden.');
+        this.loadError.set(this.i18n.translate('kasse.mandates.loadFailed'));
         this.hasMore.set(false);
         this.loading.set(false);
       },
@@ -294,7 +306,7 @@ export class MandatesComponent implements OnInit {
         },
         error: () => {
           this.loadingMore.set(false);
-          this.actionError.set('Die weiteren Mandate konnten nicht geladen werden.');
+          this.actionError.set(this.i18n.translate('kasse.mandates.loadMoreFailed'));
         },
       });
   }
@@ -326,7 +338,7 @@ export class MandatesComponent implements OnInit {
       this.debtorIBAN().trim() === '' ||
       this.signatureDate().trim() === ''
     ) {
-      this.actionError.set('Referenz, Schuldner, IBAN und Unterschriftsdatum sind erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.mandates.required'));
       return;
     }
     this.busy.set(true);
@@ -347,19 +359,19 @@ export class MandatesComponent implements OnInit {
           this.debtorIBAN.set('');
           this.debtorBIC.set('');
           this.signatureDate.set('');
-          this.notice.set(`Mandat ${saved.Reference} aufgenommen.`);
+          this.notice.set(this.i18n.translate('kasse.mandates.registered', { reference: saved.Reference }));
           this.busy.set(false);
         },
         error: () => {
-          this.actionError.set('Das Mandat konnte nicht aufgenommen werden.');
+          this.actionError.set(this.i18n.translate('kasse.mandates.registerFailed'));
           this.busy.set(false);
         },
       });
   }
 
-  /** The German word for a sequence type, from the list the collection run reads too. */
+  /** The word for a sequence type, from the list the collection run reads too. */
   sequence(value: string): string {
-    return sequenceLabel(value);
+    return this.i18n.translate(sequenceKey(value));
   }
 
   /** Dates come from the shared formatters, not from each screen's own. */

@@ -54,7 +54,7 @@ test('Mittelherkunft creates a source and a centre and names a position, and pas
   });
 
   await page.goto('/budget/mittelherkunft');
-  await expect(page.getByRole('heading', { name: 'Mittelherkunft und Bewirtschaftung' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mittelherkunft', exact: true })).toBeVisible();
   await expect(page.getByTestId('source-1')).toContainText('Landesmittel');
   await expect(page.getByTestId('center-2')).toContainText('Fakultät 1');
 
