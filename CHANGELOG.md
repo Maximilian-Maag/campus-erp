@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.144.0] - 2026-11-21
+
+A payment run can no longer pay an order in a currency the account does not hold.
+
+The file carries the debtor account's currency once, for the whole message, and every amount is
+written as it stands — so an approved USD order of 1,000.00 was emitted as
+`<InstdAmt Ccy="EUR">1000.00</InstdAmt>`, an instruction to transfer a thousand euros, and the run's
+`sum_cents` added cents of different currencies together. The collection path has refused the same
+thing from the start (`ErrReceivableCurrencyMismatch`); the paying path had no such check.
+
+`CreateRun` now refuses a run whose orders are not in the account's currency, with its own domain
+code (`kasse.order_currency_mismatch`). The guard was proved to bite: with it removed the new
+integration test fails with `<nil>` where it expects the refusal.
+
 ## [0.142.0] - 2026-11-21
 
 Two gaps a clerk would have met on the first day with the new interface.

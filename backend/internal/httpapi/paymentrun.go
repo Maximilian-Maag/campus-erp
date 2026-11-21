@@ -29,6 +29,7 @@ func statusForRun(err error) int {
 	case errors.Is(err, kasse.ErrRunReferenceRequired),
 		errors.Is(err, kasse.ErrNoOrders),
 		errors.Is(err, kasse.ErrOrderNotApproved),
+		errors.Is(err, kasse.ErrOrderCurrencyMismatch),
 		errors.Is(err, kasse.ErrCashAccountRequired),
 		errors.Is(err, kasse.ErrExecutionDateRequired),
 		errors.Is(err, kasse.ErrIBANInvalid),

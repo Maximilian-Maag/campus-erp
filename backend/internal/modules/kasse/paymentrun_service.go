@@ -86,6 +86,10 @@ func (s *PaymentRunService) CreateRun(ctx context.Context, reference string, acc
 		if o.Status != OrderApproved {
 			return PaymentRun{}, fmt.Errorf("kasse: order %d is %s: %w", o.ID, o.Status, ErrOrderNotApproved)
 		}
+		if o.Currency != account.Currency {
+			return PaymentRun{}, fmt.Errorf("kasse: order %d is %s, account is %s: %w",
+				o.ID, o.Currency, account.Currency, ErrOrderCurrencyMismatch)
+		}
 		if !ValidIBAN(o.CreditorIBAN) {
 			return PaymentRun{}, fmt.Errorf("kasse: order %d: %w", o.ID, ErrIBANInvalid)
 		}

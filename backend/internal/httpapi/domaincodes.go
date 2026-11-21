@@ -132,6 +132,7 @@ var domainErrorCodes = []domainCode{
 	{err: kasse.ErrOpenBandNotLast, code: "kasse.open_band_not_last"},
 	{err: kasse.ErrOrderAlreadyPaid, code: "kasse.order_already_paid"},
 	{err: kasse.ErrOrderConflict, code: "kasse.order_conflict"},
+	{err: kasse.ErrOrderCurrencyMismatch, code: "kasse.order_currency_mismatch"},
 	{err: kasse.ErrOrderNotApproved, code: "kasse.order_not_approved"},
 	{err: kasse.ErrPurposeRequired, code: "kasse.purpose_required"},
 	{err: kasse.ErrReasonRequired, code: "kasse.reason_required"},
