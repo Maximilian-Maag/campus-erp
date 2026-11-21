@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.149.0] - 2026-11-22
+
+Two screens were telling the clerk one thing and sending another.
+
+**A select bound by `[value]` shows its first option, whatever the signal says.** Angular applies the
+binding before the `@for` creates the options, the assignment is dropped, and the browser selects the
+first one — so the collection-run form displayed "je Mandat" while filing RCUR, and the mandate form
+displayed FRST while registering RCUR, with the holding filter showing "alle" over an active-only
+query. The selection now rides on the options (`[selected]`), and the specs read `.value` instead of
+only listing the options; with the old markup each of them fails (`Expected '' to be 'RCUR'`). The
+same pattern remains at twenty further sites (issue #178).
+
+**A cash-book day opened on the hard-coded 2026-01-02.** The one field of a Tagesabschluss that must
+never be a guess was a date from the scaffold, and a day is closed, never deleted, so the mistake
+would have been permanent. It defaults to today now, as every other period in the area already did.
+
 ## [0.147.0] - 2026-11-22
 
 The key guard now also holds the parameters of a message, not only its name.
