@@ -44,9 +44,11 @@ is loaded before the first render, so no screen flashes a key.
 Twenty-five screens were converted (every route), along with their specs: each now provides
 `provideI18n()`, asserts the German text it always asserted, and the e2e suite proves the picker
 end to end — it switches to English, checks the heading changed and `<html lang>` followed, and
-reloads to show the choice was kept. The initial bundle budget rose from 500 kB to 900 kB: the
-Material components and the two dictionaries together take the initial chunk from 489 kB to
-733 kB raw (162 kB transferred).
+reloads to show the choice was kept. A guard (`npm run copy`, run by `make frontend-test`) fails
+when a component template carries a word instead of a message key, so the rule is enforced rather
+than remembered. The initial bundle budget rose from 500 kB to 900 kB: the Material components and
+the two dictionaries together take the initial chunk from 489 kB to 816 kB raw (174 kB
+transferred).
 
 ## [0.139.0] - 2026-11-21
 
