@@ -2,6 +2,12 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.150.0] - 2026-11-22
+
+The images job populates the artefact volume once, alone, before the three services mount it:
+three concurrent copy-ups of the image's `/data` can leave a corrupt entry and the boot then fails
+with `failed to mkdir .../documents: file exists`.
+
 ## [0.149.0] - 2026-11-22
 
 Two screens were telling the clerk one thing and sending another.
