@@ -47,6 +47,10 @@ services:
         condition: service_healthy
     ports:
       - "${API_PORT:-8080}:8080"
+    # Artefacts (documents, exports, outbox hand-over) live here; the image's
+    # ERP_DOCUMENTS_DIR / ERP_OUTBOX_DIR defaults point into it.
+    volumes:
+      - erpdata:/data
     healthcheck:
       # Readiness pings the database (NFR-6), not just liveness.
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/readyz || exit 1"]
@@ -64,6 +68,8 @@ services:
     environment:
       <<: *backend_env
       ERP_ROLE: worker
+    volumes:
+      - erpdata:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,6 +83,8 @@ services:
     environment:
       <<: *backend_env
       ERP_ROLE: connectors
+    volumes:
+      - erpdata:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,4 +130,5 @@ services:
 
 volumes:
   pgdata:
+  erpdata:
   rustfsdata:

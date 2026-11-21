@@ -195,16 +195,44 @@ jobs:
       - run: npx stryker run
 
   # The release workflow publishes these images, so the thing they are published
-  # from has to build: a Dockerfile whose toolchain pin drifts from go.mod fails at
-  # the first release otherwise (#146). Build only - pushing belongs to release.yml.
+  # from has to build - and the stack the README tells you to run has to come up:
+  # a Dockerfile whose toolchain pin drifts from go.mod fails at the first release
+  # otherwise (#146), and an image whose entrypoint swallows the role command looks
+  # healthy while every "role" is the api (it was: ENTRYPOINT + compose `command:`).
+  # Build only - pushing belongs to release.yml.
   images:
-    name: images (docker build)
+    name: images (docker build + the stack boots)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: build both images
         run: make docker-images TAG=ci
+      - name: the stack starts, serves and runs the role it was asked for
+        env:
+          IMAGE_BACKEND: campus-erp-backend:ci
+          IMAGE_FRONTEND: campus-erp-frontend:ci
+        run: |
+          set -euo pipefail
+          docker compose up -d --wait --no-build
+          # The api's health route is the readiness signal (NFR-6).
+          curl -fsS http://localhost:8080/readyz
+          curl -fsS -o /dev/null http://localhost:8081/
+          # PID 1 must be the role binary: compose `command:` replaces the image's
+          # CMD, and an ENTRYPOINT would silently append to it instead.
+          for role in api worker connectors; do
+            cmd=$(docker compose exec -T "$role" cat /proc/1/cmdline | tr -d '\0')
+            echo "$role -> $cmd"
+            if [[ $cmd != "/app/$role" ]]; then
+              echo "error: the $role service is running $cmd"
+              docker compose logs --tail=40 "$role"
+              exit 1
+            fi
+          done
+          docker compose ps
+      - name: tear down
+        if: always()
+        run: docker compose down -v
 
   e2e:
     name: e2e (playwright + a11y)

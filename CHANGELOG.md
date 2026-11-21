@@ -2,6 +2,39 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.138.0] - 2026-11-21
+
+`make up` was the quick start in the README and it never started a backend. Every backend
+container crash-looped with `api: artefact store: storage: root is required`, and the two
+services that did not crash were not the roles they claimed: `ENTRYPOINT ["/app/api"]` plus
+compose's `command: ["/app/worker"]` is one argv (`/app/api /app/worker`), so the worker and
+connectors containers both ran the api. The same `command:` in the chart made every Kubernetes
+Deployment an api as well.
+
+Three separate faults, each now covered by CI:
+
+- **The image carries the artefact directories.** The api refuses to start without
+  `ERP_DOCUMENTS_DIR` and the worker without `ERP_OUTBOX_DIR`, and neither compose nor the chart
+  set them. The image now creates `/data/documents` and `/data/outbox` owned by the runtime user
+  and points both variables at them; compose mounts a named `erpdata` volume over `/data` so a
+  restart keeps the documents, and a deployment with object storage still overrides the lot with
+  `ERP_S3_ENDPOINT`.
+- **`CMD`, not `ENTRYPOINT`.** A role command replaces the image's `CMD` and merely appends to its
+  `ENTRYPOINT`; with the roles as `command:`, the switch only works with `CMD`.
+- **The connectors role stays up.** It blocked on a bare `select {}`, which the Go runtime reports
+  as `all goroutines are asleep - deadlock!` and aborts — so the placeholder exited in a loop. It
+  now waits on SIGINT/SIGTERM like the worker does.
+
+The image-level `HEALTHCHECK` is gone with them: one image serves three roles and only the api
+answers HTTP, so the probe marked worker and connectors unhealthy for ever and
+`docker compose up --wait` could never return. The api's health is asserted where the role is
+chosen — compose and `deploy/helm/campus-erp/templates/api.yaml`.
+
+`quality.yml`'s `images` job built the images and stopped there. It now starts the stack from
+exactly those images (`docker compose up -d --wait --no-build`), fetches `/readyz` and the web
+root, and checks each service's PID 1 is the role binary — the assertion that would have caught
+all of this.
+
 ## [0.137.0] - 2026-11-20
 
 The README is readable now. It opened with "university-ERP replacement" and then listed 20
