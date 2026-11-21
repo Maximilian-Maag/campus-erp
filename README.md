@@ -14,10 +14,10 @@ e-invoicing (XRechnung 3.0) and KLR. Next: Personal, Finanzen and Campus — see
 ## Quick start
 
 ```bash
-make help          # every target
-make up            # postgres, api, worker, connectors, web on localhost
+make deps          # Go modules + npm packages
+make build         # backend binaries + the Angular bundle
+make run           # postgres, api, worker, connectors, web on localhost
 make test          # fast suite: Go, Angular, tooling, contract
-make mutation      # mutation gates (floor 0.85)
 ```
 
 Only docker is required; the Go and Node toolchains are optional

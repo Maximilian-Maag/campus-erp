@@ -31,10 +31,10 @@ system it replaces.
 - **Mutation floor is 0.85**, enforced by the tools themselves:
   - Go: `gremlins unleash --threshold-efficacy 85 ./<package>` **per package**
     (`./internal/...` is a vacuous pass — gremlins reports "No results" and exits 0;
-    `tools/run_tests.sh` enumerates `backend/mutation.json` and fails on an empty run)
+    `make backend-mutation` enumerates `backend/mutation.json` and fails on an empty run)
   - TS: `stryker run` with `thresholds.break = 85` (`frontend/stryker.conf.json`)
-- Run everything: `tools/run_tests.sh`. In CI every toolchain is required; a
-  missing tool **fails** (no silent skips).
+- Run everything: `make quality` (policy + contract + `make test` + `make mutation`).
+  In CI every toolchain is required; a missing tool **fails** (no silent skips).
 - A scored target is run three times and must report identical numbers before a
   score is quoted.
 - **Run gremlins one package per cache dir.** gremlins caches its coverage profile
@@ -63,27 +63,34 @@ system it replaces.
 
 ## Build, package & deploy
 
-`make` is the single entry point (see `docs/build-and-deploy.md`):
+`make` is the single entry point (see `docs/build-and-deploy.md`). The front door is
+four verbs — `make deps`, `make build`, `make run`, `make test` — and `make help`
+lists everything else, grouped:
 
-- `make all` — C4 PDF + backend + frontend + container images.
 - `make test` — the fast quality suite: Go vet/build/unit+integration, Angular
   build + unit, the tooling self-tests and the contract drift guard
-  (`tools/run_tests.sh` with `STEPS=fast`).
+  (`tools/run_tests.sh`).
 - `make mutation` — the mutation gates only (gremlins per package + Stryker, floor
   0.85). Run it before landing a change that touches mutation targets; `make
-  test-all` runs both.
+  quality` runs everything.
 - `make c4-pdf` — `c4/workspace.dsl` → `c4/export/campus-erp-c4-model.pdf`
   (`tools/c4_pdf.sh`). The Structurizr image cannot render PNG locally, so the
   script exports PlantUML and renders with `plantuml/plantuml`; both containers
   run as `--user $(id -u):$(id -g)`.
-- `make docker-images` / `make up` / `make deploy-backend|deploy-frontend` —
+- `make docker-images` / `make run` / `make deploy-backend|deploy-frontend` —
   images and the docker-compose stack. `deploy-backend` + `workon-frontend`
   (and the reverse) let one half be deployed while the other is edited.
 - `make helm-lint` / `make helm-template` / `make deploy-k8s` — the chart in
   `deploy/helm/campus-erp` (ADR-0007).
 
+CI runs these same targets rather than its own copies of the commands: the
+`go`/`web`/`contract` jobs call the component targets, `mutation-go` shards with
+`make backend-mutation PKG=<package>`, and `images` builds with
+`make docker-images` and then boots the stack.
+
 The backend image builds all three roles (api/worker/connectors) from one
-tree; role is selected by the container command. The frontend image is
+tree; role is selected by the container command (`CMD`, never `ENTRYPOINT` — a
+`command:` replaces the former and only appends to the latter). The frontend image is
 Angular built once, served by nginx with `/api` proxied same-origin.
 
 ## Policy as code

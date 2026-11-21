@@ -1,9 +1,9 @@
 # Local / single-host stack for campus-erp.
 #
-#   make up          # build + start postgres, api, worker, connectors, web
-#   make logs        # tail everything
-#   make down        # stop (keeps the pgdata volume)
-#   make clean-data  # stop and drop the database volume
+#   make run          # build the images and start postgres, api, worker, connectors, web
+#   make logs         # tail everything
+#   make stop         # stop (keeps the pgdata volume)
+#   make clean-data   # stop and drop the database volume
 #
 # Kubernetes is the production target (ADR-0007); this file is for development,
 # demos and single-host installs.
