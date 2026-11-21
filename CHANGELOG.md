@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.151.0] - 2026-11-22
+
+A failed read no longer removes controls it has nothing to do with.
+
+Four screens shared one error signal across several independent reads and hid their whole body behind
+it: a failed page of positions blanked the fifty already read, a failed centres call hid the sources
+that loaded and the form that could create the missing centre, a failed arrival read removed the
+order picker on the goods-receipt screen, and a failed run history removed the dataset picker and the
+run button. Each read now reports on its own, next to the thing it concerns, and `Taxes` — which
+already did this — is no longer the exception.
+
 ## [0.150.0] - 2026-11-22
 
 The images job populates the artefact volume once, alone, before the three services mount it:

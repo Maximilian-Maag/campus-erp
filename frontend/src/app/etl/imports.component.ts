@@ -55,7 +55,9 @@ import { PageComponent } from '../ui/page.component';
             }
           </p>
 
-          @if (runs().length === 0) {
+          @if (runsError(); as e) {
+            <p role="alert" class="error">{{ e }}</p>
+          } @else if (runs().length === 0) {
             <p role="status">{{ 'auswertung.imports.noRuns' | transloco }}</p>
           } @else {
             <table>
@@ -95,6 +97,11 @@ export class ImportsComponent implements OnInit {
   readonly loading = signal(false);
   readonly running = signal(false);
   readonly loadError = signal<string | null>(null);
+  /**
+   * The history is a separate read from the catalogue: a failed history is reported on its own so
+   * the dataset picker and the run button — which the catalogue answered — stay usable.
+   */
+  readonly runsError = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
 
@@ -109,14 +116,15 @@ export class ImportsComponent implements OnInit {
   /** The history of the chosen dataset — or of every dataset when none is chosen. */
   loadHistory(): void {
     this.loading.set(true);
-    this.loadError.set(null);
+    // Only the history is re-read here; the catalogue's own state is not this function's to clear.
+    this.runsError.set(null);
     this.api.listETLRuns(this.dataset(), '20').subscribe({
       next: (response) => {
         this.runs.set(response?.runs ?? []);
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set(this.i18n.translate('auswertung.imports.runsLoadFailed'));
+        this.runsError.set(this.i18n.translate('auswertung.imports.runsLoadFailed'));
         this.loading.set(false);
       },
     });

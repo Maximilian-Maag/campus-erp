@@ -36,6 +36,12 @@ import { PageComponent } from '../ui/page.component';
         @if (notice(); as n) {
           <p role="status" class="notice">{{ n }}</p>
         }
+        @if (centresError(); as e) {
+          <p role="alert" class="error" data-testid="centres-error">{{ e }}</p>
+        }
+        @if (positionsError(); as e) {
+          <p role="alert" class="error" data-testid="positions-error">{{ e }}</p>
+        }
 
         @if (loading()) {
           <p role="status">{{ 'haushalt.sources.loading' | transloco }}</p>
@@ -250,6 +256,13 @@ export class BudgetSourcesComponent implements OnInit {
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly loadError = signal<string | null>(null);
+  /**
+   * The centres and the positions are reads of their own: a failure in either is reported beside the
+   * table it concerns, so the sources that did load and the form that could create the missing
+   * centre both stay on screen.
+   */
+  readonly centresError = signal<string | null>(null);
+  readonly positionsError = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
 
@@ -286,7 +299,7 @@ export class BudgetSourcesComponent implements OnInit {
     });
     this.api.listBudgetCenters().subscribe({
       next: (centers) => this.centers.set(centers),
-      error: () => this.loadError.set(this.i18n.translate('haushalt.sources.loadCentresFailed')),
+      error: () => this.centresError.set(this.i18n.translate('haushalt.sources.loadCentresFailed')),
     });
     this.api.listBudgetPositions(String(this.pageSize), '0').subscribe({
       next: (positions) => {
@@ -297,7 +310,7 @@ export class BudgetSourcesComponent implements OnInit {
       },
       error: () => {
         this.hasMore.set(false);
-        this.loadError.set(this.i18n.translate('haushalt.sources.loadPositionsFailed'));
+        this.positionsError.set(this.i18n.translate('haushalt.sources.loadPositionsFailed'));
       },
     });
   }
