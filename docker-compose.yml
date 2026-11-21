@@ -56,8 +56,11 @@ services:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/readyz || exit 1"]
       interval: 10s
       timeout: 3s
-      retries: 5
-      start_period: 5s
+      retries: 6
+      # A first boot applies the migrations against a database that is itself just
+      # starting; five failures inside the first minute marked a healthy api
+      # unhealthy (compose `--wait` then aborts).
+      start_period: 30s
     restart: unless-stopped
 
   worker:

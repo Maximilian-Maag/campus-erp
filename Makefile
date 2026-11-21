@@ -330,6 +330,19 @@ docker-publish: ## Build both images and push them to $(REGISTRY)
 
 up: ## Build + start the whole stack (postgres, api, worker, connectors, web)
 	$(COMPOSE) up -d --build
+	# Wait on the api's own readiness route rather than on `--wait`: a cold postgres
+	# needs a while to accept connections, and `--wait` aborts the moment a container
+	# is *unhealthy* once - which a first boot with migrations can be, permanently red
+	# for a stack that was about to come up fine.
+	@echo "waiting for the api (/readyz)"
+	@for i in $$(seq 1 60); do \
+	  if curl -fsS -o /dev/null "http://localhost:$${API_PORT:-8080}/readyz" 2>/dev/null; then \
+	    echo "ok: http://localhost:$${API_PORT:-8080}/readyz"; exit 0; \
+	  fi; \
+	  sleep 2; \
+	done; \
+	$(COMPOSE) ps; $(COMPOSE) logs --tail=30 api; \
+	echo "error: the api did not report ready within 2 minutes"; exit 1
 
 down: ## Stop the stack (keeps the database volume)
 	$(COMPOSE) down

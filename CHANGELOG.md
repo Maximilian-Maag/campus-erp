@@ -31,9 +31,14 @@ answers HTTP, so the probe marked worker and connectors unhealthy for ever and
 chosen — compose and `deploy/helm/campus-erp/templates/api.yaml`.
 
 `quality.yml`'s `images` job built the images and stopped there. It now starts the stack from
-exactly those images (`docker compose up -d --wait --no-build`), fetches `/readyz` and the web
-root, and checks each service's PID 1 is the role binary — the assertion that would have caught
-all of this.
+exactly those images through `make up`, fetches `/readyz` and the web root, and checks each
+service's PID 1 is the role binary — the assertion that would have caught all of this.
+
+`make up` no longer trusts compose's `--wait` to decide that the stack came up: a first boot
+applies the migrations against a database that is itself still starting, and five failed probes
+inside that minute marked the api *unhealthy* — which aborts `--wait` on a stack that was about to
+be fine, and did so on CI. It waits on `/readyz` itself (up to two minutes, then prints the api's
+log), and the api's healthcheck gets a 30s start period so its state is honest too.
 
 ## [0.137.0] - 2026-11-20
 

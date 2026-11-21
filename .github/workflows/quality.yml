@@ -214,8 +214,9 @@ jobs:
           IMAGE_FRONTEND: campus-erp-frontend:ci
         run: |
           set -euo pipefail
-          docker compose up -d --wait --no-build
-          # The api's health route is the readiness signal (NFR-6).
+          # Through the Makefile, so the target (and its readiness wait) is what CI
+          # proves - not a hand-written copy of it.
+          make up TAG=ci
           curl -fsS http://localhost:8080/readyz
           curl -fsS -o /dev/null http://localhost:8081/
           # PID 1 must be the role binary: compose `command:` replaces the image's
