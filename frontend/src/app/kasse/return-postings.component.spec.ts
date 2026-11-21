@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ReturnPostingsComponent, isDay } from './return-postings.component';
 import { StatementLine } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('ReturnPostingsComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('ReturnPostingsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ReturnPostingsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

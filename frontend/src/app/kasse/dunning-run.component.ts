@@ -1,25 +1,22 @@
 import { Component, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, DunningRunOutcome, DunningRunResult } from '../core/api/generated';
 import { formatCents, formatDay, isoDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
-/** The German label of the reason a claim did not advance in a run. */
-export function skipReasonLabel(reason: string): string {
-  switch (reason) {
-    case 'already_dunned':
-      return 'am Stichtag bereits gemahnt';
-    case 'not_due':
-      return 'Frist nicht verstrichen';
-    case 'unknown_level':
-      return 'Stufe unbekannt';
-    case 'no_next_level':
-      return 'keine weitere Stufe';
-    case 'next_level_missing':
-      return 'nächste Stufe fehlt';
-    case 'issue_failed':
-      return 'Ausstellung fehlgeschlagen';
-    default:
-      return reason;
-  }
+/** The message key of each reason a claim does not advance in a run. */
+const SKIP_REASON_KEYS: Record<string, string> = {
+  already_dunned: 'kasse.dunningRun.reason.alreadyDunned',
+  not_due: 'kasse.dunningRun.reason.notDue',
+  unknown_level: 'kasse.dunningRun.reason.unknownLevel',
+  no_next_level: 'kasse.dunningRun.reason.noNextLevel',
+  next_level_missing: 'kasse.dunningRun.reason.nextLevelMissing',
+  issue_failed: 'kasse.dunningRun.reason.issueFailed',
+};
+
+/** The message key of the reason a claim did not advance, or null for one this build does not know. */
+export function skipReasonKey(reason: string): string | null {
+  return SKIP_REASON_KEYS[reason] ?? null;
 }
 
 /**
@@ -36,89 +33,93 @@ export function skipReasonLabel(reason: string): string {
  */
 @Component({
   selector: 'app-dunning-run',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="dunning-run-heading">
-      <h2 id="dunning-run-heading">Mahnlauf</h2>
-
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      <form (submit)="run($event)">
-        <p>
-          <label for="run-year">Jahr</label>
-          <input
-            id="run-year"
-            type="number"
-            [value]="year()"
-            (input)="year.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="run-as-of">Stichtag</label>
-          <input
-            id="run-as-of"
-            type="date"
-            [value]="asOf()"
-            (input)="asOf.set($any($event.target).value)"
-          />
-        </p>
-        <button type="submit" [disabled]="running()">
-          {{ running() ? 'Mahnlauf läuft.' : 'Mahnlauf starten' }}
-        </button>
-      </form>
-
-      @if (result(); as r) {
-        @if (r.Outcomes.length === 0) {
-          <p role="status">Kein offener Posten war am Stichtag fällig.</p>
-        } @else {
-          <table>
-            <caption>
-              Ergebnis des Mahnlaufs
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Posten</th>
-                <th scope="col">Mandat</th>
-                <th scope="col" class="amount">Betrag</th>
-                <th scope="col">Fälligkeit</th>
-                <th scope="col">Stufe</th>
-                <th scope="col" class="amount">Mahngebühr</th>
-                <th scope="col">Ergebnis</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (o of r.Outcomes; track o.ReceivableID) {
-                <tr [attr.data-testid]="'run-' + o.ReceivableID">
-                  <td>{{ o.ClaimReference }}</td>
-                  <td>{{ o.MandateReference }}</td>
-                  <td class="amount">{{ amount(o.AmountCents) }}</td>
-                  <td>{{ day(o.DueDate) }}</td>
-                  <td>{{ o.LevelCode }}</td>
-                  <td class="amount">{{ o.Issued ? amount(o.ChargeCents) : '—' }}</td>
-                  <td>
-                    {{ outcomeLabel(o) }}
-                    @if (o.Issued && o.DocumentKey) {
-                      <a [href]="'/api/dunning/notices/' + o.NoticeID + '/document'">Mahnung</a>
-                    }
-                    @if (o.Detail) {
-                      <span class="detail">{{ o.Detail }}</span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+    <app-page titleKey="page.kasseMahnlauf.title" subtitleKey="page.kasseMahnlauf.subtitle">
+      <section>
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
-    </section>
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
+
+        <form (submit)="run($event)">
+          <div class="field">
+            <label for="run-year">{{ 'common.year' | transloco }}</label>
+            <input
+              id="run-year"
+              type="number"
+              [value]="year()"
+              (input)="year.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="run-as-of">{{ 'kasse.dunningRun.asOf' | transloco }}</label>
+            <input
+              id="run-as-of"
+              type="date"
+              [value]="asOf()"
+              (input)="asOf.set($any($event.target).value)"
+            />
+          </div>
+          <button type="submit" [disabled]="running()">
+            {{ (running() ? 'kasse.dunningRun.running' : 'kasse.dunningRun.start') | transloco }}
+          </button>
+        </form>
+
+        @if (result(); as r) {
+          @if (r.Outcomes.length === 0) {
+            <p role="status">{{ 'kasse.dunningRun.nothingDue' | transloco }}</p>
+          } @else {
+            <table>
+              <caption>
+                {{ 'kasse.dunningRun.caption' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'kasse.dunningRun.item' | transloco }}</th>
+                  <th scope="col">{{ 'common.mandate' | transloco }}</th>
+                  <th scope="col" class="amount">{{ 'common.amount' | transloco }}</th>
+                  <th scope="col">{{ 'common.dueDate' | transloco }}</th>
+                  <th scope="col">{{ 'kasse.dunningRun.level' | transloco }}</th>
+                  <th scope="col" class="amount">{{ 'kasse.dunningRun.charge' | transloco }}</th>
+                  <th scope="col">{{ 'kasse.dunningRun.outcome' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (o of r.Outcomes; track o.ReceivableID) {
+                  <tr [attr.data-testid]="'run-' + o.ReceivableID">
+                    <td>{{ o.ClaimReference }}</td>
+                    <td>{{ o.MandateReference }}</td>
+                    <td class="amount">{{ amount(o.AmountCents) }}</td>
+                    <td>{{ day(o.DueDate) }}</td>
+                    <td>{{ o.LevelCode }}</td>
+                    <td class="amount">{{ o.Issued ? amount(o.ChargeCents) : '—' }}</td>
+                    <td>
+                      {{ outcomeLabel(o) }}
+                      @if (o.Issued && o.DocumentKey) {
+                        <a [href]="'/api/dunning/notices/' + o.NoticeID + '/document'">
+                          {{ 'kasse.dunningRun.notice' | transloco }}
+                        </a>
+                      }
+                      @if (o.Detail) {
+                        <span class="detail">{{ o.Detail }}</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      </section>
+    </app-page>
   `,
 })
 export class DunningRunComponent {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly year = signal(String(new Date().getFullYear()));
   readonly asOf = signal(isoDay(new Date()));
@@ -136,11 +137,11 @@ export class DunningRunComponent {
 
     const year = Number(this.year());
     if (!Number.isInteger(year) || year < 1900 || year > 2999) {
-      this.actionError.set('Das Jahr muss zwischen 1900 und 2999 liegen.');
+      this.actionError.set(this.i18n.translate('kasse.dunningRun.yearInvalid'));
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(this.asOf())) {
-      this.actionError.set('Ein Stichtag ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.dunningRun.asOfRequired'));
       return;
     }
 
@@ -149,13 +150,16 @@ export class DunningRunComponent {
       next: (result) => {
         this.result.set(result);
         this.notice.set(
-          `Mahnlauf abgeschlossen: ${result.Issued} ausgestellt, ${result.Skipped} übersprungen, ` +
-            `${result.Failed} fehlgeschlagen.`
+          this.i18n.translate('kasse.dunningRun.completed', {
+            issued: result.Issued,
+            skipped: result.Skipped,
+            failed: result.Failed,
+          })
         );
         this.running.set(false);
       },
       error: () => {
-        this.actionError.set('Der Mahnlauf konnte nicht ausgeführt werden.');
+        this.actionError.set(this.i18n.translate('kasse.dunningRun.runFailed'));
         this.running.set(false);
       },
     });
@@ -170,10 +174,11 @@ export class DunningRunComponent {
   }
 
   reason(reason: string): string {
-    return skipReasonLabel(reason);
+    const key = skipReasonKey(reason);
+    return key === null ? reason : this.i18n.translate(key);
   }
 
   outcomeLabel(o: DunningRunOutcome): string {
-    return o.Issued ? 'ausgestellt' : this.reason(o.Reason);
+    return o.Issued ? this.i18n.translate('kasse.dunningRun.issued') : this.reason(o.Reason);
   }
 }

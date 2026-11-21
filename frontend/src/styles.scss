@@ -86,17 +86,23 @@ section {
   padding: var(--erp-gutter);
 }
 
-section > h2,
-section > h3 {
-  margin: 0 0 1rem;
+// A screen's own heading is the <h1> that `<app-page>` renders; everything inside the section
+// is a subsection, so an h2 is a title and an h3 a sub-title. The scale follows that order.
+section > h2 {
+  margin: 1.75rem 0 1rem;
   color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-headline-small);
+  font: var(--mat-sys-title-large);
   letter-spacing: -0.01em;
 }
 
+section > h2:first-child {
+  margin-top: 0;
+}
+
 section > h3 {
-  margin-top: 1.75rem;
-  font: var(--mat-sys-title-large);
+  margin: 1.25rem 0 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-title-medium);
 }
 
 // Cards: a section that holds a table or a form reads as one surface.

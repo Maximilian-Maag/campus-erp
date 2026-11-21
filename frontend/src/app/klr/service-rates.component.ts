@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, CostCenter, CostType, ServiceRate } from '../core/api/generated';
 import { euroToCents, formatCents, formatDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * KLR — Verrechnungspreise (interne Leistungsverrechnung).
@@ -9,182 +11,201 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
  * charges it out: a rate per unit of a cost type's service, and a charge that prices a quantity at
  * the rate in force on the day the service was rendered. Both activities are audits of the books,
  * so the screen reports a refusal as it comes back rather than re-deriving the rules.
+ *
+ * The copy is message keys, so the screen reads in the clerk's language; the API's own refusals are
+ * turned into the message that names the rule that was broken.
  */
 @Component({
   selector: 'app-klr-service-rates',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="klr-rates-heading">
-      <h2 id="klr-rates-heading">Verrechnungspreise</h2>
+    <app-page titleKey="page.klrVerrechnungspreise.title" subtitleKey="page.klrVerrechnungspreise.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Verrechnungspreise werden geladen.</p>
-      } @else if (!loadError()) {
-        @if (rates().length === 0) {
-          <p role="status" data-testid="no-rates">Es ist noch kein Verrechnungspreis hinterlegt.</p>
-        } @else {
-          <h3 id="klr-rate-list-heading">Hinterlegte Preise</h3>
-          <table aria-labelledby="klr-rate-list-heading">
-            <caption>
-              Preis je Einheit einer Kostenart
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Kostenart</th>
-                <th scope="col" class="amount">Preis</th>
-                <th scope="col">Gültig ab</th>
-                <th scope="col">Gültig bis</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (rate of rates(); track rate.ID) {
-                <tr [attr.data-testid]="'rate-' + rate.ID">
-                  <td [attr.data-testid]="'rate-cost-type-' + rate.ID">{{ costTypeLabel(rate.CostTypeID) }}</td>
-                  <td class="amount" [attr.data-testid]="'rate-amount-' + rate.ID">{{ euro(rate.RateCents) }}</td>
-                  <td>{{ day(rate.ValidFrom) }}</td>
-                  <td>{{ rate.ValidTo ? day(rate.ValidTo) : 'unbegrenzt' }}</td>
+        @if (loading()) {
+          <p role="status">{{ 'klr.serviceRates.loading' | transloco }}</p>
+        } @else if (!loadError()) {
+          @if (rates().length === 0) {
+            <p role="status" data-testid="no-rates">{{ 'klr.serviceRates.empty' | transloco }}</p>
+          } @else {
+            <h2 id="klr-rate-list-heading">{{ 'klr.serviceRates.listHeading' | transloco }}</h2>
+            <table aria-labelledby="klr-rate-list-heading">
+              <caption>
+                {{ 'klr.serviceRates.listCaption' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'common.costType' | transloco }}</th>
+                  <th scope="col" class="amount">{{ 'klr.serviceRates.priceColumn' | transloco }}</th>
+                  <th scope="col">{{ 'common.validFrom' | transloco }}</th>
+                  <th scope="col">{{ 'common.validUntil' | transloco }}</th>
                 </tr>
-              }
-            </tbody>
-          </table>
-        }
-
-        @if (costTypes().length === 0) {
-          <p role="status">Es sind keine Kostenarten angelegt.</p>
-        } @else {
-          <form (submit)="defineRate($event)">
-            <h3 id="klr-rate-define-heading">Preis hinterlegen</h3>
-            <p>
-              <label for="klr-rate-cost-type">Kostenart</label>
-              <select
-                id="klr-rate-cost-type"
-                [value]="rateCostType()"
-                (change)="rateCostType.set($any($event.target).value)"
-              >
-                @for (type of costTypes(); track type.ID) {
-                  <option [value]="type.ID">{{ type.Code }} {{ type.Name }}</option>
+              </thead>
+              <tbody>
+                @for (rate of rates(); track rate.ID) {
+                  <tr [attr.data-testid]="'rate-' + rate.ID">
+                    <td [attr.data-testid]="'rate-cost-type-' + rate.ID">{{ costTypeLabel(rate.CostTypeID) }}</td>
+                    <td class="amount" [attr.data-testid]="'rate-amount-' + rate.ID">{{ euro(rate.RateCents) }}</td>
+                    <td>{{ day(rate.ValidFrom) }}</td>
+                    <td>{{ rate.ValidTo ? day(rate.ValidTo) : ('klr.common.unbounded' | transloco) }}</td>
+                  </tr>
                 }
-              </select>
-            </p>
-            @if (hasMore()) {
-              <p>
-                <button
-                  type="button"
-                  data-testid="load-more-cost-types"
-                  [disabled]="loadingMore()"
-                  (click)="loadMore()"
+              </tbody>
+            </table>
+          }
+
+          @if (costTypes().length === 0) {
+            <p role="status">{{ 'klr.common.noCostTypes' | transloco }}</p>
+          } @else {
+            <form (submit)="defineRate($event)">
+              <h2 id="klr-rate-define-heading">{{ 'klr.serviceRates.defineHeading' | transloco }}</h2>
+              <div class="field">
+                <label for="klr-rate-cost-type">{{ 'common.costType' | transloco }}</label>
+                <select
+                  id="klr-rate-cost-type"
+                  [value]="rateCostType()"
+                  (change)="rateCostType.set($any($event.target).value)"
                 >
-                  {{ loadingMore() ? 'Weitere Kostenarten werden geladen …' : 'Weitere Kostenarten laden' }}
+                  @for (type of costTypes(); track type.ID) {
+                    <option [value]="type.ID">{{ type.Code }} {{ type.Name }}</option>
+                  }
+                </select>
+              </div>
+              @if (hasMore()) {
+                <p>
+                  <button
+                    type="button"
+                    data-testid="load-more-cost-types"
+                    [disabled]="loadingMore()"
+                    (click)="loadMore()"
+                  >
+                    {{
+                      (loadingMore() ? 'klr.serviceRates.loadingMoreCostTypes' : 'klr.serviceRates.loadMoreCostTypes')
+                        | transloco
+                    }}
+                  </button>
+                </p>
+              }
+              <div class="field">
+                <label for="klr-rate-amount">{{ 'klr.serviceRates.priceLabel' | transloco }}</label>
+                <input
+                  id="klr-rate-amount"
+                  type="text"
+                  inputmode="decimal"
+                  [value]="rateAmount()"
+                  (input)="rateAmount.set($any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="klr-rate-from">{{ 'common.validFrom' | transloco }}</label>
+                <input id="klr-rate-from" type="date" [value]="rateFrom()" (input)="rateFrom.set($any($event.target).value)" />
+              </div>
+              <div class="field">
+                <label for="klr-rate-until">{{ 'common.validUntil' | transloco }}</label>
+                <input
+                  id="klr-rate-until"
+                  type="date"
+                  [value]="rateUntil()"
+                  (input)="rateUntil.set($any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <button type="submit" data-testid="define-rate" [disabled]="saving()">
+                  {{ 'klr.serviceRates.defineButton' | transloco }}
                 </button>
-              </p>
-            }
-            <p>
-              <label for="klr-rate-amount">Preis je Einheit in Euro</label>
-              <input
-                id="klr-rate-amount"
-                type="text"
-                inputmode="decimal"
-                [value]="rateAmount()"
-                (input)="rateAmount.set($any($event.target).value)"
-              />
-            </p>
-            <p>
-              <label for="klr-rate-from">Gültig ab</label>
-              <input id="klr-rate-from" type="date" [value]="rateFrom()" (input)="rateFrom.set($any($event.target).value)" />
-            </p>
-            <p>
-              <label for="klr-rate-until">Gültig bis</label>
-              <input
-                id="klr-rate-until"
-                type="date"
-                [value]="rateUntil()"
-                (input)="rateUntil.set($any($event.target).value)"
-              />
-            </p>
-            <button type="submit" data-testid="define-rate" [disabled]="saving()">Hinterlegen</button>
-          </form>
-        }
+              </div>
+            </form>
+          }
 
-        @if (centers().length < 2 || costTypes().length === 0) {
-          <p role="status">
-            Für eine Verrechnung sind mindestens zwei Kostenstellen und eine Kostenart erforderlich.
-          </p>
-        } @else {
-          <form (submit)="charge($event)">
-            <h3 id="klr-charge-heading">Leistung verrechnen</h3>
-            <p>
-              <label for="klr-charge-provider">Leistende Kostenstelle</label>
-              <select
-                id="klr-charge-provider"
-                [value]="provider()"
-                (change)="provider.set($any($event.target).value)"
-              >
-                @for (center of centers(); track center.ID) {
-                  <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
-                }
-              </select>
+          @if (centers().length < 2 || costTypes().length === 0) {
+            <p role="status">
+              {{ 'klr.serviceRates.chargeRequirements' | transloco }}
             </p>
-            <p>
-              <label for="klr-charge-receiver">Empfangende Kostenstelle</label>
-              <select
-                id="klr-charge-receiver"
-                [value]="receiver()"
-                (change)="receiver.set($any($event.target).value)"
-              >
-                @for (center of centers(); track center.ID) {
-                  <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
-                }
-              </select>
-            </p>
-            <p>
-              <label for="klr-charge-cost-type">Kostenart</label>
-              <select
-                id="klr-charge-cost-type"
-                [value]="chargeCostType()"
-                (change)="chargeCostType.set($any($event.target).value)"
-              >
-                @for (type of costTypes(); track type.ID) {
-                  <option [value]="type.ID">{{ type.Code }} {{ type.Name }}</option>
-                }
-              </select>
-            </p>
-            <p>
-              <label for="klr-charge-quantity">Menge</label>
-              <input
-                id="klr-charge-quantity"
-                type="text"
-                inputmode="numeric"
-                [value]="quantity()"
-                (input)="quantity.set($any($event.target).value)"
-              />
-            </p>
-            <p>
-              <label for="klr-charge-on">Leistungsdatum</label>
-              <input id="klr-charge-on" type="date" [value]="chargedOn()" (input)="chargedOn.set($any($event.target).value)" />
-            </p>
-            <button type="submit" data-testid="charge-service" [disabled]="charging()">Verrechnen</button>
-            @if (result(); as r) {
-              <p role="status" data-testid="charge-result">
-                {{ euro(r.AmountCents) }} für {{ r.Quantity }} Einheiten verrechnet.
-              </p>
-            }
-          </form>
+          } @else {
+            <form (submit)="charge($event)">
+              <h2 id="klr-charge-heading">{{ 'klr.serviceRates.chargeHeading' | transloco }}</h2>
+              <div class="field">
+                <label for="klr-charge-provider">{{ 'klr.serviceRates.providerCentre' | transloco }}</label>
+                <select
+                  id="klr-charge-provider"
+                  [value]="provider()"
+                  (change)="provider.set($any($event.target).value)"
+                >
+                  @for (center of centers(); track center.ID) {
+                    <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="klr-charge-receiver">{{ 'klr.serviceRates.receiverCentre' | transloco }}</label>
+                <select
+                  id="klr-charge-receiver"
+                  [value]="receiver()"
+                  (change)="receiver.set($any($event.target).value)"
+                >
+                  @for (center of centers(); track center.ID) {
+                    <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="klr-charge-cost-type">{{ 'common.costType' | transloco }}</label>
+                <select
+                  id="klr-charge-cost-type"
+                  [value]="chargeCostType()"
+                  (change)="chargeCostType.set($any($event.target).value)"
+                >
+                  @for (type of costTypes(); track type.ID) {
+                    <option [value]="type.ID">{{ type.Code }} {{ type.Name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="klr-charge-quantity">{{ 'common.quantity' | transloco }}</label>
+                <input
+                  id="klr-charge-quantity"
+                  type="text"
+                  inputmode="numeric"
+                  [value]="quantity()"
+                  (input)="quantity.set($any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="klr-charge-on">{{ 'klr.serviceRates.serviceDate' | transloco }}</label>
+                <input id="klr-charge-on" type="date" [value]="chargedOn()" (input)="chargedOn.set($any($event.target).value)" />
+              </div>
+              <div class="field">
+                <button type="submit" data-testid="charge-service" [disabled]="charging()">
+                  {{ 'klr.serviceRates.chargeButton' | transloco }}
+                </button>
+              </div>
+              @if (result(); as r) {
+                <p role="status" data-testid="charge-result">
+                  {{
+                    'klr.serviceRates.chargeResult'
+                      | transloco: { amount: euro(r.AmountCents), quantity: r.Quantity }
+                  }}
+                </p>
+              }
+            </form>
+          }
         }
-      }
-    </section>
+      </section>
+    </app-page>
   `,
 })
 export class KlrServiceRatesComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly rates = signal<ServiceRate[]>([]);
   readonly costTypes = signal<CostType[]>([]);
@@ -238,7 +259,7 @@ export class KlrServiceRatesComponent implements OnInit {
       },
       error: () => {
         this.loadingMore.set(false);
-        this.actionError.set('Konnte die weiteren Kostenarten nicht laden.');
+        this.actionError.set(this.i18n.translate('klr.common.loadMoreCostTypesFailed'));
       },
     });
   }
@@ -263,7 +284,7 @@ export class KlrServiceRatesComponent implements OnInit {
         }
       },
       error: () => {
-        this.loadError.set('Konnte die Kostenarten nicht laden.');
+        this.loadError.set(this.i18n.translate('klr.common.loadCostTypesFailed'));
         this.loading.set(false);
       },
     });
@@ -282,13 +303,13 @@ export class KlrServiceRatesComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Kostenstellen nicht laden.');
+        this.loadError.set(this.i18n.translate('klr.common.loadCostCentresFailed'));
         this.loading.set(false);
       },
     });
     this.api.listServiceRates().subscribe({
       next: (rates) => this.rates.set(rates ?? []),
-      error: () => this.loadError.set('Konnte die Verrechnungspreise nicht laden.'),
+      error: () => this.loadError.set(this.i18n.translate('klr.serviceRates.loadRatesFailed')),
     });
   }
 
@@ -296,11 +317,11 @@ export class KlrServiceRatesComponent implements OnInit {
     event.preventDefault();
     const cents = euroToCents(this.rateAmount());
     if (cents === null) {
-      this.actionError.set('Der Preis muss ein Betrag über 0 sein.');
+      this.actionError.set(this.i18n.translate('klr.serviceRates.priceInvalid'));
       return;
     }
     if (!this.rateFrom()) {
-      this.actionError.set('Ein Gültig-ab-Datum ist erforderlich.');
+      this.actionError.set(this.i18n.translate('klr.common.validFromRequired'));
       return;
     }
     this.saving.set(true);
@@ -316,16 +337,16 @@ export class KlrServiceRatesComponent implements OnInit {
       .subscribe({
         next: () => {
           this.saving.set(false);
-          this.notice.set('Verrechnungspreis hinterlegt.');
+          this.notice.set(this.i18n.translate('klr.serviceRates.rateSaved'));
           this.rateAmount.set('');
           this.api.listServiceRates().subscribe({
             next: (rates) => this.rates.set(rates ?? []),
-            error: () => this.loadError.set('Konnte die Verrechnungspreise nicht laden.'),
+            error: () => this.loadError.set(this.i18n.translate('klr.serviceRates.loadRatesFailed')),
           });
         },
         error: () => {
           this.saving.set(false);
-          this.actionError.set('Konnte den Verrechnungspreis nicht hinterlegen.');
+          this.actionError.set(this.i18n.translate('klr.serviceRates.saveFailed'));
         },
       });
   }
@@ -335,11 +356,11 @@ export class KlrServiceRatesComponent implements OnInit {
     // Number() already ignores surrounding whitespace, so there is no trim here to do it twice.
     const quantity = Number(this.quantity());
     if (!Number.isInteger(quantity) || quantity <= 0) {
-      this.actionError.set('Die Menge muss eine ganze Zahl über 0 sein.');
+      this.actionError.set(this.i18n.translate('klr.serviceRates.quantityInvalid'));
       return;
     }
     if (!this.chargedOn()) {
-      this.actionError.set('Ein Leistungsdatum ist erforderlich.');
+      this.actionError.set(this.i18n.translate('klr.serviceRates.serviceDateRequired'));
       return;
     }
     this.charging.set(true);
@@ -361,7 +382,7 @@ export class KlrServiceRatesComponent implements OnInit {
         },
         error: () => {
           this.charging.set(false);
-          this.actionError.set('Konnte die Leistung nicht verrechnen.');
+          this.actionError.set(this.i18n.translate('klr.serviceRates.chargeFailed'));
         },
       });
   }

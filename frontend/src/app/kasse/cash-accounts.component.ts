@@ -1,5 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, CashAccount } from '../core/api/generated';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Kasse — Eigene Konten (the university's own bank accounts).
@@ -11,101 +13,108 @@ import { CampusErpApi, CashAccount } from '../core/api/generated';
  *
  * The IBAN and BIC are the API's to validate (ISO 7064 mod-97 and ISO 9362, shared with the rest
  * of Kasse): the screen states what it is handed and reports a refusal as it comes back rather
- * than re-deriving the rule. Amounts are not shown here — an account carries none.
+ * than re-deriving the rule. Amounts are not shown here — an account carries none. The copy is a
+ * message key, so the screen speaks the clerk's language.
  */
 @Component({
   selector: 'app-cash-accounts',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="cash-accounts-heading">
-      <h2 id="cash-accounts-heading">Eigene Konten</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Konten werden geladen.</p>
-      } @else if (!loadError()) {
-        @if (accounts().length === 0) {
-          <p role="status">Es ist noch kein eigenes Konto angelegt.</p>
-        } @else {
-          <table>
-            <caption>
-              Eigene Konten mit Name, IBAN, BIC und Währung
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">IBAN</th>
-                <th scope="col">BIC</th>
-                <th scope="col">Währung</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (account of accounts(); track account.ID) {
-                <tr [attr.data-testid]="'account-' + account.ID">
-                  <td>{{ account.Name }}</td>
-                  <td class="iban">{{ account.IBAN }}</td>
-                  <td>{{ account.BIC }}</td>
-                  <td>{{ account.Currency }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+    <app-page titleKey="page.kasseKonten.title" subtitleKey="page.kasseKonten.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
         }
 
-        <form (submit)="create($event)">
-          <h3 id="cash-account-new-heading">Konto anlegen</h3>
-          <p>
-            <label for="account-name">Name</label>
-            <input
-              id="account-name"
-              type="text"
-              [value]="name()"
-              (input)="name.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="account-iban">IBAN</label>
-            <input
-              id="account-iban"
-              type="text"
-              [value]="iban()"
-              (input)="iban.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="account-bic">BIC</label>
-            <input
-              id="account-bic"
-              type="text"
-              [value]="bic()"
-              (input)="bic.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="account-currency">Währung</label>
-            <input
-              id="account-currency"
-              type="text"
-              [value]="currency()"
-              (input)="currency.set($any($event.target).value)"
-            />
-          </p>
-          <button type="submit" [disabled]="submitting()">Konto anlegen</button>
-        </form>
-      }
-    </section>
+        @if (loading()) {
+          <p role="status">{{ 'kasse.accounts.loading' | transloco }}</p>
+        } @else if (!loadError()) {
+          @if (accounts().length === 0) {
+            <p role="status">{{ 'kasse.accounts.empty' | transloco }}</p>
+          } @else {
+            <table>
+              <caption>
+                {{ 'kasse.accounts.caption' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'common.name' | transloco }}</th>
+                  <th scope="col">{{ 'common.iban' | transloco }}</th>
+                  <th scope="col">{{ 'common.bic' | transloco }}</th>
+                  <th scope="col">{{ 'common.currency' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (account of accounts(); track account.ID) {
+                  <tr [attr.data-testid]="'account-' + account.ID">
+                    <td>{{ account.Name }}</td>
+                    <td class="iban">{{ account.IBAN }}</td>
+                    <td>{{ account.BIC }}</td>
+                    <td>{{ account.Currency }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+
+          <form (submit)="create($event)">
+            <h2 id="cash-account-new-heading">{{ 'kasse.accounts.create' | transloco }}</h2>
+            <div class="field">
+              <label for="account-name">{{ 'common.name' | transloco }}</label>
+              <input
+                id="account-name"
+                type="text"
+                [value]="name()"
+                (input)="name.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="account-iban">{{ 'common.iban' | transloco }}</label>
+              <input
+                id="account-iban"
+                type="text"
+                [value]="iban()"
+                (input)="iban.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="account-bic">{{ 'common.bic' | transloco }}</label>
+              <input
+                id="account-bic"
+                type="text"
+                [value]="bic()"
+                (input)="bic.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="account-currency">{{ 'common.currency' | transloco }}</label>
+              <input
+                id="account-currency"
+                type="text"
+                [value]="currency()"
+                (input)="currency.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="submitting()">
+                {{ 'kasse.accounts.create' | transloco }}
+              </button>
+            </div>
+          </form>
+        }
+      </section>
+    </app-page>
   `,
 })
 export class CashAccountsComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly accounts = signal<CashAccount[]>([]);
   readonly loading = signal(true);
@@ -132,7 +141,7 @@ export class CashAccountsComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Konten nicht laden.');
+        this.loadError.set(this.i18n.translate('kasse.accounts.loadFailed'));
         this.loading.set(false);
       },
     });
@@ -142,17 +151,17 @@ export class CashAccountsComponent implements OnInit {
     event.preventDefault();
     const name = this.name().trim();
     if (name === '') {
-      this.actionError.set('Ein Name ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.accounts.nameRequired'));
       return;
     }
     const iban = this.iban().trim();
     if (iban === '') {
-      this.actionError.set('Eine IBAN ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.accounts.ibanRequired'));
       return;
     }
     const currency = this.currency().trim();
     if (currency === '') {
-      this.actionError.set('Eine Währung ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.accounts.currencyRequired'));
       return;
     }
     this.submitting.set(true);
@@ -165,7 +174,7 @@ export class CashAccountsComponent implements OnInit {
           this.submitting.set(false);
           // The new account joins the list the server holds; a reload would only re-read it.
           this.accounts.set([...this.accounts(), account]);
-          this.notice.set('Konto angelegt.');
+          this.notice.set(this.i18n.translate('kasse.accounts.created'));
           this.name.set('');
           this.iban.set('');
           this.bic.set('');
@@ -173,7 +182,7 @@ export class CashAccountsComponent implements OnInit {
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte das Konto nicht anlegen.');
+          this.actionError.set(this.i18n.translate('kasse.accounts.createFailed'));
         },
       });
   }

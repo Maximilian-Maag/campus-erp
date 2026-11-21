@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import {
   CampusErpApi,
   Foundation,
@@ -8,6 +9,7 @@ import {
 } from '../core/api/generated';
 import { euroToCents, formatCents } from '../core/format';
 import { problemCode } from '../core/problem';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Finanzen — Stiftungen (a foundation, its books, and a book's movements).
@@ -30,156 +32,74 @@ import { problemCode } from '../core/problem';
  */
 @Component({
   selector: 'app-foundations',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="foundations-heading">
-      <h2 id="foundations-heading">Stiftungen</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      <form (submit)="filter($event)">
-        <h3 id="foundations-filter-heading">Nach Jahr anzeigen</h3>
-        <p>
-          <label for="foundation-filter-year">Jahr</label>
-          <input
-            id="foundation-filter-year"
-            type="text"
-            inputmode="numeric"
-            [value]="filterYear()"
-            (input)="filterYear.set($any($event.target).value)"
-          />
-          <button type="submit">Anzeigen</button>
-        </p>
-        <p>Ohne Jahr werden alle Jahre angezeigt.</p>
-      </form>
-
-      @if (loading()) {
-        <p role="status">Stiftungen werden geladen.</p>
-      } @else if (!loadError()) {
-        @if (foundations().length === 0) {
-          <p role="status">Es ist noch keine Stiftung zu diesem Jahr angelegt.</p>
-        } @else {
-          <table>
-            <caption>
-              Stiftungen mit Jahr, Nummer, Bezeichnung und Übertrag
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Jahr</th>
-                <th scope="col">Nummer</th>
-                <th scope="col">Bezeichnung</th>
-                <th scope="col">Übertrag</th>
-                <th scope="col">Bücher</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (foundation of foundations(); track foundation.ID) {
-                <tr [attr.data-testid]="'foundation-' + foundation.ID">
-                  <td>{{ foundation.Year }}</td>
-                  <td>{{ foundation.Number }}</td>
-                  <td>{{ foundation.Description }}</td>
-                  <td>{{ foundation.CarryOver ? 'ja' : 'nein' }}</td>
-                  <td>
-                    <button type="button" (click)="select(foundation)">Bücher anzeigen</button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+    <app-page titleKey="page.finanzenStiftungen.title" subtitleKey="page.finanzenStiftungen.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
         }
 
-        <form (submit)="createFoundation($event)">
-          <h3 id="foundation-new-heading">Stiftung anlegen</h3>
-          <p>
-            <label for="foundation-year">Haushaltsjahr</label>
+        <form (submit)="filter($event)">
+          <h2 id="foundations-filter-heading">{{ 'finanzen.foundations.filterHeading' | transloco }}</h2>
+          <div class="field">
+            <label for="foundation-filter-year">{{ 'common.year' | transloco }}</label>
             <input
-              id="foundation-year"
+              id="foundation-filter-year"
               type="text"
               inputmode="numeric"
-              [value]="newYear()"
-              (input)="newYear.set($any($event.target).value)"
+              [value]="filterYear()"
+              (input)="filterYear.set($any($event.target).value)"
             />
-          </p>
-          <p>
-            <label for="foundation-number">Nummer</label>
-            <input
-              id="foundation-number"
-              type="text"
-              [value]="newNumber()"
-              (input)="newNumber.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="foundation-description">Bezeichnung</label>
-            <input
-              id="foundation-description"
-              type="text"
-              [value]="newDescription()"
-              (input)="newDescription.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <input
-              id="foundation-carry-over"
-              type="checkbox"
-              [checked]="newCarryOver()"
-              (change)="newCarryOver.set($any($event.target).checked)"
-            />
-            <label for="foundation-carry-over">Übertrag möglich</label>
-          </p>
-          <button type="submit" [disabled]="submitting()">Stiftung anlegen</button>
+          </div>
+          <div class="field">
+            <button type="submit">{{ 'finanzen.foundations.show' | transloco }}</button>
+          </div>
+          <p>{{ 'finanzen.foundations.filterHint' | transloco }}</p>
         </form>
-      }
 
-      @if (selectedFoundation(); as foundation) {
-        <section
-          aria-labelledby="books-heading"
-          [attr.data-testid]="'books-of-' + foundation.ID"
-        >
-          <h3 id="books-heading">Stiftungsbücher — {{ foundation.Year }}/{{ foundation.Number }}</h3>
-
-          @if (booksLoading()) {
-            <p role="status">Bücher werden geladen.</p>
-          } @else if (books().length === 0) {
-            <p role="status">Diese Stiftung hat noch kein Buch.</p>
+        @if (loading()) {
+          <p role="status">{{ 'finanzen.foundations.loading' | transloco }}</p>
+        } @else if (!loadError()) {
+          @if (foundations().length === 0) {
+            <p role="status">{{ 'finanzen.foundations.empty' | transloco }}</p>
           } @else {
             <table>
               <caption>
-                Bücher dieser Stiftung mit Referenz, Währung und anlegendem Konto
+                {{ 'finanzen.foundations.listCaption' | transloco }}
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">Referenz</th>
-                  <th scope="col">Währung</th>
-                  <th scope="col">Angelegt von</th>
-                  <th scope="col">Buchungen</th>
-                  <th scope="col">Abschluss</th>
+                  <th scope="col">{{ 'common.year' | transloco }}</th>
+                  <th scope="col">{{ 'common.number' | transloco }}</th>
+                  <th scope="col">{{ 'common.description' | transloco }}</th>
+                  <th scope="col">{{ 'finanzen.foundations.carryOver' | transloco }}</th>
+                  <th scope="col">{{ 'finanzen.foundations.books' | transloco }}</th>
                 </tr>
               </thead>
               <tbody>
-                @for (book of books(); track book.ID) {
-                  <tr [attr.data-testid]="'book-' + book.ID">
-                    <td>{{ book.Reference }}</td>
-                    <td>{{ book.Currency }}</td>
-                    <td>{{ book.CreatedBy }}</td>
+                @for (foundation of foundations(); track foundation.ID) {
+                  <tr [attr.data-testid]="'foundation-' + foundation.ID">
+                    <td>{{ foundation.Year }}</td>
+                    <td>{{ foundation.Number }}</td>
+                    <td>{{ foundation.Description }}</td>
                     <td>
-                      <button type="button" (click)="selectBook(book)">Buchungen anzeigen</button>
+                      {{
+                        (foundation.CarryOver
+                          ? 'finanzen.foundations.yes'
+                          : 'finanzen.foundations.no'
+                        ) | transloco
+                      }}
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        [attr.data-testid]="'carry-over-' + book.ID"
-                        [disabled]="carryingOver() === book.ID"
-                        (click)="carryOver(book)"
-                      >
-                        {{ carryingOver() === book.ID ? 'Übertrage …' : 'Ins Folgejahr übertragen' }}
+                      <button type="button" (click)="select(foundation)">
+                        {{ 'finanzen.foundations.showBooks' | transloco }}
                       </button>
                     </td>
                   </tr>
@@ -188,140 +108,276 @@ import { problemCode } from '../core/problem';
             </table>
           }
 
-          <form (submit)="createBook($event)">
-            <h4 id="book-new-heading">Buch anlegen</h4>
-            <p>
-              <label for="book-reference">Referenz</label>
+          <form (submit)="createFoundation($event)">
+            <h2 id="foundation-new-heading">{{ 'finanzen.foundations.newTitle' | transloco }}</h2>
+            <div class="field">
+              <label for="foundation-year">{{ 'finanzen.foundations.budgetYear' | transloco }}</label>
               <input
-                id="book-reference"
+                id="foundation-year"
                 type="text"
-                [value]="reference()"
-                (input)="reference.set($any($event.target).value)"
+                inputmode="numeric"
+                [value]="newYear()"
+                (input)="newYear.set($any($event.target).value)"
               />
-            </p>
-            <p>
-              <label for="book-currency">Währung</label>
+            </div>
+            <div class="field">
+              <label for="foundation-number">{{ 'common.number' | transloco }}</label>
               <input
-                id="book-currency"
+                id="foundation-number"
                 type="text"
-                [value]="currency()"
-                (input)="currency.set($any($event.target).value)"
+                [value]="newNumber()"
+                (input)="newNumber.set($any($event.target).value)"
               />
-            </p>
-            <button type="submit" [disabled]="submitting()">Buch anlegen</button>
+            </div>
+            <div class="field">
+              <label for="foundation-description">{{ 'common.description' | transloco }}</label>
+              <input
+                id="foundation-description"
+                type="text"
+                [value]="newDescription()"
+                (input)="newDescription.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <input
+                id="foundation-carry-over"
+                type="checkbox"
+                [checked]="newCarryOver()"
+                (change)="newCarryOver.set($any($event.target).checked)"
+              />
+              <label for="foundation-carry-over">{{ 'finanzen.foundations.carryOverAllowed' | transloco }}</label>
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="submitting()">
+                {{ 'finanzen.foundations.submit' | transloco }}
+              </button>
+            </div>
           </form>
+        }
 
-          @if (selectedBook(); as book) {
-            <section aria-labelledby="bookings-heading" [attr.data-testid]="'bookings-of-' + book.ID">
-              <h4 id="bookings-heading">Buchungen — {{ book.Reference }}</h4>
+        @if (selectedFoundation(); as foundation) {
+          <section aria-labelledby="books-heading" [attr.data-testid]="'books-of-' + foundation.ID">
+            <h2 id="books-heading">
+              {{
+                'finanzen.foundations.booksHeading'
+                  | transloco: { year: foundation.Year, number: foundation.Number }
+              }}
+            </h2>
 
-              @if (balance(); as b) {
-                <p>
-                  Einnahmen {{ euro(b.IncomeCents) }} — Ausgaben {{ euro(b.ExpenseCents) }} — Saldo
-                  {{ euro(net(b)) }}
-                </p>
-              }
-
-              @if (bookings().length === 0) {
-                <p role="status">Dieses Buch hat noch keine Buchung.</p>
-              } @else {
-                <table>
-                  <caption>
-                    Buchungen dieses Buches mit Art, Betrag, Verwendungszweck und erfassendem Konto
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Art</th>
-                      <th scope="col">Betrag</th>
-                      <th scope="col">Verwendungszweck</th>
-                      <th scope="col">Erfasst von</th>
-                      <th scope="col">Korrektur</th>
+            @if (booksLoading()) {
+              <p role="status">{{ 'finanzen.foundations.booksLoading' | transloco }}</p>
+            } @else if (books().length === 0) {
+              <p role="status">{{ 'finanzen.foundations.booksEmpty' | transloco }}</p>
+            } @else {
+              <table>
+                <caption>
+                  {{ 'finanzen.foundations.booksCaption' | transloco }}
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{{ 'common.reference' | transloco }}</th>
+                    <th scope="col">{{ 'common.currency' | transloco }}</th>
+                    <th scope="col">{{ 'finanzen.foundations.createdBy' | transloco }}</th>
+                    <th scope="col">{{ 'finanzen.foundations.bookings' | transloco }}</th>
+                    <th scope="col">{{ 'finanzen.foundations.closing' | transloco }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (book of books(); track book.ID) {
+                    <tr [attr.data-testid]="'book-' + book.ID">
+                      <td>{{ book.Reference }}</td>
+                      <td>{{ book.Currency }}</td>
+                      <td>{{ book.CreatedBy }}</td>
+                      <td>
+                        <button type="button" (click)="selectBook(book)">
+                          {{ 'finanzen.foundations.showBookings' | transloco }}
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          [attr.data-testid]="'carry-over-' + book.ID"
+                          [disabled]="carryingOver() === book.ID"
+                          (click)="carryOver(book)"
+                        >
+                          {{
+                            carryingOver() === book.ID
+                              ? ('finanzen.foundations.carryingOver' | transloco)
+                              : ('finanzen.foundations.carryOverAction' | transloco)
+                          }}
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    @for (booking of bookings(); track booking.ID) {
-                      <tr [attr.data-testid]="'booking-' + booking.ID">
-                        <td>{{ kindLabel(booking.Kind) }}</td>
-                        <td>{{ euro(booking.AmountCents) }}</td>
-                        <td>{{ booking.Purpose }}</td>
-                        <td>{{ booking.BookedBy }}</td>
-                        <td>
-                          @if (booking.ReversedBy) {
-                            <span [attr.data-testid]="'reversed-' + booking.ID">storniert</span>
-                          } @else if (booking.Reverses) {
-                            <span [attr.data-testid]="'counter-' + booking.ID">Gegenbuchung</span>
-                          } @else {
-                            <button
-                              type="button"
-                              [attr.data-testid]="'reverse-' + booking.ID"
-                              [disabled]="reversing() === booking.ID"
-                              (click)="reverse(booking)"
-                            >
-                              {{ reversing() === booking.ID ? 'Storniere …' : 'Stornieren' }}
-                            </button>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-                @if (hasMore()) {
+                  }
+                </tbody>
+              </table>
+            }
+
+            <form (submit)="createBook($event)">
+              <h3 id="book-new-heading">{{ 'finanzen.foundations.newBookTitle' | transloco }}</h3>
+              <div class="field">
+                <label for="book-reference">{{ 'common.reference' | transloco }}</label>
+                <input
+                  id="book-reference"
+                  type="text"
+                  [value]="reference()"
+                  (input)="reference.set($any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="book-currency">{{ 'common.currency' | transloco }}</label>
+                <input
+                  id="book-currency"
+                  type="text"
+                  [value]="currency()"
+                  (input)="currency.set($any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <button type="submit" [disabled]="submitting()">
+                  {{ 'finanzen.foundations.submitBook' | transloco }}
+                </button>
+              </div>
+            </form>
+
+            @if (selectedBook(); as book) {
+              <section aria-labelledby="bookings-heading" [attr.data-testid]="'bookings-of-' + book.ID">
+                <h3 id="bookings-heading">
+                  {{ 'finanzen.foundations.bookingsHeading' | transloco: { reference: book.Reference } }}
+                </h3>
+
+                @if (balance(); as b) {
                   <p>
-                    <button
-                      type="button"
-                      data-testid="load-more-bookings"
-                      [disabled]="loadingMore()"
-                      (click)="loadMore()"
-                    >
-                      {{ loadingMore() ? 'Weitere werden geladen …' : 'Weitere laden' }}
-                    </button>
+                    {{
+                      'finanzen.foundations.balance'
+                        | transloco
+                          : {
+                              income: euro(b.IncomeCents),
+                              expense: euro(b.ExpenseCents),
+                              net: euro(net(b)),
+                            }
+                    }}
                   </p>
                 }
-              }
 
-              <form (submit)="recordBooking($event)">
-                <h5 id="booking-new-heading">Buchung erfassen</h5>
-                <p>
-                  <label for="booking-kind">Art</label>
-                  <select
-                    id="booking-kind"
-                    [value]="bookingKind()"
-                    (change)="bookingKind.set($any($event.target).value)"
-                  >
-                    <option value="income">Einnahme</option>
-                    <option value="expense">Ausgabe</option>
-                  </select>
-                </p>
-                <p>
-                  <label for="booking-amount">Betrag in Euro</label>
-                  <input
-                    id="booking-amount"
-                    type="text"
-                    inputmode="decimal"
-                    [value]="bookingAmount()"
-                    (input)="bookingAmount.set($any($event.target).value)"
-                  />
-                </p>
-                <p>
-                  <label for="booking-purpose">Verwendungszweck</label>
-                  <input
-                    id="booking-purpose"
-                    type="text"
-                    [value]="purpose()"
-                    (input)="purpose.set($any($event.target).value)"
-                  />
-                </p>
-                <button type="submit" [disabled]="submitting()">Buchung erfassen</button>
-              </form>
-            </section>
-          }
-        </section>
-      }
-    </section>
+                @if (bookings().length === 0) {
+                  <p role="status">{{ 'finanzen.foundations.bookingsEmpty' | transloco }}</p>
+                } @else {
+                  <table>
+                    <caption>
+                      {{ 'finanzen.foundations.bookingsCaption' | transloco }}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{{ 'common.type' | transloco }}</th>
+                        <th scope="col">{{ 'common.amount' | transloco }}</th>
+                        <th scope="col">{{ 'common.purpose' | transloco }}</th>
+                        <th scope="col">{{ 'finanzen.foundations.bookedBy' | transloco }}</th>
+                        <th scope="col">{{ 'finanzen.foundations.correction' | transloco }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (booking of bookings(); track booking.ID) {
+                        <tr [attr.data-testid]="'booking-' + booking.ID">
+                          <td>{{ kindLabel(booking.Kind) }}</td>
+                          <td>{{ euro(booking.AmountCents) }}</td>
+                          <td>{{ booking.Purpose }}</td>
+                          <td>{{ booking.BookedBy }}</td>
+                          <td>
+                            @if (booking.ReversedBy) {
+                              <span [attr.data-testid]="'reversed-' + booking.ID">{{
+                                'finanzen.foundations.reversed' | transloco
+                              }}</span>
+                            } @else if (booking.Reverses) {
+                              <span [attr.data-testid]="'counter-' + booking.ID">{{
+                                'finanzen.foundations.counterBooking' | transloco
+                              }}</span>
+                            } @else {
+                              <button
+                                type="button"
+                                [attr.data-testid]="'reverse-' + booking.ID"
+                                [disabled]="reversing() === booking.ID"
+                                (click)="reverse(booking)"
+                              >
+                                {{
+                                  reversing() === booking.ID
+                                    ? ('finanzen.foundations.reversing' | transloco)
+                                    : ('common.cancel' | transloco)
+                                }}
+                              </button>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                  @if (hasMore()) {
+                    <p>
+                      <button
+                        type="button"
+                        data-testid="load-more-bookings"
+                        [disabled]="loadingMore()"
+                        (click)="loadMore()"
+                      >
+                        {{
+                          loadingMore()
+                            ? ('finanzen.foundations.loadingMore' | transloco)
+                            : ('finanzen.foundations.loadMore' | transloco)
+                        }}
+                      </button>
+                    </p>
+                  }
+                }
+
+                <form (submit)="recordBooking($event)">
+                  <h4 id="booking-new-heading">{{ 'finanzen.foundations.newBookingTitle' | transloco }}</h4>
+                  <div class="field">
+                    <label for="booking-kind">{{ 'common.type' | transloco }}</label>
+                    <select
+                      id="booking-kind"
+                      [value]="bookingKind()"
+                      (change)="bookingKind.set($any($event.target).value)"
+                    >
+                      <option value="income">{{ 'finanzen.foundations.income' | transloco }}</option>
+                      <option value="expense">{{ 'finanzen.foundations.expense' | transloco }}</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="booking-amount">{{ 'finanzen.foundations.amountEuro' | transloco }}</label>
+                    <input
+                      id="booking-amount"
+                      type="text"
+                      inputmode="decimal"
+                      [value]="bookingAmount()"
+                      (input)="bookingAmount.set($any($event.target).value)"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="booking-purpose">{{ 'common.purpose' | transloco }}</label>
+                    <input
+                      id="booking-purpose"
+                      type="text"
+                      [value]="purpose()"
+                      (input)="purpose.set($any($event.target).value)"
+                    />
+                  </div>
+                  <div class="field">
+                    <button type="submit" [disabled]="submitting()">
+                      {{ 'finanzen.foundations.submitBooking' | transloco }}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            }
+          </section>
+        }
+      </section>
+    </app-page>
   `,
 })
 export class FoundationsComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly foundations = signal<Foundation[]>([]);
   readonly loading = signal(true);
@@ -378,7 +434,7 @@ export class FoundationsComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Stiftungen nicht laden.');
+        this.loadError.set(this.i18n.translate('finanzen.foundations.loadFailed'));
         this.loading.set(false);
       },
     });
@@ -394,17 +450,17 @@ export class FoundationsComponent implements OnInit {
     const rawYear = this.newYear().trim();
     const year = Number(rawYear);
     if (rawYear === '' || !Number.isInteger(year)) {
-      this.actionError.set('Ein Jahr ist erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.foundations.yearRequired'));
       return;
     }
     const number = this.newNumber().trim();
     if (number === '') {
-      this.actionError.set('Eine Nummer ist erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.foundations.numberRequired'));
       return;
     }
     const description = this.newDescription().trim();
     if (description === '') {
-      this.actionError.set('Eine Bezeichnung ist erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.foundations.descriptionRequired'));
       return;
     }
     this.submitting.set(true);
@@ -415,7 +471,7 @@ export class FoundationsComponent implements OnInit {
       .subscribe({
         next: () => {
           this.submitting.set(false);
-          this.notice.set('Stiftung angelegt.');
+          this.notice.set(this.i18n.translate('finanzen.foundations.created'));
           this.newNumber.set('');
           this.newDescription.set('');
           // The list is the server's answer to the filter above, so it is read again rather than
@@ -424,7 +480,7 @@ export class FoundationsComponent implements OnInit {
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte die Stiftung nicht anlegen.');
+          this.actionError.set(this.i18n.translate('finanzen.foundations.createFailed'));
         },
       });
   }
@@ -444,7 +500,7 @@ export class FoundationsComponent implements OnInit {
         this.booksLoading.set(false);
       },
       error: () => {
-        this.actionError.set('Konnte die Bücher nicht laden.');
+        this.actionError.set(this.i18n.translate('finanzen.foundations.booksLoadFailed'));
         this.booksLoading.set(false);
       },
     });
@@ -464,12 +520,17 @@ export class FoundationsComponent implements OnInit {
       next: (res) => {
         this.carryingOver.set(null);
         this.notice.set(
-          `${formatCents(res.cents)} € aus ${res.year} übertragen — Buch ${res.target_reference} im Jahr ${res.year + 1} angelegt.`,
+          this.i18n.translate('finanzen.foundations.carriedOver', {
+            cents: formatCents(res.cents),
+            year: res.year,
+            reference: res.target_reference,
+            nextYear: res.year + 1,
+          }),
         );
       },
       error: (err: unknown) => {
         this.carryingOver.set(null);
-        this.actionError.set(carryOverMessage(err));
+        this.actionError.set(carryOverMessage(err, this.i18n));
       },
     });
   }
@@ -491,7 +552,10 @@ export class FoundationsComponent implements OnInit {
       next: (res) => {
         this.reversing.set(null);
         this.notice.set(
-          `Buchung ${res.original_id} storniert — Gegenbuchung ${res.counter_booking_id} angelegt.`,
+          this.i18n.translate('finanzen.foundations.reversedDone', {
+            original: res.original_id,
+            counter: res.counter_booking_id,
+          }),
         );
         // The counter-movement is appended by the server at the end of the book, so a screen holding
         // a page of it starts again: a page is only a page while it starts at the first movement.
@@ -500,7 +564,7 @@ export class FoundationsComponent implements OnInit {
       },
       error: (err: unknown) => {
         this.reversing.set(null);
-        this.actionError.set(reversalMessage(err));
+        this.actionError.set(reversalMessage(err, this.i18n));
       },
     });
   }
@@ -509,12 +573,12 @@ export class FoundationsComponent implements OnInit {
     event.preventDefault();
     const foundation = this.selectedFoundation();
     if (foundation === null) {
-      this.actionError.set('Zuerst eine Stiftung wählen.');
+      this.actionError.set(this.i18n.translate('finanzen.foundations.foundationRequired'));
       return;
     }
     const reference = this.reference().trim();
     if (reference === '') {
-      this.actionError.set('Eine Referenz ist erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.foundations.referenceRequired'));
       return;
     }
     this.submitting.set(true);
@@ -531,12 +595,12 @@ export class FoundationsComponent implements OnInit {
           this.submitting.set(false);
           // A new book joins the list this foundation was read for; a reload would only re-read it.
           this.books.set([...this.books(), book]);
-          this.notice.set('Buch angelegt.');
+          this.notice.set(this.i18n.translate('finanzen.foundations.bookCreated'));
           this.reference.set('');
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte das Buch nicht anlegen.');
+          this.actionError.set(this.i18n.translate('finanzen.foundations.bookCreateFailed'));
         },
       });
   }
@@ -564,7 +628,7 @@ export class FoundationsComponent implements OnInit {
         // A full page means there may be more; a short one is the end of the book's movements.
         this.hasMore.set(page.length === this.pageSize);
       },
-      error: () => this.actionError.set('Konnte die Buchungen nicht laden.'),
+      error: () => this.actionError.set(this.i18n.translate('finanzen.foundations.bookingsLoadFailed')),
     });
   }
 
@@ -591,7 +655,7 @@ export class FoundationsComponent implements OnInit {
         },
         error: () => {
           this.loadingMore.set(false);
-          this.actionError.set('Konnte die weiteren Buchungen nicht laden.');
+          this.actionError.set(this.i18n.translate('finanzen.foundations.moreBookingsLoadFailed'));
         },
       });
   }
@@ -600,17 +664,17 @@ export class FoundationsComponent implements OnInit {
     event.preventDefault();
     const book = this.selectedBook();
     if (book === null) {
-      this.actionError.set('Zuerst ein Buch wählen.');
+      this.actionError.set(this.i18n.translate('finanzen.foundations.bookRequired'));
       return;
     }
     const cents = euroToCents(this.bookingAmount());
     if (cents === null) {
-      this.actionError.set('Ein Betrag in Euro ist erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.foundations.amountRequired'));
       return;
     }
     const purpose = this.purpose().trim();
     if (purpose === '') {
-      this.actionError.set('Ein Verwendungszweck ist erforderlich.');
+      this.actionError.set(this.i18n.translate('finanzen.foundations.purposeRequired'));
       return;
     }
     this.submitting.set(true);
@@ -630,7 +694,7 @@ export class FoundationsComponent implements OnInit {
           } else {
             this.bookings.set([...this.bookings(), booking]);
           }
-          this.notice.set('Buchung erfasst.');
+          this.notice.set(this.i18n.translate('finanzen.foundations.bookingRecorded'));
           this.bookingAmount.set('');
           this.purpose.set('');
           // The balance is derived from the movements, so the server recomputes it.
@@ -638,7 +702,7 @@ export class FoundationsComponent implements OnInit {
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte die Buchung nicht erfassen.');
+          this.actionError.set(this.i18n.translate('finanzen.foundations.bookingFailed'));
         },
       });
   }
@@ -650,13 +714,17 @@ export class FoundationsComponent implements OnInit {
 
   /** A movement's kind as the screen names it. */
   kindLabel(kind: string): string {
-    return kind === 'income' ? 'Einnahme' : kind === 'expense' ? 'Ausgabe' : kind;
+    return kind === 'income'
+      ? this.i18n.translate('finanzen.foundations.income')
+      : kind === 'expense'
+        ? this.i18n.translate('finanzen.foundations.expense')
+        : kind;
   }
 
   private loadBalance(book: FoundationBook): void {
     this.api.getFoundationBalance(book.ID).subscribe({
       next: (balance) => this.balance.set(balance),
-      error: () => this.actionError.set('Konnte den Saldo nicht laden.'),
+      error: () => this.actionError.set(this.i18n.translate('finanzen.foundations.balanceLoadFailed')),
     });
   }
 }
@@ -666,16 +734,16 @@ export class FoundationsComponent implements OnInit {
  * movement already cancelled is a mistake by the operator, while a counter-movement that cannot be
  * cancelled is a rule they may not know yet.
  */
-function reversalMessage(err: unknown): string {
+function reversalMessage(err: unknown, i18n: TranslocoService): string {
   switch (problemCode(err)) {
     case 'kasse.booking_already_reversed':
-      return 'Diese Buchung ist bereits storniert.';
+      return i18n.translate('finanzen.foundations.alreadyReversed');
     case 'kasse.reversal_not_reversible':
-      return 'Eine Gegenbuchung kann nicht storniert werden.';
+      return i18n.translate('finanzen.foundations.counterNotReversible');
     case 'kasse.booking_not_found':
-      return 'Diese Buchung gibt es nicht mehr.';
+      return i18n.translate('finanzen.foundations.bookingGone');
     default:
-      return 'Konnte die Buchung nicht stornieren.';
+      return i18n.translate('finanzen.foundations.reversalFailed');
   }
 }
 
@@ -683,17 +751,17 @@ function reversalMessage(err: unknown): string {
  * Names the refusal a carry-over came back with, so the operator knows what to do next rather than
  * reading "Konnte das Jahr nicht abschließen" for four different reasons.
  */
-function carryOverMessage(err: unknown): string {
+function carryOverMessage(err: unknown, i18n: TranslocoService): string {
   switch (problemCode(err)) {
     case 'kasse.carry_over_not_allowed':
-      return 'Diese Stiftung trägt ihr Vermögen nicht ins Folgejahr.';
+      return i18n.translate('finanzen.foundations.carryOverNotAllowed');
     case 'kasse.carry_over_nothing':
-      return 'Das Buch hat keinen Saldo — es gibt nichts zu übertragen.';
+      return i18n.translate('finanzen.foundations.carryOverNothing');
     case 'kasse.carry_over_target_missing':
-      return 'Für das Folgejahr ist noch keine Stiftung angelegt.';
+      return i18n.translate('finanzen.foundations.carryOverTargetMissing');
     case 'kasse.carry_over_target_not_empty':
-      return 'Das Buch des Folgejahres hat bereits Buchungen.';
+      return i18n.translate('finanzen.foundations.carryOverTargetNotEmpty');
     default:
-      return 'Konnte das Jahr nicht abschließen.';
+      return i18n.translate('finanzen.foundations.carryOverFailed');
   }
 }

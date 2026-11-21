@@ -2,6 +2,52 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.140.0] - 2026-11-21
+
+The interface was twenty-five screens that each invented their own markup and their own German
+copy. There was no stylesheet at all — the production build reported `styles.css 0 bytes` — the
+page title still read "legacy university ERP", and the navigation was a flat list of thirty links
+in the order the screens happened to be written. It looked like a prototype because nothing had
+ever argued otherwise.
+
+It is now **Campus ERP**, with a design system and two languages.
+
+**The look** comes from Angular Material's Material 3 theme, configured once in `styles.scss`:
+one institutional palette, one type scale, light and dark following the operating system. On top
+of it, the global stylesheet styles the *element* rather than the screen — a `<section>` is a
+card, a `<table>` is a dense table with a sticky header and tabular numerals, a `<button>` is the
+product's filled action, `.form` is a grid of `.field`s — so the screens that were already
+written as `<section>` + `<table>` became part of the product without being rewritten. The frame
+is new: an application bar with the product name and the language picker, and a navigation panel
+grouped by area (Kasse, Haushalt, Beschaffung, E-Rechnung, KLR, Finanzen, Auswertung) that is
+permanent on a wide screen and an overlay that closes on a narrow one. Every screen opens with
+`<app-page>`, which renders its heading and one sentence about what it is for.
+
+**The words** are now one vocabulary. Every term comes from a message key, so a concept has one
+name on every screen: `common.amount` is "Betrag" here, there and everywhere, and the shared
+dictionary — not the individual page — is where a term earns its English counterpart. Labels are
+nouns in sentence case, actions are verb phrases that name exactly one action, and a status is
+the state the backend reports rather than a paraphrase of it. English is British and uses the
+same domain words: payment order, payment run, dunning run, cost centre, cost type, cost unit,
+budget position, funding source, goods receipt. `docs/32-design-system-and-i18n.md` states the
+rules and `docs/glossary.md` remains the source of the vocabulary.
+
+**The languages** are Transloco's. The dictionaries are TypeScript rather than JSON, split into
+the shared vocabulary and one fragment per area, and every translation is typed against the
+German original — **a key without a translation does not compile**, so an untranslated screen is
+a build failure rather than a discovery in production. German is the default and the offices'
+language; English is the second. A picker in the application bar switches the whole interface,
+remembers the choice in local storage, and mirrors it into `<html lang>` so assistive technology
+and hyphenation follow the same language the screen is in. The dictionary ships in the bundle and
+is loaded before the first render, so no screen flashes a key.
+
+Twenty-five screens were converted (every route), along with their specs: each now provides
+`provideI18n()`, asserts the German text it always asserted, and the e2e suite proves the picker
+end to end — it switches to English, checks the heading changed and `<html lang>` followed, and
+reloads to show the choice was kept. The initial bundle budget rose from 500 kB to 900 kB: the
+Material components and the two dictionaries together take the initial chunk from 489 kB to
+733 kB raw (162 kB transferred).
+
 ## [0.139.0] - 2026-11-21
 
 The Makefile had seventy-one targets and none of the three things a new contributor actually wants

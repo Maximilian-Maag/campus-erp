@@ -159,6 +159,16 @@ export const sharedEn: Messages = {
       subtitle: 'Bring master and transaction data over from the legacy system.',
     },
   },
+  sepa: {
+    perMandate: 'each mandate’s own',
+    mixed: 'mixed',
+    sequence: {
+      first: 'first',
+      recurring: 'recurring',
+      oneOff: 'one-off',
+      final: 'final',
+    },
+  },
   common: {
     action: 'Action',
     actions: 'Actions',

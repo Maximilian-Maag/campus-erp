@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, ProcurementOrderSummary, ReceiptState } from '../core/api/generated';
 import { formatCents, formatDay, formatMilli, isoDay, quantityToMilli } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Procurement — Wareneingang (goods receipts).
@@ -17,139 +19,151 @@ import { formatCents, formatDay, formatMilli, isoDay, quantityToMilli } from '..
  */
 @Component({
   selector: 'app-goods-receipts',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="receipts-heading">
-      <h2 id="receipts-heading">Wareneingang</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loadingOrders()) {
-        <p role="status">Bestellungen werden geladen.</p>
-      } @else if (orders().length === 0 && !loadError()) {
-        <p role="status">Es ist keine freigegebene Bestellung offen.</p>
-      } @else if (!loadError()) {
-        <div class="picker">
-          <label for="receipt-order">Bestellung</label>
-          <select id="receipt-order" [value]="order()" (change)="choose($any($event.target).value)">
-            <option value="">Bitte wählen</option>
-            @for (o of orders(); track o.ID) {
-              <option [value]="o.ID">{{ o.Number }} — {{ o.Supplier }}</option>
-            }
-          </select>
-        </div>
-      }
-
-      @if (state(); as st) {
-        <p>
-          Bestellung {{ selected()?.Number }} von {{ selected()?.Supplier }}, Auftragssumme
-          {{ amount(selected()?.GrossCents ?? 0) }}.
-        </p>
-
-        <table>
-          <caption>
-            Positionen mit bestellter, gelieferter und offener Menge
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Position</th>
-              <th scope="col">Beschreibung</th>
-              <th scope="col" class="quantity">Bestellt</th>
-              <th scope="col" class="quantity">Geliefert</th>
-              <th scope="col" class="quantity">Offen</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (p of st.Progress; track p.LineNo) {
-              <tr [attr.data-testid]="'line-' + p.LineNo">
-                <td>{{ p.LineNo }}</td>
-                <td>{{ p.Description }}</td>
-                <td class="quantity">{{ quantity(p.OrderedMilli) }}</td>
-                <td class="quantity">{{ quantity(p.ReceivedMilli) }}</td>
-                <td class="quantity">{{ quantity(open(p)) }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-
-        @if (st.Complete) {
-          <p role="status">Die Bestellung ist vollständig geliefert.</p>
-        } @else {
-          <form (submit)="record($event)">
-            <p>
-              <label for="receipt-reference">Lieferschein</label>
-              <input
-                id="receipt-reference"
-                [value]="reference()"
-                (input)="reference.set($any($event.target).value)"
-              />
-            </p>
-            <p>
-              <label for="receipt-date">Datum</label>
-              <input
-                id="receipt-date"
-                type="date"
-                [value]="receivedOn()"
-                (input)="receivedOn.set($any($event.target).value)"
-              />
-            </p>
-            @for (p of openLines(); track p.LineNo) {
-              <p>
-                <label [attr.for]="'receipt-line-' + p.LineNo">
-                  Menge Position {{ p.LineNo }} (offen {{ quantity(open(p)) }})
-                </label>
-                <input
-                  [id]="'receipt-line-' + p.LineNo"
-                  [attr.data-testid]="'quantity-' + p.LineNo"
-                  [value]="quantities()[p.LineNo] ?? ''"
-                  (input)="setQuantity(p.LineNo, $any($event.target).value)"
-                />
-              </p>
-            }
-            <button type="submit" [disabled]="busy()">
-              {{ busy() ? 'Wareneingang wird gebucht.' : 'Wareneingang buchen' }}
-            </button>
-          </form>
+    <app-page titleKey="page.beschaffungWareneingang.title" subtitleKey="page.beschaffungWareneingang.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
         }
 
-        @if (st.Receipts.length > 0) {
+        @if (loadingOrders()) {
+          <p role="status">{{ 'beschaffung.goodsReceipts.loadingOrders' | transloco }}</p>
+        } @else if (orders().length === 0 && !loadError()) {
+          <p role="status">{{ 'beschaffung.goodsReceipts.emptyApproved' | transloco }}</p>
+        } @else if (!loadError()) {
+          <div class="picker">
+            <label for="receipt-order">{{ 'beschaffung.goodsReceipts.order' | transloco }}</label>
+            <select id="receipt-order" [value]="order()" (change)="choose($any($event.target).value)">
+              <option value="">{{ 'common.choose' | transloco }}</option>
+              @for (o of orders(); track o.ID) {
+                <option [value]="o.ID">{{ o.Number }} — {{ o.Supplier }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        @if (state(); as st) {
+          <p>
+            {{
+              'beschaffung.goodsReceipts.summary'
+                | transloco
+                  : {
+                      number: selected()?.Number,
+                      supplier: selected()?.Supplier,
+                      amount: amount(selected()?.GrossCents ?? 0),
+                    }
+            }}
+          </p>
+
           <table>
             <caption>
-              Gebuchte Wareneingänge
+              {{ 'beschaffung.goodsReceipts.captionProgress' | transloco }}
             </caption>
             <thead>
               <tr>
-                <th scope="col">Lieferschein</th>
-                <th scope="col">Datum</th>
-                <th scope="col">Positionen</th>
-                <th scope="col" class="amount">Wert</th>
+                <th scope="col">{{ 'beschaffung.goodsReceipts.position' | transloco }}</th>
+                <th scope="col">{{ 'common.description' | transloco }}</th>
+                <th scope="col" class="quantity">{{ 'beschaffung.goodsReceipts.ordered' | transloco }}</th>
+                <th scope="col" class="quantity">{{ 'beschaffung.goodsReceipts.delivered' | transloco }}</th>
+                <th scope="col" class="quantity">{{ 'beschaffung.goodsReceipts.open' | transloco }}</th>
               </tr>
             </thead>
             <tbody>
-              @for (r of st.Receipts; track r.ID) {
-                <tr [attr.data-testid]="'receipt-' + r.ID">
-                  <td>{{ r.Reference }}</td>
-                  <td>{{ day(r.ReceivedOn) }}</td>
-                  <td>{{ lineList(r) }}</td>
-                  <td class="amount">{{ amount(r.ReceivedCents) }}</td>
+              @for (p of st.Progress; track p.LineNo) {
+                <tr [attr.data-testid]="'line-' + p.LineNo">
+                  <td>{{ p.LineNo }}</td>
+                  <td>{{ p.Description }}</td>
+                  <td class="quantity">{{ quantity(p.OrderedMilli) }}</td>
+                  <td class="quantity">{{ quantity(p.ReceivedMilli) }}</td>
+                  <td class="quantity">{{ quantity(open(p)) }}</td>
                 </tr>
               }
             </tbody>
           </table>
+
+          @if (st.Complete) {
+            <p role="status">{{ 'beschaffung.goodsReceipts.complete' | transloco }}</p>
+          } @else {
+            <form (submit)="record($event)">
+              <p>
+                <label for="receipt-reference">{{ 'beschaffung.goodsReceipts.reference' | transloco }}</label>
+                <input
+                  id="receipt-reference"
+                  [value]="reference()"
+                  (input)="reference.set($any($event.target).value)"
+                />
+              </p>
+              <p>
+                <label for="receipt-date">{{ 'common.date' | transloco }}</label>
+                <input
+                  id="receipt-date"
+                  type="date"
+                  [value]="receivedOn()"
+                  (input)="receivedOn.set($any($event.target).value)"
+                />
+              </p>
+              @for (p of openLines(); track p.LineNo) {
+                <p>
+                  <label [attr.for]="'receipt-line-' + p.LineNo">
+                    {{
+                      'beschaffung.goodsReceipts.quantityLabel'
+                        | transloco: { lineNo: p.LineNo, open: quantity(open(p)) }
+                    }}
+                  </label>
+                  <input
+                    [id]="'receipt-line-' + p.LineNo"
+                    [attr.data-testid]="'quantity-' + p.LineNo"
+                    [value]="quantities()[p.LineNo] ?? ''"
+                    (input)="setQuantity(p.LineNo, $any($event.target).value)"
+                  />
+                </p>
+              }
+              <button type="submit" [disabled]="busy()">
+                {{ (busy() ? 'beschaffung.goodsReceipts.bookBusy' : 'beschaffung.goodsReceipts.book') | transloco }}
+              </button>
+            </form>
+          }
+
+          @if (st.Receipts.length > 0) {
+            <table>
+              <caption>
+                {{ 'beschaffung.goodsReceipts.captionReceipts' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'beschaffung.goodsReceipts.reference' | transloco }}</th>
+                  <th scope="col">{{ 'common.date' | transloco }}</th>
+                  <th scope="col">{{ 'beschaffung.goodsReceipts.positions' | transloco }}</th>
+                  <th scope="col" class="amount">{{ 'beschaffung.goodsReceipts.value' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of st.Receipts; track r.ID) {
+                  <tr [attr.data-testid]="'receipt-' + r.ID">
+                    <td>{{ r.Reference }}</td>
+                    <td>{{ day(r.ReceivedOn) }}</td>
+                    <td>{{ lineList(r) }}</td>
+                    <td class="amount">{{ amount(r.ReceivedCents) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
         }
-      }
-    </section>
+      </section>
+    </app-page>
   `,
 })
 export class GoodsReceiptsComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly orders = signal<ProcurementOrderSummary[]>([]);
   readonly loadingOrders = signal(false);
@@ -179,7 +193,7 @@ export class GoodsReceiptsComponent implements OnInit {
         this.loadingOrders.set(false);
       },
       error: () => {
-        this.loadError.set('Die Bestellungen konnten nicht geladen werden.');
+        this.loadError.set(this.i18n.translate('beschaffung.goodsReceipts.loadOrdersFailed'));
         this.loadingOrders.set(false);
       },
     });
@@ -202,7 +216,7 @@ export class GoodsReceiptsComponent implements OnInit {
   private loadState(id: number): void {
     this.api.listGoodsReceipts(id).subscribe({
       next: (state) => this.state.set(state),
-      error: () => this.loadError.set('Der Wareneingang konnte nicht geladen werden.'),
+      error: () => this.loadError.set(this.i18n.translate('beschaffung.goodsReceipts.loadFailed')),
     });
   }
 
@@ -214,15 +228,15 @@ export class GoodsReceiptsComponent implements OnInit {
 
     const id = Number(this.order());
     if (id <= 0) {
-      this.actionError.set('Es ist keine Bestellung gewählt.');
+      this.actionError.set(this.i18n.translate('beschaffung.goodsReceipts.noOrder'));
       return;
     }
     if (this.reference().trim() === '') {
-      this.actionError.set('Ein Lieferschein ist erforderlich.');
+      this.actionError.set(this.i18n.translate('beschaffung.goodsReceipts.referenceRequired'));
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(this.receivedOn())) {
-      this.actionError.set('Ein Datum ist erforderlich.');
+      this.actionError.set(this.i18n.translate('beschaffung.goodsReceipts.dateRequired'));
       return;
     }
     const lines: { line_no: number; quantity_milli: number }[] = [];
@@ -233,13 +247,15 @@ export class GoodsReceiptsComponent implements OnInit {
       }
       const milli = quantityToMilli(typed);
       if (milli === null) {
-        this.actionError.set(`Die Menge der Position ${p.LineNo} ist keine gültige Menge.`);
+        this.actionError.set(
+          this.i18n.translate('beschaffung.goodsReceipts.invalidQuantity', { lineNo: p.LineNo }),
+        );
         return;
       }
       lines.push({ line_no: p.LineNo, quantity_milli: milli });
     }
     if (lines.length === 0) {
-      this.actionError.set('Es ist keine Menge erfasst.');
+      this.actionError.set(this.i18n.translate('beschaffung.goodsReceipts.noQuantity'));
       return;
     }
 
@@ -253,15 +269,19 @@ export class GoodsReceiptsComponent implements OnInit {
           this.reference.set('');
           this.notice.set(
             result.State.Complete
-              ? `Wareneingang gebucht (${this.amount(result.Receipt.ReceivedCents)}). Die Bestellung ist vollständig geliefert.`
-              : `Wareneingang gebucht (${this.amount(result.Receipt.ReceivedCents)}).`
+              ? this.i18n.translate('beschaffung.goodsReceipts.bookedComplete', {
+                  amount: this.amount(result.Receipt.ReceivedCents),
+                })
+              : this.i18n.translate('beschaffung.goodsReceipts.booked', {
+                  amount: this.amount(result.Receipt.ReceivedCents),
+                })
           );
           this.busy.set(false);
           // An order that arrived in full leaves the approved list, so the picker is read again.
           this.loadOrders();
         },
         error: () => {
-          this.actionError.set('Der Wareneingang konnte nicht gebucht werden.');
+          this.actionError.set(this.i18n.translate('beschaffung.goodsReceipts.bookFailed'));
           this.busy.set(false);
         },
       });

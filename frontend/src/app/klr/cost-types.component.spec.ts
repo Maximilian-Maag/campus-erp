@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { KlrCostTypesComponent } from './cost-types.component';
 import { CostType, CostTypeAccount } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('KlrCostTypesComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('KlrCostTypesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [KlrCostTypesComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, Definition } from '../core/api/generated';
 import { isoDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /** The name the render job stores a report under: `reports/<id>-<from>-<to>.pdf` (docs/25). */
 export function artefactName(reportID: string, from: string, to: string): string {
@@ -23,81 +25,89 @@ export function compactDay(day: string): string {
  */
 @Component({
   selector: 'app-auswertungen',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="reports-heading">
-      <h2 id="reports-heading">Auswertungen</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Auswertungen werden geladen.</p>
-      } @else if (reports().length === 0 && !loadError()) {
-        <p role="status">Es ist keine Auswertung eingerichtet.</p>
-      } @else if (!loadError()) {
-        <table>
-          <caption>
-            Auswertungen mit ihren Spalten
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Kennung</th>
-              <th scope="col">Titel</th>
-              <th scope="col">Spalten</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (r of reports(); track r.ID) {
-              <tr [attr.data-testid]="'report-' + r.ID">
-                <td>{{ r.ID }}</td>
-                <td>{{ r.Title }}</td>
-                <td>{{ columnList(r) }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-
-        <form (submit)="render($event)">
-          <p>
-            <label for="report-id">Auswertung</label>
-            <select id="report-id" [value]="report()" (change)="report.set($any($event.target).value)">
-              <option value="">Bitte wählen</option>
-              @for (r of reports(); track r.ID) {
-                <option [value]="r.ID">{{ r.Title }}</option>
-              }
-            </select>
-          </p>
-          <p>
-            <label for="report-from">Von</label>
-            <input id="report-from" type="date" [value]="from()" (input)="from.set($any($event.target).value)" />
-          </p>
-          <p>
-            <label for="report-to">Bis</label>
-            <input id="report-to" type="date" [value]="to()" (input)="to.set($any($event.target).value)" />
-          </p>
-          <button type="submit" [disabled]="busy()">
-            {{ busy() ? 'Auswertung wird eingeplant.' : 'Auswertung erzeugen' }}
-          </button>
-        </form>
-
-        @if (document(); as doc) {
-          <p>
-            <a [href]="doc.href">{{ doc.name }}</a>
-          </p>
+    <app-page titleKey="page.auswertungen.title" subtitleKey="page.auswertungen.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
-    </section>
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
+
+        @if (loading()) {
+          <p role="status">{{ 'auswertung.reports.loading' | transloco }}</p>
+        } @else if (reports().length === 0 && !loadError()) {
+          <p role="status">{{ 'auswertung.reports.empty' | transloco }}</p>
+        } @else if (!loadError()) {
+          <table>
+            <caption>
+              {{ 'auswertung.reports.listCaption' | transloco }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ 'auswertung.reports.id' | transloco }}</th>
+                <th scope="col">{{ 'common.title' | transloco }}</th>
+                <th scope="col">{{ 'auswertung.reports.columns' | transloco }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of reports(); track r.ID) {
+                <tr [attr.data-testid]="'report-' + r.ID">
+                  <td>{{ r.ID }}</td>
+                  <td>{{ r.Title }}</td>
+                  <td>{{ columnList(r) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <form (submit)="render($event)">
+            <div class="field">
+              <label for="report-id">{{ 'auswertung.reports.report' | transloco }}</label>
+              <select id="report-id" [value]="report()" (change)="report.set($any($event.target).value)">
+                <option value="">{{ 'common.choose' | transloco }}</option>
+                @for (r of reports(); track r.ID) {
+                  <option [value]="r.ID">{{ r.Title }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="report-from">{{ 'common.from' | transloco }}</label>
+              <input id="report-from" type="date" [value]="from()" (input)="from.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <label for="report-to">{{ 'common.to' | transloco }}</label>
+              <input id="report-to" type="date" [value]="to()" (input)="to.set($any($event.target).value)" />
+            </div>
+            <div class="field">
+              <button type="submit" [disabled]="busy()">
+                {{
+                  busy()
+                    ? ('auswertung.reports.rendering' | transloco)
+                    : ('auswertung.reports.render' | transloco)
+                }}
+              </button>
+            </div>
+          </form>
+
+          @if (document(); as doc) {
+            <p>
+              <a [href]="doc.href">{{ doc.name }}</a>
+            </p>
+          }
+        }
+      </section>
+    </app-page>
   `,
 })
 export class AuswertungenComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly reports = signal<Definition[]>([]);
   readonly loading = signal(false);
@@ -121,7 +131,7 @@ export class AuswertungenComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Die Auswertungen konnten nicht geladen werden.');
+        this.loadError.set(this.i18n.translate('auswertung.reports.loadFailed'));
         this.loading.set(false);
       },
     });
@@ -136,11 +146,11 @@ export class AuswertungenComponent implements OnInit {
 
     const id = this.report();
     if (id === '') {
-      this.actionError.set('Es ist keine Auswertung gewählt.');
+      this.actionError.set(this.i18n.translate('auswertung.reports.reportRequired'));
       return;
     }
     if (!isDay(this.from()) || !isDay(this.to())) {
-      this.actionError.set('Ein Zeitraum aus zwei Tagen ist erforderlich.');
+      this.actionError.set(this.i18n.translate('auswertung.reports.periodRequired'));
       return;
     }
 
@@ -149,13 +159,13 @@ export class AuswertungenComponent implements OnInit {
       next: (queued) => {
         const name = artefactName(id, this.from(), this.to());
         this.notice.set(
-          `Auswertung eingeplant (Auftrag ${queued.job_id}). Die Datei liegt unter reports/${name}, sobald der Worker sie erzeugt hat.`
+          this.i18n.translate('auswertung.reports.queued', { job: queued.job_id, name }),
         );
         this.document.set({ name, href: `/api/artefacts/reports/${name}` });
         this.busy.set(false);
       },
       error: () => {
-        this.actionError.set('Die Auswertung konnte nicht eingeplant werden.');
+        this.actionError.set(this.i18n.translate('auswertung.reports.renderFailed'));
         this.busy.set(false);
       },
     });

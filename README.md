@@ -31,6 +31,11 @@ work on a Postgres-backed queue; every state change emits an append-only, hash-c
 event. Kubernetes is the production target. Decisions:
 [`docs/adr/`](docs/adr/), model: [`c4/workspace.dsl`](c4/workspace.dsl).
 
+The interface is Angular with Angular Material (Material 3) and Transloco. One theme, one
+global stylesheet, a shared frame and page header, and one vocabulary: every word on screen is a
+message key, published in German (default) and English. See
+[`docs/32-design-system-and-i18n.md`](docs/32-design-system-and-i18n.md).
+
 ## Images
 
 Docker Hub, one tag per channel:

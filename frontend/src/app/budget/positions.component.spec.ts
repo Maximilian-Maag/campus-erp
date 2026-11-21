@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BudgetPositionsComponent } from './positions.component';
 import { BudgetPositionResponse } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('BudgetPositionsComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('BudgetPositionsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [BudgetPositionsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
@@ -39,6 +40,8 @@ describe('BudgetPositionsComponent', () => {
     expect(fixture.componentInstance.positions().length).toBe(1);
     expect(fixture.componentInstance.loading()).toBeFalse();
     expect(fixture.componentInstance.error()).toBeNull();
+    // The screen names itself through `app-page` rather than its own heading.
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="page-title"]')).not.toBeNull();
   });
 
   it('renders each position with the available amount the API reported', () => {

@@ -18,7 +18,11 @@ test('every screen is reachable from the navigation', async ({ page }) => {
   // The route table is read as text rather than imported: a Playwright spec runs in Node, and
   // importing it would pull the Angular components in with it.
   const source = readFileSync('src/app/app.routes.ts', 'utf8');
-  const declared = [...source.matchAll(/path:\s*'([^']+)'/g)].map((m) => '/' + m[1]).sort();
+  // The empty path is the root redirect, not a screen, and carries no navigation entry.
+  const declared = [...source.matchAll(/path:\s*'([^']+)'/g)]
+    .map((m) => '/' + m[1])
+    .filter((path) => path !== '/')
+    .sort();
   expect(declared.length).toBeGreaterThan(0);
 
   await page.goto('/');
@@ -40,6 +44,27 @@ test('the navigation links resolve to a screen', async ({ page }) => {
 
   for (const href of hrefs) {
     await page.goto(href);
-    await expect(page.locator('h2')).toBeVisible();
+    const title = page.getByTestId('page-title');
+    await expect(title).toBeVisible();
+    // A screen whose heading is its own message key is a screen nobody translated: the
+    // dictionaries are typed, but a key that names no entry renders as itself.
+    await expect(title).not.toHaveText(/^[a-z]+\.[a-zA-Z]/);
   }
+});
+
+test('the language picker switches the interface and remembers the choice', async ({ page }) => {
+  // The product is published in German and English: the picker has to change the whole
+  // interface, tell the document, and still be in force after a reload.
+  await page.route('**/api/**', (route) => route.fulfill({ json: [] }));
+  await page.goto('/kasse/anordnungen');
+  await expect(page.getByTestId('page-title')).toHaveText('Zahlungsanordnungen');
+
+  await page.getByTestId('language-picker').click();
+  await page.getByTestId('language-option-en').click();
+
+  await expect(page.getByTestId('page-title')).toHaveText('Payment orders');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+
+  await page.reload();
+  await expect(page.getByTestId('page-title')).toHaveText('Payment orders');
 });

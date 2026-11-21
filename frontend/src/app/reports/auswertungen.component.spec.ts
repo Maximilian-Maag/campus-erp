@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { AuswertungenComponent, artefactName, compactDay, isDay } from './auswertungen.component';
 import { Definition } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('AuswertungenComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('AuswertungenComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AuswertungenComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

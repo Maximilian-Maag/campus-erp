@@ -23,7 +23,7 @@ import { LanguageService } from '../i18n/language.service';
       matButton="outlined"
       class="language-picker"
       [matMenuTriggerFor]="menu"
-      [attr.aria-label]="'app.languageSwitch' | transloco"
+      [attr.aria-label]="('app.languageSwitch' | transloco) + ': ' + ('language.' + language() | transloco)"
       data-testid="language-picker"
     >
       <span data-testid="language-current">{{ 'language.' + language() | transloco }}</span>

@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, CostCenter, KlrReport } from '../core/api/generated';
 import { formatCents } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * KLR — Kostenstellen (cost centres).
@@ -12,90 +14,95 @@ import { formatCents } from '../core/format';
  * The report is read per centre on demand rather than for every row: it is a second request per
  * centre, and an operator looks at one centre's Kosten and Erlöse at a time. The balance is shown
  * with its meaning — a positive figure is an Überschuss, a negative one an Unterdeckung — because a
- * bare negative amount in a Kostenrechnung invites the wrong reading.
+ * bare negative amount in a Kostenrechnung invites the wrong reading, and both words are message
+ * keys so the reading holds in either language.
  */
 @Component({
   selector: 'app-klr-cost-centers',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="klr-centers-heading">
-      <h2 id="klr-centers-heading">Kostenstellen</h2>
+    <app-page titleKey="page.klrKostenstellen.title" subtitleKey="page.klrKostenstellen.subtitle">
+      <section>
+        @if (listError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (reportError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      @if (listError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (reportError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      @if (loading()) {
-        <p role="status">Kostenstellen werden geladen.</p>
-      } @else if (!listError()) {
-        <table>
-          <caption>
-            Kostenstellen mit Nummer und Bezeichnung
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Nummer</th>
-              <th scope="col">Bezeichnung</th>
-              <th scope="col">Bericht</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (center of centers(); track center.ID) {
-              <tr [attr.data-testid]="'center-' + center.ID">
-                <td>{{ center.Number }}</td>
-                <td>{{ center.Name }}</td>
-                <td>
-                  <button type="button" (click)="showReport(center)">Anzeigen</button>
-                </td>
-              </tr>
-            } @empty {
+        @if (loading()) {
+          <p role="status">{{ 'klr.common.loadingCostCentres' | transloco }}</p>
+        } @else if (!listError()) {
+          <table>
+            <caption>
+              {{ 'klr.costCentres.listCaption' | transloco }}
+            </caption>
+            <thead>
               <tr>
-                <td colspan="3">Es ist keine Kostenstelle angelegt.</td>
+                <th scope="col">{{ 'common.number' | transloco }}</th>
+                <th scope="col">{{ 'common.description' | transloco }}</th>
+                <th scope="col">{{ 'klr.costCentres.reportColumn' | transloco }}</th>
               </tr>
-            }
-          </tbody>
-        </table>
-      }
+            </thead>
+            <tbody>
+              @for (center of centers(); track center.ID) {
+                <tr [attr.data-testid]="'center-' + center.ID">
+                  <td>{{ center.Number }}</td>
+                  <td>{{ center.Name }}</td>
+                  <td>
+                    <button type="button" (click)="showReport(center)">{{ 'klr.common.show' | transloco }}</button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="3">{{ 'klr.costCentres.empty' | transloco }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
 
-      @if (report(); as r) {
-        <h3 id="klr-report-heading">Kosten und Erlöse</h3>
-        <dl aria-labelledby="klr-report-heading" [attr.data-testid]="'report-' + reporting()?.ID">
-          <dt>Kostenstelle</dt>
-          <dd>{{ reporting()?.Number }} {{ reporting()?.Name }}</dd>
-          <dt>Kosten</dt>
-          <dd>{{ euros(r.CostsCents) }}</dd>
-          <dt>Erlöse</dt>
-          <dd>{{ euros(r.RevenuesCents) }}</dd>
-          <dt>Saldo</dt>
-          <dd>{{ balanceLabel(r) }}</dd>
-        </dl>
-      }
+        @if (report(); as r) {
+          <h2 id="klr-report-heading">{{ 'klr.costCentres.reportHeading' | transloco }}</h2>
+          <dl aria-labelledby="klr-report-heading" [attr.data-testid]="'report-' + reporting()?.ID">
+            <dt>{{ 'common.costCenter' | transloco }}</dt>
+            <dd>{{ reporting()?.Number }} {{ reporting()?.Name }}</dd>
+            <dt>{{ 'klr.common.costs' | transloco }}</dt>
+            <dd>{{ euros(r.CostsCents) }}</dd>
+            <dt>{{ 'klr.common.revenues' | transloco }}</dt>
+            <dd>{{ euros(r.RevenuesCents) }}</dd>
+            <dt>{{ 'klr.common.balance' | transloco }}</dt>
+            <dd>{{ balanceLabel(r) }}</dd>
+          </dl>
+        }
 
-      <form (submit)="create($event)">
-        <h3 id="klr-center-new-heading">Kostenstelle aufnehmen</h3>
-        <p>
-          <label for="center-number">Nummer</label>
-          <input id="center-number" [value]="number()" (input)="number.set($any($event.target).value)" />
-        </p>
-        <p>
-          <label for="center-name">Bezeichnung</label>
-          <input id="center-name" [value]="name()" (input)="name.set($any($event.target).value)" />
-        </p>
-        <button type="submit" [disabled]="busy()">Kostenstelle aufnehmen</button>
-      </form>
-    </section>
+        <form (submit)="create($event)">
+          <h2 id="klr-center-new-heading">{{ 'klr.costCentres.createHeading' | transloco }}</h2>
+          <div class="field">
+            <label for="center-number">{{ 'common.number' | transloco }}</label>
+            <input id="center-number" [value]="number()" (input)="number.set($any($event.target).value)" />
+          </div>
+          <div class="field">
+            <label for="center-name">{{ 'common.description' | transloco }}</label>
+            <input id="center-name" [value]="name()" (input)="name.set($any($event.target).value)" />
+          </div>
+          <div class="field">
+            <button type="submit" [disabled]="busy()">{{ 'klr.costCentres.createButton' | transloco }}</button>
+          </div>
+        </form>
+      </section>
+    </app-page>
   `,
 })
 export class CostCentersComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly centers = signal<CostCenter[]>([]);
   readonly loading = signal(true);
@@ -127,7 +134,7 @@ export class CostCentersComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.listError.set('Die Kostenstellen konnten nicht geladen werden.');
+        this.listError.set(this.i18n.translate('klr.common.loadCostCentresFailed'));
         this.loading.set(false);
       },
     });
@@ -142,7 +149,7 @@ export class CostCentersComponent implements OnInit {
       error: () => {
         // The stale report of a previously shown centre must not stay on screen under a new heading.
         this.report.set(null);
-        this.reportError.set('Der Bericht dieser Kostenstelle konnte nicht geladen werden.');
+        this.reportError.set(this.i18n.translate('klr.costCentres.reportFailed'));
       },
     });
   }
@@ -152,7 +159,7 @@ export class CostCentersComponent implements OnInit {
     this.actionError.set(null);
     this.notice.set(null);
     if (this.number().trim() === '' || this.name().trim() === '') {
-      this.actionError.set('Nummer und Bezeichnung der Kostenstelle sind erforderlich.');
+      this.actionError.set(this.i18n.translate('klr.costCentres.createRequired'));
       return;
     }
     this.busy.set(true);
@@ -161,11 +168,11 @@ export class CostCentersComponent implements OnInit {
         this.centers.update((list) => [...list, saved].sort((a, b) => a.Number.localeCompare(b.Number)));
         this.number.set('');
         this.name.set('');
-        this.notice.set(`Kostenstelle ${saved.Number} aufgenommen.`);
+        this.notice.set(this.i18n.translate('klr.costCentres.created', { number: saved.Number }));
         this.busy.set(false);
       },
       error: () => {
-        this.actionError.set('Die Kostenstelle konnte nicht aufgenommen werden.');
+        this.actionError.set(this.i18n.translate('klr.costCentres.createFailed'));
         this.busy.set(false);
       },
     });
@@ -181,8 +188,9 @@ export class CostCentersComponent implements OnInit {
     const balance = report.RevenuesCents - report.CostsCents;
     // The zero case is decided first, so the sign test only ever sees a non-zero balance.
     if (balance === 0) {
-      return 'ausgeglichen';
+      return this.i18n.translate('klr.common.balanced');
     }
-    return (balance > 0 ? 'Überschuss ' : 'Unterdeckung ') + formatCents(Math.abs(balance));
+    const word = this.i18n.translate(balance > 0 ? 'klr.common.surplus' : 'klr.common.shortfall');
+    return word + ' ' + formatCents(Math.abs(balance));
   }
 }

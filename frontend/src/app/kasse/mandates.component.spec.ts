@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MandatesComponent } from './mandates.component';
 import { Mandate } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('MandatesComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('MandatesComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [MandatesComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

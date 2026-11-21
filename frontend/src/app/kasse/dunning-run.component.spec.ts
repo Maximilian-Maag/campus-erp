@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { DunningRunComponent, skipReasonLabel } from './dunning-run.component';
+import { DunningRunComponent, skipReasonKey } from './dunning-run.component';
 import { DunningRunOutcome, DunningRunResult } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('DunningRunComponent', () => {
   let http: HttpTestingController;
@@ -10,7 +11,7 @@ describe('DunningRunComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [DunningRunComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
@@ -214,14 +215,14 @@ describe('DunningRunComponent', () => {
     expect(component.day('2026-10-15T00:00:00Z')).toBe('15.10.2026');
   });
 
-  it('labels every skip reason and falls back to the raw code', () => {
-    expect(skipReasonLabel('already_dunned')).toBe('am Stichtag bereits gemahnt');
-    expect(skipReasonLabel('not_due')).toBe('Frist nicht verstrichen');
-    expect(skipReasonLabel('unknown_level')).toBe('Stufe unbekannt');
-    expect(skipReasonLabel('no_next_level')).toBe('keine weitere Stufe');
-    expect(skipReasonLabel('next_level_missing')).toBe('nächste Stufe fehlt');
-    expect(skipReasonLabel('issue_failed')).toBe('Ausstellung fehlgeschlagen');
-    expect(skipReasonLabel('something_else')).toBe('something_else');
+  it('names every skip reason by its message key, and falls back to the raw code', () => {
+    expect(skipReasonKey('already_dunned')).toBe('kasse.dunningRun.reason.alreadyDunned');
+    expect(skipReasonKey('not_due')).toBe('kasse.dunningRun.reason.notDue');
+    expect(skipReasonKey('unknown_level')).toBe('kasse.dunningRun.reason.unknownLevel');
+    expect(skipReasonKey('no_next_level')).toBe('kasse.dunningRun.reason.noNextLevel');
+    expect(skipReasonKey('next_level_missing')).toBe('kasse.dunningRun.reason.nextLevelMissing');
+    expect(skipReasonKey('issue_failed')).toBe('kasse.dunningRun.reason.issueFailed');
+    expect(skipReasonKey('something_else')).toBeNull();
 
     const component = screen();
     expect(component.reason('not_due')).toBe('Frist nicht verstrichen');

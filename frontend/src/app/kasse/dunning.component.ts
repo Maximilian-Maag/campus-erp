@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, DunningBand, DunningBandRequest, DunningLevel, DunningNotice } from '../core/api/generated';
 import {
   basisPointsToPercent,
@@ -7,6 +8,7 @@ import {
   formatDay,
   percentToBasisPoints,
 } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * An amount that may legitimately be zero, as minor units, or null when it is not an amount.
@@ -58,238 +60,253 @@ interface BandRow {
  */
 @Component({
   selector: 'app-dunning',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="dunning-heading">
-      <h2 id="dunning-heading">Mahnwesen</h2>
+    <app-page titleKey="page.kasseMahnwesen.title" subtitleKey="page.kasseMahnwesen.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
+        @if (loading()) {
+          <p role="status">{{ 'kasse.dunning.loading' | transloco }}</p>
+        } @else if (!loadError()) {
+          <div class="filter">
+            <label for="dunning-year-filter">{{ 'common.year' | transloco }}</label>
+            <input
+              id="dunning-year-filter"
+              type="number"
+              [value]="year()"
+              (change)="filterTo($any($event.target).value)"
+            />
+            <button type="button" (click)="filterTo('')">{{ 'kasse.dunning.allYears' | transloco }}</button>
+          </div>
 
-      @if (loading()) {
-        <p role="status">Mahnstufen werden geladen.</p>
-      } @else if (!loadError()) {
-        <div class="filter">
-          <label for="dunning-year-filter">Jahr</label>
-          <input
-            id="dunning-year-filter"
-            type="number"
-            [value]="year()"
-            (change)="filterTo($any($event.target).value)"
-          />
-          <button type="button" (click)="filterTo('')">Alle Jahre</button>
-        </div>
-
-        @if (levels().length === 0) {
-          <p role="status">Es ist keine Mahnstufe angelegt.</p>
-        } @else {
-          <table>
-            <caption>
-              Mahnstufen mit Kürzel, Bezeichnung, Zahlungsfrist, Staffeln und Status
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Jahr</th>
-                <th scope="col">Kürzel</th>
-                <th scope="col">Bezeichnung</th>
-                <th scope="col">Frist (Tage)</th>
-                <th scope="col">Staffeln</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (level of levels(); track level.ID) {
-                <tr [attr.data-testid]="'level-' + level.Year + '-' + level.Code">
-                  <td>{{ level.Year }}</td>
-                  <td>{{ level.Code }}</td>
-                  <td>{{ level.Description }}</td>
-                  <td>{{ level.DaysAllowed }}</td>
-                  <td>
-                    @if (level.Bands.length === 0) {
-                      <span>keine</span>
-                    } @else {
-                      <ul class="bands">
-                        @for (band of level.Bands; track $index) {
-                          <li>{{ bandLabel(band) }}</li>
-                        }
-                      </ul>
-                    }
-                  </td>
-                  <td>{{ level.Active ? 'aktiv' : 'inaktiv' }}</td>
+          @if (levels().length === 0) {
+            <p role="status">{{ 'kasse.dunning.empty' | transloco }}</p>
+          } @else {
+            <table>
+              <caption>
+                {{ 'kasse.dunning.caption' | transloco }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'common.year' | transloco }}</th>
+                  <th scope="col">{{ 'kasse.dunning.codeColumn' | transloco }}</th>
+                  <th scope="col">{{ 'common.description' | transloco }}</th>
+                  <th scope="col">{{ 'kasse.dunning.daysColumn' | transloco }}</th>
+                  <th scope="col">{{ 'common.tariff' | transloco }}</th>
+                  <th scope="col">{{ 'common.status' | transloco }}</th>
                 </tr>
-              }
-            </tbody>
-          </table>
-        }
-
-        <form (submit)="defineLevel($event)">
-          <h3 id="dunning-level-heading">Mahnstufe anlegen</h3>
-          <p>
-            <label for="level-year">Jahr der Mahnstufe</label>
-            <input
-              id="level-year"
-              type="number"
-              [value]="levelYear()"
-              (input)="levelYear.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="level-code">Kürzel</label>
-            <input
-              id="level-code"
-              type="text"
-              [value]="levelCode()"
-              (input)="levelCode.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="level-description">Bezeichnung</label>
-            <input
-              id="level-description"
-              type="text"
-              [value]="levelDescription()"
-              (input)="levelDescription.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="level-days">Frist in Tagen</label>
-            <input
-              id="level-days"
-              type="number"
-              [value]="levelDays()"
-              (input)="levelDays.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label for="level-next">Nächste Stufe</label>
-            <input
-              id="level-next"
-              type="text"
-              [value]="levelNext()"
-              (input)="levelNext.set($any($event.target).value)"
-            />
-          </p>
-          <p>
-            <label>
-              <input
-                type="checkbox"
-                [checked]="levelActive()"
-                (change)="levelActive.set($any($event.target).checked)"
-              />
-              aktiv
-            </label>
-          </p>
-
-          <h4 id="level-bands-heading">Staffeln</h4>
-          <p>Beträge in Euro; eine Obergrenze von 0 gilt für jeden Betrag (offen).</p>
-          @for (row of bands(); track $index) {
-            <fieldset [attr.data-testid]="'band-' + $index">
-              <legend>Staffel {{ $index + 1 }}</legend>
-              <p>
-                <label [attr.for]="'band-upto-' + $index">Obergrenze</label>
-                <input
-                  [id]="'band-upto-' + $index"
-                  type="text"
-                  inputmode="decimal"
-                  [value]="row.upTo"
-                  (input)="setBand($index, 'upTo', $any($event.target).value)"
-                />
-              </p>
-              <p>
-                <label [attr.for]="'band-fee-' + $index">Gebühr</label>
-                <input
-                  [id]="'band-fee-' + $index"
-                  type="text"
-                  inputmode="decimal"
-                  [value]="row.fee"
-                  (input)="setBand($index, 'fee', $any($event.target).value)"
-                />
-              </p>
-              <p>
-                <label [attr.for]="'band-rate-' + $index">Zinssatz in Prozent</label>
-                <input
-                  [id]="'band-rate-' + $index"
-                  type="text"
-                  inputmode="decimal"
-                  [value]="row.rate"
-                  (input)="setBand($index, 'rate', $any($event.target).value)"
-                />
-              </p>
-              @if (bands().length > 1) {
-                <button type="button" (click)="removeBand($index)">Staffel entfernen</button>
-              }
-            </fieldset>
-          }
-          <p>
-            <button type="button" (click)="addBand()">Staffel hinzufügen</button>
-          </p>
-          <button type="submit" [disabled]="submitting()">Mahnstufe anlegen</button>
-        </form>
-
-        @if (levels().length > 0) {
-          <form (submit)="issue($event)">
-            <h3 id="dunning-notice-heading">Mahnung ausstellen</h3>
-            <p>
-              <label for="notice-level">Mahnstufe</label>
-              <select
-                id="notice-level"
-                [value]="noticeLevelKey()"
-                (change)="noticeLevelKey.set($any($event.target).value)"
-              >
+              </thead>
+              <tbody>
                 @for (level of levels(); track level.ID) {
-                  <option [value]="levelKey(level)">{{ levelLabel(level) }}</option>
+                  <tr [attr.data-testid]="'level-' + level.Year + '-' + level.Code">
+                    <td>{{ level.Year }}</td>
+                    <td>{{ level.Code }}</td>
+                    <td>{{ level.Description }}</td>
+                    <td>{{ level.DaysAllowed }}</td>
+                    <td>
+                      @if (level.Bands.length === 0) {
+                        <span>{{ 'kasse.dunning.bands.empty' | transloco }}</span>
+                      } @else {
+                        <ul class="bands">
+                          @for (band of level.Bands; track $index) {
+                            <li>{{ bandLabel(band) }}</li>
+                          }
+                        </ul>
+                      }
+                    </td>
+                    <td>{{ (level.Active ? 'kasse.dunning.active' : 'kasse.dunning.inactive') | transloco }}</td>
+                  </tr>
                 }
-              </select>
-            </p>
-            <p>
-              <label for="notice-claim">Vorgangsnummer</label>
-              <input
-                id="notice-claim"
-                type="text"
-                [value]="claimReference()"
-                (input)="claimReference.set($any($event.target).value)"
-              />
-            </p>
-            <p>
-              <label for="notice-amount">Offener Betrag</label>
-              <input
-                id="notice-amount"
-                type="text"
-                inputmode="decimal"
-                [value]="outstanding()"
-                (input)="outstanding.set($any($event.target).value)"
-              />
-            </p>
-            <button type="submit" [disabled]="submitting()">Mahnung ausstellen</button>
-          </form>
-        }
+              </tbody>
+            </table>
+          }
 
-        @if (issued(); as n) {
-          <section aria-labelledby="dunning-issued-heading">
-            <h3 id="dunning-issued-heading">Ausgestellte Mahnung</h3>
-            <p role="status" [attr.data-testid]="'notice-' + n.ID">
-              Mahnung {{ n.ID }} zu {{ n.ClaimReference }} (Stufe {{ n.LevelCode }}): Gebühr und
-              Zinsen {{ euro(n.ChargeCents) }}, ausgestellt am {{ day(n.IssuedOn) }}
-            </p>
-            @if (n.DocumentKey) {
-              <a [href]="documentUrl(n.ID)">Mahnung als PDF</a>
-            } @else {
-              <p role="status">Zu dieser Mahnung wurde kein Dokument erzeugt.</p>
+          <form (submit)="defineLevel($event)">
+            <h2 id="dunning-level-heading">{{ 'kasse.dunning.createHeading' | transloco }}</h2>
+            <div class="field">
+              <label for="level-year">{{ 'kasse.dunning.levelYear' | transloco }}</label>
+              <input
+                id="level-year"
+                type="number"
+                [value]="levelYear()"
+                (input)="levelYear.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="level-code">{{ 'kasse.dunning.code' | transloco }}</label>
+              <input
+                id="level-code"
+                type="text"
+                [value]="levelCode()"
+                (input)="levelCode.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="level-description">{{ 'common.description' | transloco }}</label>
+              <input
+                id="level-description"
+                type="text"
+                [value]="levelDescription()"
+                (input)="levelDescription.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="level-days">{{ 'kasse.dunning.days' | transloco }}</label>
+              <input
+                id="level-days"
+                type="number"
+                [value]="levelDays()"
+                (input)="levelDays.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label for="level-next">{{ 'kasse.dunning.nextLevel' | transloco }}</label>
+              <input
+                id="level-next"
+                type="text"
+                [value]="levelNext()"
+                (input)="levelNext.set($any($event.target).value)"
+              />
+            </div>
+            <div class="field">
+              <label>
+                <input
+                  type="checkbox"
+                  [checked]="levelActive()"
+                  (change)="levelActive.set($any($event.target).checked)"
+                />
+                {{ 'kasse.dunning.active' | transloco }}
+              </label>
+            </div>
+
+            <h3 id="level-bands-heading">{{ 'common.tariff' | transloco }}</h3>
+            <p>{{ 'kasse.dunning.bands.hint' | transloco }}</p>
+            @for (row of bands(); track $index) {
+              <fieldset [attr.data-testid]="'band-' + $index">
+                <legend>
+                  {{ 'kasse.dunning.bands.legend' | transloco: { number: $index + 1 } }}
+                </legend>
+                <div class="field">
+                  <label [attr.for]="'band-upto-' + $index">{{ 'kasse.dunning.bands.upperBound' | transloco }}</label>
+                  <input
+                    [id]="'band-upto-' + $index"
+                    type="text"
+                    inputmode="decimal"
+                    [value]="row.upTo"
+                    (input)="setBand($index, 'upTo', $any($event.target).value)"
+                  />
+                </div>
+                <div class="field">
+                  <label [attr.for]="'band-fee-' + $index">{{ 'kasse.dunning.bands.fee' | transloco }}</label>
+                  <input
+                    [id]="'band-fee-' + $index"
+                    type="text"
+                    inputmode="decimal"
+                    [value]="row.fee"
+                    (input)="setBand($index, 'fee', $any($event.target).value)"
+                  />
+                </div>
+                <div class="field">
+                  <label [attr.for]="'band-rate-' + $index">{{ 'kasse.dunning.bands.rate' | transloco }}</label>
+                  <input
+                    [id]="'band-rate-' + $index"
+                    type="text"
+                    inputmode="decimal"
+                    [value]="row.rate"
+                    (input)="setBand($index, 'rate', $any($event.target).value)"
+                  />
+                </div>
+                @if (bands().length > 1) {
+                  <button type="button" (click)="removeBand($index)">
+                    {{ 'kasse.dunning.bands.remove' | transloco }}
+                  </button>
+                }
+              </fieldset>
             }
-          </section>
+            <p>
+              <button type="button" (click)="addBand()">{{ 'kasse.dunning.bands.add' | transloco }}</button>
+            </p>
+            <button type="submit" [disabled]="submitting()">{{ 'kasse.dunning.create' | transloco }}</button>
+          </form>
+
+          @if (levels().length > 0) {
+            <form (submit)="issue($event)">
+              <h2 id="dunning-notice-heading">{{ 'kasse.dunning.noticeHeading' | transloco }}</h2>
+              <div class="field">
+                <label for="notice-level">{{ 'kasse.dunning.level' | transloco }}</label>
+                <select
+                  id="notice-level"
+                  [value]="noticeLevelKey()"
+                  (change)="noticeLevelKey.set($any($event.target).value)"
+                >
+                  @for (level of levels(); track level.ID) {
+                    <option [value]="levelKey(level)">{{ levelLabel(level) }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="notice-claim">{{ 'kasse.dunning.claimReference' | transloco }}</label>
+                <input
+                  id="notice-claim"
+                  type="text"
+                  [value]="claimReference()"
+                  (input)="claimReference.set($any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="notice-amount">{{ 'kasse.dunning.outstanding' | transloco }}</label>
+                <input
+                  id="notice-amount"
+                  type="text"
+                  inputmode="decimal"
+                  [value]="outstanding()"
+                  (input)="outstanding.set($any($event.target).value)"
+                />
+              </div>
+              <button type="submit" [disabled]="submitting()">{{ 'kasse.dunning.issueNotice' | transloco }}</button>
+            </form>
+          }
+
+          @if (issued(); as n) {
+            <section aria-labelledby="dunning-issued-heading">
+              <h2 id="dunning-issued-heading">{{ 'kasse.dunning.issuedHeading' | transloco }}</h2>
+              <p role="status" [attr.data-testid]="'notice-' + n.ID">
+                {{
+                  'kasse.dunning.issuedText'
+                    | transloco
+                      : {
+                          id: n.ID,
+                          claim: n.ClaimReference,
+                          level: n.LevelCode,
+                          charge: euro(n.ChargeCents),
+                          day: day(n.IssuedOn),
+                        }
+                }}
+              </p>
+              @if (n.DocumentKey) {
+                <a [href]="documentUrl(n.ID)">{{ 'kasse.dunning.pdf' | transloco }}</a>
+              } @else {
+                <p role="status">{{ 'kasse.dunning.noDocument' | transloco }}</p>
+              }
+            </section>
+          }
         }
-      }
-    </section>
+      </section>
+    </app-page>
   `,
 })
 export class DunningComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly levels = signal<DunningLevel[]>([]);
   readonly year = signal('');
@@ -335,7 +352,7 @@ export class DunningComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Mahnstufen nicht laden.');
+        this.loadError.set(this.i18n.translate('kasse.dunning.loadFailed'));
         this.loading.set(false);
       },
     });
@@ -364,20 +381,20 @@ export class DunningComponent implements OnInit {
     event.preventDefault();
     const code = this.levelCode().trim();
     if (code === '') {
-      this.actionError.set('Ein Kürzel ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.dunning.codeRequired'));
       return;
     }
     // Number ignores surrounding whitespace, so a padded year needs no trim of its own.
     const year = Number(this.levelYear());
     if (!Number.isInteger(year) || year <= 0) {
-      this.actionError.set('Ein Jahr ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.dunning.yearRequired'));
       return;
     }
     // A blank period is no period (Number("") is 0); anything else has to be a whole number of
     // days, or the screen would send a NaN the API can only reject.
     const days = Number(this.levelDays());
     if (!Number.isInteger(days) || days < 0) {
-      this.actionError.set('Die Frist muss eine ganze Zahl von Tagen sein.');
+      this.actionError.set(this.i18n.translate('kasse.dunning.daysInvalid'));
       return;
     }
     const parsed: DunningBandRequest[] = [];
@@ -386,7 +403,7 @@ export class DunningComponent implements OnInit {
       const fee = amountOrZero(row.fee);
       const rate = rateOrZero(row.rate);
       if (upTo === null || fee === null || rate === null) {
-        this.actionError.set('Jede Staffel braucht Beträge und einen Zinssatz zwischen 0 und 100 %.');
+        this.actionError.set(this.i18n.translate('kasse.dunning.bandsInvalid'));
         return;
       }
       parsed.push({ up_to_cents: upTo, fee_cents: fee, rate_basis_points: rate });
@@ -407,7 +424,7 @@ export class DunningComponent implements OnInit {
       .subscribe({
         next: () => {
           this.submitting.set(false);
-          this.notice.set('Mahnstufe angelegt.');
+          this.notice.set(this.i18n.translate('kasse.dunning.created'));
           this.levelCode.set('');
           this.levelDescription.set('');
           this.bands.set([{ upTo: '', fee: '', rate: '' }]);
@@ -417,7 +434,7 @@ export class DunningComponent implements OnInit {
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte die Mahnstufe nicht anlegen.');
+          this.actionError.set(this.i18n.translate('kasse.dunning.createFailed'));
         },
       });
   }
@@ -427,17 +444,17 @@ export class DunningComponent implements OnInit {
     event.preventDefault();
     const { year, code } = this.parseLevelKey(this.noticeLevelKey());
     if (year === 0 || code === '') {
-      this.actionError.set('Eine Mahnstufe ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.dunning.levelRequired'));
       return;
     }
     const claim = this.claimReference().trim();
     if (claim === '') {
-      this.actionError.set('Eine Vorgangsnummer ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.dunning.claimRequired'));
       return;
     }
     const outstanding = euroToCents(this.outstanding());
     if (outstanding === null) {
-      this.actionError.set('Ein positiver offener Betrag ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.dunning.outstandingRequired'));
       return;
     }
 
@@ -449,13 +466,13 @@ export class DunningComponent implements OnInit {
         next: (issued) => {
           this.submitting.set(false);
           this.issued.set(issued);
-          this.notice.set('Mahnung ausgestellt.');
+          this.notice.set(this.i18n.translate('kasse.dunning.issued'));
           this.claimReference.set('');
           this.outstanding.set('');
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte die Mahnung nicht ausstellen.');
+          this.actionError.set(this.i18n.translate('kasse.dunning.issueFailed'));
         },
       });
   }
@@ -482,7 +499,10 @@ export class DunningComponent implements OnInit {
 
   /** A band as one line: its bound, its fee and its rate. */
   bandLabel(band: DunningBand): string {
-    const bound = band.UpToCents === 0 ? 'offen' : 'bis ' + this.euro(band.UpToCents);
+    const bound =
+      band.UpToCents === 0
+        ? this.i18n.translate('kasse.dunning.bands.open')
+        : this.i18n.translate('kasse.dunning.bands.upTo', { amount: this.euro(band.UpToCents) });
     return bound + ': ' + this.euro(band.FeeCents) + ' + ' + this.percent(band.RateBasisPoints);
   }
 

@@ -33,38 +33,42 @@ const HANDSET_QUERY = '(max-width: 900px)';
     LanguagePickerComponent,
   ],
   template: `
-    <a class="skip-link" href="#app-main">{{ 'app.skipToContent' | transloco }}</a>
+        <!-- The bar is a <header>: a landmark, so the product name and the skip link are inside
+         one rather than floating in the document body (axe: "region"). -->
+    <header class="app-header">
+      <a class="skip-link" href="#app-main">{{ 'app.skipToContent' | transloco }}</a>
 
-    <mat-toolbar class="app-bar">
-      <button
-        type="button"
-        matIconButton
-        class="app-bar-nav"
-        (click)="toggleNav()"
-        [attr.aria-label]="(navOpen() ? 'app.closeMenu' : 'app.openMenu') | transloco"
-        [attr.aria-expanded]="navOpen()"
-        data-testid="nav-toggle"
-      >
-        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-          <path
-            fill="currentColor"
-            d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"
-          />
-        </svg>
-      </button>
+      <mat-toolbar class="app-bar">
+        <button
+          type="button"
+          matIconButton
+          class="app-bar-nav"
+          (click)="toggleNav()"
+          [attr.aria-label]="(navOpen() ? 'app.closeMenu' : 'app.openMenu') | transloco"
+          [attr.aria-expanded]="navOpen()"
+          data-testid="nav-toggle"
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"
+            />
+          </svg>
+        </button>
 
-      <span class="brand">
-        <span class="brand-mark" aria-hidden="true">CE</span>
-        <span class="brand-text">
-          <span class="brand-name" data-testid="app-name">{{ 'app.name' | transloco }}</span>
-          <span class="brand-tagline">{{ 'app.tagline' | transloco }}</span>
+        <span class="brand">
+          <span class="brand-mark" aria-hidden="true">CE</span>
+          <span class="brand-text">
+            <span class="brand-name" data-testid="app-name">{{ 'app.name' | transloco }}</span>
+            <span class="brand-tagline">{{ 'app.tagline' | transloco }}</span>
+          </span>
         </span>
-      </span>
 
-      <span class="app-bar-spacer"></span>
+        <span class="app-bar-spacer"></span>
 
-      <app-language-picker />
-    </mat-toolbar>
+          <app-language-picker />
+      </mat-toolbar>
+    </header>
 
     <mat-sidenav-container class="app-frame" [hasBackdrop]="isHandset()">
       <mat-sidenav
@@ -119,10 +123,13 @@ const HANDSET_QUERY = '(max-width: 900px)';
       }
     }
 
-    .app-bar {
+    .app-header {
       position: sticky;
       top: 0;
       z-index: 2;
+    }
+
+    .app-bar {
       gap: 0.75rem;
       background: var(--mat-sys-surface);
       border-bottom: 1px solid var(--mat-sys-outline-variant);

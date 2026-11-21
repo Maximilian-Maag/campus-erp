@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, CashAccount, KasseOrderSummary, PaymentRun } from '../core/api/generated';
 import { formatCents, formatDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Kasse — Zahlungsläufe (SEPA credit-transfer payment runs).
@@ -14,127 +16,144 @@ import { formatCents, formatDay } from '../core/format';
  * Which orders a run may gather — approved ones, each paid at most once — is the API's decision:
  * the screen offers the orders the server reports as approved and reports a refusal (an
  * unapproved order, an already-paid one, a duplicate reference) as it comes back rather than
- * re-deriving the rule.
+ * re-deriving the rule. Labels and messages are message keys, so the screen speaks the clerk's
+ * language.
  */
 @Component({
   selector: 'app-payment-runs',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="payment-runs-heading">
-      <h2 id="payment-runs-heading">Zahlungsläufe</h2>
+    <app-page titleKey="page.kasseZahlungslaeufe.title" subtitleKey="page.kasseZahlungslaeufe.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
 
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
+        @if (loading()) {
+          <p role="status">{{ 'kasse.runs.loading' | transloco }}</p>
+        } @else if (accounts().length === 0 && !loadError()) {
+          <p role="status">{{ 'kasse.accounts.none' | transloco }}</p>
+        } @else if (!loadError()) {
+          @if (orders().length === 0) {
+            <p role="status">{{ 'kasse.runs.noApprovedOrder' | transloco }}</p>
+          } @else {
+            <form (submit)="create($event)">
+              <h2 id="payment-run-new-heading">{{ 'kasse.runs.create' | transloco }}</h2>
+              <div class="field">
+                <label for="payment-run-reference">{{ 'common.reference' | transloco }}</label>
+                <input
+                  id="payment-run-reference"
+                  type="text"
+                  [value]="reference()"
+                  (input)="reference.set($any($event.target).value)"
+                />
+              </div>
+              <div class="field">
+                <label for="payment-run-account">{{ 'common.account' | transloco }}</label>
+                <select
+                  id="payment-run-account"
+                  [value]="account()"
+                  (change)="account.set($any($event.target).value)"
+                >
+                  @for (a of accounts(); track a.ID) {
+                    <option [value]="a.ID">{{ a.Name }} ({{ a.IBAN }})</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="payment-run-execution-date">{{ 'kasse.runs.executionDate' | transloco }}</label>
+                <input
+                  id="payment-run-execution-date"
+                  type="date"
+                  [value]="executionDate()"
+                  (input)="executionDate.set($any($event.target).value)"
+                />
+              </div>
 
-      @if (loading()) {
-        <p role="status">Konten und Anordnungen werden geladen.</p>
-      } @else if (accounts().length === 0 && !loadError()) {
-        <p role="status">Es ist kein eigenes Konto angelegt.</p>
-      } @else if (!loadError()) {
-        @if (orders().length === 0) {
-          <p role="status">Es ist keine genehmigte Zahlungsanordnung vorhanden.</p>
-        } @else {
-          <form (submit)="create($event)">
-            <h3 id="payment-run-new-heading">Zahlungslauf erstellen</h3>
-            <p>
-              <label for="payment-run-reference">Referenz</label>
-              <input
-                id="payment-run-reference"
-                type="text"
-                [value]="reference()"
-                (input)="reference.set($any($event.target).value)"
-              />
-            </p>
-            <p>
-              <label for="payment-run-account">Konto</label>
-              <select
-                id="payment-run-account"
-                [value]="account()"
-                (change)="account.set($any($event.target).value)"
-              >
-                @for (a of accounts(); track a.ID) {
-                  <option [value]="a.ID">{{ a.Name }} ({{ a.IBAN }})</option>
-                }
-              </select>
-            </p>
-            <p>
-              <label for="payment-run-execution-date">Ausführungsdatum</label>
-              <input
-                id="payment-run-execution-date"
-                type="date"
-                [value]="executionDate()"
-                (input)="executionDate.set($any($event.target).value)"
-              />
-            </p>
-
-            <h4 id="payment-run-orders-heading">Genehmigte Zahlungsanordnungen</h4>
-            <table>
-              <caption>
-                Genehmigte Anordnungen mit Verwendungszweck, Betrag und Fälligkeit
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Auswahl</th>
-                  <th scope="col">Referenz</th>
-                  <th scope="col">Verwendungszweck</th>
-                  <th scope="col" class="amount">Betrag</th>
-                  <th scope="col">Fällig</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (order of orders(); track order.ID) {
-                  <tr [attr.data-testid]="'order-' + order.Reference">
-                    <td>
-                      <input
-                        type="checkbox"
-                        [checked]="isSelected(order.ID)"
-                        (change)="toggle(order.ID)"
-                        [attr.aria-label]="'Anordnung ' + order.Reference + ' auswählen'"
-                      />
-                    </td>
-                    <td>{{ order.Reference }}</td>
-                    <td>{{ order.Purpose }}</td>
-                    <td class="amount">{{ euro(order.AmountCents) }}</td>
-                    <td>{{ day(order.DueDate) }}</td>
+              <h3 id="payment-run-orders-heading">{{ 'kasse.runs.approvedOrders' | transloco }}</h3>
+              <table>
+                <caption>
+                  {{ 'kasse.runs.caption' | transloco }}
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{{ 'kasse.runs.selection' | transloco }}</th>
+                    <th scope="col">{{ 'common.reference' | transloco }}</th>
+                    <th scope="col">{{ 'common.purpose' | transloco }}</th>
+                    <th scope="col" class="amount">{{ 'common.amount' | transloco }}</th>
+                    <th scope="col">{{ 'common.due' | transloco }}</th>
                   </tr>
-                }
-              </tbody>
-            </table>
-            <p role="status" [attr.data-testid]="'selected-sum'">
-              Ausgewählt: {{ selected().length }} Anordnungen, Summe {{ euro(selectedSum()) }}
-            </p>
-            <button type="submit" [disabled]="submitting()">Zahlungslauf erstellen</button>
-          </form>
-        }
+                </thead>
+                <tbody>
+                  @for (order of orders(); track order.ID) {
+                    <tr [attr.data-testid]="'order-' + order.Reference">
+                      <td>
+                        <input
+                          type="checkbox"
+                          [checked]="isSelected(order.ID)"
+                          (change)="toggle(order.ID)"
+                          [attr.aria-label]="'kasse.runs.selectLabel' | transloco: { reference: order.Reference }"
+                        />
+                      </td>
+                      <td>{{ order.Reference }}</td>
+                      <td>{{ order.Purpose }}</td>
+                      <td class="amount">{{ euro(order.AmountCents) }}</td>
+                      <td>{{ day(order.DueDate) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              <p role="status" [attr.data-testid]="'selected-sum'">
+                {{
+                  'kasse.runs.selectedSummary'
+                    | transloco: { count: selected().length, sum: euro(selectedSum()) }
+                }}
+              </p>
+              <div class="field">
+                <button type="submit" [disabled]="submitting()">
+                  {{ 'kasse.runs.create' | transloco }}
+                </button>
+              </div>
+            </form>
+          }
 
-        @if (created(); as r) {
-          <section aria-labelledby="payment-run-result-heading">
-            <h3 id="payment-run-result-heading">Erzeugter Zahlungslauf</h3>
-            <p role="status" [attr.data-testid]="'run-' + r.Reference">
-              {{ r.Reference }}: {{ r.ItemCount }} Posten, Summe {{ euro(r.SumCents) }},
-              Ausführung {{ day(r.ExecutionDate) }}
-            </p>
-            <button type="button" (click)="fetchFile()">Datei anzeigen</button>
-            <button type="button" [disabled]="exporting()" (click)="queueExport()">
-              An Bankkanal übergeben
-            </button>
-            @if (file(); as f) {
-              <pre [attr.data-testid]="'run-file-' + r.Reference">{{ f }}</pre>
-            }
-          </section>
+          @if (created(); as r) {
+            <section aria-labelledby="payment-run-result-heading">
+              <h2 id="payment-run-result-heading">{{ 'kasse.runs.createdHeading' | transloco }}</h2>
+              <p role="status" [attr.data-testid]="'run-' + r.Reference">
+                {{
+                  'kasse.runs.createdSummary'
+                    | transloco: {
+                        reference: r.Reference,
+                        count: r.ItemCount,
+                        sum: euro(r.SumCents),
+                        date: day(r.ExecutionDate)
+                      }
+                }}
+              </p>
+              <button type="button" (click)="fetchFile()">{{ 'kasse.runs.showFile' | transloco }}</button>
+              <button type="button" [disabled]="exporting()" (click)="queueExport()">
+                {{ 'kasse.runs.handOver' | transloco }}
+              </button>
+              @if (file(); as f) {
+                <pre [attr.data-testid]="'run-file-' + r.Reference">{{ f }}</pre>
+              }
+            </section>
+          }
         }
-      }
-    </section>
+      </section>
+    </app-page>
   `,
 })
 export class PaymentRunsComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly accounts = signal<CashAccount[]>([]);
   readonly account = signal('');
@@ -173,7 +192,7 @@ export class PaymentRunsComponent implements OnInit {
         }
       },
       error: () => {
-        this.loadError.set('Konnte die Konten nicht laden.');
+        this.loadError.set(this.i18n.translate('kasse.accounts.loadFailed'));
         this.loading.set(false);
       },
     });
@@ -191,7 +210,7 @@ export class PaymentRunsComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.loadError.set('Konnte die Zahlungsanordnungen nicht laden.');
+        this.loadError.set(this.i18n.translate('kasse.orders.loadFailed'));
         this.loading.set(false);
       },
     });
@@ -218,15 +237,15 @@ export class PaymentRunsComponent implements OnInit {
     event.preventDefault();
     const reference = this.reference().trim();
     if (reference === '') {
-      this.actionError.set('Eine Referenz ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.runs.referenceRequired'));
       return;
     }
     if (this.executionDate().trim() === '') {
-      this.actionError.set('Ein Ausführungsdatum ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.runs.executionDateRequired'));
       return;
     }
     if (this.selected().length === 0) {
-      this.actionError.set('Mindestens eine Anordnung ist erforderlich.');
+      this.actionError.set(this.i18n.translate('kasse.runs.selectionRequired'));
       return;
     }
     this.submitting.set(true);
@@ -245,11 +264,11 @@ export class PaymentRunsComponent implements OnInit {
         next: (run) => {
           this.submitting.set(false);
           this.created.set(run);
-          this.notice.set('Zahlungslauf erstellt.');
+          this.notice.set(this.i18n.translate('kasse.runs.created'));
         },
         error: () => {
           this.submitting.set(false);
-          this.actionError.set('Konnte den Zahlungslauf nicht erstellen.');
+          this.actionError.set(this.i18n.translate('kasse.runs.createFailed'));
         },
       });
   }
@@ -262,7 +281,7 @@ export class PaymentRunsComponent implements OnInit {
     }
     this.api.getPaymentRunFile(run.ID).subscribe({
       next: (file) => this.file.set(file),
-      error: () => this.actionError.set('Konnte die Datei nicht laden.'),
+      error: () => this.actionError.set(this.i18n.translate('kasse.runs.fileFailed')),
     });
   }
 
@@ -278,11 +297,13 @@ export class PaymentRunsComponent implements OnInit {
     this.api.requestSepaExport(run.ID).subscribe({
       next: (queued) => {
         this.exporting.set(false);
-        this.notice.set('Übergabe an den Bankkanal beauftragt (Job ' + queued.job_id + ').');
+        this.notice.set(
+          this.i18n.translate('kasse.runs.exportQueued', { job: queued.job_id })
+        );
       },
       error: () => {
         this.exporting.set(false);
-        this.actionError.set('Konnte die Übergabe nicht beauftragen.');
+        this.actionError.set(this.i18n.translate('kasse.runs.exportFailed'));
       },
     });
   }

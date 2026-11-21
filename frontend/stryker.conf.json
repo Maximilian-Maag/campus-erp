@@ -12,7 +12,13 @@
     "!src/app/core/api/generated/**",
     "!src/app/app.config.ts",
     "!src/app/app.routes.ts",
-    "!src/main.ts"
+    "!src/main.ts",
+    "!src/app/i18n/pages/**",
+    "!src/app/i18n/messages.de.ts",
+    "!src/app/i18n/messages.en.ts",
+    "!src/app/i18n/shared.de.ts",
+    "!src/app/i18n/shared.en.ts",
+    "!src/app/ui/nav-model.ts"
   ],
   "thresholds": {
     "high": 90,

@@ -160,6 +160,16 @@ export const sharedDe = {
       subtitle: 'Stammdaten und Bewegungsdaten aus Altsystemen übernehmen.',
     },
   },
+  sepa: {
+    perMandate: 'je Mandat',
+    mixed: 'gemischt',
+    sequence: {
+      first: 'erstmalig',
+      recurring: 'wiederkehrend',
+      oneOff: 'einmalig',
+      final: 'letztmalig',
+    },
+  },
   common: {
     action: 'Aktion',
     actions: 'Aktionen',

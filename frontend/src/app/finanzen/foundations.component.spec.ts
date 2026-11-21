@@ -9,6 +9,7 @@ import {
   FoundationBook,
   FoundationBooking,
 } from '../core/api/generated';
+import { provideI18n } from '../i18n/provide-i18n';
 
 describe('FoundationsComponent', () => {
   let http: HttpTestingController;
@@ -16,7 +17,7 @@ describe('FoundationsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [FoundationsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideI18n()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

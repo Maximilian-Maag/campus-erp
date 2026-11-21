@@ -1,6 +1,8 @@
 import { Component, inject, signal } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, StatementLine } from '../core/api/generated';
 import { formatCents, formatDay, isoDay } from '../core/format';
+import { PageComponent } from '../ui/page.component';
 
 /**
  * Kasse — Rückläufer (return postings to the ledger side).
@@ -16,88 +18,90 @@ import { formatCents, formatDay, isoDay } from '../core/format';
  */
 @Component({
   selector: 'app-return-postings',
+  imports: [PageComponent, TranslocoPipe],
   template: `
-    <section aria-labelledby="returns-heading">
-      <h2 id="returns-heading">Rückläufer</h2>
-
-      @if (loadError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (actionError(); as e) {
-        <p role="alert" class="error">{{ e }}</p>
-      }
-      @if (notice(); as n) {
-        <p role="status" class="notice">{{ n }}</p>
-      }
-
-      <form (submit)="load($event)">
-        <p>
-          <label for="returns-from">Von</label>
-          <input
-            id="returns-from"
-            type="date"
-            [value]="from()"
-            (input)="from.set($any($event.target).value)"
-          />
-        </p>
-        <p>
-          <label for="returns-to">Bis</label>
-          <input
-            id="returns-to"
-            type="date"
-            [value]="to()"
-            (input)="to.set($any($event.target).value)"
-          />
-        </p>
-        <button type="submit" [disabled]="loading()">
-          {{ loading() ? 'Rückläufer werden geladen.' : 'Rückläufer laden' }}
-        </button>
-      </form>
-
-      @if (loaded()) {
-        @if (lines().length === 0) {
-          <p role="status">Für den Zeitraum sind keine Rückläufer eingelesen.</p>
-        } @else {
-          <table>
-            <caption>
-              Rückläufer im Zeitraum {{ day(from()) }} bis {{ day(to()) }}
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Wertstellung</th>
-                <th scope="col">Buchungsschlüssel</th>
-                <th scope="col">Auftrag</th>
-                <th scope="col" class="amount">Betrag</th>
-                <th scope="col">Richtung</th>
-                <th scope="col">Zweck</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (l of lines(); track l.ID) {
-                <tr [attr.data-testid]="'return-' + l.ID">
-                  <td>{{ day(l.ValueDate) }}</td>
-                  <td>{{ l.PostingKey }}</td>
-                  <td>{{ l.ClientRef }}</td>
-                  <td class="amount">{{ amount(l.AmountCents) }}</td>
-                  <td>{{ direction(l) }}</td>
-                  <td>{{ l.Purpose }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-
-          <form (submit)="queue($event)">
-            <button type="submit" [disabled]="queueing()">
-              {{ queueing() ? 'Übergabe wird eingeplant.' : 'An FiBu übergeben' }}
-            </button>
-          </form>
+    <app-page titleKey="page.kasseRuecklaeufer.title" subtitleKey="page.kasseRuecklaeufer.subtitle">
+      <section>
+        @if (loadError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
         }
-      }
-    </section>
+        @if (actionError(); as e) {
+          <p role="alert" class="error">{{ e }}</p>
+        }
+        @if (notice(); as n) {
+          <p role="status" class="notice">{{ n }}</p>
+        }
+
+        <form (submit)="load($event)">
+          <div class="field">
+            <label for="returns-from">{{ 'common.from' | transloco }}</label>
+            <input
+              id="returns-from"
+              type="date"
+              [value]="from()"
+              (input)="from.set($any($event.target).value)"
+            />
+          </div>
+          <div class="field">
+            <label for="returns-to">{{ 'common.to' | transloco }}</label>
+            <input
+              id="returns-to"
+              type="date"
+              [value]="to()"
+              (input)="to.set($any($event.target).value)"
+            />
+          </div>
+          <button type="submit" [disabled]="loading()">
+            {{ (loading() ? 'kasse.returns.loading' : 'kasse.returns.load') | transloco }}
+          </button>
+        </form>
+
+        @if (loaded()) {
+          @if (lines().length === 0) {
+            <p role="status">{{ 'kasse.returns.empty' | transloco }}</p>
+          } @else {
+            <table>
+              <caption>
+                {{ 'kasse.returns.caption' | transloco: { from: day(from()), to: day(to()) } }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ 'kasse.returns.valueDate' | transloco }}</th>
+                  <th scope="col">{{ 'kasse.returns.postingKey' | transloco }}</th>
+                  <th scope="col">{{ 'kasse.returns.clientRef' | transloco }}</th>
+                  <th scope="col" class="amount">{{ 'common.amount' | transloco }}</th>
+                  <th scope="col">{{ 'kasse.returns.direction' | transloco }}</th>
+                  <th scope="col">{{ 'common.purpose' | transloco }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (l of lines(); track l.ID) {
+                  <tr [attr.data-testid]="'return-' + l.ID">
+                    <td>{{ day(l.ValueDate) }}</td>
+                    <td>{{ l.PostingKey }}</td>
+                    <td>{{ l.ClientRef }}</td>
+                    <td class="amount">{{ amount(l.AmountCents) }}</td>
+                    <td>{{ direction(l) }}</td>
+                    <td>{{ l.Purpose }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <form (submit)="queue($event)">
+              <button type="submit" [disabled]="queueing()">
+                {{ (queueing() ? 'kasse.returns.queueing' : 'kasse.returns.queue') | transloco }}
+              </button>
+            </form>
+          }
+        }
+      </section>
+    </app-page>
   `,
 })
 export class ReturnPostingsComponent {
   private readonly api = inject(CampusErpApi);
+  private readonly i18n = inject(TranslocoService);
 
   readonly from = signal(isoDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   readonly to = signal(isoDay(new Date()));
@@ -119,7 +123,7 @@ export class ReturnPostingsComponent {
     const from = this.from();
     const to = this.to();
     if (!isDay(from) || !isDay(to)) {
-      this.loadError.set('Ein Zeitraum aus zwei Tagen ist erforderlich.');
+      this.loadError.set(this.i18n.translate('kasse.returns.periodRequired'));
       this.loaded.set(false);
       return;
     }
@@ -133,7 +137,7 @@ export class ReturnPostingsComponent {
       },
       error: () => {
         // A refused period must not look like a period nothing came back in.
-        this.loadError.set('Die Rückläufer konnten nicht geladen werden.');
+        this.loadError.set(this.i18n.translate('kasse.returns.loadFailed'));
         this.loaded.set(false);
         this.loading.set(false);
       },
@@ -149,11 +153,11 @@ export class ReturnPostingsComponent {
     this.queueing.set(true);
     this.api.requestReturnPostings({ from: this.from(), to: this.to() }).subscribe({
       next: (queued) => {
-        this.notice.set(`Übergabe an die FiBu eingeplant (Auftrag ${queued.job_id}).`);
+        this.notice.set(this.i18n.translate('kasse.returns.queued', { job: queued.job_id }));
         this.queueing.set(false);
       },
       error: () => {
-        this.actionError.set('Die Übergabe konnte nicht eingeplant werden.');
+        this.actionError.set(this.i18n.translate('kasse.returns.queueFailed'));
         this.queueing.set(false);
       },
     });
@@ -169,7 +173,9 @@ export class ReturnPostingsComponent {
 
   /** Money the bank returned arrives in the account: a credit line is an incoming return. */
   direction(l: StatementLine): string {
-    return l.Credit ? 'Eingang' : 'Ausgang';
+    return l.Credit
+      ? this.i18n.translate('kasse.returns.incoming')
+      : this.i18n.translate('kasse.returns.outgoing');
   }
 }
 
