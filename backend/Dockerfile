@@ -41,9 +41,18 @@ RUN set -eux; \
 # ── runtime ──────────────────────────────────────────────────────────────────
 FROM alpine:3.21 AS runtime
 
-# ca-certificates: outbound TLS (EBICS, ELSTER later). wget: container healthcheck.
+# ca-certificates: outbound TLS (EBICS, ELSTER later). wget: the api's compose
+# healthcheck (the chart probes the same routes over HTTP).
 RUN apk add --no-cache ca-certificates wget \
  && addgroup -S erp && adduser -S -G erp erp
+
+# Artefact directories. Both roles that store bytes read a directory from the
+# environment (api: ERP_DOCUMENTS_DIR, worker: ERP_OUTBOX_DIR) and refuse to start
+# without one, so the image carries a writable default - mounted as a volume by
+# compose, and replaced by ERP_S3_ENDPOINT in a deployment that has object storage.
+RUN mkdir -p /data/documents /data/outbox && chown -R erp:erp /data
+ENV ERP_DOCUMENTS_DIR=/data/documents \
+    ERP_OUTBOX_DIR=/data/outbox
 
 COPY --from=build /out/ /app/
 
@@ -51,9 +60,12 @@ USER erp
 WORKDIR /app
 EXPOSE 8080
 
-# Container healthcheck hits the api's health route; harmless (and unused) when
-# the same image runs as worker/connectors.
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1
+# No image-level HEALTHCHECK: one image serves three roles and only the api answers
+# HTTP, so a probe baked in here marks worker and connectors unhealthy for ever -
+# docker compose `up --wait` then never returns. The api's health is asserted where
+# the role is chosen: docker-compose.yml and deploy/helm/campus-erp (api.yaml).
 
-ENTRYPOINT ["/app/api"]
+# CMD, not ENTRYPOINT: `command:` in compose and Kubernetes is the image's CMD and
+# replaces it, whereas an ENTRYPOINT would keep `/app/api` and append the role path
+# as an argument - every "role" then ran the api binary.
+CMD ["/app/api"]
