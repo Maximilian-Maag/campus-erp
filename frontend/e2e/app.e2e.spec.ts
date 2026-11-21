@@ -18,10 +18,11 @@ test('every screen is reachable from the navigation', async ({ page }) => {
   // The route table is read as text rather than imported: a Playwright spec runs in Node, and
   // importing it would pull the Angular components in with it.
   const source = readFileSync('src/app/app.routes.ts', 'utf8');
-  // The empty path is the root redirect, not a screen, and carries no navigation entry.
+  // The empty path is the root redirect and `**` the not-found catch-all: neither is a screen
+  // and neither carries a navigation entry.
   const declared = [...source.matchAll(/path:\s*'([^']+)'/g)]
     .map((m) => '/' + m[1])
-    .filter((path) => path !== '/')
+    .filter((path) => path !== '/' && path !== '/**')
     .sort();
   expect(declared.length).toBeGreaterThan(0);
 
@@ -67,4 +68,24 @@ test('the language picker switches the interface and remembers the choice', asyn
 
   await page.reload();
   await expect(page.getByTestId('page-title')).toHaveText('Payment orders');
+});
+
+test('an unknown address says so instead of rendering a blank outlet', async ({ page }) => {
+  await page.goto('/gibt-es-nicht');
+  await expect(page.getByTestId('page-title')).toHaveText('Seite nicht gefunden');
+  await expect(page.getByTestId('not-found-back')).toHaveAttribute('href', '/kasse/tag');
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('the browser tab is named after the screen, in the chosen language', async ({ page }) => {
+  await page.route('**/api/**', (route) => route.fulfill({ json: [] }));
+
+  await page.goto('/kasse/anordnungen');
+  await expect(page).toHaveTitle('Zahlungsanordnungen · Campus ERP');
+
+  await page.getByTestId('language-picker').click();
+  await page.getByTestId('language-option-en').click();
+  await expect(page).toHaveTitle('Payment orders · Campus ERP');
 });

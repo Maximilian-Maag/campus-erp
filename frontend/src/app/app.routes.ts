@@ -24,6 +24,7 @@ import { GoodsReceiptsComponent } from './procurement/goods-receipts.component';
 import { AuswertungenComponent } from './reports/auswertungen.component';
 import { ImportsComponent } from './etl/imports.component';
 import { ReceivablesComponent } from './kasse/receivables.component';
+import { NotFoundComponent } from './ui/not-found.component';
 
 export const routes: Routes = [
   // The product opens on the screen a clerk starts the day with, rather than on an empty
@@ -54,4 +55,6 @@ export const routes: Routes = [
   { path: 'finanzen/steuern', component: TaxesComponent },
   { path: 'auswertungen', component: AuswertungenComponent },
   { path: 'importe', component: ImportsComponent },
+  // Anything else is a link that leads nowhere: say so rather than render an empty outlet.
+  { path: '**', component: NotFoundComponent },
 ];

@@ -27,8 +27,9 @@ targets through the same Makefile.
 - Never commit secrets; local defaults belong in `.env.example` / `docker-compose.yml`.
 - **No copy in components.** Every word a screen shows is a message key in
   `frontend/src/app/i18n/` — a shared key if the term already exists, otherwise the area's
-  fragment — in German *and* English. `npm run copy` (part of `make frontend-test`) fails on a
-  hard-coded string; see [`docs/32-design-system-and-i18n.md`](docs/32-design-system-and-i18n.md).
+  fragment — in German *and* English. `npm run i18n` (part of `make frontend-test`) fails on a
+  hard-coded string and on a key that names no entry; see
+  [`docs/32-design-system-and-i18n.md`](docs/32-design-system-and-i18n.md).
 - Do not commit proprietary third-party artefacts - see "What is not in this
   repository" in the README.
 

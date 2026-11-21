@@ -59,6 +59,11 @@ export const sharedDe = {
     },
   },
   page: {
+    notFound: {
+      title: 'Seite nicht gefunden',
+      subtitle: 'Diese Adresse führt auf keine Seite von Campus ERP.',
+      back: 'Zum Tagesabschluss',
+    },
     kasseTag: {
       title: 'Tagesabschluss',
       subtitle: 'Geschäftstag in der Kasse eröffnen und den Anfangsbestand festhalten.',

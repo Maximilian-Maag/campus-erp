@@ -1,5 +1,7 @@
-import { Component, input } from '@angular/core';
-import { TranslocoPipe } from '@jsverse/transloco';
+import { Component, DOCUMENT, effect, inject, input } from '@angular/core';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+
+import { LanguageService } from '../i18n/language.service';
 
 /**
  * The head of a screen: its name, one sentence about what it is for, and a place for the
@@ -61,8 +63,21 @@ import { TranslocoPipe } from '@jsverse/transloco';
   `,
 })
 export class PageComponent {
+  private readonly i18n = inject(TranslocoService);
+  private readonly document = inject(DOCUMENT);
+  private readonly activeLanguage = inject(LanguageService).language;
+
   /** Message key of the page heading, e.g. `page.kasseAnordnungen.title`. */
   readonly titleKey = input.required<string>();
   /** Message key of the one-sentence description under the heading. */
   readonly subtitleKey = input<string>();
+
+  constructor() {
+    effect(() => {
+      // Reading the language makes the tab title re-render when the interface does.
+      this.activeLanguage();
+      const screen = this.i18n.translate(this.titleKey());
+      this.document.title = `${screen} · ${this.i18n.translate('app.name')}`;
+    });
+  }
 }
