@@ -3,22 +3,33 @@
 Everything runs through the top-level `Makefile`:
 
 ```bash
-make            # short help
-make help       # every target, with the resolved tag and image names
-make check-tools
+make            # the help, grouped: start here / components / deploy
+make deps       # Go modules + npm packages
+make build      # backend binaries + the Angular bundle
+make run        # build the images and start the stack
+make stop       # stop it (the database volume is kept)
+make test       # the fast quality suite
+make mutation   # the mutation gates (floor 0.85)
 ```
 
-The Makefile needs only **docker**; the Go toolchain is optional (backend builds
-fall back to the `golang:<go.mod version>-alpine` image), Node/npm is required for the
-frontend, and `tectonic` for the architecture report PDF.
+The Makefile needs only **docker**; the Go toolchain is optional (it falls back to the
+`golang:<go.mod version>-alpine` image with a named module cache), Node/npm is required for the
+frontend, and `tectonic` for the architecture report PDF. `make check-tools` reports what is
+installed.
 
 ## Targets at a glance
 
+`make help` prints exactly this list, grouped; the **start here** block is all a contributor
+needs day to day.
+
 | Group | Targets |
 |---|---|
-| Overview | `help`, `version`, `check-tools` |
-| Everything | `all` (report PDF + build backend & frontend + images) |
-| Quality | `test`, `quality`, `test-tools`, `policy`, `policy-ci`, `hooks` |
+| Start here | `deps`, `build`, `run`, `stop`, `logs`, `test`, `mutation`, `quality`, `clean` |
+| Components (what the verbs compose; CI runs them directly) | `go-deps`, `backend-build`, `backend-vet`, `backend-test`, `backend-mutation` (`PKG=` for one package), `frontend-install`, `frontend-build`, `frontend-test`, `frontend-e2e-install`, `frontend-e2e`, `frontend-mutation` |
+| Policy, contract, tooling | `policy`, `policy-ci`, `hooks`, `test-tools`, `contracts-check`, `contracts-gen`, `contracts-validate` |
+| Images & deploy | `docker-images`, `docker-backend`, `docker-frontend`, `docker-login`, `docker-publish`, `deploy-backend`, `deploy-frontend`, `helm-lint`, `helm-template`, `deploy-k8s`, `k8s-status` |
+| Database & one half at a time | `db-up`, `db-shell`, `clean-data`, `workon-backend`, `workon-frontend` |
+| Report | `c4-pdf` |
 
 `make test-tools` self-tests the *tooling*: the ER-model generator (`tools/test_erm.py` — one entity
 per canonical table, with the newest tables named so a dropped one fails by name) and the API
@@ -26,17 +37,6 @@ contract tooling (`tools/api_contract.py selftest`, which CI also runs). It is *
 the `quality` workflow runs the contract selftests but not `test_erm.py`, so a migration that adds or
 removes a table must be followed by `make test-tools` by hand — the expected entity count lives in
 `tools/test_erm.py` and is meant to be read and updated with the migration, not guessed.
-| C4 & report | `c4-validate`, `c4-export`, `c4-pdf`, `c4-pdf-no-erm`, `c4-view` |
-| ER models | `erm`, `erm-gen`, `erm-export` |
-| Backend | `backend`, `backend-build`, `backend-vet`, `backend-fmt`, `backend-tidy`, `backend-test`, `backend-test-integration`, `backend-mutation`, `backend-run-api` |
-| Frontend | `frontend`, `frontend-install`, `frontend-build`, `frontend-test`, `frontend-e2e-install`, `frontend-e2e`, `frontend-mutation`, `frontend-serve` |
-| Contract | `contracts-validate` |
-| Images | `docker`, `docker-backend`, `docker-frontend`, `docker-images`, `docker-login`, `docker-push`, `docker-publish` |
-| Local stack | `up`, `down`, `restart`, `ps`, `logs`, `db-up`, `db-shell`, `clean-data` |
-| Deploy (one host) | `deploy`, `deploy-backend`, `deploy-frontend` |
-| Iterate on one half | `workon-frontend`, `workon-backend`, `dev-up` |
-| Kubernetes | `helm-lint`, `helm-template`, `deploy-k8s`, `k8s-backend`, `k8s-frontend`, `k8s-status`, `k8s-rollback` |
-| Clean | `clean`, `clean-images`, `distclean` |
 
 ## Running the quality suite locally
 
@@ -45,9 +45,10 @@ The gate is split (ADR-0008) so the common check is quick:
 - `make test` — the **fast** suite: Go vet/build/unit+integration, the Angular
   build + Karma tests, the ER-generator self-test and the API-contract drift
   guard. Seconds when warm.
-- `make mutation` — the mutation gates only: gremlins per package + Stryker
+- `make mutation` — the mutation gates: gremlins per package + Stryker
   (floor 0.85). ~11 min on its own.
-- `make test-all` — both; `make quality` adds the policy + contract checks.
+- `make quality` — everything: the policy check, the contract drift guard, the
+  fast suite and the mutation gates.
 
 Go needs `DATABASE_URL` (the integration/e2e tests must not skip):
 
@@ -55,29 +56,34 @@ Go needs `DATABASE_URL` (the integration/e2e tests must not skip):
 export DATABASE_URL='postgres://postgres:erp@localhost:55432/campus_erp?sslmode=disable'
 ```
 
+Point it at the compose database (`…@localhost:5433/campus_erp`) and stop the stack first
+(`make stop`): the worker of a running stack consumes the jobs the integration tests enqueue, and
+those tests then fail with jobs stuck in `retryable` while nothing is wrong with the code.
+
 The frontend steps (Karma, Stryker) need a **Chrome** binary; `karma-chrome-launcher`
-reads `CHROME_BIN`. The system default browser is qutebrowser, so point it at a
-user-local Chrome for Testing — no root, no system change, and the default browser
-is left alone:
+reads `CHROME_BIN`. The Makefile takes the Playwright chromium when `CHROME_BIN` is not set
+(`make frontend-e2e-install` puts one there), so normally nothing has to be exported. To use
+another browser, set `CHROME_BIN` yourself — the system default is qutebrowser, which Karma
+cannot drive:
 
 ```bash
-npx playwright install chromium
+npx playwright install chromium   # if you have no CHROME_BIN and no Playwright browsers yet
 export CHROME_BIN="$HOME/.cache/ms-playwright/chromium-*/chrome-linux64/chrome"
 ```
 
-Without `CHROME_BIN` the Angular and Stryker steps are skipped locally (they run
-in CI, which has a browser).
+Without a browser the Angular and Stryker steps cannot run; they run in CI, which has one.
 
 ## Architecture report (C4 + ER models) → PDF
 
 ```bash
-make c4-validate   # Structurizr DSL syntax check
-make c4-export     # c4/export/structurizr-<View>.png
 make c4-pdf        # c4/export/campus-erp-c4-model.pdf  (C4 + ER, landscape)
-make c4-pdf-no-erm # same, C4 views only
-make erm           # regenerate + render just the ER models
-make c4-view       # interactive Structurizr Lite on http://localhost:8080
 ```
+
+`tools/c4_pdf.sh` takes the finer flags when you are iterating on one half:
+`--export-only` (refresh the PNGs), `--no-export` (rebuild the PDF from existing PNGs) and
+`--no-erm` (C4 views only). `tools/erm.sh` regenerates and renders only the ER models; the
+interactive Structurizr Lite view is
+`docker run --rm -p 8080:8080 -v "$PWD/c4":/usr/local/structurizr structurizr/lite:latest`.
 
 Pipeline (`tools/c4_pdf.sh`, which calls `tools/erm.sh`):
 
@@ -162,30 +168,32 @@ them with `imagePullPolicy: IfNotPresent` keeps running whatever it pulled first
 Both images are public, so a cluster needs no pull secret for them.
 
 - **backend** (`backend/Dockerfile`): multi-stage; builds `api`, `worker` and
-  `connectors` from one source tree into one image. The entrypoint is `/app/api`;
-  the worker/connectors roles override the command (`/app/worker`, `/app/connectors`)
-  — the modular monolith (ADR-0004) as one image.
+  `connectors` from one source tree into one image. `CMD` is `/app/api`; compose and the
+  chart override it with `/app/worker` / `/app/connectors` — the modular monolith
+  (ADR-0004) as one image. The image also carries the artefact directories
+  (`/data/documents`, `/data/outbox`) as `ERP_DOCUMENTS_DIR` / `ERP_OUTBOX_DIR`, because
+  the api and the worker refuse to start without one.
 - **frontend** (`frontend/Dockerfile`): Angular production build served by nginx;
   `frontend/nginx.conf` proxies `/api` to `${API_UPSTREAM}` (same-origin API,
   ADR-0002) and does the SPA fallback.
 
 `quality.yml` builds both images on every push (the `images` job, build only, no push), so a
 Dockerfile whose Go or Node base image drifts from `backend/go.mod` / `frontend/package.json`
-fails a pull request rather than the next release.
+fails a pull request rather than the next release. That job then starts the stack from those
+exact images, waits for `/readyz` and checks each service's PID 1 is its role binary.
 
 ## Local stack (docker compose)
 
 ```bash
-make up            # build + start postgres, api, worker, connectors, web
-make ps
+make run           # build the images and start postgres, api, worker, connectors, web
 make logs S=api
 make db-shell
-make down          # keeps the volume
+make stop          # keeps the volume
 make clean-data    # drops the database volume
 ```
 
 Ports (overridable in `.env`, see `.env.example`): web `8081`, api `8080`,
-postgres `5433`.
+postgres `5433`. Artefacts live in the `erpdata` volume mounted at `/data`.
 
 RustFS (an S3-compatible endpoint for the artefact store) is **opt-in**: the default store is
 a directory (`docs/26`), so a contributor needs no S3 image. Start it when you want the S3
@@ -214,7 +222,7 @@ make deploy-frontend
 make workon-backend                                         # api on :8080
 ```
 
-`make up` (or `DOCKER_HOST=ssh://… make deploy`) targets a single host.
+`make run` (or `DOCKER_HOST=ssh://… docker compose up -d --build`) targets a single host.
 
 ## Kubernetes (Helm)
 
@@ -223,14 +231,14 @@ Ingress/HPA). Postgres is expected to be provisioned separately (CloudNativePG,
 one database per tenant — ADR-0002/0007); the chart only needs a DSN.
 
 ```bash
-make helm-lint                                  # helm lint
-make helm-template                              # render locally (no cluster)
-make deploy-k8s                                 # push images + helm upgrade --install
-make k8s-backend  IMAGE_BACKEND=...:1.2.3       # roll just the api/worker
-make k8s-frontend IMAGE_FRONTEND=...:1.2.3      # roll just the web tier
-make k8s-status
-make k8s-rollback
+make helm-lint          # helm lint
+make helm-template      # render locally (no cluster)
+make deploy-k8s         # push images + helm upgrade --install
+make k8s-status         # pods/services/ingress
 ```
+
+Rolling one tier is `kubectl set image` against the release:
+`kubectl -n campus-erp set image deployment/campus-erp-web web=<ref>`.
 
 Provide the DSN either as an existing secret or inline:
 

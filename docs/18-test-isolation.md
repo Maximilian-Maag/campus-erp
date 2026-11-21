@@ -15,7 +15,7 @@ Three things combined:
 
 1. **One database shared by every test binary.** The harness opened the shared
    `DATABASE_URL` and all tests wrote to the same tables. Go runs packages — and
-   `tools/run_tests.sh` runs gremlins, which runs a package's tests — in
+   `make backend-mutation` runs gremlins, which runs a package's tests — in
    parallel; two `kasse` test binaries can therefore run at once.
 2. **A shared identity.** `payment_recipient` is keyed by **IBAN**, and
    `OrderRepo.CreateRecipient` is an **upsert** (`ON CONFLICT (iban) DO UPDATE

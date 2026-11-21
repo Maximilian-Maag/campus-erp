@@ -15,9 +15,9 @@ make test        # Go vet/build/unit+integration, Angular build + unit, tooling,
 make mutation    # gremlins per package + Stryker, floor 0.85
 ```
 
-plus `python3 tools/policy_check.py --changed` (style, hygiene and secret rules) and
-`python3 tools/api_contract.py check` (the OpenAPI spec must match the Go routes).
-`make test-all` runs both halves locally; CI runs the same checks.
+plus `make policy` (style, hygiene and secret rules) and `make contracts-check` (the
+OpenAPI spec must match the Go routes). `make quality` runs all of it; CI runs the same
+targets through the same Makefile.
 
 ## Conventions
 

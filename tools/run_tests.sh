@@ -1,30 +1,19 @@
 #!/bin/bash
-# Full quality suite for the monorepo (ADR-0008).
+# The fast quality suite for the monorepo: Go (vet, build, unit + integration),
+# Angular (build, unit), the tooling self-tests and the API-contract drift guard.
 #
-# Mutation floor is 0.85 and is enforced by the mutation tools themselves:
-#   - Go:  gremlins --threshold-efficacy 85   (per package)
-#   - TS:  stryker thresholds.break = 85      (frontend/stryker.conf.json)
+# `make test` runs it. The mutation gates are NOT here - they are the Makefile's
+# `backend-mutation` (gremlins, one package per cache dir, floor 85) and
+# `frontend-mutation` (Stryker, thresholds.break = 85), so `make mutation` and a CI
+# shard run the same command instead of two copies of the same loop.
 #
-# NOTE: gremlins does NOT accept Go "..." patterns - `gremlins unleash ./internal/...`
-# silently reports "No results to report." and exits 0 (a vacuous pass). So the Go
-# mutation step ENUMERATES the packages from backend/mutation.json and FAILS on a
-# run that produced no mutants.
-#
-# Local: falls back to docker for Go when the toolchain is absent.
+# Local: a missing toolchain is SKIPPED (install Go, or run `npm ci` in frontend/).
 # CI:    every toolchain is REQUIRED; a missing one FAILS (no silent skips).
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CI="${CI:-}"
 GO_IMAGE="${GO_IMAGE:-golang:1.26-alpine}"
-MUTATION_THRESHOLD="${MUTATION_THRESHOLD:-85}"
-# Step groups. `fast` runs the code checks (Go, Angular, tooling, contract);
-# `mutation` runs the mutation gates (gremlins per package + Stryker). A full run is
-# both. The mutation sweep is ~11 min on its own - over an interactive command
-# budget - so `make test` selects `fast` and `make mutation` runs the gates alone;
-# `make test-all` runs everything.
-STEPS="${STEPS:-fast,mutation}"
-want() { [[ ",$STEPS," == *",$1,"* ]]; }
 
 fail=0
 ran=0
@@ -32,6 +21,15 @@ skipped=0
 
 say() { printf '%s\n' "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
+
+# Karma and Stryker need a Chrome binary. CI has one; locally take the Playwright
+# chromium when CHROME_BIN is not already set (the Makefile does the same, this
+# covers running the script directly).
+if [[ -z ${CHROME_BIN:-} ]]; then
+  for chrome in "$HOME"/.cache/ms-playwright/chromium-*/chrome-linux*/chrome; do
+    [[ -x $chrome ]] && export CHROME_BIN="$chrome"
+  done
+fi
 
 skip_or_fail() { # <tool> <reason>
   if [[ -n $CI ]]; then
@@ -41,16 +39,8 @@ skip_or_fail() { # <tool> <reason>
   fi
 }
 
-mutation_targets() { # package paths from backend/mutation.json
-  python3 - "$ROOT/backend/mutation.json" <<'PY'
-import json, sys
-for t in json.load(open(sys.argv[1])).get("targets", []):
-    print(t["path"])
-PY
-}
-
 # ── Go: vet + build + unit tests ────────────────────────────────────────────
-if want fast && [[ -d $ROOT/backend ]]; then
+if [[ -d $ROOT/backend ]]; then
   say "== Go: vet + build + unit + integration tests =="
   # The integration/e2e tests must not be skipped in CI: they need a database.
   if [[ -n $CI ]] && [[ -z ${DATABASE_URL:-} ]]; then
@@ -60,7 +50,11 @@ if want fast && [[ -d $ROOT/backend ]]; then
     ( cd "$ROOT/backend" && go vet ./... && go build ./... && go test ./... )
     rc=$?
   elif have docker; then
-    docker run --rm -v "$ROOT/backend":/app -w /app -e GOPROXY=off "$GO_IMAGE" \
+    # A named module cache: without it the container re-downloads every module on
+    # every run (the old fallback also passed GOPROXY=off, which made it a guaranteed
+    # failure on a cold cache).
+    docker run --rm -v "$ROOT/backend":/app -v campus-erp-gomod:/go/pkg/mod -w /app \
+      -e GOPATH=/go -e GOCACHE=/tmp/gocache "$GO_IMAGE" \
       sh -c 'go vet ./... && go build ./... && go test ./...'
     rc=$?
   else
@@ -70,7 +64,7 @@ if want fast && [[ -d $ROOT/backend ]]; then
 fi
 
 # ── Angular: build + unit tests ─────────────────────────────────────────────
-if want fast && [[ -d $ROOT/frontend ]]; then
+if [[ -d $ROOT/frontend ]]; then
   say "== Angular: build + unit tests =="
   if [[ -d $ROOT/frontend/node_modules ]] && have npx; then
     ( cd "$ROOT/frontend" && npx ng build --configuration development >/dev/null && \
@@ -78,12 +72,12 @@ if want fast && [[ -d $ROOT/frontend ]]; then
     rc=$?
     if (( rc == 0 )); then ran=$((ran + 1)); else fail=1; say "FAIL  Angular suite"; fi
   else
-    skip_or_fail npm "run 'npm ci' in frontend/"
+    skip_or_fail npm "run 'make deps' (npm ci in frontend/)"
   fi
 fi
 
 # ── Tooling: ER-model generator self-test ───────────────────────────────────
-if want fast && [[ -f $ROOT/tools/test_erm.py ]]; then
+if [[ -f $ROOT/tools/test_erm.py ]]; then
   say "== Tooling: ER-model generator self-test =="
   if have python3; then
     python3 "$ROOT/tools/test_erm.py"
@@ -95,7 +89,7 @@ if want fast && [[ -f $ROOT/tools/test_erm.py ]]; then
 fi
 
 # ── Tooling: OpenAPI generator self-test ────────────────────────────────────
-if want fast && [[ -f $ROOT/tools/gen_openapi.py ]]; then
+if [[ -f $ROOT/tools/gen_openapi.py ]]; then
   say "== Tooling: OpenAPI generator self-test =="
   if have python3; then
     python3 "$ROOT/tools/gen_openapi.py" --selftest
@@ -107,7 +101,7 @@ if want fast && [[ -f $ROOT/tools/gen_openapi.py ]]; then
 fi
 
 # ── Tooling: API contract (drift guard + generated client) ──────────────────
-if want fast && [[ -f $ROOT/tools/api_contract.py ]]; then
+if [[ -f $ROOT/tools/api_contract.py ]]; then
   say "== Tooling: API contract (drift guard) =="
   if have python3; then
     python3 "$ROOT/tools/api_contract.py" selftest && python3 "$ROOT/tools/api_contract.py" check
@@ -116,67 +110,6 @@ if want fast && [[ -f $ROOT/tools/api_contract.py ]]; then
   else
     skip_or_fail python3 "install python3"
   fi
-fi
-
-# ── Mutation: Go (gremlins, per package) ────────────────────────────────────
-if want mutation; then
-say "== Mutation: Go (floor ${MUTATION_THRESHOLD}%) =="
-if [[ -d $ROOT/backend ]]; then
-  if have gremlins; then
-    targets="$(mutation_targets)"
-    [[ -z $targets ]] && { say "FAIL  mutation/go no targets in mutation.json"; fail=1; }
-    # gremlins caches its coverage profile in the user cache dir. Sharing it across
-    # packages yields WRONG, non-reproducible scores (observed: a package reporting
-    # 0 killed after another package had run), so give every package its own cache.
-    #
-    # TMPDIR points into the same per-package dir: gremlins and the Go toolchain also
-    # spill into /tmp (object files, coverage profiles), and on a small /tmp those
-    # leftovers fill the disk mid-sweep - which surfaces as "below floor" on packages
-    # that are actually green. Keeping every byte under cache_root means the trap
-    # removes all of it, so a sweep leaves no more space behind than it found.
-    cache_root="$(mktemp -d)"
-    trap 'rm -rf "$cache_root"' EXIT
-    while read -r pkg; do
-      [[ -z $pkg ]] && continue
-      pkg_home="$cache_root/${pkg//\//_}"
-      mkdir -p "$pkg_home/tmp"
-      out="$( cd "$ROOT/backend" && XDG_CACHE_HOME="$pkg_home" TMPDIR="$pkg_home/tmp" \
-        gremlins unleash --threshold-efficacy "$MUTATION_THRESHOLD" "./$pkg" 2>&1 )"
-      rc=$?
-      if grep -q "No results to report" <<<"$out"; then
-        say "FAIL  mutation/go $pkg produced no mutants (vacuous run)"; fail=1
-      elif (( rc != 0 )); then
-        say "FAIL  mutation/go $pkg below floor"
-        # A non-zero exit is not always a score: it can be a build error, a
-        # coverage-gathering failure or a full disk. Surface the reason, or the gate
-        # reports "below floor" for a mechanical failure and sends you hunting a
-        # regression that does not exist.
-        grep -E "Killed:|Test efficacy|failed to|fatal|error|no such|cannot|quota" <<<"$out" \
-          | tail -4 | sed 's/^/        /'
-        fail=1
-      else
-        say "PASS  mutation/go $pkg"
-      fi
-    done <<<"$targets"
-    ran=$((ran + 1))
-  else
-    skip_or_fail gremlins "go install github.com/go-gremlins/gremlins/cmd/gremlins@latest"
-  fi
-fi
-fi
-
-# ── Mutation: TypeScript (stryker) ──────────────────────────────────────────
-if want mutation; then
-say "== Mutation: TypeScript (floor ${MUTATION_THRESHOLD}%) =="
-if [[ -f $ROOT/frontend/stryker.conf.json ]]; then
-  if [[ -d $ROOT/frontend/node_modules ]] && have npx; then
-    ( cd "$ROOT/frontend" && npx stryker run )
-    rc=$?
-    if (( rc == 0 )); then ran=$((ran + 1)); else fail=1; say "FAIL  mutation/web below floor"; fi
-  else
-    skip_or_fail npx "npm ci in frontend/"
-  fi
-fi
 fi
 
 say ""

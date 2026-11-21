@@ -1,13 +1,16 @@
-# campus-erp — one entry point for building, testing, packaging and deploying.
+# campus-erp — one entry point for installing, building, running, testing and deploying.
 #
-#   make            # short help
-#   make help       # full target list
-#   make all        # architecture report PDF + backend + frontend + container images
-#   make c4-pdf     # the landscape architecture report (C4 + database ER models)
+#   make            # this help
+#   make deps       # install dependencies (Go modules, npm packages)
+#   make build      # backend binaries + the Angular bundle
+#   make run        # build the images and start the stack (postgres, api, worker, connectors, web)
+#   make stop       # stop the stack (the database volume is kept)
+#   make test       # the fast quality suite
 #
-# Everything is driven from the repo root and is meant to work with only docker
-# installed (Go runs in the golang:$(GO_VERSION)-alpine image when the local toolchain is
-# absent; Node is required for the frontend). See AGENTS.md for the quality floor.
+# Everything is driven from the repo root. Only docker is required: Go runs in the
+# golang:$(GO_VERSION)-alpine image when the local toolchain is absent, Node/npm is
+# needed for the frontend, and the architecture report needs tectonic. See
+# docs/build-and-deploy.md and AGENTS.md for the quality floor.
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
@@ -52,11 +55,11 @@ STRUCTURIZR_LITE  ?= structurizr/lite:latest
 PLANTUML_IMAGE    ?= plantuml/plantuml:latest
 MUTATION_THRESHOLD ?= 85
 
-# Where `workon-*` looks for the *other* half when it is deployed elsewhere.
+# Where `workon-frontend` looks for the *other* half when it is deployed elsewhere.
 API_PROXY_TARGET ?= http://localhost:8080   # workon-frontend -> deployed backend
 DATABASE_URL     ?= postgres://postgres:erp@localhost:5433/campus_erp?sslmode=disable
 
-# Kubernetes (deploy-k8s / k8s-*). Set KUBE_CONTEXT to target a specific cluster.
+# Kubernetes (deploy-k8s / k8s-status). Set KUBE_CONTEXT to target a specific cluster.
 NAMESPACE    ?= campus-erp
 RELEASE      ?= campus-erp
 CHART        ?= $(DEPLOY)/helm/campus-erp
@@ -64,13 +67,25 @@ KUBE_CONTEXT ?=
 KUBECTL      := kubectl $(if $(KUBE_CONTEXT),--context $(KUBE_CONTEXT),)
 HELM         := helm $(if $(KUBE_CONTEXT),--kube-context $(KUBE_CONTEXT),)
 
-# Use the local Go toolchain when present, otherwise the container.
+# Use the local Go toolchain when present, otherwise the container. The container
+# gets a named module cache volume: without one every `go` invocation downloads the
+# whole module set again, and `make deps` would install into a throwaway layer.
+GO_DOCKER = docker run --rm -v "$(BACKEND)":/app -v campus-erp-gomod:/go/pkg/mod -w /app \
+              -e GOPATH=/go -e GOCACHE=/tmp/gocache $(GO_IMAGE) go
 ifeq ($(shell command -v go >/dev/null 2>&1 && echo yes),)
-GO := docker run --rm -v "$(BACKEND)":/app -w /app -e GOCACHE=/tmp/gocache $(GO_IMAGE) go
+GO := $(GO_DOCKER)
 GO_IN_DOCKER := 1
 else
 GO := go
 GO_IN_DOCKER := 0
+endif
+
+# Karma and Stryker need a Chrome binary. CI has one; locally take the Playwright
+# chromium when CHROME_BIN is not already set, so `make test` works after `make deps`
+# without the manual export docs/build-and-deploy.md used to ask for.
+CHROME_BIN ?= $(lastword $(wildcard $(HOME)/.cache/ms-playwright/chromium-*/chrome-linux*/chrome))
+ifneq ($(CHROME_BIN),)
+export CHROME_BIN
 endif
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -78,111 +93,79 @@ define require
 @command -v $(1) >/dev/null 2>&1 || { echo "error: '$(1)' is required for this target"; exit 1; }
 endef
 
-.PHONY: help version check-tools
+.PHONY: help check-tools \
+        deps go-deps frontend-install build backend-build frontend-build \
+        run stop logs test mutation quality clean \
+        backend-vet backend-test backend-mutation \
+        frontend-test frontend-e2e-install frontend-e2e frontend-mutation \
+        policy policy-ci hooks test-tools contracts-check contracts-gen contracts-validate \
+        docker-images docker-backend docker-frontend docker-login docker-publish \
+        deploy-backend deploy-frontend helm-lint helm-template deploy-k8s k8s-status \
+        db-up db-shell clean-data workon-backend workon-frontend c4-pdf
 
 help: ## Show this help
-	@echo "campus-erp — build, test, package, deploy"
-	@echo
-	@awk 'BEGIN{FS=":.*## "} /^[a-zA-Z0-9_.-]+:.*## /{printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo "campus-erp — deps, build, run, test"
+	@awk 'BEGIN{FS=":.*## "} /^##@@ /{printf "\n%s\n", substr($$0,6); next} \
+	      /^[a-zA-Z0-9_.-]+:.*## /{printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 	@echo "vars: TAG=$(TAG)  IMAGE_BACKEND=$(IMAGE_BACKEND)  IMAGE_FRONTEND=$(IMAGE_FRONTEND)"
-	@echo "      registry=$(REGISTRY)  push_tags=$(if $(PUSH_TAGS),$(PUSH_TAGS),-)"
-	@echo "      go=$(if $(filter 1,$(GO_IN_DOCKER)),docker,$(shell command -v go))"
-
-version: ## Print the resolved build tag
-	@echo $(TAG)
+	@echo "      registry=$(REGISTRY)  go=$(if $(filter 1,$(GO_IN_DOCKER)),docker,$(shell command -v go))"
 
 check-tools: ## Report which optional tools are available
-	@for t in docker go node npm npx tectonic helm kubectl python3; do \
+	@for t in docker go node npm npx helm kubectl python3 tectonic gremlins; do \
 	  if command -v $$t >/dev/null 2>&1; then echo "  ok      $$t"; else echo "  MISSING $$t"; fi; \
 	done
 
-# ════════════════════════════════════════════════════════════════════════════
-# all / quality
-# ════════════════════════════════════════════════════════════════════════════
+##@@ start here
+deps: go-deps frontend-install ## Install the dependencies (Go modules, npm packages)
 
-.PHONY: all
-all: c4-pdf backend frontend docker ## Architecture report PDF + build backend & frontend + images
+build: backend-build frontend-build ## Build the backend binaries and the Angular bundle
 
-.PHONY: test
-test: ## Fast suite: Go + Angular + tooling + contract (no mutation)
-	@STEPS=fast $(ROOT)/tools/run_tests.sh
-
-.PHONY: mutation
-mutation: ## Mutation gates only: gremlins per package + Stryker (floor 85)
-	@STEPS=mutation $(ROOT)/tools/run_tests.sh
-
-.PHONY: test-all
-test-all: ## Full suite: the fast checks + the mutation gates
-	@STEPS=fast,mutation $(ROOT)/tools/run_tests.sh
-
-.PHONY: quality
-quality: policy contracts-check test-all ## Policy check + contract + full quality suite
-
-.PHONY: test-tools
-test-tools: ## Self-test the tooling (ER-model generator + API contract + domain codes)
-	@python3 $(ROOT)/tools/test_erm.py
-	@python3 $(ROOT)/tools/api_contract.py selftest
-	@python3 $(ROOT)/tools/test_domaincodes.py
-
-.PHONY: policy
-policy: ## Run the policy checker (changed files)
-	@python3 $(ROOT)/tools/policy_check.py --changed
-
-.PHONY: policy-ci
-policy-ci: ## Run the policy checker in CI mode (all files)
-	@python3 $(ROOT)/tools/policy_check.py --ci
-
-.PHONY: hooks
-hooks: ## Enable the repo's git hooks (core.hooksPath)
-	@git -C $(ROOT) config core.hooksPath .githooks
-	@echo "hooks enabled"
-
-# ════════════════════════════════════════════════════════════════════════════
-# C4 model + ER models  (workspace.dsl / c4/erm -> PNG -> landscape PDF)
-# ════════════════════════════════════════════════════════════════════════════
-
-.PHONY: c4-validate c4-export c4-pdf c4-pdf-no-erm c4-view erm erm-gen erm-export
-
-c4-validate: ## Validate the Structurizr DSL
+run: ## Build the images and start the stack (postgres, api, worker, connectors, web)
 	$(call require,docker)
-	chmod 644 "$(C4)/workspace.dsl"
-	docker run --rm -v "$(C4)":/w -w /w $(STRUCTURIZR_IMAGE) validate -w workspace.dsl
+	$(COMPOSE) up -d --build
+	# Wait on the api's own readiness route rather than on `--wait`: a cold postgres
+	# needs a while to accept connections, and `--wait` aborts the moment a container
+	# is *unhealthy* once - which a first boot with migrations can be, permanently red
+	# for a stack that was about to come up fine.
+	@echo "waiting for the api (/readyz)"
+	@for i in $$(seq 1 60); do \
+	  if curl -fsS -o /dev/null "http://localhost:$${API_PORT:-8080}/readyz" 2>/dev/null; then \
+	    echo "ok: http://localhost:$${API_PORT:-8080}/readyz"; break; \
+	  fi; \
+	  if (( i == 60 )); then \
+	    $(COMPOSE) ps; $(COMPOSE) logs --tail=30 api; \
+	    echo "error: the api did not report ready within 2 minutes"; exit 1; \
+	  fi; \
+	  sleep 2; \
+	done
+	@echo
+	@echo "web  http://localhost:8081"
+	@echo "api  http://localhost:8080  (readiness: /readyz)"
 
-c4-export: ## Export C4 views as PNG (c4/export/structurizr-*.png)
-	$(call require,docker)
-	tools/c4_pdf.sh --export-only
+stop: ## Stop the stack (keeps the database volume)
+	$(COMPOSE) down
 
-c4-pdf: ## Build the full architecture report PDF (C4 + ER models, landscape)
-	$(call require,docker)
-	tools/c4_pdf.sh
+logs: ## Tail the stack's logs (make logs S=api to filter)
+	$(COMPOSE) logs -f $(S)
 
-c4-pdf-no-erm: ## Build the report PDF with C4 views only
-	tools/c4_pdf.sh --no-erm
+test: ## Fast suite: Go, Angular, tooling, contract (no mutation)
+	@$(ROOT)/tools/run_tests.sh
 
-c4-view: ## Serve the C4 model interactively (Structurizr Lite, :8080)
-	$(call require,docker)
-	docker run --rm -p 8080:8080 -v "$(C4)":/usr/local/structurizr $(STRUCTURIZR_LITE)
+mutation: backend-mutation frontend-mutation ## Mutation gates: gremlins per package + Stryker (floor 85)
 
-erm: ## Regenerate + render the database ER models (target + legacy modules)
-	python3 tools/gen_erm.py --root "$(ROOT)"
-	tools/erm.sh
+quality: ## Everything: policy, contract, the fast suite and the mutation gates
+	@$(MAKE) --no-print-directory policy contracts-check test mutation
 
-erm-gen: ## Only (re)generate the ER PlantUML sources (c4/erm/*.puml)
-	python3 tools/gen_erm.py --root "$(ROOT)"
+clean: ## Remove build artefacts (bin, dist, c4 export)
+	rm -rf $(BACKEND)/bin $(FRONTEND)/dist $(FRONTEND)/.angular \
+	       $(C4)/export $(ROOT)/build
 
-erm-export: ## Render the ER models to PNG (c4/export/{target,legacy}_*.png)
-	$(call require,docker)
-	tools/erm.sh --no-gen
+##@@ components (the verbs above compose these; CI runs them directly)
+needs_npm = @if [[ ! -d $(FRONTEND)/node_modules ]]; then echo "error: run 'make deps' first (no $(FRONTEND)/node_modules)"; exit 1; fi
 
-# ════════════════════════════════════════════════════════════════════════════
-# Backend (Go)
-# ════════════════════════════════════════════════════════════════════════════
-
-.PHONY: backend backend-build backend-vet backend-fmt backend-tidy \
-        backend-test backend-test-integration backend-mutation backend-run-api
-
-backend: backend-build ## Build the backend binaries (backend/bin/)
+go-deps: ## Download the Go modules
+	cd $(BACKEND) && $(GO) mod download
 
 backend-build: ## Build api/worker/connectors into backend/bin/
 	cd $(BACKEND) && mkdir -p bin && \
@@ -193,91 +176,86 @@ backend-build: ## Build api/worker/connectors into backend/bin/
 backend-vet: ## go vet
 	cd $(BACKEND) && $(GO) vet ./...
 
-backend-fmt: ## gofmt (write)
-	cd $(BACKEND) && $(GO) fmt ./...
-
-backend-tidy: ## go mod tidy
-	cd $(BACKEND) && $(GO) mod tidy
-
 backend-test: ## Go unit + integration tests (integration needs DATABASE_URL)
 	cd $(BACKEND) && $(GO) test ./...
 
-backend-test-integration: db-up ## Go tests against the compose Postgres
-	cd $(BACKEND) && DATABASE_URL="$(DATABASE_URL)" $(GO) test ./...
-
-backend-mutation: ## gremlins per package (floor 85)
+# One package per gremlins run, each with its own cache dir: a shared cache yields
+# wrong, non-reproducible scores (ADR-0008). PKG=<path> runs a single package, which
+# is how CI shards the sweep; without it every target in backend/mutation.json runs.
+# Output is streamed through tee: a shard is minutes long and a silent job looks hung.
+backend-mutation: ## gremlins (floor 85 per package; PKG=<path> for one)
 	$(call require,gremlins)
-	@cache=$$(mktemp -d); trap 'rm -rf "$$cache"' EXIT; \
-	targets=$$(python3 -c "import json;print('\n'.join(t['path'] for t in json.load(open('$(BACKEND)/mutation.json'))['targets']))"); \
+	@if [[ -n "$(PKG)" ]]; then targets="$(PKG)"; else \
+	  targets=$$(python3 -c "import json;print('\n'.join(t['path'] for t in json.load(open('$(BACKEND)/mutation.json'))['targets']))"); \
+	fi; \
+	cache=$$(mktemp -d); trap 'rm -rf "$$cache"' EXIT; \
 	for pkg in $$targets; do \
 	  echo "== mutation/go $$pkg"; \
-	  out=$$( cd $(BACKEND) && XDG_CACHE_HOME="$$cache/$${pkg//\//_}" \
-	          gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) "./$$pkg" 2>&1 ) || { echo "$$out"; exit 1; }; \
-	  echo "$$out"; \
-	  if grep -q "No results to report" <<<"$$out"; then echo "vacuous run for $$pkg"; exit 1; fi; \
+	  log="$$cache/$${pkg//\//_}.log"; \
+	  if ! ( cd $(BACKEND) && XDG_CACHE_HOME="$$cache/$${pkg//\//_}" \
+	         stdbuf -oL -eL gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) "./$$pkg" 2>&1 | tee "$$log" ); then \
+	    echo "FAIL mutation/go $$pkg (below floor, or the run itself failed)"; exit 1; \
+	  fi; \
+	  if grep -q "No results to report" "$$log"; then echo "FAIL mutation/go $$pkg: vacuous run"; exit 1; fi; \
+	  echo "PASS mutation/go $$pkg"; \
 	done
-
-backend-run-api: ## Run the api locally (foreground)
-	cd $(BACKEND) && DATABASE_URL="$(DATABASE_URL)" $(GO) run ./cmd/api
-
-# ════════════════════════════════════════════════════════════════════════════
-# Frontend (Angular)
-# ════════════════════════════════════════════════════════════════════════════
-
-.PHONY: frontend frontend-install frontend-build frontend-test frontend-e2e \
-        frontend-mutation frontend-serve frontend-e2e-install
-
-frontend: frontend-install frontend-build ## Install deps + build the SPA
 
 frontend-install: ## npm ci
 	cd $(FRONTEND) && npm ci
 
 frontend-build: ## Production build (frontend/dist/)
+	$(needs_npm)
 	cd $(FRONTEND) && npm run build -- --configuration production
 
 frontend-test: ## Karma unit tests (headless)
+	$(needs_npm)
 	cd $(FRONTEND) && npm run test:ci
 
-frontend-e2e-install: ## Install Playwright browsers
+frontend-e2e-install: ## Install the Playwright browsers
+	$(needs_npm)
 	cd $(FRONTEND) && npx playwright install --with-deps chromium
 
-frontend-e2e: ## Playwright + axe e2e
+frontend-e2e: ## Playwright + axe end-to-end tests
+	$(needs_npm)
 	cd $(FRONTEND) && npm run e2e
 
 frontend-mutation: ## Stryker mutation (floor 85)
+	$(needs_npm)
 	cd $(FRONTEND) && npm run mutation
 
-frontend-serve: ## Dev server (ng serve) at http://localhost:4200
-	cd $(FRONTEND) && npm start
+##@@ policy, contract, tooling
+policy: ## Run the policy checker (changed files)
+	@python3 $(ROOT)/tools/policy_check.py --changed
 
-# ════════════════════════════════════════════════════════════════════════════
-# Contract
-# ════════════════════════════════════════════════════════════════════════════
+policy-ci: ## Run the policy checker in CI mode (all files)
+	@python3 $(ROOT)/tools/policy_check.py --ci
 
-.PHONY: contracts-validate
+hooks: ## Enable the repo's git hooks (core.hooksPath)
+	@git -C $(ROOT) config core.hooksPath .githooks
+	@echo "hooks enabled"
 
-contracts-validate: ## Lint contracts/openapi.yaml
-	npx --yes @redocly/cli lint --config $(ROOT)/.redocly.yaml $(ROOT)/contracts/openapi.yaml
+test-tools: ## Self-test the tooling (ER-model generator + API contract + domain codes)
+	@python3 $(ROOT)/tools/test_erm.py
+	@python3 $(ROOT)/tools/api_contract.py selftest
+	@python3 $(ROOT)/tools/test_domaincodes.py
 
-.PHONY: contracts-check contracts-gen
-
-contracts-check: ## Verify the OpenAPI spec matches the Go routes (drift guard)
+contracts-check: ## Verify spec, client and domain codes match the Go routes (drift guard)
 	@python3 $(ROOT)/tools/api_contract.py selftest
 	@python3 $(ROOT)/tools/api_contract.py check
+	@python3 $(ROOT)/tools/gen_openapi.py --selftest
+	@python3 $(ROOT)/tools/gen_openapi.py --check
 	@python3 $(ROOT)/tools/gen_domaincodes.py --check
 
 contracts-gen: ## Regenerate contracts/openapi.yaml, the Angular client and the domain codes
-	@/usr/bin/python3 $(ROOT)/tools/gen_openapi.py
+	@python3 $(ROOT)/tools/gen_openapi.py
 	@python3 $(ROOT)/tools/api_contract.py gen
 	@python3 $(ROOT)/tools/gen_domaincodes.py
 
-# ════════════════════════════════════════════════════════════════════════════
-# Container images
-# ════════════════════════════════════════════════════════════════════════════
+contracts-validate: ## Lint contracts/openapi.yaml
+	@npx --yes @redocly/cli lint --config $(ROOT)/.redocly.yaml $(ROOT)/contracts/openapi.yaml
 
-.PHONY: docker docker-backend docker-frontend docker-images docker-login docker-push docker-publish
-
-docker: docker-images ## Alias for docker-images
+##@@ images & deploy
+docker-images: docker-backend docker-frontend ## Build both container images
 
 docker-backend: ## Build the backend image (IMAGE_BACKEND)
 	$(call require,docker)
@@ -288,9 +266,7 @@ docker-frontend: ## Build the frontend image (IMAGE_FRONTEND)
 	$(call require,docker)
 	docker build --tag "$(IMAGE_FRONTEND)" $(FRONTEND)
 
-docker-images: docker-backend docker-frontend ## Build both images
-
-docker-login: ## Log in to $(REGISTRY_HOST) as $(REGISTRY_USER) using DOCKER_HUB_TOKEN
+docker-login: ## Log in to the registry with DOCKER_HUB_TOKEN (from the environment)
 	$(call require,docker)
 	if [[ -z $${DOCKER_HUB_TOKEN:-} ]]; then
 	  echo "error: DOCKER_HUB_TOKEN is not set (a Docker Hub access token with read/write)"
@@ -299,11 +275,6 @@ docker-login: ## Log in to $(REGISTRY_HOST) as $(REGISTRY_USER) using DOCKER_HUB
 	# Through the environment, not argv: a token in the command line is visible to
 	# every process on the machine.
 	printenv DOCKER_HUB_TOKEN | docker login --username "$(REGISTRY_USER)" --password-stdin "$(REGISTRY_HOST)"
-
-docker-push: ## Push both images (set IMAGE_* to a registry ref first)
-	$(call require,docker)
-	docker push "$(IMAGE_BACKEND)"
-	docker push "$(IMAGE_FRONTEND)"
 
 docker-publish: ## Build both images and push them to $(REGISTRY)
 	$(call require,docker)
@@ -322,84 +293,11 @@ docker-publish: ## Build both images and push them to $(REGISTRY)
 	  done
 	done
 
-# ════════════════════════════════════════════════════════════════════════════
-# Local stack (docker compose)
-# ════════════════════════════════════════════════════════════════════════════
-
-.PHONY: up down restart ps logs db-up clean-data clean-images
-
-up: ## Build + start the whole stack (postgres, api, worker, connectors, web)
-	$(COMPOSE) up -d --build
-	# Wait on the api's own readiness route rather than on `--wait`: a cold postgres
-	# needs a while to accept connections, and `--wait` aborts the moment a container
-	# is *unhealthy* once - which a first boot with migrations can be, permanently red
-	# for a stack that was about to come up fine.
-	@echo "waiting for the api (/readyz)"
-	@for i in $$(seq 1 60); do \
-	  if curl -fsS -o /dev/null "http://localhost:$${API_PORT:-8080}/readyz" 2>/dev/null; then \
-	    echo "ok: http://localhost:$${API_PORT:-8080}/readyz"; exit 0; \
-	  fi; \
-	  sleep 2; \
-	done; \
-	$(COMPOSE) ps; $(COMPOSE) logs --tail=30 api; \
-	echo "error: the api did not report ready within 2 minutes"; exit 1
-
-down: ## Stop the stack (keeps the database volume)
-	$(COMPOSE) down
-
-restart: ## Restart all services
-	$(COMPOSE) restart
-
-ps: ## Show service status
-	$(COMPOSE) ps
-
-logs: ## Tail logs (make logs S=api to filter)
-	$(COMPOSE) logs -f $(S)
-
-db-up: ## Start only Postgres (for local backend/integration tests)
-	$(COMPOSE) up -d postgres
-
-db-shell: ## psql into the running Postgres
-	$(COMPOSE) exec postgres psql -U postgres -d $${POSTGRES_DB:-campus_erp}
-
-clean-data: ## Stop the stack and delete the database volume
-	$(COMPOSE) down -v
-
-# ════════════════════════════════════════════════════════════════════════════
-# Deploy (single host via compose)  — deploy one half, work on the other
-# ════════════════════════════════════════════════════════════════════════════
-
-.PHONY: deploy deploy-backend deploy-frontend
-
-deploy: deploy-backend deploy-frontend ## Deploy both halves to the compose host
-
-deploy-backend: docker-backend ## Build + (re)start backend services only
+deploy-backend: docker-backend ## Build + (re)start the backend services only
 	$(COMPOSE) up -d --no-deps postgres api worker connectors
 
 deploy-frontend: docker-frontend ## Build + (re)start the web service only
 	$(COMPOSE) up -d --no-deps web
-
-# ════════════════════════════════════════════════════════════════════════════
-# Work on one half against the deployed other half
-# ════════════════════════════════════════════════════════════════════════════
-
-.PHONY: workon-frontend workon-backend dev-up
-
-workon-frontend: ## Dev-serve the SPA, proxying /api to API_PROXY_TARGET (deployed backend)
-	@echo "frontend: http://localhost:4200  ->  /api -> $(API_PROXY_TARGET)"
-	cd $(FRONTEND) && API_PROXY_TARGET="$(API_PROXY_TARGET)" npm start -- --proxy-config proxy.conf.mjs
-
-workon-backend: db-up ## Run the api locally against the compose database
-	@echo "backend: http://localhost:8080  ->  $(DATABASE_URL)"
-	cd $(BACKEND) && DATABASE_URL="$(DATABASE_URL)" $(GO) run ./cmd/api
-
-dev-up: db-up ## Minimal dev bootstrap (Postgres only); then workon-backend + workon-frontend
-
-# ════════════════════════════════════════════════════════════════════════════
-# Kubernetes (Helm)  — production target, ADR-0007
-# ════════════════════════════════════════════════════════════════════════════
-
-.PHONY: helm-lint helm-template deploy-k8s k8s-backend k8s-frontend k8s-status k8s-rollback
 
 helm-lint: ## helm lint the chart
 	$(call require,helm)
@@ -413,7 +311,7 @@ helm-template: ## Render the chart locally (no cluster needed)
 	  --set images.frontend.repository="$(firstword $(subst :, ,$(IMAGE_FRONTEND)))" \
 	  --set images.frontend.tag="$(lastword $(subst :, ,$(IMAGE_FRONTEND)))"
 
-deploy-k8s: docker-push ## helm upgrade --install the whole release
+deploy-k8s: docker-publish ## helm upgrade --install the whole release
 	$(call require,helm)
 	$(HELM) upgrade --install $(RELEASE) $(CHART) \
 	  --namespace $(NAMESPACE) --create-namespace \
@@ -422,36 +320,29 @@ deploy-k8s: docker-push ## helm upgrade --install the whole release
 	  --set images.frontend.repository="$(firstword $(subst :, ,$(IMAGE_FRONTEND)))" \
 	  --set images.frontend.tag="$(lastword $(subst :, ,$(IMAGE_FRONTEND)))"
 
-k8s-backend: ## Roll the backend deployments to the current image
-	$(call require,kubectl)
-	$(KUBECTL) -n $(NAMESPACE) set image deployment/$(RELEASE)-api     api="$(IMAGE_BACKEND)"
-	$(KUBECTL) -n $(NAMESPACE) set image deployment/$(RELEASE)-worker  worker="$(IMAGE_BACKEND)"
-	$(KUBECTL) -n $(NAMESPACE) rollout status deployment/$(RELEASE)-api
-
-k8s-frontend: ## Roll the web deployment to the current image
-	$(call require,kubectl)
-	$(KUBECTL) -n $(NAMESPACE) set image deployment/$(RELEASE)-web web="$(IMAGE_FRONTEND)"
-	$(KUBECTL) -n $(NAMESPACE) rollout status deployment/$(RELEASE)-web
-
 k8s-status: ## Show pods/services/ingress
 	$(call require,kubectl)
 	$(KUBECTL) -n $(NAMESPACE) get deploy,svc,ing,po
 
-k8s-rollback: ## Roll back the last helm release
-	$(call require,helm)
-	$(HELM) rollback $(RELEASE) -n $(NAMESPACE)
+##@@ database & one half at a time
+db-up: ## Start only Postgres (for local backend/integration tests)
+	$(COMPOSE) up -d postgres
 
-# ════════════════════════════════════════════════════════════════════════════
-# Clean
-# ════════════════════════════════════════════════════════════════════════════
+db-shell: ## psql into the running Postgres
+	$(COMPOSE) exec postgres psql -U postgres -d $${POSTGRES_DB:-campus_erp}
 
-.PHONY: clean distclean
+clean-data: ## Stop the stack and delete the database volume
+	$(COMPOSE) down -v
 
-clean: ## Remove build artefacts (bin, dist, c4 export)
-	rm -rf $(BACKEND)/bin $(FRONTEND)/dist $(FRONTEND)/.angular \
-	       $(C4)/export $(ROOT)/build
+workon-backend: db-up ## Run the api locally against the compose database
+	@echo "backend: http://localhost:8080  ->  $(DATABASE_URL)"
+	cd $(BACKEND) && DATABASE_URL="$(DATABASE_URL)" $(GO) run ./cmd/api
 
-clean-images: ## Remove the built container images
-	-docker image rm "$(IMAGE_BACKEND)" "$(IMAGE_FRONTEND)"
+workon-frontend: ## Dev-serve the SPA, proxying /api to API_PROXY_TARGET (deployed backend)
+	@echo "frontend: http://localhost:4200  ->  /api -> $(API_PROXY_TARGET)"
+	cd $(FRONTEND) && API_PROXY_TARGET="$(API_PROXY_TARGET)" npm start -- --proxy-config proxy.conf.mjs
 
-distclean: clean clean-images down ## clean + clean-images + stop compose
+##@@ report
+c4-pdf: ## Build the architecture report PDF (C4 + ER models; needs docker + tectonic)
+	$(call require,docker)
+	tools/c4_pdf.sh

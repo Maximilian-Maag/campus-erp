@@ -45,9 +45,10 @@ docker run --rm -v "$PWD/c4":/w -w /w -v "$PWD/c4/export":/out \
 
 ```bash
 make c4-pdf            # full landscape report: C4 views + database ER models
-make c4-pdf-no-erm     # C4 views only
-make erm               # regenerate + render just the ER models
 ```
+
+The finer flags live on the script: `tools/c4_pdf.sh --no-erm` for the C4 views alone,
+`tools/erm.sh` to regenerate and render only the ER models.
 
 The report is `c4/export/campus-erp-c4-model.pdf` (landscape A4, one diagram per
 page). It has two parts: **Part I** the rendered C4 views, **Part II** the ER

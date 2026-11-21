@@ -12,4 +12,4 @@ jobs:
         with:
           fetch-depth: 0          # the checker ratchets against the base branch
       - name: Policy as code
-        run: python3 tools/policy_check.py --ci
+        run: make policy-ci

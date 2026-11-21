@@ -2,6 +2,42 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.139.0] - 2026-11-21
+
+The Makefile had seventy-one targets and none of the three things a new contributor actually wants
+to do: `make deps`, `make build` and `make run` all answered `No rule to make target`. The verbs
+that did exist were the fragments (`backend-build`, `frontend-install`, `up`, `all`, `dev-up`,
+`workon-*`, `c4-pdf-no-erm`, `k8s-backend` …), which meant knowing the shape of the repository
+before you could compile it.
+
+It now opens with a front door — `deps`, `build`, `run`, `stop`, `logs`, `test`, `mutation`,
+`quality`, `clean` — and `make help` groups everything else under *components* (what the verbs
+compose), *policy/contract*, *images & deploy*, *database*, and *report*. Seventy-one targets
+become forty-six: thirty are gone with five verbs in their place. What went were aliases that only
+renamed another target (`all`, `docker`, `backend`, `frontend`, `backend-run-api`, `dev-up`),
+one-line wrappers that hid a script flag (`c4-validate`, `c4-export`, `c4-pdf-no-erm`, `erm-gen`,
+`erm-export`, `k8s-backend`, `k8s-frontend`, `k8s-rollback`) and the duplicates that made
+`up`/`down` mean the same as `run`/`stop`. The flags those targets wrapped are still on the
+scripts (`tools/c4_pdf.sh --no-erm`, `tools/erm.sh`).
+
+Three things were broken rather than merely plentiful:
+
+- **`make test` failed on any machine without `CHROME_BIN`.** Karma needs a Chrome binary and the
+  Makefile never found the Playwright chromium that `npm ci`/`npm run e2e` already puts in
+  `~/.cache/ms-playwright`. Both the Makefile and `tools/run_tests.sh` now detect it, so
+  `make frontend-test` passes after `make deps` with nothing exported.
+- **The Go-in-docker fallback could not work.** `tools/run_tests.sh` ran the container with
+  `GOPROXY=off` and no module cache, so on a machine without Go every check failed at
+  `go vet`. Both it and the Makefile now share a named `campus-erp-gomod` volume.
+- **The mutation gates were implemented twice** — a loop in `tools/run_tests.sh` and another in
+  the Makefile — and CI carried a third copy. There is one: `make backend-mutation`, with
+  `PKG=<package>` to run a single package, which is how CI shards the sweep.
+
+CI now runs the Makefile instead of its own copies of the commands: `go`, `web`, `contract`,
+`mutation-go`, `mutation-web`, `e2e` and `policy` each call a target, and `go` reads the Go
+version from `backend/go.mod` (`go-version-file`) instead of a second hard-coded `1.26` — the
+drift that caused issue #146.
+
 ## [0.138.0] - 2026-11-21
 
 `make up` was the quick start in the README and it never started a backend. Every backend

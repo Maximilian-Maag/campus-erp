@@ -59,8 +59,7 @@ cluster add-ons rather than per-release objects.
 make helm-lint                          # lint
 make helm-template                      # render locally, no cluster
 make deploy-k8s                         # push images + helm upgrade --install
-make k8s-backend  IMAGE_BACKEND=...:1.2.3   # roll only the api/worker
-make k8s-frontend IMAGE_FRONTEND=...:1.2.3  # roll only the web tier
+make k8s-status                         # pods / services / ingress
 ```
 
 Directly with helm:
@@ -101,7 +100,7 @@ Probes: the api's **liveness** is `/healthz` (process up) and its **readiness** 
 `/readyz`, which pings the database (NFR-6) so a process that cannot serve is kept
 out of the Service — a database blip does not restart the process. web serves its
 own `/healthz` from nginx. The same wiring is in `docker-compose.yml` for local
-and single-host installs (`make up`).
+and single-host installs (`make run`).
 
 ## Runtime components
 
