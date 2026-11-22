@@ -3,10 +3,13 @@ name: release
 # One image tag per channel, so a deployment names the channel it wants and nothing
 # else moves underneath it:
 #
-#   push to master   -> latest    dev: whatever was just merged
+#   push to dev      -> latest    dev: whatever was just merged into the integration branch
 #   push to staging  -> staging   release candidate
 #   tag v1.2.3       -> v1.2.3    prod: built once, never moved
 #
+# `master` publishes nothing. It moves only by a promotion PR from `dev`, and prod is the
+# `v*` tag cut from it - so a feature reaches `latest` when it lands on `dev` and reaches a
+# cluster only after it has been promoted and tagged.
 # `latest` and `staging` are mutable by design; a prod cluster pins the version tag
 # (a moving tag with `imagePullPolicy: IfNotPresent` is a deployment that keeps running
 # yesterday's bytes). Every image records the commit it came from as BUILD_VERSION,
@@ -19,12 +22,12 @@ name: release
 #
 # This workflow builds and pushes; it does not re-run the quality gate. A dev or
 # staging channel may publish while its quality run is still in flight - it is a dev
-# channel, and waiting would put `latest` behind master by the length of the mutation
-# sweep. Tag a prod release on a commit that is green on master; quality.yml runs on
-# the tag push as well.
+# channel, and waiting would put `latest` behind `dev` by the length of the mutation
+# sweep. Tag a prod release on a commit that is green on `master` (i.e. one promoted
+# from `dev`); quality.yml runs on the tag push as well.
 on:
   push:
-    branches: [master, staging]
+    branches: [dev, staging]
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -76,8 +79,13 @@ jobs:
             primary=$INPUT_TAG
           elif [[ $REF_NAME == staging ]]; then
             primary=staging
-          else
+          elif [[ $REF_NAME == dev ]]; then
             primary=latest
+          else
+            # Not a channel branch and not a version tag: say so rather than publish a
+            # tag nobody asked for.
+            echo "error: no channel for ref '$REF_NAME' (expected dev, staging, or a v* tag)"
+            exit 1
           fi
           echo "primary=$primary" >> "$GITHUB_OUTPUT"
           echo "publishing $primary"
