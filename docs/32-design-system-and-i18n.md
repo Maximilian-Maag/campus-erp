@@ -6,39 +6,61 @@ products and called the same thing by three names. This document is the rule tha
 from happening again: **a screen carries structure and meaning; the design system carries the
 look; the dictionaries carry the words.**
 
-## The look: Angular Material, one theme
+## The look: four layers of tokens
 
-Everything visual comes from Angular Material's Material 3 theme, set once in
-`frontend/src/styles.scss`:
+The look is a design system, not a stylesheet that grew: every colour, size, radius, shadow
+and duration is named once, and a screen consumes a name. The system lives in
+`frontend/src/styles/` and is reached through one entry point, `frontend/src/styles.scss`:
 
-```scss
-html {
-  color-scheme: light dark;
-  @include mat.theme((color: (primary: mat.$blue-palette, tertiary: mat.$cyan-palette), …));
-}
-```
+| file | what it is |
+| --- | --- |
+| `_tokens.scss` | the Material 3 theme (`mat.theme`) plus the `--erp-*` tokens: layout, a 4px spacing scale, radii, three elevations, two durations, and the surfaces/lines/text/feedback a product needs by name |
+| `_base.scss` | the document: reset, type, one focus ring, thin scrollbars, `prefers-reduced-motion` |
+| `_layout.scss` | the page: the content frame, the `.page-head` of a screen, the card surfaces |
+| `_elements.scss` | the vocabulary's skins: buttons, fields, forms, tables, record lists, messages |
 
-That call emits the `--mat-sys-*` tokens (colour roles, the type scale, elevation, shape) and
-`color-scheme: light dark` makes them resolve to the light or the dark set the operating system
-asks for. Re-theming Campus ERP means editing that one call — not twenty stylesheets.
+`mat.theme` emits the `--mat-sys-*` roles (palette, type scale, state layers) and
+`color-scheme: light dark` makes them resolve to the light or the dark set the operating
+system asks for. The `--erp-*` layer names what an ERP *means* by them — `--erp-page`,
+`--erp-surface`, `--erp-hairline`, `--erp-accent`, `--erp-shadow-1..3`, `--erp-space-*` —
+so a component never picks a colour or a size, and re-theming is an edit to `_tokens.scss`.
 
-Three layers sit on top of it:
+Two of those names exist because light and dark separate surfaces differently: a card is
+`--erp-card` and a field is `--erp-field`. In light mode both are the plain surface and the
+hairline border carries the separation; in dark mode the page is nearly as dark as a card,
+so the card steps up one tint and the field steps up again.
 
-1. **The global stylesheet** (`styles.scss`) styles the element, not the screen: a `<section>`
-   is a card, a `<table>` is a dense Material table with a sticky header and tabular numerals,
-   a `<button>` is the product's filled action, `input`/`select` are outlined fields, `.form` is
-   a responsive grid of `.field`s, `.error` is an error container. Because the screens were
-   already written as `<section>` + `<table>` + `.form`, they inherit the design without being
-   rewritten.
-2. **Shared components** in `frontend/src/app/ui/`:
-   - `app-shell` — the frame: application bar with the product name and the language picker, a
-     grouped navigation panel (permanent on a wide screen, an overlay that closes on a narrow
-     one), and the content area.
-   - `app-page` — the head of a screen: `<app-page titleKey="page.…" subtitleKey="page.…">`
-     renders the `<h1>`, the one-sentence description, and a slot for the screen's action.
-   - `app-language-picker` — the picker.
-3. **No component stylesheets for looks.** A component may style its own layout
-   (`.page-head` in `app-page`), never a colour, a font size or a radius: those are tokens.
+Two rules make the system hold:
+
+1. **The element is styled, not the screen.** A `<section>` is the page's block stack (a grid
+   with one gap, so spacing cannot double or collapse); a `<table>` is a card with a caption
+   bar, a sticky blurred header and tabular numerals; a `<button>` is the filled accent action,
+   with `.secondary` and `.danger` variants; `input`/`select`/`textarea` are one field;
+   `.form` is the grid of fields, `.filter` the slim toolbar that narrows the list under it;
+   `.error`, `.notice` and `[role='status']` are the three ways the product tells the user
+   something. Because the screens were already written
+   as `<section>` + `<table>` + `.form`, they inherit the design without being rewritten —
+   and a new screen cannot look different.
+2. **A component styles its own *layout* at most.** `app-page` and `app-shell` position
+   things; they take every colour, font size, radius and shadow from a token. There is no
+   per-screen stylesheet anywhere in `src/app/`.
+
+### Accessibility is part of the theme, not a pass at the end
+
+Focus is one ring (`--erp-ring`, 2px outline plus a soft halo) on every control; the skip link
+is the accent fill; motion is feedback and disappears under `prefers-reduced-motion`; the
+palette comes from Material 3's contrast-checked roles, so light and dark are both
+AA. `e2e/*.spec.ts` runs axe on the shell and every screen and fails on any violation
+(BITV 2.0 / WCAG, ADR-0003, CR-7).
+
+## Shared components
+
+- `app-shell` — the frame: a translucent application bar (product name, language picker), a
+  grouped navigation panel (permanent on a wide screen, an overlay that closes on a narrow one),
+  and the content area.
+- `app-page` — the head of a screen: `<app-page titleKey="page.…" subtitleKey="page.…">`
+  renders the `<h1>`, the one-sentence description, and a slot for the screen's action.
+- `app-language-picker` — the picker.
 
 ## The words: one vocabulary
 

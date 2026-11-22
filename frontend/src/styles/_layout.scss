@@ -1,0 +1,109 @@
+// What a page looks like: the frame the shell gives its content, the head every screen
+// starts with, and the surfaces a screen's blocks sit on.
+//
+// Styling the *elements* (`section`, `table`, `.form`) rather than each of the twenty-five
+// screens is what makes them look like one product; a screen carries structure and meaning,
+// never its own look.
+
+.app-content {
+  min-height: 100%;
+  outline: none;
+}
+
+// The screen component is a wrapper, not an inline element: it holds the head and the
+// card stack of one screen, and the router puts it where a block belongs.
+.app-content > app-page,
+.app-content > * {
+  display: block;
+}
+
+// ── the page ────────────────────────────────────────────────────────────────
+// A screen is a stack of blocks with one rhythm, rather than blocks carrying their own
+// margins: `gap` cannot collapse, double, or depend on which neighbour it has.
+.app-content section {
+  display: grid;
+  gap: var(--erp-gap);
+  align-items: start;
+  max-width: var(--erp-content-max);
+  padding: var(--erp-space-lg) var(--erp-gutter) var(--erp-space-3xl);
+}
+
+// A screen's own heading is the <h1> that `<app-page>` renders; everything inside the
+// section is a subsection, so an h2 is a title and an h3 a sub-title. The scale follows.
+section > h2 {
+  margin-top: var(--erp-space-sm);
+  color: var(--erp-text);
+  font: var(--mat-sys-title-large);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+section > h2:first-child,
+section > h3:first-child {
+  margin-top: 0;
+}
+
+section > h3 {
+  margin-top: var(--erp-space-xs);
+  color: var(--erp-text-muted);
+  font: var(--mat-sys-title-medium);
+  font-weight: 600;
+}
+
+// ── cards ───────────────────────────────────────────────────────────────────
+// A block that holds records reads as one surface: the table, the form, the record's
+// fields. The border and the shadow are the same everywhere, so a screen that has three
+// of them looks like three, not like three different designs.
+section > table,
+section > form,
+section > .form,
+section > .filter,
+section > .filters,
+section > .picker,
+section > .import,
+section > dl {
+  background: var(--erp-card);
+  border: 1px solid var(--erp-hairline);
+  border-radius: var(--erp-radius-md);
+  box-shadow: var(--erp-shadow-1);
+}
+
+// A statement the user types into is read as the page's own prose, not as a card.
+section > p {
+  max-width: var(--erp-reading-max);
+}
+
+// ── the head of a screen ────────────────────────────────────────────────────
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--erp-space-sm) var(--erp-space-lg);
+  align-items: flex-end;
+  justify-content: space-between;
+  max-width: var(--erp-content-max);
+  padding: var(--erp-space-2xl) var(--erp-gutter) 0;
+}
+
+.page-title {
+  margin: 0;
+  color: var(--erp-text);
+  font: var(--mat-sys-headline-medium);
+  font-size: clamp(1.5rem, 1.1rem + 1.1vw, 1.875rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  max-width: var(--erp-reading-max);
+  margin-top: var(--erp-space-xs);
+  color: var(--erp-text-muted);
+  font: var(--mat-sys-body-large);
+}
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--erp-space-sm);
+  align-items: center;
+}
