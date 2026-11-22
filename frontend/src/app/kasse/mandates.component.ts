@@ -36,9 +36,9 @@ import { PageComponent } from '../ui/page.component';
         <div class="filters">
           <p>
             <label for="mandate-state">{{ 'kasse.mandates.holding' | transloco }}</label>
-            <select id="mandate-state" [value]="active()" (change)="changeActive($any($event.target).value)">
-              <option value="">{{ 'common.all' | transloco }}</option>
-              <option value="true">{{ 'kasse.mandates.onlyActive' | transloco }}</option>
+            <select id="mandate-state" (change)="changeActive($any($event.target).value)">
+              <option value="" [selected]="active() === ''">{{ 'common.all' | transloco }}</option>
+              <option value="true" [selected]="active() === 'true'">{{ 'kasse.mandates.onlyActive' | transloco }}</option>
             </select>
           </p>
           <p>
@@ -170,9 +170,9 @@ import { PageComponent } from '../ui/page.component';
           </div>
           <div class="field">
             <label for="mandate-sequence">{{ 'common.sequenceType' | transloco }}</label>
-            <select id="mandate-sequence" [value]="sequenceType()" (change)="sequenceType.set($any($event.target).value)">
+            <select id="mandate-sequence" (change)="sequenceType.set($any($event.target).value)">
               @for (type of sequenceTypes; track type.value) {
-                <option [value]="type.value">{{ type.value }} — {{ type.labelKey | transloco }}</option>
+                <option [value]="type.value" [selected]="type.value === sequenceType()">{{ type.value }} — {{ type.labelKey | transloco }}</option>
               }
             </select>
           </div>

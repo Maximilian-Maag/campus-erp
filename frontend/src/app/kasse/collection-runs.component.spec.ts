@@ -182,6 +182,9 @@ describe('CollectionRunsComponent', () => {
     const select = (fixture.nativeElement as HTMLElement).querySelector('#run-sequence') as HTMLSelectElement;
     expect(Array.from(select.options).map((o) => o.value)).toEqual(['', 'FRST', 'RCUR', 'OOFF', 'FNAL']);
     expect(select.options[0].textContent?.trim()).toBe('je Mandat');
+    // What the clerk sees is what is filed: the default type is RCUR, and the select must say so
+    // even though RCUR is not its first option.
+    expect(select.value).toBe('RCUR');
 
     component.reference.set('RUN-MIX');
     component.creditorID.set('DE98ZZZ09999999999');

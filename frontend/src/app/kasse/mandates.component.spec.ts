@@ -111,6 +111,15 @@ describe('MandatesComponent', () => {
     expect(component.mandates().length).toBe(1);
   });
 
+  it('shows the sequence type and the holding filter it will actually send', () => {
+    screen([]);
+    // Both defaults are not their first option, so a select bound by `[value]` would show the first
+    // one while the form posted the default: the mandate would be registered under a sequence type
+    // the clerk never chose.
+    expect((el.querySelector('#mandate-sequence') as HTMLSelectElement).value).toBe('RCUR');
+    expect((el.querySelector('#mandate-state') as HTMLSelectElement).value).toBe('true');
+  });
+
   it('registers a mandate and keeps the list in reference order', () => {
     screen([mandate({ Reference: 'MND-9' })]);
     component.reference.set('MND-1');

@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, Day } from '../core/api/generated';
+import { isoDay } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
 /**
@@ -70,7 +71,9 @@ export class CashbookDayComponent {
   private readonly api = inject(CampusErpApi);
   private readonly i18n = inject(TranslocoService);
 
-  readonly businessDate = signal('2026-01-02');
+  // The day a Tagesabschluss opens is the one the clerk is standing in: a hard-coded date would
+  // open a cash book in the past, and a day is closed, never deleted.
+  readonly businessDate = signal(isoDay(new Date()));
   readonly openingCents = signal(0);
   readonly day = signal<Day | null>(null);
   readonly error = signal<string | null>(null);
