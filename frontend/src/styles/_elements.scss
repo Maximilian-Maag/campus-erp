@@ -168,6 +168,22 @@ select {
 }
 
 // ── forms ───────────────────────────────────────────────────────────────────
+// A form's own title is the row's title, not a field in it: it spans the grid, so the
+// first control starts on the line below it instead of beside it.
+form > h2,
+form > h3,
+.form > h2,
+.form > h3,
+.filter > h2,
+.import > h2 {
+  grid-column: 1 / -1;
+  align-self: start;
+  margin: 0 0 var(--erp-space-xs);
+  color: var(--erp-text);
+  font: var(--mat-sys-title-medium);
+  font-weight: 600;
+}
+
 form,
 .form,
 .filter,
@@ -179,8 +195,13 @@ form,
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
 }
 
-// The last cell of a form is its action, and an action is narrower than a field.
+// The last cell of a form is its action: it starts where the form starts and it is as wide
+// as its own words, not as wide as a field.
 .form > .field:last-child {
+  justify-self: start;
+}
+
+.field > button {
   justify-self: start;
 }
 
