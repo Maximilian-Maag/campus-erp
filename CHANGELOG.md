@@ -2,6 +2,21 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.146.0] - 2026-11-22
+
+`dev` integrates and `master` releases, and the image channels now say the same thing.
+
+Features land on `dev`; `master` moves only by a promotion PR that carries a batch of them to a
+release. The `latest` channel was still published from a push to `master`, which made the
+integration branch the release line and left the dev channel a promotion behind: it now follows
+`dev`. A push to `master` publishes nothing — prod is the `vX.Y.Z` tag cut on `master` after the
+promotion, which is also the only channel a cluster should pin.
+
+`release.yml` names the three channels in one place (`dev` → `latest`, `staging` → `staging`, a
+`v*` tag → that tag) and refuses any other ref with an explicit error instead of falling through
+to `latest`. `CONTRIBUTING.md` states which branch a PR targets, and `README.md` and
+`docs/build-and-deploy.md` carry the corrected channel table.
+
 ## [0.145.0] - 2026-11-22
 
 The interface is a design system rather than a stylesheet that grew, and `make` stops

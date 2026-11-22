@@ -122,7 +122,7 @@ The registry of record is **Docker Hub**, namespace `maximilianmaag`
 
 | tag | what it is | what moves it |
 |---|---|---|
-| `latest` | dev — whatever was just merged | every push to `master` |
+| `latest` | dev — whatever was just merged | every push to `dev` |
 | `staging` | release candidate | every push to `staging` |
 | `v1.2.3` | prod — built once, never moved | a `v*` tag |
 
@@ -152,13 +152,17 @@ A channel tag says nothing about the commit, so the image records it instead:
 backend binary and `/app/VERSION` report. `TAG=latest` is therefore a name for the
 channel, never the version of the code in it.
 
-`.github/workflows/release.yml` publishes those three channels — `master` → `latest`,
+`.github/workflows/release.yml` publishes those three channels — `dev` → `latest`,
 `staging` → `staging`, a `v*` tag → that tag — inside the `release` environment, which holds
 `DOCKER_HUB_TOKEN` as an environment secret, and then pulls the tag back and compares its
 image ID with the build. `workflow_dispatch` takes the tag as an input, for republishing a
 channel by hand. The dev and staging channels may publish while their quality run is still
 in flight; tag a prod release on a commit that is green on `master`, because the workflow does
 not re-run the gate.
+
+`master` publishes nothing itself. It is the release line: features land on `dev`, a promotion
+PR carries `dev` → `master`, and a `v*` tag on `master` is what prod runs — so the dev channel
+follows the integration branch and a cluster only ever moves to a version somebody tagged.
 
 **Prod pins the version tag.** `latest` and `staging` move, so a cluster that asks for one of
 them with `imagePullPolicy: IfNotPresent` keeps running whatever it pulled first — pin
