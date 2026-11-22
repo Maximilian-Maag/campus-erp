@@ -64,6 +64,9 @@ import { PageComponent } from '../ui/page.component';
               }
             </tbody>
           </table>
+          @if (moreError(); as e) {
+            <p role="alert" class="error">{{ e }}</p>
+          }
           @if (hasMore()) {
             <p>
               <button
@@ -99,6 +102,8 @@ export class BudgetPositionsComponent implements OnInit {
   /** True while the last page came back full, so there may be another. */
   readonly hasMore = signal(false);
   readonly loadingMore = signal(false);
+  /** A page that failed, kept apart from a failed first read so the rows already shown stay. */
+  readonly moreError = signal<string | null>(null);
 
   // Loading starts when the screen is shown, not when it is constructed: the initial state is
   // then observable (and testable) before any request is made.
@@ -150,7 +155,7 @@ export class BudgetPositionsComponent implements OnInit {
         },
         error: () => {
           this.loadingMore.set(false);
-          this.error.set(this.i18n.translate('haushalt.positions.loadMoreFailed'));
+          this.moreError.set(this.i18n.translate('haushalt.positions.loadMoreFailed'));
         },
       });
   }

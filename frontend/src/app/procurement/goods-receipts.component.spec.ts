@@ -117,7 +117,11 @@ describe('GoodsReceiptsComponent', () => {
       { error: 'boom' },
       { status: 500, statusText: 'Server Error' }
     );
-    expect(component.loadError()).toBe('Der Wareneingang konnte nicht geladen werden.');
+    expect(component.receiptError()).toBe('Der Wareneingang konnte nicht geladen werden.');
+    // The picker stays: the operator must be able to choose another order, or the same one again,
+    // without reloading the page.
+    expect((fixture.nativeElement as HTMLElement).querySelector('#receipt-order')).not.toBeNull();
+    expect(component.loadError()).toBeNull();
   });
 
   it('clears the state and asks nothing when the choice is emptied', () => {

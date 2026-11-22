@@ -94,12 +94,15 @@ describe('ImportsComponent', () => {
     fixture.detectChanges();
     expect(component.loadError()).toBe('Die Datenübernahmen konnten nicht geladen werden.');
 
-    // A history that cannot be read is reported too, and it is the later message that stands.
+    // A history that cannot be read is reported on its own: it says nothing about the catalogue,
+    // so the picker and the run button — which the catalogue did answer — stay usable.
     component.loadHistory();
     http
       .expectOne('/api/etl/runs?limit=20')
       .flush({ error: 'boom' }, { status: 500, statusText: 'Server Error' });
-    expect(component.loadError()).toBe('Die Läufe konnten nicht gelesen werden.');
+    fixture.detectChanges();
+    expect(component.runsError()).toBe('Die Läufe konnten nicht gelesen werden.');
+    expect(component.loadError()).toBe('Die Datenübernahmen konnten nicht geladen werden.');
   });
 
   it('narrows the history to the chosen dataset', () => {

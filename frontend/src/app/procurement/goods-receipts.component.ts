@@ -38,6 +38,9 @@ import { PageComponent } from '../ui/page.component';
         } @else if (orders().length === 0 && !loadError()) {
           <p role="status">{{ 'beschaffung.goodsReceipts.emptyApproved' | transloco }}</p>
         } @else if (!loadError()) {
+          @if (receiptError(); as e) {
+            <p role="alert" class="error">{{ e }}</p>
+          }
           <div class="picker">
             <label for="receipt-order">{{ 'beschaffung.goodsReceipts.order' | transloco }}</label>
             <select id="receipt-order" [value]="order()" (change)="choose($any($event.target).value)">
@@ -168,6 +171,8 @@ export class GoodsReceiptsComponent implements OnInit {
   readonly orders = signal<ProcurementOrderSummary[]>([]);
   readonly loadingOrders = signal(false);
   readonly loadError = signal<string | null>(null);
+  /** The arrival state of the chosen order is its own read: a failure must not remove the picker. */
+  readonly receiptError = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
 
@@ -214,9 +219,10 @@ export class GoodsReceiptsComponent implements OnInit {
   }
 
   private loadState(id: number): void {
+    this.receiptError.set(null);
     this.api.listGoodsReceipts(id).subscribe({
       next: (state) => this.state.set(state),
-      error: () => this.loadError.set(this.i18n.translate('beschaffung.goodsReceipts.loadFailed')),
+      error: () => this.receiptError.set(this.i18n.translate('beschaffung.goodsReceipts.loadFailed')),
     });
   }
 

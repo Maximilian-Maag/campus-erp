@@ -197,8 +197,13 @@ describe('BudgetPositionsComponent', () => {
 
     // The rows that were read are still valid, so the failure is reported beside them, not over them.
     expect(component.positions().length).toBe(50);
-    expect(component.error()).toBe('Konnte die weiteren Haushaltsstellen nicht laden.');
+    expect(component.moreError()).toBe('Konnte die weiteren Haushaltsstellen nicht laden.');
     expect(component.loadingMore()).toBeFalse();
     expect(component.hasMore()).toBeTrue();
+    // The table is still there: the failure belongs beside the button that asked for the page,
+    // not on the rows that were read successfully.
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('[data-testid^="position-"]').length).toBe(50);
+    expect(el.querySelectorAll('[role="alert"]').length).toBe(1);
   });
 });
