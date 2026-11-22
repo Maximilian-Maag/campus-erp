@@ -1,0 +1,86 @@
+// The document itself: reset, type, focus, scrollbars. Rules here are for elements the
+// browser styles for us and every screen inherits — never for a component's insides.
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--erp-page);
+  color: var(--erp-text);
+  font: var(--mat-sys-body-medium);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+ul,
+ol {
+  margin: 0;
+}
+
+// One focus treatment for the whole product: a ring that sits outside the element, so a
+// keyboard user sees exactly which control has the focus without the layout shifting.
+:focus-visible {
+  outline: 2px solid var(--erp-accent);
+  outline-offset: 2px;
+  border-radius: var(--erp-radius-xs);
+}
+
+a {
+  color: var(--erp-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+
+  &:hover {
+    text-decoration-thickness: 2px;
+  }
+}
+
+::selection {
+  background: color-mix(in srgb, var(--erp-accent) 24%, transparent);
+}
+
+// A thin, quiet scrollbar: the content is the subject, not the chrome around it.
+@media (pointer: fine) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--erp-hairline-strong) transparent;
+  }
+}
+
+// Motion is feedback, never decoration — so when the user asks for less of it, there is
+// none. This covers the transitions the design system adds on its own.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

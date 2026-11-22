@@ -1,0 +1,127 @@
+// The design system's token layer: every colour, size, radius, shadow and duration the
+// product uses is named here. Nothing below this file picks a literal — a screen and a
+// shared component only consume a token, so re-theming is an edit to this file.
+//
+// Two layers, deliberately:
+//   1. `mat.theme` emits the Material 3 system tokens (`--mat-sys-*`) for light and dark.
+//      Those carry the palette, the type scale and the state layers.
+//   2. `--erp-*` names what an ERP means by them: the page behind the cards, a hairline,
+//      a raised surface, the hover of the primary action. A token that is not a Material
+//      concept lives here once instead of being re-invented in a component.
+@use '@angular/material' as mat;
+
+html {
+  // Light and dark follow the operating system. `color-scheme` makes the Material tokens
+  // resolve to the matching set, and the browser style native controls to match.
+  color-scheme: light dark;
+
+  @include mat.theme(
+    (
+      // Institutional blue with a cyan accent: the palette of an administrative product,
+      // not a marketing site.
+      color: (
+        primary: mat.$blue-palette,
+        tertiary: mat.$cyan-palette,
+      ),
+      typography: (
+        plain-family:
+          'Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif',
+        brand-family:
+          'Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif',
+      ),
+      density: 0,
+    )
+  );
+
+  // One step tighter than the Material default: ERP tables are dense.
+  @include mat.theme-overrides(
+    (
+      body-medium-size: 0.9375rem,
+      body-large-size: 1rem,
+    )
+  );
+}
+
+:root {
+  // ── layout ────────────────────────────────────────────────────────────────
+  --erp-header-h: 3.5rem;
+  --erp-nav-w: 16.5rem;
+  --erp-content-max: 1440px;
+  --erp-gutter: clamp(1rem, 2.2vw, 2.5rem);
+  --erp-gap: 1rem;
+  --erp-reading-max: 68ch;
+
+  // ── spacing (4px base, t-shirt names) ─────────────────────────────────────
+  --erp-space-2xs: 0.125rem;
+  --erp-space-xs: 0.25rem;
+  --erp-space-sm: 0.5rem;
+  --erp-space-md: 0.75rem;
+  --erp-space-lg: 1rem;
+  --erp-space-xl: 1.5rem;
+  --erp-space-2xl: 2rem;
+  --erp-space-3xl: 3rem;
+
+  // ── shape ─────────────────────────────────────────────────────────────────
+  --erp-radius-xs: 0.375rem;
+  --erp-radius-sm: 0.5rem;
+  --erp-radius-md: 0.75rem;
+  --erp-radius-lg: 1rem;
+  --erp-radius-pill: 999px;
+
+  // ── elevation ─────────────────────────────────────────────────────────────
+  // Three steps only: resting card, raised (hover/drag), overlay (menu/dialog). A shadow
+  // that is not one of these is a component inventing its own depth.
+  --erp-shadow-1: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 8%);
+  --erp-shadow-2: 0 2px 4px -1px rgb(16 24 40 / 8%), 0 6px 14px -4px rgb(16 24 40 / 12%);
+  --erp-shadow-3: 0 12px 32px -8px rgb(16 24 40 / 22%);
+
+  // ── motion ────────────────────────────────────────────────────────────────
+  // Fast enough to feel like feedback rather than animation, and slow enough to be seen.
+  --erp-ease: cubic-bezier(0.2, 0, 0, 1);
+  --erp-duration-fast: 120ms;
+  --erp-duration: 180ms;
+
+  // ── surfaces, lines and text (derived from the Material tokens) ───────────
+  --erp-page: var(--mat-sys-surface-container-low);
+  --erp-surface: var(--mat-sys-surface);
+  // A card is the surface a record sits on, and a field is what the user types into. In
+  // light mode both are the plain surface and the border carries the separation; in dark
+  // mode the page is nearly as dark as the card, so the card steps up a tint instead
+  // (see the override below) and the field steps up again.
+  --erp-card: var(--mat-sys-surface);
+  --erp-field: var(--mat-sys-surface);
+  --erp-surface-sunken: var(--mat-sys-surface-container-lowest);
+  --erp-surface-raised: var(--mat-sys-surface-container);
+  --erp-hairline: color-mix(in srgb, var(--mat-sys-outline-variant) 75%, transparent);
+  --erp-hairline-strong: color-mix(in srgb, var(--mat-sys-outline) 45%, transparent);
+  --erp-text: var(--mat-sys-on-surface);
+  --erp-text-muted: var(--mat-sys-on-surface-variant);
+
+  // ── interaction ───────────────────────────────────────────────────────────
+  --erp-accent: var(--mat-sys-primary);
+  --erp-accent-soft: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+  // Hover moves a fill towards the text colour, so it darkens on a light surface and
+  // lightens on a dark one without a second set of tokens.
+  --erp-accent-hover: color-mix(in oklab, var(--mat-sys-primary) 90%, var(--mat-sys-on-surface));
+  --erp-ring: 0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 32%, transparent);
+
+  // ── feedback ──────────────────────────────────────────────────────────────
+  --erp-danger-surface: var(--mat-sys-error-container);
+  --erp-danger-text: var(--mat-sys-on-error-container);
+  --erp-danger-accent: var(--mat-sys-error);
+  --erp-success: var(--mat-sys-tertiary);
+  --erp-success-surface: color-mix(in srgb, var(--mat-sys-tertiary) 14%, transparent);
+}
+
+// Dark surfaces separate by tint, not by a darker black: a card that carried the same
+// shadow as its light twin would vanish. The borders do the work instead.
+@media (prefers-color-scheme: dark) {
+  :root {
+    --erp-shadow-1: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+    --erp-shadow-2: 0 2px 6px -1px rgb(0 0 0 / 45%), 0 8px 18px -6px rgb(0 0 0 / 40%);
+    --erp-shadow-3: 0 16px 40px -10px rgb(0 0 0 / 60%);
+    --erp-card: var(--mat-sys-surface-container-high);
+    --erp-field: var(--mat-sys-surface-container);
+    --erp-hairline: color-mix(in srgb, var(--mat-sys-outline-variant) 85%, transparent);
+  }
+}

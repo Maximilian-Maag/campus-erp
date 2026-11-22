@@ -98,6 +98,13 @@ describe('ShellComponent', () => {
     expect(fixture.componentInstance.isHandset()).toBe(false);
   });
 
+  it('starts with the menu closed on a narrow screen', async () => {
+    // The panel is an overlay there: opening it by default would hide the screen the
+    // user came for, which is the opposite of what a small display needs.
+    const fixture = await render(true);
+    expect(fixture.componentInstance.navOpen()).toBe(false);
+  });
+
   it('gets the menu out of the way after a choice on a narrow screen', async () => {
     const fixture = await render(true);
     const component = fixture.componentInstance;

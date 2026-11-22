@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { MatButtonModule } from '@angular/material/button';
@@ -107,19 +107,21 @@ const HANDSET_QUERY = '(max-width: 900px)';
     :host {
       display: block;
       min-height: 100dvh;
+      background: var(--erp-page);
     }
 
     .skip-link {
       position: absolute;
       left: -999px;
       z-index: 100;
-      padding: 0.5rem 1rem;
-      background: var(--mat-sys-surface);
-      color: var(--mat-sys-on-surface);
+      padding: var(--erp-space-sm) var(--erp-space-lg);
+      color: var(--mat-sys-on-primary);
+      background: var(--erp-accent);
+      border-radius: var(--erp-radius-sm);
 
       &:focus {
-        left: 0.5rem;
-        top: 0.5rem;
+        top: var(--erp-space-sm);
+        left: var(--erp-space-sm);
       }
     }
 
@@ -129,45 +131,63 @@ const HANDSET_QUERY = '(max-width: 900px)';
       z-index: 2;
     }
 
+    /* The bar stays out of the content's way: one line, a hairline under it, and enough */
+    /* translucency that a long table scrolls *under* it rather than being cut off by it. */
     .app-bar {
-      gap: 0.75rem;
-      background: var(--mat-sys-surface);
-      border-bottom: 1px solid var(--mat-sys-outline-variant);
-      color: var(--mat-sys-on-surface);
+      height: var(--erp-header-h);
+      gap: var(--erp-space-md);
+      padding: 0 var(--erp-space-lg);
+      color: var(--erp-text);
+      background: color-mix(in srgb, var(--erp-surface) 82%, transparent);
+      backdrop-filter: blur(12px) saturate(1.4);
+      border-bottom: 1px solid var(--erp-hairline);
+    }
+
+    .app-bar-nav {
+      color: var(--erp-text-muted);
+
+      &:hover {
+        color: var(--erp-text);
+      }
     }
 
     .brand {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--erp-space-md);
       align-items: center;
       min-width: 0;
     }
 
+    /* The mark is the one place the palette is a gradient; it is a logo, not a surface. */
     .brand-mark {
       display: grid;
       place-items: center;
       width: 2rem;
       height: 2rem;
-      border-radius: 0.5rem;
-      background: var(--mat-sys-primary);
+      background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+      border-radius: var(--erp-radius-sm);
+      box-shadow: var(--erp-shadow-1);
       color: var(--mat-sys-on-primary);
       font: var(--mat-sys-label-large);
+      font-weight: 700;
       letter-spacing: 0.02em;
     }
 
     .brand-text {
       display: flex;
       flex-direction: column;
-      line-height: 1.15;
       min-width: 0;
+      line-height: 1.2;
     }
 
     .brand-name {
       font: var(--mat-sys-title-medium);
+      font-weight: 600;
+      letter-spacing: -0.01em;
     }
 
     .brand-tagline {
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--erp-text-muted);
       font: var(--mat-sys-label-small);
 
       /* The tagline is the first thing to go when the bar is narrow. */
@@ -181,59 +201,69 @@ const HANDSET_QUERY = '(max-width: 900px)';
     }
 
     .app-frame {
-      height: calc(100dvh - 4rem);
-      background: var(--mat-sys-surface-container-low);
+      height: calc(100dvh - var(--erp-header-h));
+      background: var(--erp-page);
     }
 
+    /* The navigation is a quiet column: no shadow, one hairline, and the active entry is */
+    /* the only filled thing in it. */
     .app-nav {
-      width: 17rem;
-      border-right: 1px solid var(--mat-sys-outline-variant);
-      background: var(--mat-sys-surface);
+      width: var(--erp-nav-w);
+      background: var(--erp-surface);
+      border-right: 1px solid var(--erp-hairline);
     }
 
     nav {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
-      padding: 0.75rem 0.5rem 2rem;
+      gap: var(--erp-space-2xs);
+      padding: var(--erp-space-md) var(--erp-space-sm) var(--erp-space-2xl);
+    }
+
+    .nav-group {
+      display: block;
+      margin-top: var(--erp-space-md);
     }
 
     .nav-group-label {
-      margin: 1rem 0 0.25rem;
-      padding: 0 0.75rem;
-      color: var(--mat-sys-on-surface-variant);
+      padding: 0 var(--erp-space-md) var(--erp-space-xs);
+      color: var(--erp-text-muted);
       font: var(--mat-sys-label-small);
-      letter-spacing: 0.06em;
+      font-weight: 600;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
     .nav-link {
       display: block;
-      padding: 0.5rem 0.75rem;
-      border-radius: 1.25rem;
-      color: var(--mat-sys-on-surface-variant);
+      padding: var(--erp-space-sm) var(--erp-space-md);
+      color: var(--erp-text-muted);
+      border-radius: var(--erp-radius-sm);
       font: var(--mat-sys-label-large);
       text-decoration: none;
+      transition:
+        background-color var(--erp-duration-fast) var(--erp-ease),
+        color var(--erp-duration-fast) var(--erp-ease);
 
       &:hover {
-        background: var(--mat-sys-surface-container-high);
-        color: var(--mat-sys-on-surface);
+        color: var(--erp-text);
+        background: var(--erp-surface-raised);
+        text-decoration: none;
       }
 
       &:focus-visible {
-        outline: 2px solid var(--mat-sys-primary);
-        outline-offset: 1px;
+        outline: 2px solid var(--erp-accent);
+        outline-offset: -2px;
       }
 
+      /* Active: the accent as a tint and an inset bar, so the entry is unmistakable */
+      /* without a second colour appearing in the navigation. */
       &.nav-link-active {
-        background: var(--mat-sys-secondary-container);
-        color: var(--mat-sys-on-secondary-container);
+        color: var(--erp-accent);
+        background: var(--erp-accent-soft);
+        box-shadow: inset 3px 0 0 var(--erp-accent);
+        font-weight: 600;
       }
-    }
-
-    .app-content {
-      min-height: 100%;
-      outline: none;
     }
   `,
 })
@@ -251,6 +281,17 @@ export class ShellComponent {
 
   /** Whether the navigation panel is shown. */
   readonly navOpen = signal(true);
+
+  constructor() {
+    // On a narrow screen the panel covers the content, so it starts closed: a clerk who
+    // opens the product on a phone wants the screen, not the menu. A wide screen keeps it
+    // open, and the choice stays the user's once the layout has been measured.
+    effect(() => {
+      if (this.isHandset()) {
+        this.navOpen.set(false);
+      }
+    });
+  }
 
   toggleNav(): void {
     this.navOpen.update((open) => !open);

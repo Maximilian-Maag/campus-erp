@@ -2,6 +2,41 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.145.0] - 2026-11-22
+
+The interface is a design system rather than a stylesheet that grew, and `make` stops
+believing a toolchain that is merely on `PATH`.
+
+**A token layer, four files, one entry point.** `frontend/src/styles.scss` was 309 lines and
+one file; it is now the entry point of a system: `_tokens.scss` (the Material 3 theme plus
+`--erp-*` names for layout, a 4px spacing scale, radii, three elevations, two durations, and
+the surfaces, lines, text and feedback the product means), `_base.scss` (document, one focus
+ring, thin scrollbars, `prefers-reduced-motion`), `_layout.scss` (the page frame, the screen
+head, the card surfaces) and `_elements.scss` (buttons, fields, forms, tables, record lists,
+messages). Every screen inherits the new look without a screen being touched: the system styles
+the element, and the screens were already written as `<section>` + `<table>` + `.form`.
+
+What that changes visibly: a section is a single-gap stack instead of blocks carrying their own
+margins, so spacing cannot double; cards share one border, radius and resting shadow, and a
+hover row and a raised button take the second step rather than inventing their own depth;
+buttons are 8px-rounded with a hover that moves the fill towards the text colour, so it darkens
+in light mode and lightens in dark; fields are one field, with a custom select arrow drawn in
+`currentColor`; a table's caption is its toolbar and its header sticks under a blur; a nested
+table (a statement's lines inside its row) sits on a sunken surface one step quieter; an error
+is a block with the accent bar a dialog would have, and a plain `[role='status']` is a quiet
+sentence. The application bar is slim and translucent with the table scrolling under it, and the
+navigation's active entry is the accent as a tint plus an inset bar — the only filled thing in
+the column. Focus is one ring everywhere, and it disappears with the rest of the motion when the
+user asks for less of it. `docs/32` now documents the four layers and the rule that a component
+may style its layout, never a colour or a size.
+
+**`make` no longer trusts a shim.** `GO` was chosen with `command -v go`, which a version
+manager's shim satisfies while having no version selected: `make backend-vet` then died with
+`mise ERROR No version is set for shim: go` and no hint that the Makefile had picked a
+toolchain that cannot run. The Makefile now probes `go version`; a shim that fails falls back
+to the `golang:1.26-alpine` container, and `make check-tools` reports what actually runs
+instead of a command that exists. `make help` says which Go it will use.
+
 ## [0.144.0] - 2026-11-21
 
 A payment run can no longer pay an order in a currency the account does not hold.

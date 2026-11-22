@@ -1,0 +1,464 @@
+// The vocabulary's skins: buttons, fields, tables, record lists, messages. Every screen
+// uses these elements directly, so one rule here reaches all of them.
+
+// ── buttons ─────────────────────────────────────────────────────────────────
+// Plain <button> is the product's primary action: a filled, 40px-tall rectangle with the
+// accent colour. A secondary action opts out with `class="secondary"`, a destructive one
+// with `class="danger"`. The radius is 8px rather than a pill: an administrative product
+// reads as tooling, not as a chat app.
+button {
+  display: inline-flex;
+  gap: var(--erp-space-xs);
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0 var(--erp-space-lg);
+  color: var(--mat-sys-on-primary);
+  background: var(--erp-accent);
+  border: 1px solid transparent;
+  border-radius: var(--erp-radius-sm);
+  box-shadow: var(--erp-shadow-1);
+  font: var(--mat-sys-label-large);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--erp-duration-fast) var(--erp-ease),
+    box-shadow var(--erp-duration-fast) var(--erp-ease),
+    border-color var(--erp-duration-fast) var(--erp-ease);
+
+  &:hover {
+    background: var(--erp-accent-hover);
+    box-shadow: var(--erp-shadow-2);
+  }
+
+  &:active {
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--erp-ring);
+  }
+
+  &:disabled {
+    color: var(--erp-text-muted);
+    background: var(--erp-surface-raised);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  // A second action beside the primary one: same shape, quieter fill.
+  &.secondary {
+    color: var(--erp-text);
+    background: var(--erp-card);
+    border-color: var(--erp-hairline-strong);
+
+    &:hover {
+      background: var(--erp-surface-raised);
+    }
+  }
+
+  &.danger {
+    color: var(--mat-sys-on-error);
+    background: var(--erp-danger-accent);
+
+    &:hover {
+      background: color-mix(in oklab, var(--erp-danger-accent) 90%, var(--erp-text));
+    }
+  }
+}
+
+button + button {
+  margin-left: var(--erp-space-sm);
+}
+
+// Material's own buttons already carry a surface; keep their spacing in a row with ours.
+.mat-mdc-button-base + .mat-mdc-button-base {
+  margin-left: var(--erp-space-sm);
+}
+
+// ── fields ──────────────────────────────────────────────────────────────────
+label {
+  display: block;
+  margin-bottom: var(--erp-space-xs);
+  color: var(--erp-text-muted);
+  font: var(--mat-sys-label-large);
+}
+
+// A field is its label above its control; the grid in `.form` places the fields.
+.field {
+  display: grid;
+  gap: var(--erp-space-xs);
+  align-content: end;
+  min-width: 0;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem var(--erp-space-md);
+  color: var(--erp-text);
+  background: var(--erp-field);
+  border: 1px solid var(--erp-hairline-strong);
+  border-radius: var(--erp-radius-sm);
+  font: var(--mat-sys-body-medium);
+  transition:
+    border-color var(--erp-duration-fast) var(--erp-ease),
+    box-shadow var(--erp-duration-fast) var(--erp-ease),
+    background-color var(--erp-duration-fast) var(--erp-ease);
+
+  // The accent, not the browser's blue: a focused field is the same blue as a focused
+  // button, in the same place.
+  &:focus-visible {
+    outline: none;
+    border-color: var(--erp-accent);
+    box-shadow: var(--erp-ring);
+  }
+
+  &:disabled {
+    color: var(--erp-text-muted);
+    background: var(--erp-surface-sunken);
+    cursor: not-allowed;
+  }
+
+  &::placeholder {
+    color: color-mix(in srgb, var(--erp-text-muted) 70%, transparent);
+  }
+}
+
+textarea {
+  min-height: 6rem;
+  padding-top: var(--erp-space-sm);
+  font: var(--mat-sys-body-medium);
+  resize: vertical;
+}
+
+// A select drawn by the system keeps its own arrow, which is placed where the platform
+// thinks it belongs. Draw one instead, in the control's own colour, so it matches the
+// field's radius and sits at the same distance from the edge in either theme.
+select {
+  padding-right: var(--erp-space-2xl);
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position:
+    calc(100% - 1.05rem) calc(50% + 1px),
+    calc(100% - 0.75rem) calc(50% + 1px);
+  background-size:
+    5px 5px,
+    5px 5px;
+}
+
+// A field's own hint under the control: help, not an error.
+.hint {
+  color: var(--erp-text-muted);
+  font: var(--mat-sys-body-small);
+}
+
+// A record's secondary line inside a table cell (a reason, a detail, a period).
+.detail {
+  display: block;
+  color: var(--erp-text-muted);
+  font: var(--mat-sys-body-small);
+}
+
+// ── forms ───────────────────────────────────────────────────────────────────
+form,
+.form,
+.filter,
+.filters {
+  display: grid;
+  gap: var(--erp-space-md) var(--erp-space-lg);
+  align-items: end;
+  padding: var(--erp-space-lg);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+// The last cell of a form is its action, and an action is narrower than a field.
+.form > .field:last-child {
+  justify-self: start;
+}
+
+// A filter narrows the list under it: it is a slim toolbar that takes the width of its
+// controls, not a form that takes the width of the page. Its label sits beside its control,
+// because a filter is read as one sentence: "Status: alle".
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--erp-space-sm) var(--erp-space-md);
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: var(--erp-space-sm) var(--erp-space-md);
+
+  label {
+    margin: 0;
+  }
+
+  select,
+  input {
+    width: auto;
+    min-width: 12rem;
+  }
+}
+
+// `.filters` is a set of small controls written as paragraphs of label + control.
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--erp-space-md) var(--erp-space-xl);
+  align-items: end;
+
+  p {
+    display: grid;
+    gap: var(--erp-space-xs);
+    min-width: 12rem;
+    margin: 0;
+  }
+}
+
+// A record's picker: a label and its select on one line.
+.picker {
+  display: grid;
+  gap: var(--erp-space-xs);
+  padding: var(--erp-space-lg);
+}
+
+// An import form: a text area, the sentence that says what goes in it, and the action.
+.import {
+  display: grid;
+  gap: var(--erp-space-md);
+  padding: var(--erp-space-lg);
+
+  textarea {
+    min-height: 8rem;
+  }
+}
+
+// A rejection reason typed into a table cell: a field and its buttons in one row.
+.reject {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--erp-space-sm);
+  align-items: end;
+  padding: var(--erp-space-sm) 0;
+}
+
+// ── tables ──────────────────────────────────────────────────────────────────
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font: var(--mat-sys-body-medium);
+
+  caption {
+    padding: var(--erp-space-md) var(--erp-space-lg);
+    color: var(--erp-text-muted);
+    background: var(--erp-card);
+    border-bottom: 1px solid var(--erp-hairline);
+    border-radius: var(--erp-radius-md) var(--erp-radius-md) 0 0;
+    font: var(--mat-sys-label-large);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: 0.6875rem var(--erp-space-lg);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  // Rows are separated by a hairline rather than boxed: a row is a record, not a card.
+  tbody td {
+    border-bottom: 1px solid var(--erp-hairline);
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    color: var(--erp-text-muted);
+    background: color-mix(in srgb, var(--erp-card) 92%, var(--erp-page));
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--erp-hairline);
+    font: var(--mat-sys-label-large);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    transition: background-color var(--erp-duration-fast) var(--erp-ease);
+
+    &:hover td {
+      background: color-mix(in srgb, var(--erp-accent) 4%, var(--erp-surface));
+    }
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:last-child td:first-child {
+    border-bottom-left-radius: var(--erp-radius-md);
+  }
+
+  tbody tr:last-child td:last-child {
+    border-bottom-right-radius: var(--erp-radius-md);
+  }
+
+  .amount,
+  .numeric,
+  .quantity {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .amount {
+    white-space: nowrap;
+  }
+
+  // A row's own actions are not the page's primary action: three filled buttons in a row
+  // shout louder than the records they act on. Inside a table, a button is quiet until it
+  // is the one the screen is about (`.primary`).
+  td button:not(.primary):not(.danger) {
+    min-height: 2rem;
+    padding: 0 var(--erp-space-md);
+    color: var(--erp-text);
+    background: var(--erp-card);
+    border-color: var(--erp-hairline-strong);
+    box-shadow: none;
+
+    &:hover {
+      color: var(--erp-accent);
+      background: var(--erp-accent-soft);
+      border-color: var(--erp-accent);
+      box-shadow: none;
+    }
+  }
+
+  // An identity that is read digit by digit: an account number is compared, not scanned.
+  .iban {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+}
+
+// A table inside a row is the record's own detail: it sits on a sunken surface, one step
+// quieter than the table that holds it.
+td > table {
+  background: var(--erp-surface-sunken);
+  border: 1px solid var(--erp-hairline);
+  border-radius: var(--erp-radius-sm);
+  overflow: hidden;
+
+  caption {
+    background: transparent;
+    font: var(--mat-sys-label-medium);
+    padding: var(--erp-space-sm) var(--erp-space-md);
+  }
+
+  th,
+  td {
+    padding: var(--erp-space-sm) var(--erp-space-md);
+  }
+
+  thead th {
+    background: transparent;
+  }
+}
+
+// ── record fields (<dl>) ────────────────────────────────────────────────────
+dl {
+  display: grid;
+  grid-template-columns: minmax(10rem, max-content) 1fr;
+  gap: 0;
+  padding: var(--erp-space-xs) 0;
+  margin: 0;
+
+  dt,
+  dd {
+    padding: var(--erp-space-sm) var(--erp-space-lg);
+    border-bottom: 1px solid var(--erp-hairline);
+  }
+
+  dt {
+    color: var(--erp-text-muted);
+    font: var(--mat-sys-label-large);
+  }
+
+  dd {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+  }
+
+  dt:last-of-type,
+  dd:last-of-type {
+    border-bottom: none;
+  }
+}
+
+// ── messages ────────────────────────────────────────────────────────────────
+// A failed action is a block, not a line of red text: it interrupts the page and says so
+// with the accent bar that a dialog would have.
+.error,
+[role='alert'] {
+  display: block;
+  padding: var(--erp-space-md) var(--erp-space-lg);
+  color: var(--erp-danger-text);
+  background: var(--erp-danger-surface);
+  border-left: 3px solid var(--erp-danger-accent);
+  border-radius: var(--erp-radius-sm);
+  font: var(--mat-sys-body-medium);
+}
+
+// A status the user should notice without it being a failure.
+.notice {
+  display: block;
+  padding: var(--erp-space-md) var(--erp-space-lg);
+  margin: 0;
+  color: var(--mat-sys-on-primary-container);
+  background: color-mix(in srgb, var(--mat-sys-primary-container) 70%, transparent);
+  border-left: 3px solid var(--erp-accent);
+  border-radius: var(--erp-radius-sm);
+  font: var(--mat-sys-body-medium);
+}
+
+// Loading, empty and other quiet statuses: a sentence where the content would be.
+[role='status']:not(.notice) {
+  margin: 0;
+  color: var(--erp-text-muted);
+  font: var(--mat-sys-body-medium);
+}
+
+p[role='status']:empty {
+  display: none;
+}
+
+// ── small lists ─────────────────────────────────────────────────────────────
+// A cell that holds a short set (dunning bands) reads as chips, not as a nested list.
+ul.bands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--erp-space-xs);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+
+  li {
+    padding: var(--erp-space-2xs) var(--erp-space-sm);
+    color: var(--erp-text-muted);
+    background: var(--erp-surface-raised);
+    border: 1px solid var(--erp-hairline);
+    border-radius: var(--erp-radius-pill);
+    font: var(--mat-sys-label-medium);
+    white-space: nowrap;
+  }
+}
