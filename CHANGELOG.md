@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.147.0] - 2026-11-22
+
+The key guard now also holds the parameters of a message, not only its name.
+
+`'kasse.orders.approveLabel' | transloco` without `{ reference }` compiles — and puts
+`{{ reference }}` on the button. So does a translation that loses a placeholder, in one language
+only. `scripts/check-keys.mjs` compares the placeholders a message carries against the ones the
+component passes, in both directions, and against the English dictionary: **843 keys, 54 of them
+taking parameters**, all in agreement today. Each of the three failure modes was provoked and seen
+to fail the check before it was trusted.
+
 ## [0.146.0] - 2026-11-22
 
 `dev` integrates and `master` releases, and the image channels now say the same thing.
