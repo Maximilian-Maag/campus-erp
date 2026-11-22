@@ -72,7 +72,12 @@ HELM         := helm $(if $(KUBE_CONTEXT),--kube-context $(KUBE_CONTEXT),)
 # whole module set again, and `make deps` would install into a throwaway layer.
 GO_DOCKER = docker run --rm -v "$(BACKEND)":/app -v campus-erp-gomod:/go/pkg/mod -w /app \
               -e GOPATH=/go -e GOCACHE=/tmp/gocache $(GO_IMAGE) go
-ifeq ($(shell command -v go >/dev/null 2>&1 && echo yes),)
+# A `go` on PATH is not proof of a working Go: a version-manager shim (mise, asdf) that
+# has no version selected exists, answers `command -v`, and then fails on every call with
+# "No version is set for shim". Probe the toolchain itself, so a broken shim falls back to
+# the container instead of turning every backend target into a spurious build error.
+GO_VERSION_OK := $(shell go version >/dev/null 2>&1 && echo yes)
+ifeq ($(GO_VERSION_OK),)
 GO := $(GO_DOCKER)
 GO_IN_DOCKER := 1
 else
@@ -109,12 +114,17 @@ help: ## Show this help
 	      /^[a-zA-Z0-9_.-]+:.*## /{printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 	@echo "vars: TAG=$(TAG)  IMAGE_BACKEND=$(IMAGE_BACKEND)  IMAGE_FRONTEND=$(IMAGE_FRONTEND)"
-	@echo "      registry=$(REGISTRY)  go=$(if $(filter 1,$(GO_IN_DOCKER)),docker,$(shell command -v go))"
+	@echo "      registry=$(REGISTRY)  go=$(if $(filter 1,$(GO_IN_DOCKER)),docker (local toolchain absent or not runnable),$(shell command -v go))"
 
 check-tools: ## Report which optional tools are available
-	@for t in docker go node npm npx helm kubectl python3 tectonic gremlins; do \
+	# `go` is probed by running it: a version-manager shim answers `command -v` and then
+	# fails, which used to be reported as "ok go" right before every target broke.
+	@for t in docker node npm npx helm kubectl python3 tectonic gremlins; do \
 	  if command -v $$t >/dev/null 2>&1; then echo "  ok      $$t"; else echo "  MISSING $$t"; fi; \
 	done
+	@if [[ "$(GO_IN_DOCKER)" == "1" ]]; then \
+	  echo "  notice  go       not runnable locally; backend targets run it in $(GO_IMAGE)"; \
+	else echo "  ok      go       $(shell go version)"; fi
 
 ##@@ start here
 deps: go-deps frontend-install ## Install the dependencies (Go modules, npm packages)
