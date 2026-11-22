@@ -2,6 +2,65 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.151.0] - 2026-11-22
+
+A failed read no longer removes controls it has nothing to do with.
+
+Four screens shared one error signal across several independent reads and hid their whole body behind
+it: a failed page of positions blanked the fifty already read, a failed centres call hid the sources
+that loaded and the form that could create the missing centre, a failed arrival read removed the
+order picker on the goods-receipt screen, and a failed run history removed the dataset picker and the
+run button. Each read now reports on its own, next to the thing it concerns, and `Taxes` — which
+already did this — is no longer the exception.
+
+## [0.150.0] - 2026-11-22
+
+The images job populates the artefact volume once, alone, before the three services mount it:
+three concurrent copy-ups of the image's `/data` can leave a corrupt entry and the boot then fails
+with `failed to mkdir .../documents: file exists`.
+
+## [0.149.0] - 2026-11-22
+
+Two screens were telling the clerk one thing and sending another.
+
+**A select bound by `[value]` shows its first option, whatever the signal says.** Angular applies the
+binding before the `@for` creates the options, the assignment is dropped, and the browser selects the
+first one — so the collection-run form displayed "je Mandat" while filing RCUR, and the mandate form
+displayed FRST while registering RCUR, with the holding filter showing "alle" over an active-only
+query. The selection now rides on the options (`[selected]`), and the specs read `.value` instead of
+only listing the options; with the old markup each of them fails (`Expected '' to be 'RCUR'`). The
+same pattern remains at twenty further sites (issue #178).
+
+**A cash-book day opened on the hard-coded 2026-01-02.** The one field of a Tagesabschluss that must
+never be a guess was a date from the scaffold, and a day is closed, never deleted, so the mistake
+would have been permanent. It defaults to today now, as every other period in the area already did.
+
+## [0.147.0] - 2026-11-22
+
+The key guard now also holds the parameters of a message, not only its name.
+
+`'kasse.orders.approveLabel' | transloco` without `{ reference }` compiles — and puts
+`{{ reference }}` on the button. So does a translation that loses a placeholder, in one language
+only. `scripts/check-keys.mjs` compares the placeholders a message carries against the ones the
+component passes, in both directions, and against the English dictionary: **843 keys, 54 of them
+taking parameters**, all in agreement today. Each of the three failure modes was provoked and seen
+to fail the check before it was trusted.
+
+## [0.146.0] - 2026-11-22
+
+`dev` integrates and `master` releases, and the image channels now say the same thing.
+
+Features land on `dev`; `master` moves only by a promotion PR that carries a batch of them to a
+release. The `latest` channel was still published from a push to `master`, which made the
+integration branch the release line and left the dev channel a promotion behind: it now follows
+`dev`. A push to `master` publishes nothing — prod is the `vX.Y.Z` tag cut on `master` after the
+promotion, which is also the only channel a cluster should pin.
+
+`release.yml` names the three channels in one place (`dev` → `latest`, `staging` → `staging`, a
+`v*` tag → that tag) and refuses any other ref with an explicit error instead of falling through
+to `latest`. `CONTRIBUTING.md` states which branch a PR targets, and `README.md` and
+`docs/build-and-deploy.md` carry the corrected channel table.
+
 ## [0.145.0] - 2026-11-22
 
 The interface is a design system rather than a stylesheet that grew, and `make` stops

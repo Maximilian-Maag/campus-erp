@@ -79,9 +79,13 @@ import { PageComponent } from '../ui/page.component';
             </div>
             <div class="field">
               <label for="run-sequence">{{ 'common.sequenceType' | transloco }}</label>
-              <select id="run-sequence" [value]="sequenceType()" (change)="changeSequence($any($event.target).value)">
+              <!-- The selection is carried by the options, not by a value binding on the select:
+                   the options are created by @for after the select's own binding runs, so a select
+                   starting on anything but its first option would show the first one while the
+                   signal, and the POST body, carried the default. -->
+              <select id="run-sequence" (change)="changeSequence($any($event.target).value)">
                 @for (type of sequenceTypes; track type.value) {
-                  <option [value]="type.value">
+                  <option [value]="type.value" [selected]="type.value === sequenceType()">
                     {{ type.value ? type.value + ' — ' + (type.labelKey | transloco) : (type.labelKey | transloco) }}
                   </option>
                 }

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { CashbookDayComponent } from './cashbook-day.component';
+import { isoDay } from '../core/format';
 import { Day } from '../core/api/generated';
 import { provideI18n } from '../i18n/provide-i18n';
 
@@ -20,7 +21,7 @@ describe('CashbookDayComponent', () => {
 
   it('has sensible defaults', () => {
     const c = TestBed.createComponent(CashbookDayComponent).componentInstance;
-    expect(c.businessDate()).toBe('2026-01-02');
+    expect(c.businessDate()).toBe(isoDay(new Date()));
     expect(c.openingCents()).toBe(0);
     expect(c.day()).toBeNull();
     expect(c.error()).toBeNull();

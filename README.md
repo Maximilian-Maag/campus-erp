@@ -42,7 +42,7 @@ Docker Hub, one tag per channel:
 
 | tag | what it is | what moves it |
 |---|---|---|
-| `latest` | dev | every push to `master` |
+| `latest` | dev | every push to `dev` |
 | `staging` | release candidate | every push to `staging` |
 | `v0.136.0` | prod, built once and never moved | a `v*` tag |
 

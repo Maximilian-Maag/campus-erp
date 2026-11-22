@@ -143,9 +143,12 @@ interface language still has to find their own.
 
 - `scripts/check-copy.mjs` — no component template carries a word; every string is a message key.
 - `scripts/check-keys.mjs` — every key a component asks for (`| transloco`, `translate('…')`,
-  `titleKey`/`subtitleKey`) exists in the German dictionary. The typed dictionaries catch a missing
-  translation, but `titleKey="page.haushaltHerkunft"` — one suffix short — compiles and renders the
-  key itself; this is what catches that.
+  `titleKey`/`subtitleKey`) exists in the German dictionary, and the parameters agree in both
+  directions. The typed dictionaries catch a missing translation, but three things still compile
+  and only break on screen: `titleKey="page.haushaltHerkunft"` — one suffix short — renders the key
+  itself; `'kasse.orders.approveLabel' | transloco` without `{ reference }` renders
+  `{{ reference }}`; and a translation that drops a placeholder shows it in one language only. All
+  three are failures, not warnings.
 
 ## Tests
 

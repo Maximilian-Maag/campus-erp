@@ -37,3 +37,9 @@ targets through the same Makefile.
 
 Open an issue first for anything non-trivial; then a topic branch, a PR that closes
 the issue, and a green run before merging.
+
+**Target `dev`, not `master`.** `dev` is the integration branch and collects every feature;
+`master` is the release line and moves only by a promotion PR (`dev` → `master`) that carries a
+batch of features to a release. The image channels follow that: a push to `dev` publishes
+`latest`, `staging` publishes the release candidate, and prod is the `vX.Y.Z` tag cut on
+`master` (see "Images" in [`docs/build-and-deploy.md`](docs/build-and-deploy.md)).

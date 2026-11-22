@@ -135,6 +135,29 @@ describe('BudgetSourcesComponent', () => {
     expect(el.textContent).toContain('Die Mittelherkunft konnte nicht geladen werden.');
   });
 
+  it('keeps the sources and the forms when only the centres fail to read', () => {
+    fixture = TestBed.createComponent(BudgetSourcesComponent);
+    fixture.detectChanges();
+    component = fixture.componentInstance;
+    el = fixture.nativeElement as HTMLElement;
+    http.expectOne('/api/budget/sources').flush([source()]);
+    http
+      .expectOne('/api/budget/centers')
+      .flush({ error: 'boom' }, { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/budget/positions?limit=50&offset=0').flush([row()]);
+    fixture.detectChanges();
+
+    // The centres are one read of three: the table that did load and the form that could create
+    // the missing centre must both stay on screen.
+    expect(el.querySelector('[data-testid="centres-error"]')!.textContent).toContain(
+      'Die Bewirtschaftungsstellen konnten nicht geladen werden.'
+    );
+    expect(component.loadError()).toBeNull();
+    expect(el.querySelector('[data-testid="source-1"]')).not.toBeNull();
+    expect(el.querySelector('#source-code')).not.toBeNull();
+    expect(el.querySelector('#center-code')).not.toBeNull();
+  });
+
   it('creates a source and keeps the list in code order', () => {
     screen([source()], [], []);
     component.sourceCode.set('S-1');
