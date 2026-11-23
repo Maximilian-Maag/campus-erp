@@ -88,9 +88,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: list
-        name: read backend/mutation.json
+        name: read backend/mutation.json (through the Makefile, which is what reads it)
         run: |
-          targets=$(python3 -c "import json;print(json.dumps([t['path'] for t in json.load(open('backend/mutation.json'))['targets']]))")
+          targets=$(make -s mutation-targets)
           echo "targets=$targets" >> "$GITHUB_OUTPUT"
 
   mutation-go:
@@ -132,26 +132,12 @@ jobs:
           cache-dependency-path: backend/go.sum
       # One shard per package means the module set is fetched ~25 times per run, and a
       # transient proxy blip used to fail a shard whose package is nowhere near the change
-      # ("stream error: INTERNAL_ERROR; received from peer"). Warm the cache with retries so
-      # a hiccup is not a red build.
+      # ("stream error: INTERNAL_ERROR; received from peer"). Both network calls retry, and
+      # both are targets, so what CI proves is what `make` does.
       - name: warm the module cache
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if make go-deps; then echo "modules downloaded (attempt $attempt)"; exit 0; fi
-            echo "go mod download failed (attempt $attempt) - retrying"
-            sleep 10
-          done
-          echo "module download still failing after 3 attempts"; exit 1
+        run: make go-deps-retry
       - name: install gremlins
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if go install github.com/go-gremlins/gremlins/cmd/gremlins@latest; then exit 0; fi
-            echo "go install failed (attempt $attempt) - retrying"
-            sleep 10
-          done
-          echo "go install still failing after 3 attempts"; exit 1
+        run: make gremlins-install
       - name: gremlins ${{ matrix.target }}
         # One package per shard; the target gives every package its own cache dir and
         # fails a run that produced no mutants (a vacuous pass).
@@ -188,32 +174,9 @@ jobs:
         env:
           IMAGE_BACKEND: campus-erp-backend:ci
           IMAGE_FRONTEND: campus-erp-frontend:ci
-        run: |
-          set -euo pipefail
-          # Populate the volume from the image ONCE, alone, before three services mount it at the
-          # same time. Docker copies the image's /data (documents, outbox) into a fresh named
-          # volume on first use; when api, worker and connectors each trigger that copy-up
-          # concurrently, the result can be a corrupt entry and the start fails with
-          # "failed to mkdir .../documents: file exists".
-          docker volume create campus-erp_erpdata >/dev/null
-          docker run --rm -v campus-erp_erpdata:/data --entrypoint /bin/true "$IMAGE_BACKEND"
-          # Through the Makefile, so the target (and its readiness wait) is what CI
-          # proves - not a hand-written copy of it.
-          make run TAG=ci
-          curl -fsS http://localhost:8080/readyz
-          curl -fsS -o /dev/null http://localhost:8081/
-          # PID 1 must be the role binary: compose `command:` replaces the image's
-          # CMD, and an ENTRYPOINT would silently append to it instead.
-          for role in api worker connectors; do
-            cmd=$(docker compose exec -T "$role" cat /proc/1/cmdline | tr -d '\0')
-            echo "$role -> $cmd"
-            if [[ $cmd != "/app/$role" ]]; then
-              echo "error: the $role service is running $cmd"
-              docker compose logs --tail=40 "$role"
-              exit 1
-            fi
-          done
-          docker compose ps
+        # The whole procedure is one target: the volume prep, `make run` and its readiness
+        # wait, and the PID 1 assertion. CI proves the target, not a copy of it.
+        run: make stack-smoke TAG=ci
       - name: tear down
         if: always()
         run: docker compose down -v

@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.152.0] - 2026-11-23
+
+Continuous integration calls the Makefile, instead of keeping a copy of it.
+
+The workflow had four places where a job carried its own commands: the `mutation-go` matrix
+parsed `backend/mutation.json` inline, one step retried `make go-deps` in a shell loop and another
+retried `go install gremlins`, and the `images` job spelled out the volume prep, the readiness
+wait and the PID 1 assertion by hand. A copy of a target drifts from the target, and then what CI
+proves is the copy — so the copies are now `make mutation-targets`, `make go-deps-retry`,
+`make gremlins-install` and `make stack-smoke`, and each job is a single `make` call. `make help`
+lists them under their own heading, and `docs/build-and-deploy.md` says what each one is for.
+
 ## [0.151.0] - 2026-11-22
 
 A failed read no longer removes controls it has nothing to do with.
