@@ -19,6 +19,17 @@ export const sharedEn: Messages = {
     de: 'Deutsch',
     en: 'English',
   },
+  auth: {
+    signIn: 'Sign in',
+    signOut: 'Sign out',
+    explanation:
+      'Campus ERP keeps no password of its own. You sign in with your university account, and its roles decide what is possible here.',
+    working: 'Completing the sign-in …',
+    tryAgain: 'Sign in again',
+    failed: 'The sign-in failed.',
+    unreachable: 'The sign-in service cannot be reached.',
+    notConfigured: 'No sign-in is configured for this installation.',
+  },
   nav: {
     group: {
       kasse: 'Cash desk',
@@ -58,6 +69,14 @@ export const sharedEn: Messages = {
     },
   },
   page: {
+    login: {
+      title: 'Sign in',
+      subtitle: 'Sign in to Campus ERP with your university account.',
+    },
+    loginCallback: {
+      title: 'Signing in',
+      subtitle: 'Checking the answer from the sign-in service.',
+    },
     notFound: {
       title: 'Page not found',
       subtitle: 'This address does not lead to a Campus ERP screen.',

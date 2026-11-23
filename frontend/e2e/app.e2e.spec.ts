@@ -19,10 +19,12 @@ test('every screen is reachable from the navigation', async ({ page }) => {
   // importing it would pull the Angular components in with it.
   const source = readFileSync('src/app/app.routes.ts', 'utf8');
   // The empty path is the root redirect and `**` the not-found catch-all: neither is a screen
-  // and neither carries a navigation entry.
+  // and neither carries a navigation entry. The sign-in screen and its callback are reached by
+  // a redirect from the IdP, not from the menu.
+  const notInTheMenu = new Set(['/', '/**', '/login', '/auth/callback']);
   const declared = [...source.matchAll(/path:\s*'([^']+)'/g)]
     .map((m) => '/' + m[1])
-    .filter((path) => path !== '/' && path !== '/**')
+    .filter((path) => !notInTheMenu.has(path))
     .sort();
   expect(declared.length).toBeGreaterThan(0);
 
@@ -38,6 +40,9 @@ test('the navigation links resolve to a screen', async ({ page }) => {
   // Every link leads somewhere that renders, not to a blank outlet.
   await page.route('**/api/**', (route) => route.fulfill({ json: [] }));
   await page.goto('/');
+  // The shell renders after the deployment's sign-in configuration has been read, so the
+  // navigation is one round trip away from being in the document.
+  await page.locator('nav a').first().waitFor();
   const hrefs = await page.locator('nav a').evaluateAll((links) =>
     links.map((l) => l.getAttribute('href') ?? '')
   );

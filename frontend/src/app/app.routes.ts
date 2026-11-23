@@ -1,4 +1,8 @@
 import { Routes } from '@angular/router';
+
+import { AuthCallbackComponent } from './auth/callback.component';
+import { authGuard } from './auth/auth.guard';
+import { LoginComponent } from './auth/login.component';
 import { BudgetPositionsComponent } from './budget/positions.component';
 import { BudgetSourcesComponent } from './budget/sources.component';
 import { CashbookDayComponent } from './kasse/cashbook-day.component';
@@ -26,7 +30,11 @@ import { ImportsComponent } from './etl/imports.component';
 import { ReceivablesComponent } from './kasse/receivables.component';
 import { NotFoundComponent } from './ui/not-found.component';
 
-export const routes: Routes = [
+/**
+ * The screens, as declared. `routes` below adds the sign-in guard to each of them; the two
+ * that a visitor must reach without a session are named in `PUBLIC_PATHS`.
+ */
+const DECLARED: Routes = [
   // The product opens on the screen a clerk starts the day with, rather than on an empty
   // outlet: the root is a redirect, not a screen of its own.
   { path: '', pathMatch: 'full', redirectTo: 'kasse/tag' },
@@ -55,6 +63,28 @@ export const routes: Routes = [
   { path: 'finanzen/steuern', component: TaxesComponent },
   { path: 'auswertungen', component: AuswertungenComponent },
   { path: 'importe', component: ImportsComponent },
+  // The sign-in round trip: the login screen, and the address the IdP sends the browser back
+  // to. Neither needs a session, which is the point of both — and both must be declared before
+  // the catch-all below, or `**` matches them first and the guard sends them to themselves.
+  { path: 'login', component: LoginComponent },
+  { path: 'auth/callback', component: AuthCallbackComponent },
   // Anything else is a link that leads nowhere: say so rather than render an empty outlet.
   { path: '**', component: NotFoundComponent },
 ];
+
+/** Routes a visitor reaches without a session. */
+const PUBLIC_PATHS: ReadonlySet<string> = new Set(['login', 'auth/callback']);
+
+/**
+ * Every other screen requires a session — when the deployment has an issuer at all. The guard
+ * is a no-op on the local stack, which runs unauthenticated by design.
+ *
+ * A redirect cannot carry a guard (`redirectTo` and `canActivate` are refused together by the
+ * router: the redirect happens before guards run), and it does not need one — the address it
+ * sends the visitor to is guarded.
+ */
+export const routes: Routes = DECLARED.map((route) =>
+  PUBLIC_PATHS.has(route.path ?? '') || route.redirectTo !== undefined
+    ? route
+    : { ...route, canActivate: [authGuard] },
+);

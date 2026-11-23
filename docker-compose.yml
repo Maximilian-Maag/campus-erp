@@ -99,6 +99,12 @@ services:
     image: ${IMAGE_FRONTEND:-campus-erp-frontend:dev}
     environment:
       API_UPSTREAM: api:8080
+      # The interface signs in against the same IdP as the API (ADR-0003). Empty means the
+      # login screen is not offered, which is the local default.
+      ERP_OIDC_ISSUER: ${ERP_OIDC_ISSUER:-}
+      ERP_OIDC_CLIENT_ID: ${ERP_OIDC_CLIENT_ID:-}
+      ERP_OIDC_SCOPE: ${ERP_OIDC_SCOPE:-openid profile email}
+      ERP_OIDC_REDIRECT_URI: ${ERP_OIDC_REDIRECT_URI:-}
     depends_on:
       - api
     ports:

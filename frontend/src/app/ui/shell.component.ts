@@ -4,9 +4,10 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
+import { AuthService } from '../auth/auth.service';
 import { LanguagePickerComponent } from './language-picker.component';
 import { NAV_GROUPS } from './nav-model';
 
@@ -66,7 +67,21 @@ const HANDSET_QUERY = '(max-width: 900px)';
 
         <span class="app-bar-spacer"></span>
 
-          <app-language-picker />
+        <!-- Who is signed in, and the one action that ends it. A deployment without an
+             issuer shows neither: there is no session to name or to end. -->
+        @if (principalName(); as name) {
+          <span class="principal" data-testid="principal">{{ name }}</span>
+          <button
+            type="button"
+            class="secondary sign-out"
+            (click)="signOut()"
+            data-testid="sign-out"
+          >
+            {{ 'auth.signOut' | transloco }}
+          </button>
+        }
+
+        <app-language-picker />
       </mat-toolbar>
     </header>
 
@@ -265,10 +280,29 @@ const HANDSET_QUERY = '(max-width: 900px)';
         font-weight: 600;
       }
     }
+
+    .principal {
+      color: var(--erp-text-muted);
+      font: var(--mat-sys-label-large);
+      white-space: nowrap;
+    }
+
+    .sign-out {
+      min-height: 2rem;
+      padding: 0 var(--erp-space-md);
+
+      /* The bar is 56px: a full-height button would touch both edges. */
+      box-shadow: none;
+    }
   `,
 })
 export class ShellComponent {
   private readonly breakpoint = inject(BreakpointObserver);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  /** The name of the signed-in person, or an empty string when nobody is. */
+  readonly principalName = this.auth.principalName;
 
   readonly groups = NAV_GROUPS;
 
@@ -295,6 +329,11 @@ export class ShellComponent {
 
   toggleNav(): void {
     this.navOpen.update((open) => !open);
+  }
+
+  signOut(): void {
+    this.auth.signOut();
+    void this.router.navigate(['/login']);
   }
 
   /** A destination has been chosen: on a narrow screen, get the menu out of the way. */

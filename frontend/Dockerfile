@@ -29,8 +29,18 @@ FROM nginx:1.27-alpine AS runtime
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 
+# Sign-in: the issuer and client id are read from the environment at start-up and written to
+# config.json by this hook, so one image serves every deployment.
+COPY docker/auth-config.sh /docker-entrypoint.d/40-auth-config.sh
+RUN chmod +x /docker-entrypoint.d/40-auth-config.sh
+
 # Default upstream used when API_UPSTREAM is not set (compose service name).
 ENV API_UPSTREAM=api:8080
+# Empty by default: the interface runs unauthenticated and the API enforces its own roles.
+ENV ERP_OIDC_ISSUER=""
+ENV ERP_OIDC_CLIENT_ID=""
+ENV ERP_OIDC_SCOPE="openid profile email"
+ENV ERP_OIDC_REDIRECT_URI="" 
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
