@@ -183,8 +183,16 @@ Both images are public, so a cluster needs no pull secret for them.
 
 `quality.yml` builds both images on every push (the `images` job, build only, no push), so a
 Dockerfile whose Go or Node base image drifts from `backend/go.mod` / `frontend/package.json`
-fails a pull request rather than the next release. That job then starts the stack from those
-exact images, waits for `/readyz` and checks each service's PID 1 is its role binary.
+fails a pull request rather than the next release. It then runs `make stack-smoke`, which starts
+the stack from those exact images the way `make run` starts it, waits for `/readyz`, and checks
+each service's PID 1 is its role binary.
+
+The workflow carries no commands of its own: every job calls a target. `make mutation-targets`
+prints the package list the `mutation-go` matrix fans out on, `make go-deps-retry` and
+`make gremlins-install` retry the two network calls a shard makes before it does any work (a
+module-proxy blip must not fail a package the change never touched), and `make stack-smoke` is
+the whole boot-and-assert procedure described above. A copy of a target in YAML drifts from the
+target, and then CI proves the copy.
 
 ## Local stack (docker compose)
 

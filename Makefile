@@ -106,7 +106,8 @@ endef
         policy policy-ci hooks test-tools contracts-check contracts-gen contracts-validate \
         docker-images docker-backend docker-frontend docker-login docker-publish \
         deploy-backend deploy-frontend helm-lint helm-template deploy-k8s k8s-status \
-        db-up db-shell clean-data workon-backend workon-frontend c4-pdf
+        db-up db-shell clean-data workon-backend workon-frontend c4-pdf \
+        mutation-targets go-deps-retry gremlins-install stack-smoke
 
 help: ## Show this help
 	@echo "campus-erp — deps, build, run, test"
@@ -334,6 +335,54 @@ deploy-k8s: docker-publish ## helm upgrade --install the whole release
 k8s-status: ## Show pods/services/ingress
 	$(call require,kubectl)
 	$(KUBECTL) -n $(NAMESPACE) get deploy,svc,ing,po
+
+##@@ continuous integration (what the workflow calls, rather than copying)
+# These four exist because the workflow used to carry their commands. A hand-written copy of a
+# target drifts from it, and then CI proves the copy: `stack-smoke` is the one that matters —
+# it boots the images `docker-images` built and asserts each service is the role the chart
+# asked for. The other three are the two network calls a shard makes before it does any work
+# (a proxy blip must not fail a package that is nowhere near the change) and the matrix input.
+mutation-targets: ## Print the mutation package list as JSON (the CI matrix reads it)
+	@python3 -c "import json;print(json.dumps([t['path'] for t in json.load(open('$(BACKEND)/mutation.json'))['targets']]))"
+
+go-deps-retry: ## `go-deps`, three attempts (CI: a module proxy blip is not a red shard)
+	@for attempt in 1 2 3; do \
+	  if $(MAKE) --no-print-directory -s go-deps; then echo "modules downloaded (attempt $$attempt)"; exit 0; fi; \
+	  echo "go mod download failed (attempt $$attempt) - retrying"; sleep 10; \
+	done; \
+	echo "error: the module download still fails after 3 attempts"; exit 1
+
+gremlins-install: ## Install gremlins into the Go bin directory, three attempts (CI)
+	@if [[ -z $(GO_VERSION_OK) ]]; then echo "error: gremlins-install needs a local Go"; exit 1; fi
+	@for attempt in 1 2 3; do \
+	  if GOBIN=$$(go env GOPATH)/bin go install github.com/go-gremlins/gremlins/cmd/gremlins@latest; then \
+	    echo "gremlins installed (attempt $$attempt)"; exit 0; fi; \
+	  echo "go install failed (attempt $$attempt) - retrying"; sleep 10; \
+	done; \
+	echo "error: gremlins still cannot be installed after 3 attempts"; exit 1
+
+# The stack is the product's first impression, so CI proves the images rather than the tree:
+# it starts what `docker-images` built, waits the way `run` waits, and then reads PID 1 of every
+# role. An ENTRYPOINT with a compose `command:` looks healthy while every "role" is the api.
+stack-smoke: ## Boot the built images and assert each service runs its role
+	$(call require,docker)
+	# Populate the volume from the image ONCE, alone: docker copies the image's /data into a
+	# fresh named volume on first use, and three services triggering that copy-up at the same
+	# time can leave an entry half-written ("failed to mkdir .../documents: file exists").
+	docker volume create campus-erp_erpdata >/dev/null 2>&1 || true
+	docker run --rm -v campus-erp_erpdata:/data --entrypoint /bin/true "$(IMAGE_BACKEND)"
+	$(MAKE) --no-print-directory run
+	@curl -fsS -o /dev/null "http://localhost:$${API_PORT:-8080}/readyz"
+	@curl -fsS -o /dev/null "http://localhost:$${WEB_PORT:-8081}/"
+	@for role in api worker connectors; do \
+	  cmd=$$($(COMPOSE) exec -T $$role cat /proc/1/cmdline | tr -d '\000'); \
+	  echo "$$role -> $$cmd"; \
+	  if [[ $$cmd != "/app/$$role" ]]; then \
+	    echo "error: the $$role service is running $$cmd"; \
+	    $(COMPOSE) logs --tail=40 $$role; exit 1; \
+	  fi; \
+	done
+	@$(COMPOSE) ps
 
 ##@@ database & one half at a time
 db-up: ## Start only Postgres (for local backend/integration tests)
