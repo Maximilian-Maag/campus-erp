@@ -40,6 +40,12 @@ describe('LoginComponent', () => {
     expect(button?.textContent?.trim()).toBe('Anmelden');
   });
 
+  it('names the screen in the tab, as a page does', async () => {
+    await render();
+
+    expect(document.title).toBe('Anmelden · Campus ERP');
+  });
+
   it('says what the screen is and where the action leads, in words rather than keys', async () => {
     const fixture = await render();
     const host = fixture.nativeElement as HTMLElement;
