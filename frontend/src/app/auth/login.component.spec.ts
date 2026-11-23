@@ -40,6 +40,19 @@ describe('LoginComponent', () => {
     expect(button?.textContent?.trim()).toBe('Anmelden');
   });
 
+  it('says what the screen is and where the action leads, in words rather than keys', async () => {
+    const fixture = await render();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('h1')?.textContent?.trim()).toBe('Anmelden');
+    expect(host.querySelector('.auth-note')?.textContent?.trim()).toBe(
+      'Sie werden zur Anmeldung Ihrer Hochschule weitergeleitet.',
+    );
+    // The card is the design system's, not the component's: no inline styles to drift.
+    expect(host.querySelector('.auth-card')).not.toBeNull();
+    expect(host.querySelector('[style]')).toBeNull();
+  });
+
   it('signs in with the address the visitor was on', async () => {
     const fixture = await render('/kasse/anordnungen');
 

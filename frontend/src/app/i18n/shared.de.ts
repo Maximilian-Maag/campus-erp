@@ -30,6 +30,7 @@ export const sharedDe = {
     failed: 'Die Anmeldung ist fehlgeschlagen.',
     unreachable: 'Der Anmeldedienst ist nicht erreichbar.',
     notConfigured: 'Für diese Installation ist keine Anmeldung eingerichtet.',
+    redirectNote: 'Sie werden zur Anmeldung Ihrer Hochschule weitergeleitet.',
   },
   nav: {
     group: {

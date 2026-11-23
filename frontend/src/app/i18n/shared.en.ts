@@ -29,6 +29,7 @@ export const sharedEn: Messages = {
     failed: 'The sign-in failed.',
     unreachable: 'The sign-in service cannot be reached.',
     notConfigured: 'No sign-in is configured for this installation.',
+    redirectNote: "You will be sent to your institution's own sign-in page.",
   },
   nav: {
     group: {

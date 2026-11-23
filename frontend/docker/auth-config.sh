@@ -1,4 +1,7 @@
 #!/bin/sh
+# `sh`, not `bash` as AGENTS.md otherwise asks: this runs inside nginx:alpine before it
+# serves its first request, and that image has busybox sh and no bash to point a shebang at.
+#
 # Writes the interface's sign-in configuration from the container environment.
 #
 # The image is built once and deployed many times (test IdP, production IdP), so the issuer

@@ -40,22 +40,24 @@ const HANDSET_QUERY = '(max-width: 900px)';
       <a class="skip-link" href="#app-main">{{ 'app.skipToContent' | transloco }}</a>
 
       <mat-toolbar class="app-bar">
-        <button
-          type="button"
-          matIconButton
-          class="app-bar-nav"
-          (click)="toggleNav()"
-          [attr.aria-label]="(navOpen() ? 'app.closeMenu' : 'app.openMenu') | transloco"
-          [attr.aria-expanded]="navOpen()"
-          data-testid="nav-toggle"
-        >
-          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-            <path
-              fill="currentColor"
-              d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"
-            />
-          </svg>
-        </button>
+        @if (showNav()) {
+          <button
+            type="button"
+            matIconButton
+            class="app-bar-nav"
+            (click)="toggleNav()"
+            [attr.aria-label]="(navOpen() ? 'app.closeMenu' : 'app.openMenu') | transloco"
+            [attr.aria-expanded]="navOpen()"
+            data-testid="nav-toggle"
+          >
+            <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"
+              />
+            </svg>
+          </button>
+        }
 
         <span class="brand">
           <span class="brand-mark" aria-hidden="true">CE</span>
@@ -86,30 +88,35 @@ const HANDSET_QUERY = '(max-width: 900px)';
     </header>
 
     <mat-sidenav-container class="app-frame" [hasBackdrop]="isHandset()">
-      <mat-sidenav
-        class="app-nav"
-        [mode]="isHandset() ? 'over' : 'side'"
-        [opened]="navOpen()"
-        (openedChange)="navOpen.set($event)"
-      >
-        <nav [attr.aria-label]="'app.nav' | transloco" data-testid="main-nav">
-          @for (group of groups; track group.labelKey) {
-            <div class="nav-group">
-              <p class="nav-group-label">{{ group.labelKey | transloco }}</p>
-              @for (item of group.items; track item.path) {
-                <a
-                  class="nav-link"
-                  [routerLink]="item.path"
-                  routerLinkActive="nav-link-active"
-                  (click)="onNavigate()"
-                >
-                  {{ item.labelKey | transloco }}
-                </a>
-              }
-            </div>
-          }
-        </nav>
-      </mat-sidenav>
+      <!-- The navigation belongs to a signed-in person: a visitor at the login screen gets
+           the screen alone, and a deployment without an issuer has no such wall to stand
+           behind, so there it is always there. -->
+      @if (showNav()) {
+        <mat-sidenav
+          class="app-nav"
+          [mode]="isHandset() ? 'over' : 'side'"
+          [opened]="navOpen()"
+          (openedChange)="navOpen.set($event)"
+        >
+          <nav [attr.aria-label]="'app.nav' | transloco" data-testid="main-nav">
+            @for (group of groups; track group.labelKey) {
+              <div class="nav-group">
+                <p class="nav-group-label">{{ group.labelKey | transloco }}</p>
+                @for (item of group.items; track item.path) {
+                  <a
+                    class="nav-link"
+                    [routerLink]="item.path"
+                    routerLinkActive="nav-link-active"
+                    (click)="onNavigate()"
+                  >
+                    {{ item.labelKey | transloco }}
+                  </a>
+                }
+              </div>
+            }
+          </nav>
+        </mat-sidenav>
+      }
 
       <mat-sidenav-content>
         <main id="app-main" class="app-content" tabindex="-1">
@@ -312,6 +319,16 @@ export class ShellComponent {
 
   /** True on a narrow screen, where the navigation is an overlay. */
   readonly isHandset = computed(() => this.handset().matches);
+
+  /**
+   * Whether the navigation is shown at all.
+   *
+   * It belongs to a signed-in person: the login screen is the one place a visitor without a
+   * session stands, and a menu of screens they cannot open would only be a wall of redirects.
+   * A deployment without an issuer authenticates nobody and guards nothing, so there the
+   * navigation is simply always there.
+   */
+  readonly showNav = computed(() => !this.auth.enabled() || this.auth.isAuthenticated());
 
   /** Whether the navigation panel is shown. */
   readonly navOpen = signal(true);

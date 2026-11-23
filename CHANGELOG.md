@@ -14,6 +14,11 @@ session in `sessionStorage` and sends `Authorization: Bearer` on API requests, r
 token that is about to expire and sending the clerk back to the login screen when the API
 rejects one. A deployment with no issuer configured keeps working exactly as before.
 
+The screen itself is the design system's, not a stylesheet of its own: one card centred on the
+page, the heading and a single sentence above the one action, and no navigation beside it — the
+shell shows the menu only to somebody who has signed in. The tab title follows the screen, and
+the components carry no colour or size.
+
 ## [0.154.0] - 2026-11-23
 
 The end-to-end suite runs as a user who asked for less motion, so axe measures a settled page.

@@ -73,6 +73,66 @@ section > p {
   max-width: var(--erp-reading-max);
 }
 
+// ── the sign-in screen ──────────────────────────────────────────────────────
+// The one screen a visitor reaches without a session, and the only one that is not a
+// stack of blocks: there is nothing beside it to align with, so it is centred, and it is
+// one card rather than a page with a head. The shell shows no navigation next to it.
+.auth {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--erp-space-2xl) var(--erp-gutter) var(--erp-space-3xl);
+}
+
+.auth-card {
+  display: grid;
+  gap: var(--erp-space-xl);
+  width: min(26rem, 100%);
+  padding: var(--erp-space-2xl);
+  background: var(--erp-card);
+  border: 1px solid var(--erp-hairline);
+  border-radius: var(--erp-radius-lg);
+  box-shadow: var(--erp-shadow-2);
+}
+
+.auth-intro {
+  display: grid;
+  gap: var(--erp-space-xs);
+}
+
+// The screen's <h1>, at the size a card can carry: a page title would overhang it.
+.auth-title {
+  margin: 0;
+  color: var(--erp-text);
+  font: var(--mat-sys-headline-small);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.auth-subtitle,
+.auth-explanation {
+  margin: 0;
+  color: var(--erp-text-muted);
+  font: var(--mat-sys-body-medium);
+}
+
+.auth-explanation {
+  max-width: var(--erp-reading-max);
+}
+
+// The one action on the screen is the full width of the card: a button adrift in the
+// middle of a card reads as secondary, and there is nothing here for it to be secondary to.
+.auth-submit {
+  width: 100%;
+}
+
+.auth-note {
+  margin: 0;
+  color: var(--erp-text-muted);
+  font: var(--mat-sys-label-small);
+}
+
 // ── the head of a screen ────────────────────────────────────────────────────
 .page-head {
   display: flex;
