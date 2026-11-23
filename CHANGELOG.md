@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.154.0] - 2026-11-23
+
+The interface can sign in, so it can be deployed against an API that enforces roles.
+
+Until now the screens carried no token at all: pointed at an API with `ERP_OIDC_JWKS_URL` set,
+every read answered 401 and each screen said it could not load — which is why the compose stack
+ran unauthenticated. The interface now uses Authorization Code with PKCE against the university
+IdP: it redirects, exchanges the code for a token bound to a verifier the tab kept, stores the
+session in `sessionStorage` and sends `Authorization: Bearer` on API requests, refreshing a
+token that is about to expire and sending the clerk back to the login screen when the API
+rejects one. A deployment with no issuer configured keeps working exactly as before.
+
+The screen itself is the design system's, not a stylesheet of its own: one card centred on the
+page, the heading and a single sentence above the one action, and no navigation beside it — the
+shell shows the menu only to somebody who has signed in. The tab title follows the screen, and
+the components carry no colour or size.
+
 ## [0.153.0] - 2026-11-23
 
 The end-to-end suite runs as a user who asked for less motion, so axe measures a settled page.
