@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.154.0] - 2026-11-23
+
+The end-to-end suite runs as a user who asked for less motion, so axe measures a settled page.
+
+The design system honours `prefers-reduced-motion: reduce` (motion is feedback, never
+decoration), and it also gives every fill a 120ms fade. An axe contrast check that fires inside
+those 120ms measures the colour halfway through the fade — white on pale blue, 4.16:1 — and
+failed `service-rates`' empty-catalogue case at random while passing in isolation. The suite now
+emulates the preference for every test: the measurement is taken on the page as that user sees
+it, and a screen that only becomes legible once an animation finishes fails here instead.
+
 ## [0.152.0] - 2026-11-23
 
 Continuous integration calls the Makefile, instead of keeping a copy of it.
