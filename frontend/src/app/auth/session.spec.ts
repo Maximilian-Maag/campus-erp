@@ -119,6 +119,10 @@ describe('SessionStore', () => {
   });
 
   it('answers nothing when the tab holds no session', () => {
+    // The precondition is this spec's own: karma shares one window (and one sessionStorage)
+    // between spec files, so "no session" must be established, not assumed.
+    sessionStorage.clear();
+
     expect(store.read()).toBeNull();
   });
 

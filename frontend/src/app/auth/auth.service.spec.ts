@@ -72,7 +72,12 @@ describe('AuthService', () => {
     setUp();
   });
 
-  afterEach(() => http.verify());
+  // The session lives in `sessionStorage`, which is one storage for the whole karma window:
+  // a spec that leaves a token behind hands it to every spec that runs after it.
+  afterEach(() => {
+    http.verify();
+    sessionStorage.clear();
+  });
 
   describe('signing in', () => {
     it('redirects to the IdP with PKCE, the state it stored, and the return address', async () => {
