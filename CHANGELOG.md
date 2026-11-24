@@ -2,6 +2,46 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.154.0] - 2026-11-23
+
+The interface can sign in, so it can be deployed against an API that enforces roles.
+
+Until now the screens carried no token at all: pointed at an API with `ERP_OIDC_JWKS_URL` set,
+every read answered 401 and each screen said it could not load — which is why the compose stack
+ran unauthenticated. The interface now uses Authorization Code with PKCE against the university
+IdP: it redirects, exchanges the code for a token bound to a verifier the tab kept, stores the
+session in `sessionStorage` and sends `Authorization: Bearer` on API requests, refreshing a
+token that is about to expire and sending the clerk back to the login screen when the API
+rejects one. A deployment with no issuer configured keeps working exactly as before.
+
+The screen itself is the design system's, not a stylesheet of its own: one card centred on the
+page, the heading and a single sentence above the one action, and no navigation beside it — the
+shell shows the menu only to somebody who has signed in. The tab title follows the screen, and
+the components carry no colour or size.
+
+## [0.153.0] - 2026-11-23
+
+The end-to-end suite runs as a user who asked for less motion, so axe measures a settled page.
+
+The design system honours `prefers-reduced-motion: reduce` (motion is feedback, never
+decoration), and it also gives every fill a 120ms fade. An axe contrast check that fires inside
+those 120ms measures the colour halfway through the fade — white on pale blue, 4.16:1 — and
+failed `service-rates`' empty-catalogue case at random while passing in isolation. The suite now
+emulates the preference for every test: the measurement is taken on the page as that user sees
+it, and a screen that only becomes legible once an animation finishes fails here instead.
+
+## [0.152.0] - 2026-11-23
+
+Continuous integration calls the Makefile, instead of keeping a copy of it.
+
+The workflow had four places where a job carried its own commands: the `mutation-go` matrix
+parsed `backend/mutation.json` inline, one step retried `make go-deps` in a shell loop and another
+retried `go install gremlins`, and the `images` job spelled out the volume prep, the readiness
+wait and the PID 1 assertion by hand. A copy of a target drifts from the target, and then what CI
+proves is the copy — so the copies are now `make mutation-targets`, `make go-deps-retry`,
+`make gremlins-install` and `make stack-smoke`, and each job is a single `make` call. `make help`
+lists them under their own heading, and `docs/build-and-deploy.md` says what each one is for.
+
 ## [0.151.0] - 2026-11-22
 
 A failed read no longer removes controls it has nothing to do with.

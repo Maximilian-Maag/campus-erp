@@ -1,8 +1,10 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { NEVER, of } from 'rxjs';
 
+import { AuthService } from '../auth/auth.service';
 import { ShellComponent } from './shell.component';
 import { NAV_GROUPS } from './nav-model';
 import { provideI18n } from '../i18n/provide-i18n';
@@ -23,7 +25,20 @@ function breakpointSilent(observed: string[]): Partial<BreakpointObserver> {
   };
 }
 
-async function render(matches = false) {
+/**
+ * A stand-in for the sign-in service: the shell only asks whether somebody is signed in and
+ * what to call them, and the tests that care about that say so explicitly.
+ */
+function authStub(name = '', enabled = name !== '', signedIn = name !== ''): Partial<AuthService> {
+  return {
+    enabled: signal(enabled),
+    isAuthenticated: signal(signedIn),
+    principalName: signal(name),
+    signOut: () => undefined,
+  } as unknown as Partial<AuthService>;
+}
+
+async function render(matches = false, principal = '', enabled = principal !== '', signedIn = principal !== '') {
   TestBed.resetTestingModule();
   await TestBed.configureTestingModule({
     imports: [ShellComponent],
@@ -31,6 +46,7 @@ async function render(matches = false) {
       provideRouter([]),
       provideI18n(),
       { provide: BreakpointObserver, useValue: breakpointMatches(matches) },
+      { provide: AuthService, useValue: authStub(principal, enabled, signedIn) },
     ],
   }).compileComponents();
 
@@ -47,6 +63,18 @@ describe('ShellComponent', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[data-testid="app-name"]')?.textContent?.trim(),
     ).toBe('Campus ERP');
+  });
+
+  it('keeps the navigation away from a visitor who has not signed in yet', async () => {
+    // A deployment with an issuer and no session: the visitor is at the login screen, where a
+    // menu of screens they cannot open would be a wall of redirects. The bar stays, so the
+    // product still says what it is.
+    const fixture = await render(false, '', true, false);
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-testid="main-nav"]')).toBeNull();
+    expect(host.querySelector('[data-testid="nav-toggle"]')).toBeNull();
+    expect(host.querySelector('[data-testid="app-name"]')?.textContent?.trim()).toBe('Campus ERP');
   });
 
   it('offers every screen in the navigation, grouped', async () => {
@@ -86,6 +114,7 @@ describe('ShellComponent', () => {
         provideRouter([]),
         provideI18n(),
         { provide: BreakpointObserver, useValue: breakpointSilent(observed) },
+        { provide: AuthService, useValue: authStub() },
       ],
     }).compileComponents();
 
@@ -139,5 +168,48 @@ describe('ShellComponent', () => {
 
     expect(labels).toContain('Payment orders');
     expect(labels).not.toContain('Zahlungsanordnungen');
+  });
+
+  describe('who is signed in', () => {
+    it('names the signed-in person and offers the way out', async () => {
+      const fixture = await render(false, 'Max Maag');
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.querySelector('[data-testid="principal"]')?.textContent).toContain('Max Maag');
+      expect(host.querySelector('[data-testid="sign-out"]')).not.toBeNull();
+    });
+
+    it('shows neither when nobody is signed in', async () => {
+      const fixture = await render();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.querySelector('[data-testid="principal"]')).toBeNull();
+      expect(host.querySelector('[data-testid="sign-out"]')).toBeNull();
+    });
+
+    it('forgets the session and returns to the login screen', async () => {
+      const signOut = jasmine.createSpy('signOut');
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [ShellComponent],
+        providers: [
+          provideRouter([]),
+          provideI18n(),
+          { provide: BreakpointObserver, useValue: breakpointMatches(false) },
+          { provide: AuthService, useValue: { ...authStub('Max Maag'), signOut } },
+        ],
+      }).compileComponents();
+      const router = TestBed.inject(Router);
+      spyOn(router, 'navigate').and.resolveTo(true);
+      const fixture = TestBed.createComponent(ShellComponent);
+      fixture.detectChanges();
+
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>('[data-testid="sign-out"]')
+        ?.click();
+
+      expect(signOut).toHaveBeenCalled();
+      expect(router.navigate).toHaveBeenCalledWith(['/login']);
+    });
   });
 });

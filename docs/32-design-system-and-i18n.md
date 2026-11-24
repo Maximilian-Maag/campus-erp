@@ -62,6 +62,12 @@ AA. `e2e/*.spec.ts` runs axe on the shell and every screen and fails on any viol
   renders the `<h1>`, the one-sentence description, and a slot for the screen's action.
 - `app-language-picker` — the picker.
 
+The sign-in screen is the one screen that is not an `app-page`: it holds a single decision rather
+than a stack of records, so `login.component.ts` renders `.auth` / `.auth-card` — the centred card
+in `src/styles/_layout.scss` — with its own `<h1>` and the same one-action rule. The shell shows
+no navigation beside it, because the navigation belongs to somebody who has signed in; a
+deployment without an issuer has no such wall, so there it is always shown.
+
 ## The words: one vocabulary
 
 `docs/glossary.md` is the source of the domain vocabulary — the legacy system's German terms
@@ -127,7 +133,9 @@ interface language still has to find their own.
    together; an e2e test fails if the two lists disagree.
 3. Add `page.<screen>.title` and `page.<screen>.subtitle` to `shared.de.ts` and `shared.en.ts`.
 4. Wrap the template in `<app-page titleKey="page.<screen>.title" subtitleKey="page.<screen>.subtitle">`
-   and translate every string — reusing a `shared` key whenever the term already has one.
+   and translate every string — reusing a `shared` key whenever the term already has one. A
+   screen that is not a stack of records (the sign-in screen is the only one) takes the `.auth`
+   card instead, and says so in its own doc comment.
 5. Its own copy goes into the area's `pages/<area>.de.ts` and `.en.ts`.
 
 ## Adding a language

@@ -20,6 +20,18 @@ export const sharedDe = {
     de: 'Deutsch',
     en: 'English',
   },
+  auth: {
+    signIn: 'Anmelden',
+    signOut: 'Abmelden',
+    explanation:
+      'Campus ERP hat kein eigenes Passwort. Die Anmeldung erfolgt mit dem Hochschulkonto, und dessen Rollen entscheiden, was hier möglich ist.',
+    working: 'Die Anmeldung wird abgeschlossen …',
+    tryAgain: 'Erneut anmelden',
+    failed: 'Die Anmeldung ist fehlgeschlagen.',
+    unreachable: 'Der Anmeldedienst ist nicht erreichbar.',
+    notConfigured: 'Für diese Installation ist keine Anmeldung eingerichtet.',
+    redirectNote: 'Sie werden zur Anmeldung Ihrer Hochschule weitergeleitet.',
+  },
   nav: {
     group: {
       kasse: 'Kasse',
@@ -59,6 +71,14 @@ export const sharedDe = {
     },
   },
   page: {
+    login: {
+      title: 'Anmelden',
+      subtitle: 'Mit dem Hochschulkonto bei Campus ERP anmelden.',
+    },
+    loginCallback: {
+      title: 'Anmeldung läuft',
+      subtitle: 'Die Antwort des Anmeldedienstes wird geprüft.',
+    },
     notFound: {
       title: 'Seite nicht gefunden',
       subtitle: 'Diese Adresse führt auf keine Seite von Campus ERP.',
