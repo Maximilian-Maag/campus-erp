@@ -3,6 +3,7 @@ package kasse
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 )
@@ -70,15 +71,17 @@ func (s *DunningService) Levels(ctx context.Context, year int) ([]DunningLevel, 
 	return s.repo.Levels(ctx, year)
 }
 
-// Issue computes the charge for a claim and records a dunning notice.
+// Issue computes the charge for a claim and records a dunning notice, stamped with the date the
+// issue is made as of. A run passes its own as-of date, so the grace period of the next step counts
+// from the day the step belongs to rather than from the day the run happened to execute.
 func (s *DunningService) Issue(ctx context.Context, year int, levelCode, claimReference string,
-	outstandingCents int64, by string) (DunningNotice, error) {
+	outstandingCents int64, issuedOn time.Time, by string) (DunningNotice, error) {
 
 	level, err := s.repo.GetLevel(ctx, year, levelCode)
 	if err != nil {
 		return DunningNotice{}, err
 	}
-	notice, err := NewDunningNotice(level, claimReference, outstandingCents, nowFunc(), by)
+	notice, err := NewDunningNotice(level, claimReference, outstandingCents, issuedOn, by)
 	if err != nil {
 		return DunningNotice{}, err
 	}

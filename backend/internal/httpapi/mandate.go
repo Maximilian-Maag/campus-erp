@@ -17,6 +17,7 @@ type mandateService interface {
 	Mandate(ctx context.Context, reference string) (kasse.Mandate, error)
 	Mandates(ctx context.Context, activeOnly bool, seq kasse.MandateSequence, limit, offset int) ([]kasse.Mandate, error)
 	RetireMandate(ctx context.Context, reference, by string) (kasse.Mandate, error)
+	MarkFinal(ctx context.Context, reference, by string) (kasse.Mandate, error)
 }
 
 // statusForMandate maps a mandate error to an HTTP status.
@@ -24,7 +25,12 @@ func statusForMandate(err error) int {
 	switch {
 	case errors.Is(err, kasse.ErrMandateNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, kasse.ErrMandateReferenceExists), errors.Is(err, kasse.ErrMandateRetired):
+	case errors.Is(err, kasse.ErrMandateReferenceExists),
+		errors.Is(err, kasse.ErrMandateRetired),
+		errors.Is(err, kasse.ErrMandateAlreadyFinal),
+		errors.Is(err, kasse.ErrMandateNotYetCollected),
+		errors.Is(err, kasse.ErrMandateOneOff),
+		errors.Is(err, kasse.ErrMandateSequenceChanged):
 		return http.StatusConflict
 	case errors.Is(err, kasse.ErrMandateReferenceRequired),
 		errors.Is(err, kasse.ErrMandateReferenceTooLong),
@@ -94,7 +100,20 @@ func (s *Server) retireMandate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, retired)
 }
 
-// listMandates reads the mandates, by reference, one page at a time. The filters are the server's:
+// markMandateFinal asks for the mandate's last collection: the next run collects it as FNAL, so the
+// collection that ends the authorisation is announced by the operator rather than guessed from the
+// run that happens to be the last one. A mandate that cannot be marked final — never collected, a
+// one-off, or already final — is refused as a conflict.
+func (s *Server) markMandateFinal(w http.ResponseWriter, r *http.Request) {
+	final, err := s.mandates.MarkFinal(r.Context(), r.PathValue("reference"), actor(r))
+	if err != nil {
+		writeDomainProblem(w, statusForMandate(err), err)
+		return
+	}
+	writeJSON(w, http.StatusOK, final)
+}
+
+// listMandates reads the mandates, by reference, one page at a time.
 // ?active=true narrows to the live ones and ?sequence_type= to those collecting
 // under one sequence type, so a screen that offers the mandates a run can gather
 // never holds every mandate to show a few.

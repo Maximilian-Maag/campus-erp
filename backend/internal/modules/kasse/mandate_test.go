@@ -98,3 +98,60 @@ func TestNewMandateValidation(t *testing.T) {
 		})
 	}
 }
+
+// The first collection under a FRST mandate is the only one that may be collected as FRST, so the
+// mandate moves to RCUR; every other type is already at or past its last allowed collection and
+// stays as it is.
+func TestMandateAdvanceAfterCollection(t *testing.T) {
+	cases := []struct {
+		from  MandateSequence
+		want  MandateSequence
+		moved bool
+	}{
+		{SequenceFirst, SequenceRecurring, true},
+		{SequenceRecurring, SequenceRecurring, false},
+		{SequenceOneOff, SequenceOneOff, false},
+		{SequenceFinal, SequenceFinal, false},
+	}
+	for _, c := range cases {
+		m := Mandate{Reference: "MAN-1", SequenceType: c.from}
+		got, moved := m.AdvanceAfterCollection()
+		if got.SequenceType != c.want || moved != c.moved {
+			t.Errorf("AdvanceAfterCollection(%q) = %q, %t; want %q, %t", c.from, got.SequenceType, moved, c.want, c.moved)
+		}
+		if m.SequenceType != c.from {
+			t.Errorf("AdvanceAfterCollection(%q) changed the receiver", c.from)
+		}
+	}
+}
+
+// Marking a mandate final is the operator's request for the last collection: a recurring mandate
+// moves to FNAL, and every other type is refused rather than silently accepted.
+func TestMandateMarkFinal(t *testing.T) {
+	recurring := Mandate{Reference: "MAN-1", SequenceType: SequenceRecurring}
+	final, err := recurring.MarkFinal()
+	if err != nil {
+		t.Fatalf("MarkFinal: %v", err)
+	}
+	if final.SequenceType != SequenceFinal {
+		t.Fatalf("MarkFinal = %q, want FNAL", final.SequenceType)
+	}
+	if recurring.SequenceType != SequenceRecurring {
+		t.Fatal("MarkFinal changed the receiver")
+	}
+
+	cases := []struct {
+		from MandateSequence
+		want error
+	}{
+		{SequenceFirst, ErrMandateNotYetCollected},
+		{SequenceOneOff, ErrMandateOneOff},
+		{SequenceFinal, ErrMandateAlreadyFinal},
+		{"X", ErrSequenceTypeUnknown},
+	}
+	for _, c := range cases {
+		if _, err := (Mandate{Reference: "MAN-1", SequenceType: c.from}).MarkFinal(); !errors.Is(err, c.want) {
+			t.Errorf("MarkFinal(%q) = %v, want %v", c.from, err, c.want)
+		}
+	}
+}

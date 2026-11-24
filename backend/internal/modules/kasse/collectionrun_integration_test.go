@@ -132,7 +132,7 @@ func TestCollectionRunFailsClosed(t *testing.T) {
 	// dedupes first); drive the repo directly to exercise it.
 	repo := kasse.NewCollectionRunRepo(pool)
 	runRef := "RUN-dup-" + uniqueSuffix(t)
-	_, err = repo.InsertCollectionRun(ctx, kasse.CollectionRun{
+	_, _, err = repo.InsertCollectionRun(ctx, kasse.CollectionRun{
 		Reference: runRef, AccountID: account.ID, CreditorID: "CID", CollectionDate: date,
 		SequenceType: kasse.SequenceFirst, LocalInstrument: "CORE", MessageID: runRef,
 		ItemCount: 2, SumCents: 200, FileHash: "x", CreatedBy: "clerk",

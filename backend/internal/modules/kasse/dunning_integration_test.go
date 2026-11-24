@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/audit"
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/modules/kasse"
@@ -71,7 +72,7 @@ func TestDunningIssuePersistsCharge(t *testing.T) {
 	ctx := context.Background()
 	svc, code := newDunningFixture(t)
 
-	notice, err := svc.Issue(ctx, 2026, code, "F-2026-001", 12000, "alice")
+	notice, err := svc.Issue(ctx, 2026, code, "F-2026-001", 12000, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "alice")
 	if err != nil {
 		t.Fatalf("Issue: %v", err)
 	}
@@ -103,7 +104,7 @@ func TestDunningIssueRefusesUnknownAndInactiveLevels(t *testing.T) {
 	ctx := context.Background()
 	svc, code := newDunningFixture(t)
 
-	if _, err := svc.Issue(ctx, 2026, "does-not-exist", "F-1", 1000, "alice"); !errors.Is(err, kasse.ErrNotFound) {
+	if _, err := svc.Issue(ctx, 2026, "does-not-exist", "F-1", 1000, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "alice"); !errors.Is(err, kasse.ErrNotFound) {
 		t.Fatalf("unknown level: want ErrNotFound, got %v", err)
 	}
 
@@ -117,7 +118,7 @@ func TestDunningIssueRefusesUnknownAndInactiveLevels(t *testing.T) {
 	if _, err := kasse.NewDunningService(kasse.NewDunningRepo(pool), audit.NewStore(pool)).CreateLevel(ctx, inactive, "alice"); err != nil {
 		t.Fatalf("CreateLevel: %v", err)
 	}
-	if _, err := svc.Issue(ctx, 2026, inactiveCode, "F-1", 1000, "alice"); !errors.Is(err, kasse.ErrLevelInactive) {
+	if _, err := svc.Issue(ctx, 2026, inactiveCode, "F-1", 1000, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "alice"); !errors.Is(err, kasse.ErrLevelInactive) {
 		t.Fatalf("inactive level: want ErrLevelInactive, got %v", err)
 	}
 }

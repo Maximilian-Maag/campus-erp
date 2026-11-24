@@ -70,6 +70,41 @@ func (s *MandateService) RetireMandate(ctx context.Context, reference, by string
 	return retired, nil
 }
 
+// MarkFinal asks for the mandate's last collection (docs/21): the next run collects it as FNAL, so
+// the collection that ends the authorisation is announced rather than inferred. The decision is
+// taken on the row as read, and the write is compare-and-set on that same type, so a run that
+// advanced the mandate in between is reported instead of being overwritten.
+func (s *MandateService) MarkFinal(ctx context.Context, reference, by string) (Mandate, error) {
+	if err := requireActor(by); err != nil {
+		return Mandate{}, err
+	}
+	current, err := s.repo.GetMandate(ctx, reference)
+	if err != nil {
+		return Mandate{}, err
+	}
+	next, err := current.MarkFinal()
+	if err != nil {
+		return Mandate{}, err
+	}
+	final, moved, err := s.repo.AdvanceSequenceType(ctx, reference, current.SequenceType, next.SequenceType)
+	if err != nil {
+		return Mandate{}, err
+	}
+	if !moved {
+		return Mandate{}, fmt.Errorf("kasse: mandate %q: %w", reference, ErrMandateSequenceChanged)
+	}
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "mandate.final",
+		Subject: "mandate/" + final.Reference,
+		Before:  "sequence_type=" + string(current.SequenceType),
+		After:   "sequence_type=" + string(final.SequenceType),
+	}); err != nil {
+		return Mandate{}, err
+	}
+	return final, nil
+}
+
 // Mandate loads a mandate by reference.
 func (s *MandateService) Mandate(ctx context.Context, reference string) (Mandate, error) {
 	return s.repo.GetMandate(ctx, reference)

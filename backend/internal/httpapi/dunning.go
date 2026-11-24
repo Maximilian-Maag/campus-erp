@@ -18,7 +18,7 @@ type dunningService interface {
 	CreateLevel(ctx context.Context, l kasse.DunningLevel, by string) (kasse.DunningLevel, error)
 	Level(ctx context.Context, year int, code string) (kasse.DunningLevel, error)
 	Levels(ctx context.Context, year int) ([]kasse.DunningLevel, error)
-	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, by string) (kasse.DunningNotice, error)
+	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, issuedOn time.Time, by string) (kasse.DunningNotice, error)
 	Notice(ctx context.Context, id int64) (kasse.DunningNotice, error)
 }
 
@@ -176,7 +176,8 @@ func (s *Server) issueDunningNotice(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	notice, err := s.dunning.Issue(r.Context(), req.Year, req.LevelCode, req.ClaimReference, req.OutstandingCents, actor(r))
+	// A notice issued by hand is dated the day it is issued: unlike a run, it has no as-of date of its own.
+	notice, err := s.dunning.Issue(r.Context(), req.Year, req.LevelCode, req.ClaimReference, req.OutstandingCents, time.Now().UTC(), actor(r))
 	if err != nil {
 		writeDomainProblem(w, statusForDunning(err), err)
 		return

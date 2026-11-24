@@ -118,7 +118,7 @@ func (s stubDunning) Notice(context.Context, int64) (kasse.DunningNotice, error)
 	return s.notice, s.err
 }
 
-func (s stubDunning) Issue(context.Context, int, string, string, int64, string) (kasse.DunningNotice, error) {
+func (s stubDunning) Issue(context.Context, int, string, string, int64, time.Time, string) (kasse.DunningNotice, error) {
 	return s.notice, s.err
 }
 

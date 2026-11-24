@@ -49,7 +49,7 @@ type fakeIssuer struct {
 	notices []DunningNotice
 }
 
-func (f *fakeIssuer) Issue(_ context.Context, _ int, levelCode, claimReference string, _ int64, _ string) (DunningNotice, error) {
+func (f *fakeIssuer) Issue(_ context.Context, _ int, levelCode, claimReference string, _ int64, _ time.Time, _ string) (DunningNotice, error) {
 	f.calls = append(f.calls, levelCode+"|"+claimReference)
 	if f.err != nil {
 		return DunningNotice{}, f.err

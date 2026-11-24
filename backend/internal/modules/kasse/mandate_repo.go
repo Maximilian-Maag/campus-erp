@@ -16,6 +16,10 @@ type MandateRepository interface {
 	Mandates(ctx context.Context, activeOnly bool, seq MandateSequence, limit, offset int) ([]Mandate, error)
 	// RetireMandate withdraws a mandate's authorisation, keeping the row.
 	RetireMandate(ctx context.Context, reference string) (Mandate, error)
+	// AdvanceSequenceType moves a mandate from one sequence type to another, compare-and-set on the
+	// type it is moving from: a mandate another run advanced in the meantime is left alone and the
+	// bool reports false, so a decision taken on a stale read never overwrites a newer one.
+	AdvanceSequenceType(ctx context.Context, reference string, from, to MandateSequence) (Mandate, bool, error)
 }
 
 // MandateRepo is the PostgreSQL implementation.
@@ -79,6 +83,33 @@ func (r *MandateRepo) RetireMandate(ctx context.Context, reference string) (Mand
 		return Mandate{}, fmt.Errorf("kasse: retire mandate: %w", err)
 	}
 	return out, nil
+}
+
+// AdvanceSequenceType moves a mandate from one sequence type to another. The type it moves from is
+// part of the WHERE clause, so the update is a compare-and-set: two callers holding the same read
+// cannot both advance it, and the second one is told (false) rather than writing a type it never
+// saw. A reference that does not exist is reported as such, so a caller can tell "gone" from "already
+// advanced".
+func (r *MandateRepo) AdvanceSequenceType(ctx context.Context, reference string, from, to MandateSequence) (Mandate, bool, error) {
+	if !ValidSequenceType(from) || !ValidSequenceType(to) {
+		return Mandate{}, false, ErrSequenceTypeUnknown
+	}
+	out, err := scanMandate(r.pool.QueryRow(ctx,
+		`UPDATE direct_debit_mandate SET sequence_type = $2
+		  WHERE mandate_reference = $1 AND sequence_type = $3
+		  RETURNING `+mandateColumns, reference, string(to), string(from)))
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Nothing moved: either the mandate is gone or it is no longer at the type the caller read.
+		// Reading it back tells the two apart, and costs one query only on the path that failed.
+		if _, err := r.GetMandate(ctx, reference); err != nil {
+			return Mandate{}, false, err
+		}
+		return Mandate{}, false, nil
+	}
+	if err != nil {
+		return Mandate{}, false, fmt.Errorf("kasse: advance mandate sequence type: %w", err)
+	}
+	return out, true, nil
 }
 
 // Mandates lists the mandates by reference, one page at a time. The filter is the store's, so a

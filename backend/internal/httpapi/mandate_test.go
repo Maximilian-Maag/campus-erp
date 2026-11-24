@@ -74,6 +74,15 @@ func (s stubMandates) RetireMandate(context.Context, string, string) (kasse.Mand
 	return m, nil
 }
 
+func (s stubMandates) MarkFinal(context.Context, string, string) (kasse.Mandate, error) {
+	if s.err != nil {
+		return kasse.Mandate{}, s.err
+	}
+	m := s.m
+	m.SequenceType = kasse.SequenceFinal
+	return m, nil
+}
+
 const validMandateBody = `{"reference":"MAN-1","debtor_name":"Max Mustermann",` +
 	`"debtor_iban":"DE89370400440532013000","debtor_bic":"COBADEFFXXX",` +
 	`"signature_date":"2025-03-14","sequence_type":"RCUR"}`

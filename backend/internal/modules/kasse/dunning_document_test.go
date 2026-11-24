@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 type fakeDunningDocuments struct {
@@ -36,7 +37,7 @@ func TestIssueStoresTheDocumentAndRecordsIt(t *testing.T) {
 	sink := &fakeAudit{}
 	svc := NewDunningService(repo, sink).WithDocuments(docs)
 
-	got, err := svc.Issue(context.Background(), 2026, "2", "CLAIM-1", 10000, "alice")
+	got, err := svc.Issue(context.Background(), 2026, "2", "CLAIM-1", 10000, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "alice")
 	if err != nil {
 		t.Fatalf("Issue: %v", err)
 	}
@@ -58,7 +59,7 @@ func TestIssueStoresTheDocumentAndRecordsIt(t *testing.T) {
 func TestIssueWithoutDocumentsRecordsNoKey(t *testing.T) {
 	repo := &fakeDunningRepo{level: activeLevel(t)}
 	sink := &fakeAudit{}
-	got, err := NewDunningService(repo, sink).Issue(context.Background(), 2026, "2", "CLAIM-1", 10000, "alice")
+	got, err := NewDunningService(repo, sink).Issue(context.Background(), 2026, "2", "CLAIM-1", 10000, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "alice")
 	if err != nil {
 		t.Fatalf("Issue: %v", err)
 	}
@@ -75,7 +76,7 @@ func TestIssueFailsWhenTheDocumentFails(t *testing.T) {
 	boom := errors.New("boom")
 	repo := &fakeDunningRepo{level: activeLevel(t)}
 	svc := NewDunningService(repo, &fakeAudit{}).WithDocuments(&fakeDunningDocuments{err: boom})
-	if _, err := svc.Issue(context.Background(), 2026, "2", "CLAIM-1", 10000, "alice"); !errors.Is(err, boom) {
+	if _, err := svc.Issue(context.Background(), 2026, "2", "CLAIM-1", 10000, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "alice"); !errors.Is(err, boom) {
 		t.Fatalf("Issue error = %v, want the renderer's", err)
 	}
 	if repo.documentKey != "" {
@@ -87,7 +88,7 @@ func TestIssueFailsWhenRecordingTheDocumentFails(t *testing.T) {
 	boom := errors.New("boom")
 	repo := &fakeDunningRepo{level: activeLevel(t), documentErr: boom}
 	svc := NewDunningService(repo, &fakeAudit{}).WithDocuments(&fakeDunningDocuments{key: "dunning/9.pdf"})
-	if _, err := svc.Issue(context.Background(), 2026, "2", "CLAIM-1", 10000, "alice"); !errors.Is(err, boom) {
+	if _, err := svc.Issue(context.Background(), 2026, "2", "CLAIM-1", 10000, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "alice"); !errors.Is(err, boom) {
 		t.Fatalf("Issue error = %v", err)
 	}
 }

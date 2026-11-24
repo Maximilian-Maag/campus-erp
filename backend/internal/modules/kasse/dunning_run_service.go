@@ -28,7 +28,10 @@ type openReceivableReader interface {
 // dunningNoticeIssuer issues one notice — the dunning service itself, so a run's
 // notices are rendered, stored and audited exactly like a hand-issued one.
 type dunningNoticeIssuer interface {
-	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, by string) (DunningNotice, error)
+	// Issue stamps the notice with the run's as-of date, not the wall clock: the next step's grace
+	// period counts from the notice's issued_on, so a run dated in the future or the past must not
+	// stamp a notice with today's date and make the next run see a step it never took.
+	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, issuedOn time.Time, by string) (DunningNotice, error)
 }
 
 // DunningRunService implements the dunning run (Mahnlauf, docs/28).
@@ -105,7 +108,7 @@ func (s *DunningRunService) Run(ctx context.Context, year int, asOf time.Time, b
 			continue
 		}
 
-		notice, err := s.issuer.Issue(ctx, year, next.Code, outcome.ClaimReference, r.AmountCents, by)
+		notice, err := s.issuer.Issue(ctx, year, next.Code, outcome.ClaimReference, r.AmountCents, asOf, by)
 		if err != nil {
 			outcome.Reason = DunningSkipIssueFailed
 			outcome.Detail = err.Error()

@@ -28,6 +28,7 @@ convention; there are no hard deletes (ADR-0006).
 | `GET` | `/api/direct-debit/mandates` — list them, `?active=true` and `?sequence_type=` to narrow, one page (`limit`/`offset`) at a time |
 | `GET` | `/api/direct-debit/mandates/{reference}` — read one |
 | `POST` | `/api/direct-debit/mandates/{reference}/retire` — withdraw the authorisation |
+| `POST` | `/api/direct-debit/mandates/{reference}/final` — ask for the last collection (`RCUR` → `FNAL`) |
 
 The list's filters are the server's: a screen that offers the mandates a run can
 actually gather asks for the active ones collecting under the run's sequence type,
@@ -68,6 +69,26 @@ action, without a reload: the mandate is soft state, so the change is visible wh
 A second revocation is refused (`ErrMandateRetired`, a `409`) rather than quietly repeated: the
 revocation happened once, and a silent no-op would read like one that took effect. A reference
 nothing carries is a `404`, and a blank actor is refused before the mandate is even read.
+
+## The sequence type moves
+
+`sequence_type` is not a label the operator sets once and forgets: the SEPA Direct Debit Rulebook
+allows **one** `FRST` collection per mandate, and every later one must be `RCUR`. The row therefore
+moves on its own when a collection run stores the collection it produced: a mandate the run collected
+as `FRST` becomes `RCUR` in the same transaction that stores the run, so a stored run never leaves a
+mandate that would collect a first-time type twice. The move is a compare-and-set on `FRST`
+(`UPDATE … WHERE sequence_type = 'FRST'`), so a run that loses the race cannot move the type twice,
+and it is audited as `mandate.advance`. A recurring, one-off or final mandate is left alone.
+
+The last collection is the operator's decision, not the run's: `POST …/final` moves a `RCUR` mandate
+to `FNAL`, so the next run collects it as the final one. It is refused for a `FRST` mandate (nothing
+has been collected yet, so there is no last collection to announce), a `OOFF` mandate (already a
+single collection) and a `FNAL` one (already announced), each as a `409`. The write is a
+compare-and-set on the type the decision was taken on, so a run that advanced the mandate in between
+is refused (`ErrMandateSequenceChanged`) rather than overwritten.
+
+The screen offers **Letzte Einziehung** on a recurring mandate, asked for twice like a revocation,
+because the announcement cannot be taken back.
 
 ## Validation
 

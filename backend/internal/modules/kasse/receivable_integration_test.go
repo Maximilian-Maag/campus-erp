@@ -232,14 +232,14 @@ func TestCollectionRunRepoRefusesStaleClaim(t *testing.T) {
 	run := kasse.CollectionRun{Reference: ref1, AccountID: account.ID, CreditorID: "CID", CollectionDate: date,
 		SequenceType: kasse.SequenceRecurring, LocalInstrument: "CORE", MessageID: ref1, ItemCount: 1,
 		SumCents: 1000, FileHash: "h", CreatedBy: "clerk"}
-	if _, err := repo.InsertCollectionRunFromReceivables(ctx, run, "<x/>", items, []int64{saved.ID}); err != nil {
+	if _, _, err := repo.InsertCollectionRunFromReceivables(ctx, run, "<x/>", items, []int64{saved.ID}); err != nil {
 		t.Fatalf("first claim: %v", err)
 	}
 
 	ref2 := "RUN-" + uniqueSuffix(t)
 	run2 := run
 	run2.Reference, run2.MessageID = ref2, ref2
-	if _, err := repo.InsertCollectionRunFromReceivables(ctx, run2, "<x/>", items, []int64{saved.ID}); !errors.Is(err, kasse.ErrReceivableNotOpen) {
+	if _, _, err := repo.InsertCollectionRunFromReceivables(ctx, run2, "<x/>", items, []int64{saved.ID}); !errors.Is(err, kasse.ErrReceivableNotOpen) {
 		t.Fatalf("stale claim = %v, want ErrReceivableNotOpen", err)
 	}
 	// The refused run was not stored: the claim and the run are one transaction.

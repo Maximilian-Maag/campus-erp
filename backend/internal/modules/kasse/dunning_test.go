@@ -317,7 +317,7 @@ func TestDunningServiceIssue(t *testing.T) {
 	sink := &fakeAudit{}
 	svc := NewDunningService(repo, sink)
 
-	notice, err := svc.Issue(ctx, 2026, "1", "F-2026-001", 12000, "alice")
+	notice, err := svc.Issue(ctx, 2026, "1", "F-2026-001", 12000, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "alice")
 	if err != nil {
 		t.Fatalf("Issue: %v", err)
 	}
@@ -329,13 +329,13 @@ func TestDunningServiceIssue(t *testing.T) {
 	}
 
 	boom := errors.New("boom")
-	if _, err := NewDunningService(&fakeDunningRepo{getErr: boom}, &fakeAudit{}).Issue(ctx, 2026, "1", "F-1", 100, "a"); !errors.Is(err, boom) {
+	if _, err := NewDunningService(&fakeDunningRepo{getErr: boom}, &fakeAudit{}).Issue(ctx, 2026, "1", "F-1", 100, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "a"); !errors.Is(err, boom) {
 		t.Fatalf("level error: want boom, got %v", err)
 	}
-	if _, err := NewDunningService(&fakeDunningRepo{level: validLevel(), insertErr: boom}, &fakeAudit{}).Issue(ctx, 2026, "1", "F-1", 100, "a"); !errors.Is(err, boom) {
+	if _, err := NewDunningService(&fakeDunningRepo{level: validLevel(), insertErr: boom}, &fakeAudit{}).Issue(ctx, 2026, "1", "F-1", 100, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "a"); !errors.Is(err, boom) {
 		t.Fatalf("insert error: want boom, got %v", err)
 	}
-	if _, err := NewDunningService(repo, failingAudit{err: boom}).Issue(ctx, 2026, "1", "F-1", 100, "a"); !errors.Is(err, boom) {
+	if _, err := NewDunningService(repo, failingAudit{err: boom}).Issue(ctx, 2026, "1", "F-1", 100, time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), "a"); !errors.Is(err, boom) {
 		t.Fatalf("audit error: want boom, got %v", err)
 	}
 }
