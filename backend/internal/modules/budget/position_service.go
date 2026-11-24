@@ -56,6 +56,10 @@ func (s *PositionService) Positions(ctx context.Context, limit, offset int) ([]P
 }
 
 // Post appends a posting, enforcing Mittelüberwachung.
+//
+// A commitment is bound once per reference: an approval retried after its order save lost a race
+// must not bind the amount twice, so the second attempt returns the posting that is already there
+// and is not audited again. A release or an actual is appended as it comes.
 func (s *PositionService) Post(ctx context.Context, positionID int64, kind PostingKind, amountCents int64, reference, by string) (Posting, error) {
 	if strings.TrimSpace(by) == "" {
 		return Posting{}, ErrActorRequired
@@ -64,17 +68,33 @@ func (s *PositionService) Post(ctx context.Context, positionID int64, kind Posti
 	if err != nil {
 		return Posting{}, err
 	}
-	bal, err := s.repo.Balance(ctx, positionID)
-	if err != nil {
-		return Posting{}, err
-	}
-	if err := CheckAvailable(bal, kind, amountCents); err != nil {
-		return Posting{}, err
-	}
 	posting.BookedBy = by
-	saved, err := s.repo.InsertPosting(ctx, posting)
-	if err != nil {
-		return Posting{}, err
+	var saved Posting
+	inserted := true
+	if kind == Commitment {
+		// The repo holds the position's lock across the balance check and the insert, so two
+		// approvals of the same reference cannot both bind it.
+		saved, inserted, err = s.repo.BindCommitment(ctx, posting)
+		if err != nil {
+			return Posting{}, err
+		}
+		if !inserted {
+			// The reference was already bound: the retry changed nothing, so it is not audited as
+			// a second binding.
+			return saved, nil
+		}
+	} else {
+		bal, err := s.repo.Balance(ctx, positionID)
+		if err != nil {
+			return Posting{}, err
+		}
+		if err := CheckAvailable(bal, kind, amountCents); err != nil {
+			return Posting{}, err
+		}
+		saved, err = s.repo.InsertPosting(ctx, posting)
+		if err != nil {
+			return Posting{}, err
+		}
 	}
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
