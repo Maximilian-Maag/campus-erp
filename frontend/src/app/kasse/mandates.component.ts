@@ -87,6 +87,34 @@ import { PageComponent } from '../ui/page.component';
                   <td>{{ (mandate.Active ? 'kasse.mandates.active' : 'kasse.mandates.retired') | transloco }}</td>
                   <td>
                     @if (mandate.Active) {
+                      @if (mandate.SequenceType === 'RCUR') {
+                        @if (confirmingFinal() === mandate.Reference) {
+                          <button
+                            type="button"
+                            [disabled]="finalling() !== null"
+                            [attr.aria-label]="
+                              'kasse.mandates.confirmFinalLabel' | transloco: { reference: mandate.Reference }
+                            "
+                            (click)="markFinal(mandate)"
+                          >
+                            {{ 'kasse.mandates.confirmFinal' | transloco }}
+                          </button>
+                          <button type="button" (click)="cancelFinal()">
+                            {{ 'kasse.mandates.cancel' | transloco }}
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            [disabled]="finalling() !== null"
+                            [attr.aria-label]="
+                              'kasse.mandates.finalLabel' | transloco: { reference: mandate.Reference }
+                            "
+                            (click)="askFinal(mandate)"
+                          >
+                            {{ 'kasse.mandates.final' | transloco }}
+                          </button>
+                        }
+                      }
                       @if (confirming() === mandate.Reference) {
                         <button
                           type="button"
@@ -209,6 +237,10 @@ export class MandatesComponent implements OnInit {
   readonly confirming = signal<string | null>(null);
   readonly retiring = signal<string | null>(null);
 
+  /** The mandate whose last collection is being confirmed, and the one whose request is in flight. */
+  readonly confirmingFinal = signal<string | null>(null);
+  readonly finalling = signal<string | null>(null);
+
   readonly reference = signal('');
   readonly debtorName = signal('');
   readonly debtorIBAN = signal('');
@@ -235,6 +267,45 @@ export class MandatesComponent implements OnInit {
 
   cancelRetire(): void {
     this.confirming.set(null);
+  }
+
+  /**
+   * The last collection is announced once and cannot be taken back, so it is asked for twice, like a
+   * revocation. Only a recurring mandate offers it: a first collection has not happened yet, and a
+   * one-off is already single.
+   */
+  askFinal(mandate: Mandate): void {
+    this.actionError.set(null);
+    this.notice.set(null);
+    this.confirmingFinal.set(mandate.Reference);
+  }
+
+  cancelFinal(): void {
+    this.confirmingFinal.set(null);
+  }
+
+  markFinal(mandate: Mandate): void {
+    this.finalling.set(mandate.Reference);
+    this.actionError.set(null);
+    this.notice.set(null);
+    this.api.markMandateFinal(mandate.Reference).subscribe({
+      next: (final) => {
+        // The row now says FNAL: the next run collects this mandate for the last time, and the
+        // screen that asked for it says so without a reload.
+        this.mandates.update((list) =>
+          list.map((m) => (m.Reference === final.Reference ? final : m))
+        );
+        this.confirmingFinal.set(null);
+        this.finalling.set(null);
+        this.notice.set(this.i18n.translate('kasse.mandates.finalNotice', { reference: final.Reference }));
+      },
+      error: () => {
+        this.finalling.set(null);
+        this.actionError.set(
+          this.i18n.translate('kasse.mandates.finalFailed', { reference: mandate.Reference })
+        );
+      },
+    });
   }
 
   retire(mandate: Mandate): void {

@@ -2,6 +2,28 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.155.0] - 2026-11-24
+
+A mandate's sequence type moves with the collection it produced, so a second collection is a
+recurring one and the last collection can be announced.
+
+The SEPA Direct Debit Rulebook allows one `FRST` collection per mandate and requires `RCUR` for
+every later one. `sequence_type` was written once, at registration, and never moved: a mandate
+registered `FRST` was collected `FRST` for ever, and `FNAL` was unreachable. A collection run now
+moves the mandates it collected as `FRST` to `RCUR` in the same transaction that stores the run,
+compare-and-set so a run that loses the race cannot move the type twice, and audited as
+`mandate.advance`. The last collection is the operator's decision: `POST
+/api/direct-debit/mandates/{reference}/final` moves a `RCUR` mandate to `FNAL`, and the screen offers
+it as *Letzte Einziehung*, asked for twice. A `FRST`, `OOFF` or already-`FNAL` mandate is refused
+(`409`), as is a write whose mandate another run advanced in the meantime.
+
+`docs/21` and `docs/22` say how the type moves and what the run does with it.
+
+A dunning run now stamps its notices with the run's `as_of` date instead of the wall clock. The
+next step's grace period counts from `issued_on`, so a run dated away from today used to stamp
+today's date and make the following run skip or repeat a step. A notice issued by hand through the
+API is still dated the day it is issued. `docs/28` says so.
+
 ## [0.154.0] - 2026-11-23
 
 The interface can sign in, so it can be deployed against an API that enforces roles.

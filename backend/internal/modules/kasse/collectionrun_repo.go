@@ -14,8 +14,10 @@ type CollectionRunRepository interface {
 	CollectionRunByReference(ctx context.Context, reference string) (CollectionRun, bool, error)
 	GetCollectionRun(ctx context.Context, reference string) (CollectionRun, error)
 	CollectionRunFile(ctx context.Context, reference string) (string, error)
-	InsertCollectionRun(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem) (CollectionRun, error)
-	InsertCollectionRunFromReceivables(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem, receivableIDs []int64) (CollectionRun, error)
+	// Both inserts return the mandate references whose sequence type the run moved on — a mandate
+	// collected for the first time leaves FRST behind — so the service can audit each move.
+	InsertCollectionRun(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem) (CollectionRun, []string, error)
+	InsertCollectionRunFromReceivables(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem, receivableIDs []int64) (CollectionRun, []string, error)
 }
 
 // CollectionRunRepo is the PostgreSQL implementation.
@@ -78,21 +80,21 @@ func (r *CollectionRunRepo) CollectionRunFile(ctx context.Context, reference str
 
 // InsertCollectionRun stores a run and its items atomically. A duplicate reference
 // maps to ErrRunReferenceExists; a duplicate mandate maps to ErrDuplicateMandate.
-func (r *CollectionRunRepo) InsertCollectionRun(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem) (CollectionRun, error) {
+func (r *CollectionRunRepo) InsertCollectionRun(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem) (CollectionRun, []string, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return CollectionRun{}, fmt.Errorf("kasse: begin collection run: %w", err)
+		return CollectionRun{}, nil, fmt.Errorf("kasse: begin collection run: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	saved, err := insertRunWithin(ctx, tx, run, fileXML, items)
+	saved, advanced, err := insertRunWithin(ctx, tx, run, fileXML, items)
 	if err != nil {
-		return CollectionRun{}, err
+		return CollectionRun{}, nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return CollectionRun{}, fmt.Errorf("kasse: commit collection run: %w", err)
+		return CollectionRun{}, nil, fmt.Errorf("kasse: commit collection run: %w", err)
 	}
-	return saved, nil
+	return saved, advanced, nil
 }
 
 // InsertCollectionRunFromReceivables stores a run, its items and the open items
@@ -100,35 +102,72 @@ func (r *CollectionRunRepo) InsertCollectionRun(ctx context.Context, run Collect
 // receivables are written together, so a stored run never points at items still
 // shown open. A receivable that is no longer open — taken by another run in the
 // meantime — maps to ErrReceivableNotOpen and the whole run is rolled back.
-func (r *CollectionRunRepo) InsertCollectionRunFromReceivables(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem, receivableIDs []int64) (CollectionRun, error) {
+func (r *CollectionRunRepo) InsertCollectionRunFromReceivables(ctx context.Context, run CollectionRun, fileXML string, items []CollectionRunItem, receivableIDs []int64) (CollectionRun, []string, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return CollectionRun{}, fmt.Errorf("kasse: begin collection run: %w", err)
+		return CollectionRun{}, nil, fmt.Errorf("kasse: begin collection run: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	saved, err := insertRunWithin(ctx, tx, run, fileXML, items)
+	saved, advanced, err := insertRunWithin(ctx, tx, run, fileXML, items)
 	if err != nil {
-		return CollectionRun{}, err
+		return CollectionRun{}, nil, err
 	}
 	tag, err := tx.Exec(ctx,
 		`UPDATE receivable SET state = 'collected', collected_run_id = $2
 		  WHERE id = ANY($1) AND state = 'open'`, receivableIDs, saved.ID)
 	if err != nil {
-		return CollectionRun{}, fmt.Errorf("kasse: claim receivables: %w", err)
+		return CollectionRun{}, nil, fmt.Errorf("kasse: claim receivables: %w", err)
 	}
 	if int(tag.RowsAffected()) != len(receivableIDs) {
-		return CollectionRun{}, ErrReceivableNotOpen
+		return CollectionRun{}, nil, ErrReceivableNotOpen
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return CollectionRun{}, fmt.Errorf("kasse: commit collection run: %w", err)
+		return CollectionRun{}, nil, fmt.Errorf("kasse: commit collection run: %w", err)
 	}
-	return saved, nil
+	return saved, advanced, nil
+}
+
+// advanceFirstCollectionsSQL moves the mandates a run collected for the first time from FRST to
+// RCUR. It runs in the transaction that stores the run, so a stored run never leaves its mandate
+// saying FRST: the next run would otherwise collect a first-time sequence type under a mandate that
+// has already collected, which the Direct Debit Rulebook forbids. The type is part of the WHERE
+// clause, so a mandate another run advanced in the meantime is left alone; RETURNING names the ones
+// this run moved, which the service audits.
+const advanceFirstCollectionsSQL = `
+UPDATE direct_debit_mandate m
+   SET sequence_type = 'RCUR'
+  FROM direct_debit_run_item i
+ WHERE i.run_id = $1
+   AND i.mandate_reference = m.mandate_reference
+   AND m.sequence_type = 'FRST'
+RETURNING m.mandate_reference`
+
+// advanceFirstCollections performs the move above and returns the references it moved.
+func advanceFirstCollections(ctx context.Context, tx pgx.Tx, runID int64) ([]string, error) {
+	rows, err := tx.Query(ctx, advanceFirstCollectionsSQL, runID)
+	if err != nil {
+		return nil, fmt.Errorf("kasse: advance first collections: %w", err)
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var ref string
+		if err := rows.Scan(&ref); err != nil {
+			return nil, fmt.Errorf("kasse: scan advanced mandate: %w", err)
+		}
+		out = append(out, ref)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("kasse: advance first collections: %w", err)
+	}
+	return out, nil
 }
 
 // insertRunWithin writes the run row and its items inside an existing
-// transaction, mapping the two unique constraints to their sentinel errors.
-func insertRunWithin(ctx context.Context, tx pgx.Tx, run CollectionRun, fileXML string, items []CollectionRunItem) (CollectionRun, error) {
+// transaction, mapping the two unique constraints to their sentinel errors, and
+// advances the mandates the run collected for the first time.
+func insertRunWithin(ctx context.Context, tx pgx.Tx, run CollectionRun, fileXML string, items []CollectionRunItem) (CollectionRun, []string, error) {
 	saved, err := scanCollectionRun(tx.QueryRow(ctx,
 		`INSERT INTO direct_debit_run
 		   (reference, account_id, creditor_id, collection_date, sequence_type, local_instrument,
@@ -139,9 +178,9 @@ func insertRunWithin(ctx context.Context, tx pgx.Tx, run CollectionRun, fileXML 
 		run.LocalInstrument, run.MessageID, run.ItemCount, run.SumCents, fileXML, run.FileHash, run.CreatedBy))
 	if err != nil {
 		if isUniqueViolationOn(err, "direct_debit_run_reference_key") {
-			return CollectionRun{}, ErrRunReferenceExists
+			return CollectionRun{}, nil, ErrRunReferenceExists
 		}
-		return CollectionRun{}, fmt.Errorf("kasse: insert collection run: %w", err)
+		return CollectionRun{}, nil, fmt.Errorf("kasse: insert collection run: %w", err)
 	}
 
 	for _, it := range items {
@@ -150,10 +189,14 @@ func insertRunWithin(ctx context.Context, tx pgx.Tx, run CollectionRun, fileXML 
 			 VALUES ($1,$2,$3,$4,$5)`,
 			saved.ID, it.MandateReference, it.EndToEndID, it.AmountCents, it.Purpose); err != nil {
 			if isUniqueViolationOn(err, "direct_debit_run_item_mandate_key") {
-				return CollectionRun{}, ErrDuplicateMandate
+				return CollectionRun{}, nil, ErrDuplicateMandate
 			}
-			return CollectionRun{}, fmt.Errorf("kasse: insert collection run item: %w", err)
+			return CollectionRun{}, nil, fmt.Errorf("kasse: insert collection run item: %w", err)
 		}
 	}
-	return saved, nil
+	advanced, err := advanceFirstCollections(ctx, tx, saved.ID)
+	if err != nil {
+		return CollectionRun{}, nil, err
+	}
+	return saved, advanced, nil
 }

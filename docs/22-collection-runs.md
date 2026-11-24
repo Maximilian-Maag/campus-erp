@@ -57,6 +57,11 @@ instead of silently keeping the ones that happen to appear in the first page.
 - **Fails closed**: an unknown or inactive mandate, a mandate whose
   `sequence_type` differs from the run's, a blank mandate reference or a duplicate
   mandate in one run is rejected before anything is written.
+- **A first collection advances its mandate.** The run that collects a `FRST` mandate moves it to
+  `RCUR` in the same transaction that stores the run, so the next run collects it as a recurring one
+  — the Rulebook allows one `FRST` per mandate, and before this the row never moved. The move is a
+  compare-and-set and audited as `mandate.advance`; the last collection (`FNAL`) is asked for
+  separately (`docs/21`).
 - **The sequence type belongs to the payment instruction, not to the message.** A run
   declares one type and every selected mandate must match it — a `FRST` mandate cannot
   ride an `RCUR` run (correct SEPA behaviour). Filed with **no** type, the run takes

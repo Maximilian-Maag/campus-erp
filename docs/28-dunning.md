@@ -97,7 +97,10 @@ receivables and advances each claim **one** step along the year's chain:
 5. The notice goes through the same dunning service the screen uses, so it is
    charged, rendered to a PDF and audited exactly like a hand-issued one. A failed
    issue is reported as `issue_failed` with its detail, and the run continues with
-   the other claims.
+   the other claims. The run stamps the notice with its own `as_of` date rather than
+   the wall clock: the next step's grace period counts from `issued_on`, so a run
+   dated in the future or the past must not stamp today's date and make the next run
+   skip or repeat a step.
 
 The report lists every receivable the run looked at: for an issued one the level,
 charge, document and notice id; for a skipped one the reason (`not_due`,

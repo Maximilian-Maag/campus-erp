@@ -111,13 +111,19 @@ func TestDunningRunIssuesAndThenSkipsTheSameDay(t *testing.T) {
 	// The notice exists, carries the computed charge, and is tied to the claim.
 	var levelCode string
 	var charge int64
+	var issuedOn time.Time
 	if err := testPool(t).QueryRow(ctx,
-		"SELECT level_code, charge_cents FROM dunning_notice WHERE id = $1", got.NoticeID).
-		Scan(&levelCode, &charge); err != nil {
+		"SELECT level_code, charge_cents, issued_on FROM dunning_notice WHERE id = $1", got.NoticeID).
+		Scan(&levelCode, &charge, &issuedOn); err != nil {
 		t.Fatalf("read notice: %v", err)
 	}
 	if levelCode != got.LevelCode || charge != 500 {
 		t.Fatalf("stored notice = %s/%d", levelCode, charge)
+	}
+	// The notice is stamped with the run's as-of date, not the wall clock: the next step's grace
+	// period counts from it, so a run dated away from today would otherwise skip or repeat a step.
+	if !issuedOn.Equal(asOf) {
+		t.Fatalf("notice issued on %v, want the run's as-of date %v", issuedOn, asOf)
 	}
 
 	// The run is audited once.

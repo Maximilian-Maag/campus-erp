@@ -71,11 +71,14 @@ func (s *CollectionRunService) CreateCollectionRun(ctx context.Context, referenc
 	if err != nil {
 		return CollectionRun{}, err
 	}
-	saved, err := s.repo.InsertCollectionRun(ctx, run, fileXML, reqItems)
+	saved, advanced, err := s.repo.InsertCollectionRun(ctx, run, fileXML, reqItems)
 	if err != nil {
 		return CollectionRun{}, err
 	}
 	if err := s.recordRun(ctx, saved, by); err != nil {
+		return CollectionRun{}, err
+	}
+	if err := s.recordAdvances(ctx, advanced, by); err != nil {
 		return CollectionRun{}, err
 	}
 	return saved, nil
@@ -140,11 +143,14 @@ func (s *CollectionRunService) CreateCollectionRunFromReceivables(ctx context.Co
 	if err != nil {
 		return CollectionRun{}, err
 	}
-	saved, err := s.repo.InsertCollectionRunFromReceivables(ctx, run, fileXML, reqItems, claimIDs(claims))
+	saved, advanced, err := s.repo.InsertCollectionRunFromReceivables(ctx, run, fileXML, reqItems, claimIDs(claims))
 	if err != nil {
 		return CollectionRun{}, err
 	}
 	if err := s.recordRun(ctx, saved, by); err != nil {
+		return CollectionRun{}, err
+	}
+	if err := s.recordAdvances(ctx, advanced, by); err != nil {
 		return CollectionRun{}, err
 	}
 	return saved, nil
@@ -217,6 +223,25 @@ func (s *CollectionRunService) resolveGroups(ctx context.Context, items []Collec
 		groups = append(groups, mandateGroup{SequenceType: MandateSequence(t), Transactions: byType[MandateSequence(t)]})
 	}
 	return groups, nil
+}
+
+// recordAdvances appends the audit event for each mandate the run moved on. The store did the move
+// in the run's own transaction and names the mandates it changed, so the trail records the moves
+// that happened rather than the ones the service expected: a mandate another run advanced first is
+// not reported here.
+func (s *CollectionRunService) recordAdvances(ctx context.Context, references []string, by string) error {
+	for _, ref := range references {
+		if _, err := s.audit.Append(ctx, audit.Event{
+			Actor:   by,
+			Action:  "mandate.advance",
+			Subject: "mandate/" + ref,
+			Before:  "sequence_type=" + string(SequenceFirst),
+			After:   "sequence_type=" + string(SequenceRecurring),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // recordRun appends the audit event for a stored run.

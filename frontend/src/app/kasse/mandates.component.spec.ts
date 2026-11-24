@@ -175,9 +175,56 @@ describe('MandatesComponent', () => {
     expect(component.retiring()).toBeNull();
     const cells = el.querySelector('[data-testid="mandate-MND-1"]')!.querySelectorAll('td');
     expect(cells[6].textContent).toContain('zurückgezogen');
-    // The retired row no longer offers the action, the other one still does.
+    // The retired row no longer offers an action, the other one still offers both.
     expect(el.querySelector('[data-testid="mandate-MND-1"]')!.querySelectorAll('button').length).toBe(0);
-    expect(el.querySelector('[data-testid="mandate-MND-2"]')!.querySelectorAll('button').length).toBe(1);
+    expect(el.querySelector('[data-testid="mandate-MND-2"]')!.querySelectorAll('button').length).toBe(2);
+  });
+
+  it('asks twice before announcing a last collection, then shows the mandate as final', () => {
+    screen();
+    component.askFinal(component.mandates()[0]);
+    fixture.detectChanges();
+
+    // The row turned into the question, and nothing was sent yet.
+    expect(el.textContent).toContain('Ja, letzte Einziehung');
+    expect(component.confirmingFinal()).toBe('MND-1');
+    http.expectNone((r) => r.method === 'POST');
+
+    component.markFinal(component.mandates()[0]);
+    expect(component.finalling()).toBe('MND-1');
+    const req = http.expectOne('/api/direct-debit/mandates/MND-1/final');
+    expect(req.request.method).toBe('POST');
+    req.flush(mandate({ SequenceType: 'FNAL' }));
+    fixture.detectChanges();
+
+    expect(component.notice()).toBe('Mandat MND-1 für die letzte Einziehung vorgemerkt.');
+    expect(component.confirmingFinal()).toBeNull();
+    expect(component.finalling()).toBeNull();
+    expect(component.mandates()[0].SequenceType).toBe('FNAL');
+  });
+
+  it('offers the last collection only on a recurring mandate', () => {
+    screen([mandate({ SequenceType: 'FRST' })]);
+
+    // A FRST mandate has not collected once yet, so its last collection cannot be announced.
+    expect(el.textContent).not.toContain('Letzte Einziehung');
+    expect(el.querySelector('[data-testid="mandate-MND-1"]')!.querySelectorAll('button').length).toBe(1);
+  });
+
+  it('reports a refused last collection and keeps the question open', () => {
+    screen();
+    component.askFinal(component.mandates()[0]);
+    component.markFinal(component.mandates()[0]);
+    http
+      .expectOne('/api/direct-debit/mandates/MND-1/final')
+      .flush({ error: 'not collected yet' }, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+
+    expect(component.actionError()).toBe(
+      'Mandat MND-1 konnte nicht für die letzte Einziehung vorgemerkt werden.'
+    );
+    expect(component.finalling()).toBeNull();
+    expect(component.confirmingFinal()).toBe('MND-1');
   });
 
   it('lets a revocation be abandoned before anything is sent', () => {
@@ -187,7 +234,7 @@ describe('MandatesComponent', () => {
     component.cancelRetire();
     expect(component.confirming()).toBeNull();
     fixture.detectChanges();
-    expect(el.querySelector('[data-testid="mandate-MND-1"]')!.querySelectorAll('button').length).toBe(1);
+    expect(el.querySelector('[data-testid="mandate-MND-1"]')!.querySelectorAll('button').length).toBe(2);
     http.expectNone((r) => r.method === 'POST');
   });
 

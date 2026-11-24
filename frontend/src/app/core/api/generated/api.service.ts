@@ -123,6 +123,10 @@ export class CampusErpApi {
     return this.http.get<m.Mandate>(this.base + `/api/direct-debit/mandates/${reference}`);
   }
 
+  markMandateFinal(reference: number | string): Observable<m.Mandate> {
+    return this.http.post<m.Mandate>(this.base + `/api/direct-debit/mandates/${reference}/final`, null);
+  }
+
   retireMandate(reference: number | string): Observable<m.Mandate> {
     return this.http.post<m.Mandate>(this.base + `/api/direct-debit/mandates/${reference}/retire`, null);
   }

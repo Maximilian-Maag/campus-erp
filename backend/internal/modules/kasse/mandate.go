@@ -33,6 +33,20 @@ var (
 	// revoke an authorisation once, and a second revocation is a mistake worth naming rather than a
 	// silent no-op that reads like a success.
 	ErrMandateRetired = errors.New("kasse: mandate is already retired")
+	// ErrMandateAlreadyFinal is returned when a mandate is marked final although it already is: the
+	// last collection has been announced, and announcing it twice is a mistake worth naming.
+	ErrMandateAlreadyFinal = errors.New("kasse: mandate is already final")
+	// ErrMandateNotYetCollected is returned when a mandate is marked final before its first
+	// collection: FNAL announces the last collection under an authorisation, and one that has never
+	// collected anything has no last collection to announce.
+	ErrMandateNotYetCollected = errors.New("kasse: a mandate must be collected before its final collection")
+	// ErrMandateOneOff is returned when a one-off mandate is marked final: OOFF is already a single
+	// collection, so there is no further one to announce.
+	ErrMandateOneOff = errors.New("kasse: a one-off mandate has no final collection")
+	// ErrMandateSequenceChanged is returned when a mandate's sequence type moved between the read a
+	// decision was taken on and the write that carried it out: another run or operator advanced it
+	// first, and the decision is stale rather than applicable.
+	ErrMandateSequenceChanged = errors.New("kasse: the mandate's sequence type changed meanwhile")
 )
 
 // maxMandateRefLen matches the ISO 20022 Max35Text limit on MndtId.
@@ -84,6 +98,38 @@ func (m Mandate) Retire() (Mandate, error) {
 	}
 	m.Active = false
 	return m, nil
+}
+
+// AdvanceAfterCollection returns the mandate as it stands once a collection under it has been
+// produced: the first collection under a FRST mandate is the only one that may be collected as
+// FRST — the Direct Debit Rulebook requires RCUR for every later one — so the type moves to RCUR.
+// A recurring, final or one-off mandate stays as it is; the bool reports whether the type moved.
+func (m Mandate) AdvanceAfterCollection() (Mandate, bool) {
+	if m.SequenceType != SequenceFirst {
+		return m, false
+	}
+	m.SequenceType = SequenceRecurring
+	return m, true
+}
+
+// MarkFinal returns the mandate as it stands once the operator asks for its last collection: a
+// recurring mandate moves to FNAL, so the next run collects it as the final one. A first mandate is
+// refused — its collection has not happened yet, so there is no last one to announce — and a
+// one-off or already-final mandate is refused as a mistake worth naming rather than a silent no-op.
+func (m Mandate) MarkFinal() (Mandate, error) {
+	switch m.SequenceType {
+	case SequenceRecurring:
+		m.SequenceType = SequenceFinal
+		return m, nil
+	case SequenceFirst:
+		return Mandate{}, ErrMandateNotYetCollected
+	case SequenceOneOff:
+		return Mandate{}, ErrMandateOneOff
+	case SequenceFinal:
+		return Mandate{}, ErrMandateAlreadyFinal
+	default:
+		return Mandate{}, ErrSequenceTypeUnknown
+	}
 }
 
 // NewMandate validates and builds an active mandate.
