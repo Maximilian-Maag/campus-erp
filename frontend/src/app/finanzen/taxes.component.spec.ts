@@ -120,6 +120,18 @@ describe('TaxesComponent', () => {
     req.flush(vat('V75', 750));
   });
 
+  it('shows the chosen kind in the VAT form', () => {
+    // The kind is set before the screen renders: the select's [value] is applied before @for has
+    // created its options, so without [selected] the browser resets to Umsatzsteuer and a clerk
+    // files input tax as output tax.
+    const fixture = TestBed.createComponent(TaxesComponent);
+    fixture.componentInstance.vatKind.set('input');
+    fixture.detectChanges();
+    open(fixture, [], []);
+    const select = (fixture.nativeElement as HTMLElement).querySelector('#vat-kind') as HTMLSelectElement;
+    expect(select.value).toBe('input');
+  });
+
   it('refuses a rate that is not a percentage and a VAT type without a key', () => {
     const fixture = openEmpty();
     // A rate is only judged once the type it belongs to is named.

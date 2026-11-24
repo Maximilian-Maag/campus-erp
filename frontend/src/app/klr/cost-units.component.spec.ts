@@ -103,6 +103,29 @@ describe('KlrCostUnitsComponent', () => {
     expect(html.querySelector('[data-testid="unit-key-share-1"]')?.textContent).toContain('75 %');
   });
 
+  it('shows the chosen centre and unit in the pickers, not the first option', () => {
+    // The centres and units arrive while the signals already carry values, so the pickers are
+    // created with those values and their options in the same pass. A value applied before its
+    // options exist would silently fall back to the first option, so the screen would show a centre
+    // or unit the operator did not choose. Neither value is the first entry in its list.
+    const fixture = TestBed.createComponent(KlrCostUnitsComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const html = fixture.nativeElement as HTMLElement;
+    http.expectOne('/api/klr/cost-units').flush([]);
+    http.expectOne('/api/klr/cost-centers').flush([]);
+    fixture.detectChanges();
+
+    component.centers.set([center(1), center(2, { Number: 'K-99' })]);
+    component.units.set([unit(1), unit(2, { Number: 'T-2' })]);
+    component.source.set('2');
+    component.target.set('2');
+    fixture.detectChanges();
+
+    expect((html.querySelector('#klr-unit-source') as HTMLSelectElement).value).toBe('2');
+    expect((html.querySelector('#klr-unit-target') as HTMLSelectElement).value).toBe('2');
+  });
+
   it('treats empty bodies as no centres, no units and no keys', () => {
     const fixture = TestBed.createComponent(KlrCostUnitsComponent);
     const component = fixture.componentInstance;

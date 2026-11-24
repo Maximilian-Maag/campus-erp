@@ -72,7 +72,7 @@ export function compactDay(day: string): string {
               <select id="report-id" [value]="report()" (change)="report.set($any($event.target).value)">
                 <option value="">{{ 'common.choose' | transloco }}</option>
                 @for (r of reports(); track r.ID) {
-                  <option [value]="r.ID">{{ r.Title }}</option>
+                  <option [value]="r.ID" [selected]="'' + r.ID === report()">{{ r.Title }}</option>
                 }
               </select>
             </div>

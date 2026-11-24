@@ -89,6 +89,21 @@ describe('DunningComponent', () => {
     expect(component.noticeLevelKey()).toBe('2026|A');
   });
 
+  it('shows the level the notice form will use, not the first in the list', () => {
+    // The level is chosen before the options exist: the list lands after the signal is set, so the
+    // select's [value] is applied to an empty option list. Without [selected] the browser resets to
+    // the first level and the notice would be issued at the wrong one.
+    const fixture = TestBed.createComponent(DunningComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.noticeLevelKey.set('2026|B');
+    http.expectOne('/api/dunning/levels').flush([level({ Code: 'A' }), level({ ID: 2, Code: 'B' })]);
+    fixture.detectChanges();
+
+    const select = (fixture.nativeElement as HTMLElement).querySelector('#notice-level') as HTMLSelectElement;
+    expect(select.value).toBe('2026|B');
+  });
+
   it('asks the server for the chosen year, and for every year when cleared', () => {
     const fixture = loaded();
     const component = fixture.componentInstance;

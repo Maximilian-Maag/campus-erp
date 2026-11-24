@@ -251,6 +251,29 @@ describe('BudgetSourcesComponent', () => {
     expect(cells[4].textContent).toContain('BW-1 — Fakultät 1');
   });
 
+  it('shows the chosen position, source and centre in the assignment form', () => {
+    // The choice is made before the options exist: the three reads land after the signals are set,
+    // so each select's [value] is applied to an empty option list. Without [selected] the browser
+    // resets to the first option and a clerk assigns the wrong thing.
+    fixture = TestBed.createComponent(BudgetSourcesComponent);
+    fixture.detectChanges();
+    component = fixture.componentInstance;
+    el = fixture.nativeElement as HTMLElement;
+    component.position.set('8');
+    component.source.set('3');
+    component.center.set('4');
+    http.expectOne('/api/budget/sources').flush([source(), source({ ID: 3, Code: 'Drittmittel' })]);
+    http.expectOne('/api/budget/centers').flush([center(), center({ ID: 4, Code: 'BW-2' })]);
+    http
+      .expectOne('/api/budget/positions?limit=50&offset=0')
+      .flush([row(), row({ ID: 8, Chapter: '05', Title: '9999' })]);
+    fixture.detectChanges();
+
+    expect((el.querySelector('#assign-position') as HTMLSelectElement).value).toBe('8');
+    expect((el.querySelector('#assign-source') as HTMLSelectElement).value).toBe('3');
+    expect((el.querySelector('#assign-center') as HTMLSelectElement).value).toBe('4');
+  });
+
   it('clears a half when the choice is emptied', () => {
     screen([source()], [center()], [row({ SourceID: 1, CenterID: 2 })]);
     component.position.set('7');

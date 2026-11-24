@@ -55,7 +55,7 @@ import { PageComponent } from '../ui/page.component';
               <label for="run-account">{{ 'common.account' | transloco }}</label>
               <select id="run-account" [value]="account()" (change)="account.set($any($event.target).value)">
                 @for (a of accounts(); track a.ID) {
-                  <option [value]="a.ID">{{ a.Name }} ({{ a.IBAN }})</option>
+                  <option [value]="a.ID" [selected]="'' + a.ID === account()">{{ a.Name }} ({{ a.IBAN }})</option>
                 }
               </select>
             </div>
@@ -152,7 +152,7 @@ import { PageComponent } from '../ui/page.component';
                   <select id="item-mandate" [value]="itemMandate()" (change)="itemMandate.set($any($event.target).value)">
                     <option value=""></option>
                     @for (m of mandates(); track m.Reference) {
-                      <option [value]="m.Reference">{{ m.Reference }} — {{ m.DebtorName }}</option>
+                      <option [value]="m.Reference" [selected]="'' + m.Reference === itemMandate()">{{ m.Reference }} — {{ m.DebtorName }}</option>
                     }
                   </select>
                 </div>

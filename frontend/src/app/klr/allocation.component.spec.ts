@@ -56,6 +56,27 @@ describe('KlrAllocationComponent', () => {
     expect(html.querySelector('[data-testid="key-share-7"]')?.textContent).toContain('25 %');
   });
 
+  it('shows the chosen centre and receiver in the pickers, not the first option', () => {
+    // The centre list arrives while the signals already carry values, so the pickers are created
+    // with those values and their options in the same pass. A value applied before its options
+    // exist would silently fall back to the first option, so the screen would show a centre the
+    // operator did not choose. Neither value is the first entry in its list.
+    const fixture = TestBed.createComponent(KlrAllocationComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const html = fixture.nativeElement as HTMLElement;
+    http.expectOne('/api/klr/cost-centers').flush([]);
+    fixture.detectChanges();
+
+    component.centers.set([source, receiver, center(3, 'K-30', 'Labor')]);
+    component.source.set('2');
+    component.target.set('3');
+    fixture.detectChanges();
+
+    expect((html.querySelector('#klr-source') as HTMLSelectElement).value).toBe('2');
+    expect((html.querySelector('#klr-target') as HTMLSelectElement).value).toBe('3');
+  });
+
   it('offers only the other centres as receivers', () => {
     const fixture = loaded();
     const component = fixture.componentInstance;

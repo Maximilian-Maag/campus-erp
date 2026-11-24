@@ -24,6 +24,22 @@ next step's grace period counts from `issued_on`, so a run dated away from today
 today's date and make the following run skip or repeat a step. A notice issued by hand through the
 API is still dated the day it is issued. `docs/28` says so.
 
+## [0.156.0] - 2026-11-24
+
+Twenty-one selects now show the option they carry, not the first one on offer.
+
+A `<select [value]="…">` whose options are created by `@for` is bound before those options exist,
+so the assignment was dropped and the browser's reset selected the first option. The screen
+displayed one value while the signal — and the request body — carried another: the collection-run
+screen said "je Mandat" while the run was filed as `RCUR`, the register form said `FRST` while the
+mandate was registered as `RCUR`, the holding filter said "alle" while the list asked for the
+active ones. Three sites were fixed with the collection-run work; the remaining twenty-one in
+budget, ETL, tax data, bank statements, dunning, mandates, payment runs, KLR, procurement and the
+reports screen now carry the selection on the option (`[selected]="'' + expr === signal()"`), and
+each spec reads `.value` rather than only the option list.
+
+`docs/32` states the rule, so a new screen cannot repeat it.
+
 ## [0.154.0] - 2026-11-23
 
 The interface can sign in, so it can be deployed against an API that enforces roles.

@@ -75,6 +75,22 @@ describe('GoodsReceiptsComponent', () => {
     expect(el.querySelector('select')).not.toBeNull();
   });
 
+  it('shows the chosen order in the picker, not the first option', () => {
+    // The order list arrives while the signal already carries a value, so the picker is created
+    // with that value and its options in the same pass. A value applied before its options exist
+    // would silently fall back to the first option, so the screen would show a different order
+    // than the one the signal carries. The second order is not the first entry in the list.
+    fixture = TestBed.createComponent(GoodsReceiptsComponent);
+    fixture.detectChanges();
+    component = fixture.componentInstance;
+    el = fixture.nativeElement as HTMLElement;
+    component.order.set('8');
+    http.expectOne('/api/purchase-orders?status=approved').flush([order(), order({ ID: 8, Number: 'PO-2' })]);
+    fixture.detectChanges();
+
+    expect((el.querySelector('#receipt-order') as HTMLSelectElement).value).toBe('8');
+  });
+
   it('reports a failed orders read and offers no picker', () => {
     fixture = TestBed.createComponent(GoodsReceiptsComponent);
     fixture.detectChanges();

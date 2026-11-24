@@ -88,7 +88,7 @@ import { PageComponent } from '../ui/page.component';
               <label for="vat-kind">{{ 'common.type' | transloco }}</label>
               <select id="vat-kind" [value]="vatKind()" (change)="vatKind.set($any($event.target).value)">
                 @for (k of kinds; track k.value) {
-                  <option [value]="k.value">{{ kind(k.value) }}</option>
+                  <option [value]="k.value" [selected]="'' + k.value === vatKind()">{{ kind(k.value) }}</option>
                 }
               </select>
             </div>

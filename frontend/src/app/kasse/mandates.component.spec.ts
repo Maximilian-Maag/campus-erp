@@ -120,6 +120,21 @@ describe('MandatesComponent', () => {
     expect((el.querySelector('#mandate-state') as HTMLSelectElement).value).toBe('true');
   });
 
+  it('shows the sequence type the filter will actually send, not the first in the list', () => {
+    // The filter is set before the options exist: the list lands after the signal is set, so the
+    // select's [value] is applied to an empty option list. Without [selected] the browser resets to
+    // "all" while the request carries a real type.
+    fixture = TestBed.createComponent(MandatesComponent);
+    fixture.detectChanges();
+    component = fixture.componentInstance;
+    el = fixture.nativeElement as HTMLElement;
+    component.sequenceFilter.set('FRST');
+    http.expectOne('/api/direct-debit/mandates?active=true&limit=50&offset=0').flush([mandate()]);
+    fixture.detectChanges();
+
+    expect((el.querySelector('#mandate-sequence-filter') as HTMLSelectElement).value).toBe('FRST');
+  });
+
   it('registers a mandate and keeps the list in reference order', () => {
     screen([mandate({ Reference: 'MND-9' })]);
     component.reference.set('MND-1');

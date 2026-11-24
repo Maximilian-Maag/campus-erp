@@ -122,6 +122,22 @@ describe('ImportsComponent', () => {
     http.expectOne('/api/etl/runs?limit=20').flush({ runs: [] });
   });
 
+  it('shows the chosen dataset in the picker', () => {
+    // The choice is made before the options exist: the reads land after the signal is set, so the
+    // select's [value] is applied to an empty option list. Without [selected] the browser resets to
+    // "all datasets" and a clerk runs the wrong import.
+    fixture = TestBed.createComponent(ImportsComponent);
+    fixture.detectChanges();
+    component = fixture.componentInstance;
+    el = fixture.nativeElement as HTMLElement;
+    component.dataset.set('krankenkasse');
+    http.expectOne('/api/etl/datasets').flush({ datasets: ['bank-leit-zahl', 'krankenkasse'] });
+    http.expectOne('/api/etl/runs?limit=20').flush({ runs: [run()] });
+    fixture.detectChanges();
+
+    expect((el.querySelector('#import-dataset') as HTMLSelectElement).value).toBe('krankenkasse');
+  });
+
   it('runs the chosen dataset, states what it did and reads the history back', () => {
     screen();
     component.choose('bank-leit-zahl');

@@ -99,6 +99,22 @@ describe('BankStatementsComponent', () => {
     expect(component.statements().map((s) => s.Reference)).toEqual(['STMT-2']);
   });
 
+  it('shows the chosen account in the picker', () => {
+    // The account is chosen before the options exist: the reads land after the signal is set, so the
+    // select's [value] is applied to an empty option list. Without [selected] the browser resets to
+    // the first account and a clerk reads the wrong account's lines.
+    const fixture = TestBed.createComponent(BankStatementsComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.account.set('2');
+    http.expectOne('/api/cash-accounts').flush([uni, second]);
+    fixture.detectChanges();
+    http.match((r) => r.url.startsWith('/api/bank-statements?')).forEach((r) => r.flush([first]));
+    fixture.detectChanges();
+
+    const html = fixture.nativeElement as HTMLElement;
+    expect((html.querySelector('#statement-account') as HTMLSelectElement).value).toBe('2');
+  });
+
   it('renders each statement with its balances and closing date', () => {
     const fixture = loaded([uni], [first]);
     const html = fixture.nativeElement as HTMLElement;

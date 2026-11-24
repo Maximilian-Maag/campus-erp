@@ -40,7 +40,7 @@ import { PageComponent } from '../ui/page.component';
             <label for="klr-unit-source">{{ 'common.costCenter' | transloco }}</label>
             <select id="klr-unit-source" [value]="source()" (change)="chooseSource($any($event.target).value)">
               @for (center of centers(); track center.ID) {
-                <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
+                <option [value]="center.ID" [selected]="'' + center.ID === source()">{{ center.Number }} {{ center.Name }}</option>
               }
             </select>
           </div>
@@ -85,7 +85,7 @@ import { PageComponent } from '../ui/page.component';
                 <label for="klr-unit-target">{{ 'klr.common.costUnit' | transloco }}</label>
                 <select id="klr-unit-target" [value]="target()" (change)="target.set($any($event.target).value)">
                   @for (unit of units(); track unit.ID) {
-                    <option [value]="unit.ID">{{ unit.Number }} {{ unit.Name }}</option>
+                    <option [value]="unit.ID" [selected]="'' + unit.ID === target()">{{ unit.Number }} {{ unit.Name }}</option>
                   }
                 </select>
               </div>

@@ -76,7 +76,7 @@ import { PageComponent } from '../ui/page.component';
                   (change)="rateCostType.set($any($event.target).value)"
                 >
                   @for (type of costTypes(); track type.ID) {
-                    <option [value]="type.ID">{{ type.Code }} {{ type.Name }}</option>
+                    <option [value]="type.ID" [selected]="'' + type.ID === rateCostType()">{{ type.Code }} {{ type.Name }}</option>
                   }
                 </select>
               </div>
@@ -141,7 +141,7 @@ import { PageComponent } from '../ui/page.component';
                   (change)="provider.set($any($event.target).value)"
                 >
                   @for (center of centers(); track center.ID) {
-                    <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
+                    <option [value]="center.ID" [selected]="'' + center.ID === provider()">{{ center.Number }} {{ center.Name }}</option>
                   }
                 </select>
               </div>
@@ -153,7 +153,7 @@ import { PageComponent } from '../ui/page.component';
                   (change)="receiver.set($any($event.target).value)"
                 >
                   @for (center of centers(); track center.ID) {
-                    <option [value]="center.ID">{{ center.Number }} {{ center.Name }}</option>
+                    <option [value]="center.ID" [selected]="'' + center.ID === receiver()">{{ center.Number }} {{ center.Name }}</option>
                   }
                 </select>
               </div>
@@ -165,7 +165,7 @@ import { PageComponent } from '../ui/page.component';
                   (change)="chargeCostType.set($any($event.target).value)"
                 >
                   @for (type of costTypes(); track type.ID) {
-                    <option [value]="type.ID">{{ type.Code }} {{ type.Name }}</option>
+                    <option [value]="type.ID" [selected]="'' + type.ID === chargeCostType()">{{ type.Code }} {{ type.Name }}</option>
                   }
                 </select>
               </div>

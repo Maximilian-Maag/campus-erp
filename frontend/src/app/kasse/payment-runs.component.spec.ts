@@ -109,6 +109,22 @@ describe('PaymentRunsComponent', () => {
     expect(component.loading()).toBeFalse();
   });
 
+  it('shows the account the run will be created on, not the first in the list', () => {
+    // The account is chosen before the options exist: the list lands after the signal is set, so the
+    // select's [value] is applied to an empty option list. Without [selected] the browser resets to
+    // the first account and the run would be created on the wrong one.
+    const fixture = TestBed.createComponent(PaymentRunsComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.account.set('2');
+    http.expectOne('/api/cash-accounts').flush([uni, second]);
+    http.expectOne('/api/payment-orders?status=approved').flush([first, secondOrder]);
+    fixture.detectChanges();
+
+    const select = (fixture.nativeElement as HTMLElement).querySelector('#payment-run-account') as HTMLSelectElement;
+    expect(select.value).toBe('2');
+  });
+
   it('treats an empty account response as no accounts', () => {
     const fixture = TestBed.createComponent(PaymentRunsComponent);
     fixture.detectChanges();
