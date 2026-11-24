@@ -2,6 +2,31 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.159.0] - 2026-11-24
+
+A mutation shard that wedges now fails in minutes and is rerun, instead of being reported as a
+failure of the pull request.
+
+Three pull requests in one afternoon lost a shard to something that was not the code: a package
+that ran 42 minutes on a job that takes a minute, a shard that timed out at 55 minutes, and a shard
+killed by "the runner has received a shutdown signal" 48 seconds in. The matrix started every
+package as its own job at once, which asks for more concurrent runners than the plan grants, so the
+excess queued and the runners that did start were recycled mid-job; and a shard that hung sat until
+the job's timeout and surfaced as a red check on the pull request.
+
+The matrix now runs at most eight shards at a time, and each shard carries its own wall-clock bound
+(`MUTATION_SHARD_TIMEOUT`, applied by `backend-mutation`; empty locally so a laptop is never cut
+short). A wedged mutant fails in 40 minutes and is rerun — the same resolution as before, but in
+minutes rather than an hour, and without a rerun being mistaken for a flaky PR. The bound is set
+above a healthy run (the largest package has taken ~30 minutes), so it catches a wedge without
+capping a slow one. `gremlins`' own `--timeout-coefficient` is now a target variable
+(`MUTATION_TIMEOUT_COEFFICIENT`, default 3), so a single slow mutant cannot hold a shard open
+either. The `mutation-web` job carries the same bound (`120m`, its suite takes about two hours):
+Stryker has no timeout of its own, and the job had no `timeout-minutes` either, so a wedged web run
+could sit for six hours.
+
+`docs/build-and-deploy` says how the matrix and the bound are set.
+
 ## [0.158.0] - 2026-11-24
 
 A direct debit the debtor's bank takes back is posted, and the debt it collected is owed again.

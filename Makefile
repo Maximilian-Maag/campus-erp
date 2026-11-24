@@ -54,6 +54,15 @@ STRUCTURIZR_IMAGE ?= structurizr/structurizr:latest
 STRUCTURIZR_LITE  ?= structurizr/lite:latest
 PLANTUML_IMAGE    ?= plantuml/plantuml:latest
 MUTATION_THRESHOLD ?= 85
+# gremlins bounds each mutant's test run by the suite's own runtime times this
+# coefficient. A wedged mutant is the difference between a shard that finishes in
+# minutes and one that sits for an hour (#186), so the knob is a target variable
+# rather than a gremlins default nobody can see.
+MUTATION_TIMEOUT_COEFFICIENT ?= 3
+# Wall-clock bound for one shard. Empty locally: a laptop may take as long as it takes.
+# CI sets it so a wedged mutant fails in minutes and is rerun, instead of sitting until
+# the job timeout and being reported as a shutdown of the pull request (#186).
+MUTATION_SHARD_TIMEOUT ?=
 
 # Where `workon-frontend` looks for the *other* half when it is deployed elsewhere.
 API_PROXY_TARGET ?= http://localhost:8080   # workon-frontend -> deployed backend
@@ -204,7 +213,9 @@ backend-mutation: ## gremlins (floor 85 per package; PKG=<path> for one)
 	  echo "== mutation/go $$pkg"; \
 	  log="$$cache/$${pkg//\//_}.log"; \
 	  if ! ( cd $(BACKEND) && XDG_CACHE_HOME="$$cache/$${pkg//\//_}" \
-	         stdbuf -oL -eL gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) "./$$pkg" 2>&1 | tee "$$log" ); then \
+	         $(if $(MUTATION_SHARD_TIMEOUT),timeout --kill-after=60s $(MUTATION_SHARD_TIMEOUT)) \
+	         stdbuf -oL -eL gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) \
+	           --timeout-coefficient $(MUTATION_TIMEOUT_COEFFICIENT) "./$$pkg" 2>&1 | tee "$$log" ); then \
 	    echo "FAIL mutation/go $$pkg (below floor, or the run itself failed)"; exit 1; \
 	  fi; \
 	  if grep -q "No results to report" "$$log"; then echo "FAIL mutation/go $$pkg: vacuous run"; exit 1; fi; \
@@ -233,7 +244,11 @@ frontend-e2e: ## Playwright + axe end-to-end tests
 
 frontend-mutation: ## Stryker mutation (floor 85)
 	$(needs_npm)
-	cd $(FRONTEND) && npm run mutation
+	# Stryker has no wall-clock bound of its own, so a wedged run would sit until the
+	# job timeout and surface as a red check on the pull request (#186). The same
+	# variable the backend target uses bounds it; empty locally, so a laptop run is
+	# never cut short.
+	cd $(FRONTEND) && $(if $(MUTATION_SHARD_TIMEOUT),timeout --kill-after=60s $(MUTATION_SHARD_TIMEOUT)) npm run mutation
 
 ##@@ policy, contract, tooling
 policy: ## Run the policy checker (changed files)

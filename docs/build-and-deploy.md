@@ -194,6 +194,22 @@ module-proxy blip must not fail a package the change never touched), and `make s
 the whole boot-and-assert procedure described above. A copy of a target in YAML drifts from the
 target, and then CI proves the copy.
 
+The `mutation-go` matrix runs at most eight shards at a time (`max-parallel`) and gives each one a
+wall-clock bound (`MUTATION_SHARD_TIMEOUT=40m`, which the target applies with `timeout`; locally the
+bound is empty, so a laptop is never cut short). The bound is headroom over a healthy run, not a cap
+on it: the largest package has taken ~30 minutes, so 40 leaves room for a slow runner while still
+failing a wedged shard long before the job's 45 minutes. Both exist because a wedged shard used to be
+reported as a failure of the pull request: a matrix that started every package at once queued past
+the plan's concurrent runners and the runners that did start were recycled mid-job ("runner has
+received a shutdown signal"), and a shard that hung sat until the job timeout and surfaced as a
+red check. A bound makes the wedge fail in minutes and be rerun, which is what the rerun was for.
+`MUTATION_TIMEOUT_COEFFICIENT` (default 3) is the same knob one level down: gremlins bounds each
+mutant's test run by the suite's runtime times that coefficient, so a single slow mutant cannot
+hold the shard open either. The `mutation-web` job carries the same bound (`MUTATION_SHARD_TIMEOUT=120m`
+on `frontend-mutation`), because Stryker has no timeout of its own and its job's default was six
+hours. Its suite takes about two hours, so the bound and the job's 150 minutes are both set above
+that: the bound catches a wedge, it does not cap a healthy run.
+
 ## Local stack (docker compose)
 
 ```bash
