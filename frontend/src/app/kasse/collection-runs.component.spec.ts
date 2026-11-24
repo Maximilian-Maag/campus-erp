@@ -423,6 +423,25 @@ describe('CollectionRunsComponent', () => {
     expect(component.items().map((i) => i.mandate_reference)).toEqual(['MAN-2']);
   });
 
+  it('shows the hand-picked mandate the form will add, not the first in the list', () => {
+    // The mandate is chosen before the options exist: the list lands after the signal is set, so the
+    // select's [value] is applied to an empty option list. Without [selected] the browser resets to
+    // the first mandate and the form would add the wrong one.
+    const fixture = TestBed.createComponent(CollectionRunsComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.setSource('mandates');
+    component.itemMandate.set('MAN-2');
+    http.expectOne('/api/cash-accounts').flush([uni]);
+    http
+      .expectOne('/api/direct-debit/mandates?active=true&sequence_type=RCUR&limit=50&offset=0')
+      .flush([mandate('MAN-1'), mandate('MAN-2')]);
+    fixture.detectChanges();
+
+    const select = (fixture.nativeElement as HTMLElement).querySelector('#item-mandate') as HTMLSelectElement;
+    expect(select.value).toBe('MAN-2');
+  });
+
   it('refuses a blank mandate, a duplicate mandate and a non-positive amount', () => {
     const fixture = handPicked();
     const component = fixture.componentInstance;

@@ -137,7 +137,7 @@ import { PageComponent } from '../ui/page.component';
                 <select id="assign-position" [value]="position()" (change)="position.set($any($event.target).value)">
                   <option value="">{{ 'common.choose' | transloco }}</option>
                   @for (p of positions(); track p.position.ID) {
-                    <option [value]="p.position.ID">
+                    <option [value]="p.position.ID" [selected]="'' + p.position.ID === position()">
                       {{ p.position.Chapter }}/{{ p.position.Title }} — {{ p.position.Description }}
                     </option>
                   }
@@ -148,7 +148,7 @@ import { PageComponent } from '../ui/page.component';
                 <select id="assign-source" [value]="source()" (change)="source.set($any($event.target).value)">
                   <option value="">{{ 'haushalt.sources.noneChoice' | transloco }}</option>
                   @for (s of sources(); track s.ID) {
-                    <option [value]="s.ID">{{ s.Code }} — {{ s.Name }}</option>
+                    <option [value]="s.ID" [selected]="'' + s.ID === source()">{{ s.Code }} — {{ s.Name }}</option>
                   }
                 </select>
               </div>
@@ -157,7 +157,7 @@ import { PageComponent } from '../ui/page.component';
                 <select id="assign-center" [value]="center()" (change)="center.set($any($event.target).value)">
                   <option value="">{{ 'haushalt.sources.noneChoice' | transloco }}</option>
                   @for (c of centers(); track c.ID) {
-                    <option [value]="c.ID">{{ c.Code }} — {{ c.Name }}</option>
+                    <option [value]="c.ID" [selected]="'' + c.ID === center()">{{ c.Code }} — {{ c.Name }}</option>
                   }
                 </select>
               </div>

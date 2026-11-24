@@ -45,6 +45,18 @@ Two rules make the system hold:
    things; they take every colour, font size, radius and shadow from a token. There is no
    per-screen stylesheet anywhere in `src/app/`.
 
+### A select whose options come from `@for` carries its selection on the options
+
+A `<select [value]="…">` whose `<option>`s are created by `@for` is bound before those options
+exist, so the assignment is dropped and the browser's reset selects the first option. The screen
+then *displays* one value while the signal — and the request body — carry another: the clerk reads
+"alle" while the list asked for the active ones, or "je Mandat" while the run is filed as `RCUR`.
+
+The selection therefore belongs on the option: `[selected]="'' + expr === signal()"`, with the
+`'' +` because the option's value is a string once the browser has it while the signal may hold a
+number. A spec that only checks the option list cannot see this — it has to read `.value` on the
+select after the signal is set to something other than the first option.
+
 ### Accessibility is part of the theme, not a pass at the end
 
 Focus is one ring (`--erp-ring`, 2px outline plus a soft halo) on every control; the skip link

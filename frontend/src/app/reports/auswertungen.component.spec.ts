@@ -53,6 +53,22 @@ describe('AuswertungenComponent', () => {
     expect(el.querySelector('#report-id')).not.toBeNull();
   });
 
+  it('shows the chosen report in the picker, not the first option', () => {
+    // The catalogue arrives while the signal already carries a value, so the picker is created with
+    // that value and its options in the same pass. A value applied before its options exist would
+    // silently fall back to the first option, so the screen would show a different report than the
+    // one the signal carries. The second report is not the first entry in the list.
+    fixture = TestBed.createComponent(AuswertungenComponent);
+    fixture.detectChanges();
+    component = fixture.componentInstance;
+    el = fixture.nativeElement as HTMLElement;
+    component.report.set('kasse-daily-close');
+    http.expectOne('/api/reports').flush([definition(), definition({ ID: 'kasse-daily-close', Title: 'Kassenabschluss' })]);
+    fixture.detectChanges();
+
+    expect((el.querySelector('#report-id') as HTMLSelectElement).value).toBe('kasse-daily-close');
+  });
+
   it('reports a failed read and offers nothing to render', () => {
     fixture = TestBed.createComponent(AuswertungenComponent);
     fixture.detectChanges();

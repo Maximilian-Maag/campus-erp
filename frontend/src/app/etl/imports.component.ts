@@ -42,7 +42,7 @@ import { PageComponent } from '../ui/page.component';
             <select id="import-dataset" [value]="dataset()" (change)="choose($any($event.target).value)">
               <option value="">{{ 'auswertung.imports.allDatasets' | transloco }}</option>
               @for (name of datasets(); track name) {
-                <option [value]="name">{{ name }}</option>
+                <option [value]="name" [selected]="'' + name === dataset()">{{ name }}</option>
               }
             </select>
           </div>

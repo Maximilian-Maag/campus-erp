@@ -46,7 +46,7 @@ import { PageComponent } from '../ui/page.component';
             <select id="receipt-order" [value]="order()" (change)="choose($any($event.target).value)">
               <option value="">{{ 'common.choose' | transloco }}</option>
               @for (o of orders(); track o.ID) {
-                <option [value]="o.ID">{{ o.Number }} — {{ o.Supplier }}</option>
+                <option [value]="o.ID" [selected]="'' + o.ID === order()">{{ o.Number }} — {{ o.Supplier }}</option>
               }
             </select>
           </div>

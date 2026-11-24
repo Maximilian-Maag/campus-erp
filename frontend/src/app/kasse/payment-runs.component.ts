@@ -62,7 +62,7 @@ import { PageComponent } from '../ui/page.component';
                   (change)="account.set($any($event.target).value)"
                 >
                   @for (a of accounts(); track a.ID) {
-                    <option [value]="a.ID">{{ a.Name }} ({{ a.IBAN }})</option>
+                    <option [value]="a.ID" [selected]="'' + a.ID === account()">{{ a.Name }} ({{ a.IBAN }})</option>
                   }
                 </select>
               </div>

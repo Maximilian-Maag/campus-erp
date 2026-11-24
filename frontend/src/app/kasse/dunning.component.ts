@@ -249,7 +249,7 @@ interface BandRow {
                   (change)="noticeLevelKey.set($any($event.target).value)"
                 >
                   @for (level of levels(); track level.ID) {
-                    <option [value]="levelKey(level)">{{ levelLabel(level) }}</option>
+                    <option [value]="levelKey(level)" [selected]="'' + levelKey(level) === noticeLevelKey()">{{ levelLabel(level) }}</option>
                   }
                 </select>
               </div>

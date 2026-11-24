@@ -86,6 +86,34 @@ describe('KlrServiceRatesComponent', () => {
     expect(component.result()).toBeNull();
   });
 
+  it('shows the chosen cost type and centres in the pickers, not the first option', () => {
+    // The types and centres arrive while the signals already carry values, so the pickers are
+    // created with those values and their options in the same pass. A value applied before its
+    // options exist would silently fall back to the first option, so the screen would show a type
+    // or centre the operator did not choose. None of the values is the first entry in its list.
+    const fixture = TestBed.createComponent(KlrServiceRatesComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([]);
+    http.expectOne('/api/klr/cost-centers').flush([]);
+    http.expectOne('/api/klr/service-rates').flush([]);
+    fixture.detectChanges();
+    const html = fixture.nativeElement as HTMLElement;
+
+    component.costTypes.set([costType(1), costType(2, { Code: '5000', Name: 'Sachkosten' })]);
+    component.centers.set([center(1), center(2), center(3)]);
+    component.rateCostType.set('2');
+    component.chargeCostType.set('2');
+    component.provider.set('2');
+    component.receiver.set('3');
+    fixture.detectChanges();
+
+    expect((html.querySelector('#klr-rate-cost-type') as HTMLSelectElement).value).toBe('2');
+    expect((html.querySelector('#klr-charge-provider') as HTMLSelectElement).value).toBe('2');
+    expect((html.querySelector('#klr-charge-receiver') as HTMLSelectElement).value).toBe('3');
+    expect((html.querySelector('#klr-charge-cost-type') as HTMLSelectElement).value).toBe('2');
+  });
+
   it('loads the rates, seeds the pickers and renders the table', () => {
     const { fixture, component } = loaded(
       [costType(1), costType(2, { Code: '5000', Name: 'Sachkosten' })],

@@ -46,7 +46,7 @@ import { PageComponent } from '../ui/page.component';
             <select id="mandate-sequence-filter" [value]="sequenceFilter()" (change)="changeSequenceFilter($any($event.target).value)">
               <option value="">{{ 'common.all' | transloco }}</option>
               @for (type of sequenceTypes; track type.value) {
-                <option [value]="type.value">{{ type.value }} — {{ type.labelKey | transloco }}</option>
+                <option [value]="type.value" [selected]="'' + type.value === sequenceFilter()">{{ type.value }} — {{ type.labelKey | transloco }}</option>
               }
             </select>
           </p>
