@@ -96,6 +96,10 @@ instead of silently keeping the ones that happen to appear in the first page.
 4. The run's currency is the account's; an open item in another currency is
    refused (`ErrReceivableCurrencyMismatch`) rather than collected at a silent
    rate of one.
+5. A collection the debtor's bank takes back puts the item **open** again: importing
+   the returning statement line clears `state` and `collected_run_id` in the same
+   transaction that stores the line, so the debt is dunned and collected again
+   instead of sitting `collected` for the rest of its life (docs/30).
 
 `due_by` must not be after the collection date: an item cannot be collected before
 it is due. Selecting nothing is `ErrNoCollectionItems`, not an empty file.

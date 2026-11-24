@@ -198,6 +198,13 @@ func TestCollectionRunFromReceivablesRefusesForeignCurrency(t *testing.T) {
 	if _, err := svc.CreateCollectionRunFromReceivables(ctx, "RUN-"+uniqueSuffix(t), account.ID, "CID", date, kasse.SequenceRecurring, "CORE", date, "clerk"); !errors.Is(err, kasse.ErrReceivableCurrencyMismatch) {
 		t.Fatalf("foreign currency = %v, want ErrReceivableCurrencyMismatch", err)
 	}
+	// The fixture is cancelled rather than left open: the selector is not narrowed to one
+	// account, so an open foreign-currency item makes every later run from receivables in this
+	// package fail on a mismatch, whatever that run was about.
+	if _, err := pool.Exec(ctx,
+		`UPDATE receivable SET state = 'cancelled' WHERE mandate_reference = $1`, man); err != nil {
+		t.Fatalf("cancel fixture: %v", err)
+	}
 }
 
 // TestCollectionRunRepoSRefusesStaleClaim drives the repository directly: a run

@@ -8,8 +8,10 @@ import (
 // Slice S4: bank statement import (MT940) and reconciliation.
 //
 // A statement line is matched to the payment order that caused it, by the order
-// reference carried in the line's client reference. A matched line whose
-// direction is a return is classified as returned.
+// reference carried in the line's client reference. A line the bank reports as a
+// return is classified as returned whether or not anything matched it: a refused
+// direct debit comes from a collection run and has no payment order, and the return
+// export posts those too.
 
 // Reconciliation outcomes for a statement line.
 const (

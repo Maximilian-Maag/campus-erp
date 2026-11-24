@@ -12,16 +12,35 @@ handed over through the same artefact store.
 
 ## What it is
 
-`kasse.ReturnPostingsService` collects the period's returning statement lines — those the
-reconciliation classified `returned` (`docs/legacy/kbs-statement-import.md`) — and renders one
-counterpart posting per line. A line's **effective date** is its value date, falling back to its
-booking date when the bank sent none; the period is that date, because that is the day the return
-takes effect. A line that carried neither date is refused (`ErrReturnLineUndated`) rather than
-dated by guesswork.
+`kasse.ReturnPostingsService` collects the period's returning statement lines — those the bank
+reported as a return (`bank_statement_line.is_return`, `docs/legacy/kbs-statement-import.md`) — and
+renders one counterpart posting per line. The selection is the bank's own fact, not the
+reconciliation outcome: a refused direct debit comes from a collection run and has no payment order
+to match, so a set filtered on the derived status would omit exactly the posting key `009` this
+file exists for. A line's **effective date** is its value date, falling back to its booking date
+when the bank sent none; the period is that date, because that is the day the return takes effect. A
+line that carried neither date is refused (`ErrReturnLineUndated`) rather than dated by guesswork.
 
 The reference of a return posting is the statement line it came from (`RT-<id>`). Re-exporting a
 period therefore carries the same references and the ledger can de-duplicate, which is what makes
 the export idempotent — the same rule the posting export follows.
+
+## The open item a return puts back
+
+A refused direct debit is not only a posting: the debt it was collecting is owed again. The run that
+produced the pain.008 file marked its items `collected`, and both selectors that chase a debt —
+`OpenReceivablesDueBy` for dunning and `OpenReceivablesForCollection` for the next run — read
+`state = 'open'` only. Nothing else writes that column, so without a path back the item would be
+dunned and collected by neither while the books said it was paid.
+
+`StatementRepo.InsertStatements` therefore releases the claim in the import's own transaction: for
+every returning line of the file, the receivable that the returned collection claimed is set back to
+`open` with `collected_run_id` cleared. The link is the run the item points at plus the reference the
+bank sent — the collection carries the mandate reference as its end-to-end id
+(`CollectionItemsFromReceivables`), and a return names that original reference; the mandate id is
+tried too, because a bank may report either. Doing it inside the import's transaction means a stored
+return never leaves its item reading `collected`, and the file hash makes a re-import a no-op rather
+than a second release.
 
 ## Format (`cash-returns/v1`)
 

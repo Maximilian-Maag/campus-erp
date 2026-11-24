@@ -102,9 +102,13 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 				id := orderID
 				line.OrderID = &id
 				line.Status = StatusMatched
-				if pl.Return {
-					line.Status = StatusReturned
-				}
+			}
+			// A return is the bank's own fact and outranks the match: a refused direct debit
+			// comes from a collection run and has no payment order at all, so deriving the
+			// status from the match alone left it 'unmatched' — and the return export selects
+			// returning lines, so the one case that needs posting was the one it could not see.
+			if pl.Return {
+				line.Status = StatusReturned
 			}
 			st.Lines = append(st.Lines, line)
 		}

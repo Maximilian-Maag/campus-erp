@@ -73,6 +73,54 @@ func TestParseEntryWithoutDetails(t *testing.T) {
 	}
 }
 
+// TestParseReturnFlag covers the only return signal a camt.054 gives: the return information
+// block. An entry carrying it was taken back by the bank, whatever its status code says, and
+// the original reference travels in Refs/EndToEndId.
+func TestParseReturnFlag(t *testing.T) {
+	const head = `<Document><BkToCstmrDbtCdtNtfctn><Ntfctn><Id>N1</Id>` +
+		`<Acct><Id><IBAN>DE02120300000000202051</IBAN></Id><Ccy>EUR</Ccy></Acct>`
+	const tail = `</Ntfctn></BkToCstmrDbtCdtNtfctn></Document>`
+	entry := func(details string) string {
+		return `<Ntry><Amt Ccy="EUR">42.50</Amt><CdtDbtInd>DBIT</CdtDbtInd>` +
+			`<BookgDt><Dt>2026-11-22</Dt></BookgDt><ValDt><Dt>2026-11-22</Dt></ValDt>` +
+			`<NtryDtls><TxDtls>` + details + `</TxDtls></NtryDtls></Ntry>`
+	}
+	cases := []struct {
+		name       string
+		details    string
+		wantReturn bool
+	}{
+		{
+			name:       "an ordinary entry carries no return information",
+			details:    `<Refs><EndToEndId>MAND-1</EndToEndId></Refs>`,
+			wantReturn: false,
+		},
+		{
+			name: "a return carries the block and the original reference",
+			details: `<Refs><EndToEndId>MAND-1</EndToEndId><TxId>TX-9</TxId></Refs>` +
+				`<RtrInf><Rsn><Cd>AC04</Cd></Rsn></RtrInf>`,
+			wantReturn: true,
+		},
+		{
+			name:       "the block is the signal, even with nothing inside it",
+			details:    `<RtrInf/>`,
+			wantReturn: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			stmts, err := Parse(head + entry(c.details) + tail)
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			line := stmts[0].Lines[0]
+			if line.Return != c.wantReturn {
+				t.Fatalf("Return = %t, want %t (%+v)", line.Return, c.wantReturn, line)
+			}
+		})
+	}
+}
+
 func TestParseAmount(t *testing.T) {
 	cases := []struct {
 		in   string
