@@ -33,6 +33,60 @@ func suffix(t *testing.T) string {
 	return strings.ReplaceAll(t.Name(), "/", "-") + "-" + time.Now().Format("150405.000000000")
 }
 
+// A commitment is bound once per reference: a retried approval of the same order must not bind the
+// amount twice, and a release nets the reference to zero so a later retry binds it again (issue
+// #168).
+func TestBindingACommitmentTwiceBindsOnce(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+	pos, err := svc.CreatePosition(ctx, 2026, "K-1", "Prüfung", "binding", 100000, "clerk")
+	if err != nil {
+		t.Fatalf("CreatePosition: %v", err)
+	}
+	reference := "ANORD:" + suffix(t)
+
+	first, err := svc.Post(ctx, pos.ID, budget.Commitment, 25000, reference, "clerk")
+	if err != nil {
+		t.Fatalf("first bind: %v", err)
+	}
+	second, err := svc.Post(ctx, pos.ID, budget.Commitment, 25000, reference, "clerk")
+	if err != nil {
+		t.Fatalf("second bind: %v", err)
+	}
+	if second.ID != first.ID {
+		t.Fatalf("the second bind must return the posting already there: %d vs %d", second.ID, first.ID)
+	}
+	bal, err := svc.Balance(ctx, pos.ID)
+	if err != nil {
+		t.Fatalf("Balance: %v", err)
+	}
+	if bal.CommittedCents != 25000 {
+		t.Fatalf("committed = %d, want 25000 after two binds of one reference", bal.CommittedCents)
+	}
+
+	// A release nets the reference to zero, so the next approval binds it again.
+	if _, err := svc.Post(ctx, pos.ID, budget.Release, 25000, reference, "clerk"); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	if bal, err = svc.Balance(ctx, pos.ID); err != nil {
+		t.Fatalf("Balance after release: %v", err)
+	} else if bal.CommittedCents != 0 {
+		t.Fatalf("committed = %d, want 0 after the release", bal.CommittedCents)
+	}
+	third, err := svc.Post(ctx, pos.ID, budget.Commitment, 25000, reference, "clerk")
+	if err != nil {
+		t.Fatalf("re-bind: %v", err)
+	}
+	if third.ID == first.ID {
+		t.Fatalf("a released reference must bind a new posting, got the original %d", third.ID)
+	}
+	if bal, err = svc.Balance(ctx, pos.ID); err != nil {
+		t.Fatalf("Balance after re-bind: %v", err)
+	} else if bal.CommittedCents != 25000 {
+		t.Fatalf("committed = %d, want 25000 after the re-bind", bal.CommittedCents)
+	}
+}
+
 // TestPositionsListsEveryPositionInBudgetOrder: the Mittelübersicht's data source lists every
 // position, in the order a budget is read, and picks up positions created after it was asked.
 func TestPositionsListsEveryPositionInBudgetOrder(t *testing.T) {

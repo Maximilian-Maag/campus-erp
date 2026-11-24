@@ -21,6 +21,11 @@ type PositionRepository interface {
 	// ListPositions returns every position in budget order, for the Mittelübersicht (docs/25).
 	ListPositions(ctx context.Context, limit, offset int) ([]Position, error)
 	InsertPosting(ctx context.Context, p Posting) (Posting, error)
+	// BindCommitment stores a commitment once per reference: a retried approval of the same
+	// economic event ends up with one posting rather than two. The bool reports whether the row
+	// was inserted. The position row is locked across the balance check and the insert, so a
+	// concurrent binding cannot over-commit the position.
+	BindCommitment(ctx context.Context, p Posting) (Posting, bool, error)
 	Postings(ctx context.Context, positionID int64) ([]Posting, error)
 	Balance(ctx context.Context, positionID int64) (Balance, error)
 	// CreateSource, Sources, CreateCenter and Centers are the Mittelquellen and
@@ -123,6 +128,84 @@ func (r *PositionRepo) InsertPosting(ctx context.Context, p Posting) (Posting, e
 		return Posting{}, fmt.Errorf("budget: insert posting: %w", err)
 	}
 	return saved, nil
+}
+
+// BindCommitment appends a commitment unless the reference is already bound on the position.
+//
+// A payment order's approval binds its amount and then saves the order. If the save loses a race
+// the order stays un-approved while its amount stays bound, and the operator's retry would bind it
+// a second time. Binding by reference makes the retry a no-op: the reference names the economic
+// event, so a second commitment for it would be a duplicate, not a second event. A release for the
+// same reference cancels the binding, so a reference whose commitments and releases net to zero is
+// bound again on the next attempt.
+//
+// The position row is locked for the whole check-and-insert: two concurrent approvals of the same
+// reference cannot both pass the "already bound" test, and the availability check is made against
+// the balance the lock protects.
+func (r *PositionRepo) BindCommitment(ctx context.Context, p Posting) (Posting, bool, error) {
+	if p.Kind != Commitment {
+		return Posting{}, false, fmt.Errorf("budget: bind commitment: %s is not a commitment", p.Kind)
+	}
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return Posting{}, false, fmt.Errorf("budget: bind commitment: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Lock the position first: every binding on it is serialised, so the balance read below cannot
+	// be stale by the time the row is inserted.
+	var allocated int64
+	err = tx.QueryRow(ctx,
+		`SELECT allocated_cents FROM budget_position WHERE id = $1 FOR UPDATE`, p.PositionID).Scan(&allocated)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Posting{}, false, fmt.Errorf("budget: position %d: %w", p.PositionID, ErrPositionNotFound)
+	}
+	if err != nil {
+		return Posting{}, false, fmt.Errorf("budget: bind commitment: %w", err)
+	}
+
+	var bound int64
+	if err := tx.QueryRow(ctx,
+		`SELECT count(*) FILTER (WHERE kind = 'commitment') - count(*) FILTER (WHERE kind = 'release')
+		   FROM budget_posting WHERE position_id = $1 AND reference = $2`,
+		p.PositionID, p.Reference).Scan(&bound); err != nil {
+		return Posting{}, false, fmt.Errorf("budget: bind commitment: %w", err)
+	}
+	if bound > 0 {
+		existing, err := scanPosting(tx.QueryRow(ctx,
+			`SELECT `+postingColumns+` FROM budget_posting
+			  WHERE position_id = $1 AND kind = 'commitment' AND reference = $2
+			  ORDER BY id DESC LIMIT 1`, p.PositionID, p.Reference))
+		if err != nil {
+			return Posting{}, false, fmt.Errorf("budget: bind commitment: %w", err)
+		}
+		return existing, false, nil
+	}
+
+	var committed, actual int64
+	if err := tx.QueryRow(ctx,
+		`SELECT coalesce(sum(amount_cents) FILTER (WHERE kind = 'commitment'), 0)
+		      - coalesce(sum(amount_cents) FILTER (WHERE kind = 'release'), 0),
+		        coalesce(sum(amount_cents) FILTER (WHERE kind = 'actual'), 0)
+		   FROM budget_posting WHERE position_id = $1`, p.PositionID).Scan(&committed, &actual); err != nil {
+		return Posting{}, false, fmt.Errorf("budget: bind commitment: %w", err)
+	}
+	if err := CheckAvailable(Balance{PositionID: p.PositionID, AllocatedCents: allocated,
+		CommittedCents: committed, ActualCents: actual}, p.Kind, p.AmountCents); err != nil {
+		return Posting{}, false, err
+	}
+
+	saved, err := scanPosting(tx.QueryRow(ctx,
+		`INSERT INTO budget_posting (position_id, kind, amount_cents, reference, booked_by)
+		 VALUES ($1,$2,$3,$4,$5) RETURNING `+postingColumns,
+		p.PositionID, p.Kind, p.AmountCents, p.Reference, p.BookedBy))
+	if err != nil {
+		return Posting{}, false, fmt.Errorf("budget: insert posting: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Posting{}, false, fmt.Errorf("budget: bind commitment: %w", err)
+	}
+	return saved, true, nil
 }
 
 // Postings lists a position's postings, oldest first.

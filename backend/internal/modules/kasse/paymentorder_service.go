@@ -78,24 +78,62 @@ func (s *OrderService) Submit(ctx context.Context, id int64, by string) (Payment
 // The commitment is posted BEFORE the order is saved, so an approval that cannot be bound
 // does not leave the order approved. The budget module refuses a binding that exceeds the
 // position's available Mittel (ErrBudgetExceeded), so an order cannot be approved beyond its
-// budget. There is no release path here because an approved order cannot be cancelled
-// (ErrNotCancellable): withdrawing one is a reversal, which is not modelled yet.
+// budget. A binding is made once per order: the commitment's reference names the order, so a
+// retried approval finds the amount already bound instead of binding it twice.
+//
+// If the save loses a race (ErrOrderConflict) the order stays un-approved while its amount is
+// bound, so the binding is released before the error is returned: a failed approval leaves the
+// position as it found it. A retry binds again, because the release nets the reference to zero.
+// An approved order cannot be cancelled (ErrNotCancellable): withdrawing one is a reversal,
+// which is not modelled yet.
 func (s *OrderService) Approve(ctx context.Context, id int64, by string) (PaymentOrder, error) {
-	return s.apply(ctx, id, by, "payment_order.approve", func(o PaymentOrder) (PaymentOrder, error) {
-		approved, err := o.Approve(by)
-		if err != nil {
-			// Four-eyes and state errors come first: they are decided before anything is bound.
-			return PaymentOrder{}, err
+	current, err := s.repo.GetOrder(ctx, id)
+	if err != nil {
+		return PaymentOrder{}, err
+	}
+	approved, err := current.Approve(by)
+	if err != nil {
+		// Four-eyes and state errors are decided before anything is bound.
+		return PaymentOrder{}, err
+	}
+	if s.budget == nil {
+		return PaymentOrder{}, ErrNoBudgetCommitter
+	}
+	reference := orderCommitmentReference(approved.Reference)
+	if _, err := s.budget.Post(ctx, approved.BudgetPositionID, budget.Commitment,
+		approved.AmountCents, reference, by); err != nil {
+		return PaymentOrder{}, err
+	}
+	saved, err := s.repo.SaveOrderStatus(ctx, approved, current.Status)
+	if err != nil {
+		// The order did not move, so the binding must not remain: releasing it keeps the
+		// position's committed Mittel honest. The original error is what the caller acts on, so
+		// a failed release is reported alongside it rather than instead of it.
+		if relErr := s.releaseCommitment(ctx, approved, reference, by); relErr != nil {
+			return PaymentOrder{}, fmt.Errorf("%w (releasing the budget binding also failed: %v)", err, relErr)
 		}
-		if s.budget == nil {
-			return PaymentOrder{}, ErrNoBudgetCommitter
-		}
-		if _, err := s.budget.Post(ctx, approved.BudgetPositionID, budget.Commitment,
-			approved.AmountCents, orderCommitmentReference(approved.Reference), by); err != nil {
-			return PaymentOrder{}, err
-		}
-		return approved, nil
-	})
+		return PaymentOrder{}, err
+	}
+	if err := s.repo.RecordDecision(ctx, id, approved.Status, by, approved.DecisionReason); err != nil {
+		return PaymentOrder{}, err
+	}
+	if _, err := s.audit.Append(ctx, audit.Event{
+		Actor:   by,
+		Action:  "payment_order.approve",
+		Subject: orderSubject(id),
+		After:   "status=" + string(approved.Status),
+	}); err != nil {
+		return PaymentOrder{}, err
+	}
+	return saved, nil
+}
+
+// releaseCommitment posts the compensating release for a binding that must not stand. The release
+// carries the same reference as the commitment, so the two net to zero and a later retry binds the
+// order again.
+func (s *OrderService) releaseCommitment(ctx context.Context, order PaymentOrder, reference, by string) error {
+	_, err := s.budget.Post(ctx, order.BudgetPositionID, budget.Release, order.AmountCents, reference, by)
+	return err
 }
 
 // orderCommitmentReference names the economic event a binding belongs to, so a position's

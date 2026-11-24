@@ -366,6 +366,75 @@ func (f *fakeBudget) Post(_ context.Context, positionID int64, kind budget.Posti
 	return budget.Posting{}, nil
 }
 
+// An approval whose status write loses the race must not leave the amount bound: the order stays
+// submitted, so the commitment is released with the same reference. Otherwise the position carries
+// Mittel for an order that was never approved (issue #168).
+func TestApproveReleasesTheBindingWhenTheSaveLoses(t *testing.T) {
+	ctx := context.Background()
+	repo := &fakeOrderRepo{
+		order: PaymentOrder{
+			ID: 7, Reference: "AO-1", Status: OrderSubmitted, CreatedBy: "alice", SubmittedBy: "carol",
+			AmountCents: 12345, BudgetPositionID: 3,
+		},
+		saveErr: ErrOrderConflict,
+	}
+	committer := &fakeBudget{}
+	svc := NewOrderService(repo, committer, &fakeAudit{})
+
+	if _, err := svc.Approve(ctx, 7, "bob"); !errors.Is(err, ErrOrderConflict) {
+		t.Fatalf("want ErrOrderConflict, got %v", err)
+	}
+
+	// The commitment was bound, then released: the same reference, the same amount, opposite kinds.
+	if len(committer.posted) != 2 {
+		t.Fatalf("want a commitment and its release, got %+v", committer.posted)
+	}
+	commitment, release := committer.posted[0], committer.posted[1]
+	if commitment.kind != string(budget.Commitment) || release.kind != string(budget.Release) {
+		t.Fatalf("want commitment then release, got %s then %s", commitment.kind, release.kind)
+	}
+	if commitment.reference != release.reference {
+		t.Fatalf("the release must name the same reference: %q vs %q", commitment.reference, release.reference)
+	}
+	if commitment.amountCents != 12345 || release.amountCents != 12345 {
+		t.Fatalf("both postings must carry the order's amount: %+v", committer.posted)
+	}
+	// The order did not move, so no decision was recorded.
+	if len(repo.decisions) != 0 {
+		t.Fatalf("a failed approval must not record a decision: %v", repo.decisions)
+	}
+}
+
+// A failed release must not hide the conflict the caller acts on.
+func TestApproveReportsAFailedReleaseBesideTheConflict(t *testing.T) {
+	ctx := context.Background()
+	repo := &fakeOrderRepo{
+		order: PaymentOrder{
+			ID: 7, Reference: "AO-1", Status: OrderSubmitted, CreatedBy: "alice", SubmittedBy: "carol",
+			AmountCents: 12345, BudgetPositionID: 3,
+		},
+		saveErr: ErrOrderConflict,
+	}
+	committer := &fakeBudget{}
+
+	// The first post succeeds (the binding), the second fails (the release).
+	svc := NewOrderService(repo, &failingSecondPost{first: committer}, &fakeAudit{})
+	if _, err := svc.Approve(ctx, 7, "bob"); !errors.Is(err, ErrOrderConflict) {
+		t.Fatalf("want the conflict to survive a failed release, got %v", err)
+	}
+}
+
+// failingSecondPost binds the first posting and refuses the second, so the release path's failure
+// handling is observable.
+type failingSecondPost struct{ first *fakeBudget }
+
+func (f *failingSecondPost) Post(ctx context.Context, positionID int64, kind budget.PostingKind, amountCents int64, reference, by string) (budget.Posting, error) {
+	if len(f.first.posted) == 0 {
+		return f.first.Post(ctx, positionID, kind, amountCents, reference, by)
+	}
+	return budget.Posting{}, errors.New("release refused")
+}
+
 func TestOrderServiceBlocksFourEyes(t *testing.T) {
 	ctx := context.Background()
 	repo := &fakeOrderRepo{order: PaymentOrder{ID: 7, Status: OrderSubmitted, CreatedBy: "alice", SubmittedBy: "alice"}}

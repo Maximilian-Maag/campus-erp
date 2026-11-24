@@ -155,6 +155,13 @@ Every write is audited (`budget_position.create`, `budget_posting.create`,
   position's available Mittel, so an order cannot be approved beyond its budget. The binding is
   posted **before** the status changes, so a refused approval leaves the order awaiting a
   decision rather than approved without Mittel.
+- The binding is **once per reference**: a commitment named `ANORD:<reference>` is bound once, so
+  an approval retried after its order save lost a race finds the amount already bound instead of
+  binding it twice. If the save loses the race the order stays awaiting a decision, so the binding
+  is released (a `release` with the same reference) before the conflict is reported: the position
+  is left as the failed approval found it. A release nets the reference to zero, so a later retry
+  binds it again. The position row is locked across the check and the insert, so two concurrent
+  approvals cannot over-commit it.
 - What follows from that: an order's position must carry Mittel. The order body's
   `budget_position` now takes an `allocated_cents` (docs/15), written when the position is first
   created — naming an existing position does not rewrite its Ansatz, because an order may not

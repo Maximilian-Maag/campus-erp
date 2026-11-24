@@ -40,6 +40,21 @@ each spec reads `.value` rather than only the option list.
 
 `docs/32` states the rule, so a new screen cannot repeat it.
 
+## [0.157.0] - 2026-11-24
+
+Approving a payment order binds its amount once, and a failed approval leaves the position as it
+found it.
+
+The approval bound the amount on the budget position and then saved the order's status. If the
+save lost a race the order stayed awaiting a decision while its amount stayed bound, and nothing
+released it: the position carried Mittel for an order that was never approved. The operator's
+retry then bound the amount a second time. A commitment is now bound once per reference
+(`ANORD:<reference>`), so a retry finds the amount already there, and a save that loses the race
+releases the binding before the conflict is reported. The position row is locked across the
+balance check and the insert, so two concurrent approvals cannot over-commit it.
+
+`docs/10` says how a binding is made and released.
+
 ## [0.154.0] - 2026-11-23
 
 The interface can sign in, so it can be deployed against an API that enforces roles.
