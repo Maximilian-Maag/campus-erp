@@ -174,7 +174,16 @@ export class KlrCostUnitsComponent implements OnInit {
     this.loading.set(true);
     this.loadError.set(null);
     this.api.listCostUnits().subscribe({
-      next: (units) => this.units.set(units ?? []),
+      next: (units) => {
+        const list = units ?? [];
+        this.units.set(list);
+        // The picker is seeded when its own list arrives, not when the centres do: the two
+        // reads finish in either order, and seeding from an empty list left the target empty
+        // while the form looked filled in (#175).
+        if (!list.some((u) => String(u.ID) === this.target())) {
+          this.target.set(list.length > 0 ? String(list[0].ID) : '');
+        }
+      },
       error: () => {
         this.loadError.set(this.i18n.translate('klr.common.loadCostUnitsFailed'));
         this.loading.set(false);
@@ -188,7 +197,6 @@ export class KlrCostUnitsComponent implements OnInit {
         const stillThere = list.some((c) => String(c.ID) === this.source());
         if (!stillThere) {
           this.source.set(list.length > 0 ? String(list[0].ID) : '');
-          this.target.set(String(this.units()[0]?.ID ?? ''));
         }
         // The keys follow the selection, on a first load and on a reload alike: with nothing
         // chosen the list is empty, which is what loadKeys already does.
@@ -224,6 +232,16 @@ export class KlrCostUnitsComponent implements OnInit {
 
   define(event: Event): void {
     event.preventDefault();
+    // An empty picker posts 0, which the server cannot resolve to a cost centre or unit:
+    // refuse before the request rather than showing a generic failure (#175).
+    if (!this.source()) {
+      this.actionError.set(this.i18n.translate('klr.common.sourceRequired'));
+      return;
+    }
+    if (Number(this.target()) <= 0) {
+      this.actionError.set(this.i18n.translate('klr.common.targetRequired'));
+      return;
+    }
     const shareBP = percentToBasisPoints(this.sharePercent());
     if (shareBP === null) {
       this.actionError.set(this.i18n.translate('klr.common.shareInvalid'));

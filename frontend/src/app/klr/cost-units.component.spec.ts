@@ -291,6 +291,35 @@ describe('KlrCostUnitsComponent', () => {
     expect(component.keys().map((k) => k.ID)).toEqual([5]);
   });
 
+  it('seeds the unit picker when the units arrive after the centres', () => {
+    const fixture = TestBed.createComponent(KlrCostUnitsComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    // The centres are the smaller table and usually land first; the units are still in flight.
+    http.expectOne('/api/klr/cost-centers').flush([center(1)]);
+    http.expectOne(keysURL(1)).flush([]);
+    expect(component.target()).toBe('');
+
+    http.expectOne('/api/klr/cost-units').flush([unit(7)]);
+    fixture.detectChanges();
+
+    // The picker is seeded from the list that owns it, not from the empty one beside it.
+    expect(component.target()).toBe('7');
+  });
+
+  it('refuses to post a key without a cost unit', () => {
+    const { component } = loaded([center(1)], []);
+
+    component.validFrom.set('2026-01-01');
+    component.define(new Event('submit'));
+
+    expect(component.actionError()).toBe('Ein Kostenträger ist erforderlich.');
+    expect(component.saving()).toBeFalse();
+    // No request: an id of 0 would reach the server and fail there instead.
+    http.expectNone('/api/klr/cost-centers/1/cost-unit-keys');
+  });
+
   it('refuses a share that is not a percentage, and one with no start date', () => {
     const { component } = loaded();
 

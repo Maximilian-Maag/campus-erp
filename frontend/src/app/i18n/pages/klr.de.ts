@@ -37,6 +37,8 @@ export const klrDe = {
     loadCostUnitsFailed: 'Konnte die Kostenträger nicht laden.',
     loadKeysFailed: 'Konnte die Schlüssel nicht laden.',
     loadMoreCostTypesFailed: 'Konnte die weiteren Kostenarten nicht laden.',
+    sourceRequired: 'Eine Kostenstelle ist erforderlich.',
+    targetRequired: 'Ein Kostenträger ist erforderlich.',
     shareInvalid: 'Der Anteil muss eine Prozentzahl zwischen 0 und 100 sein.',
     validFromRequired: 'Ein Gültig-ab-Datum ist erforderlich.',
     accountNumberRequired: 'Eine Kontonummer ist erforderlich.',

@@ -31,6 +31,8 @@ export const klrEn: KlrMessages = {
     loadCostUnitsFailed: 'The cost units could not be loaded.',
     loadKeysFailed: 'The keys could not be loaded.',
     loadMoreCostTypesFailed: 'The further cost types could not be loaded.',
+    sourceRequired: 'A cost centre is required.',
+    targetRequired: 'A cost unit is required.',
     shareInvalid: 'The share must be a percentage between 0 and 100.',
     validFromRequired: 'A valid-from date is required.',
     accountNumberRequired: 'An account number is required.',

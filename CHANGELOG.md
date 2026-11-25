@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.165.0] - 2026-11-24
+
+The Umlage key form seeds its cost-unit picker when the units arrive, and refuses a key without one.
+
+The picker was seeded inside the cost-centres callback, from a list that the units request fills —
+so when the centres landed first (the smaller table), the picker was seeded empty while the form
+looked filled in. Submitting then posted a key whose cost unit was the empty string, and the screen
+reported a generic failure (#175).
+
+The units callback now seeds the picker itself, and the form refuses to submit without a cost
+centre or a cost unit, naming which one is missing.
 ## [0.164.0] - 2026-11-24
 
 Two carry-overs of the same year cannot both post the opening balance.
