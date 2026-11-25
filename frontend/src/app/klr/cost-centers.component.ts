@@ -144,11 +144,16 @@ export class CostCentersComponent implements OnInit {
   showReport(center: CostCenter): void {
     this.reportError.set(null);
     this.reporting.set(center);
+    // The previous centre's figures go with its heading, not with the new one (#174).
+    this.report.set(null);
     this.api.getKLRReport(center.ID).subscribe({
-      next: (report) => this.report.set(report),
+      next: (report) => {
+        // A response for a centre that is no longer shown belongs to nobody.
+        if (this.reporting()?.ID !== center.ID) return;
+        this.report.set(report);
+      },
       error: () => {
-        // The stale report of a previously shown centre must not stay on screen under a new heading.
-        this.report.set(null);
+        if (this.reporting()?.ID !== center.ID) return;
         this.reportError.set(this.i18n.translate('klr.costCentres.reportFailed'));
       },
     });

@@ -2,6 +2,15 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.166.0] - 2026-11-24
+
+A figure shown under a new heading is the new selection's, not the previous one's.
+
+Two screens set the label before the data and only cleared it on the error path, so the previous
+centre's or book's numbers stayed on screen under the new name until the response landed — and an
+out-of-order response made it permanent. The cost-centre report and the foundation's balance and
+movements are now cleared with the label, and a response for a selection that is no longer current
+is ignored (#174).
 ## [0.165.0] - 2026-11-24
 
 The Umlage key form seeds its cost-unit picker when the units arrive, and refuses a key without one.

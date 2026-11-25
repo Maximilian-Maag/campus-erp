@@ -489,6 +489,9 @@ export class FoundationsComponent implements OnInit {
   select(foundation: Foundation): void {
     this.selectedFoundation.set(foundation);
     this.selectedBook.set(null);
+    // The books belong to the foundation that was selected: a failed read must not leave the
+    // previous foundation's books under the new one's heading (#174).
+    this.books.set([]);
     this.bookings.set([]);
     this.hasMore.set(false);
     this.balance.set(null);
@@ -609,6 +612,11 @@ export class FoundationsComponent implements OnInit {
   selectBook(book: FoundationBook): void {
     this.selectedBook.set(book);
     this.actionError.set(null);
+    // The figures are the chosen book's, so they go with the label: leaving the previous book's
+    // numbers under the new heading is a lie for as long as the response takes (#174).
+    this.bookings.set([]);
+    this.hasMore.set(false);
+    this.balance.set(null);
     this.loadBookings(book);
     this.loadBalance(book);
   }
@@ -623,12 +631,18 @@ export class FoundationsComponent implements OnInit {
     this.hasMore.set(false);
     this.api.listFoundationBookings(book.ID, String(this.pageSize), '0').subscribe({
       next: (bookings) => {
+        // A response that arrives after the operator chose another book belongs to nobody: the
+        // screen now asks about a different book, and this page would be shown under its heading.
+        if (this.selectedBook()?.ID !== book.ID) return;
         const page = bookings ?? [];
         this.bookings.set(page);
         // A full page means there may be more; a short one is the end of the book's movements.
         this.hasMore.set(page.length === this.pageSize);
       },
-      error: () => this.actionError.set(this.i18n.translate('finanzen.foundations.bookingsLoadFailed')),
+      error: () => {
+        if (this.selectedBook()?.ID !== book.ID) return;
+        this.actionError.set(this.i18n.translate('finanzen.foundations.bookingsLoadFailed'));
+      },
     });
   }
 
@@ -723,8 +737,14 @@ export class FoundationsComponent implements OnInit {
 
   private loadBalance(book: FoundationBook): void {
     this.api.getFoundationBalance(book.ID).subscribe({
-      next: (balance) => this.balance.set(balance),
-      error: () => this.actionError.set(this.i18n.translate('finanzen.foundations.balanceLoadFailed')),
+      next: (balance) => {
+        if (this.selectedBook()?.ID !== book.ID) return;
+        this.balance.set(balance);
+      },
+      error: () => {
+        if (this.selectedBook()?.ID !== book.ID) return;
+        this.actionError.set(this.i18n.translate('finanzen.foundations.balanceLoadFailed'));
+      },
     });
   }
 }

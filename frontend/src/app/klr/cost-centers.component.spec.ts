@@ -191,6 +191,39 @@ describe('CostCentersComponent', () => {
     expect(text(fixture)).not.toContain('Überschuss');
   });
 
+  it('clears the previous report as soon as another centre is chosen', () => {
+    const fixture = loaded([center(1, 'KST-1'), center(2, 'KST-2')]);
+    const c = fixture.componentInstance;
+    c.showReport(center(1, 'KST-1'));
+    http.expectOne('/api/klr/cost-centers/1/report').flush(report(1, 100000, 120000));
+    fixture.detectChanges();
+    expect(c.report()).not.toBeNull();
+
+    c.showReport(center(2, 'KST-2'));
+    fixture.detectChanges();
+    // The request is still in flight: the first centre's figures must not sit under the new heading.
+    expect(c.report()).toBeNull();
+    expect(text(fixture)).not.toContain('Überschuss');
+    http.expectOne('/api/klr/cost-centers/2/report').flush(report(2, 100000, 90000));
+  });
+
+  it('ignores a report that arrives after another centre was chosen', () => {
+    const fixture = loaded([center(1, 'KST-1'), center(2, 'KST-2')]);
+    const c = fixture.componentInstance;
+
+    c.showReport(center(1, 'KST-1'));
+    const first = http.expectOne('/api/klr/cost-centers/1/report');
+    c.showReport(center(2, 'KST-2'));
+    http.expectOne('/api/klr/cost-centers/2/report').flush(report(2, 100000, 90000));
+
+    // The first response lands late: it belongs to a centre the screen no longer shows.
+    first.flush(report(1, 100000, 120000));
+    fixture.detectChanges();
+
+    expect(c.reporting()?.ID).toBe(2);
+    expect(c.report()?.CostCenterID).toBe(2);
+  });
+
   it('reports a catalogue that cannot be read instead of showing an empty one', () => {
     const fixture = TestBed.createComponent(CostCentersComponent);
     fixture.detectChanges();
