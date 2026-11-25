@@ -295,6 +295,13 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
   (`payment_order.reference` and `direct_debit_mandate.mandate_reference` are `UNIQUE`, so their
   orders by reference needed no tiebreaker, `receivable` orders by `due_date, id` and a book's
   movements by `id`, both primary keys, and `budget_position` already ended its `year, chapter,
-  title` order in `id`) — and a control on the screen that reads it. A report that is over *all* of a
+  title` order in `id`) — and a control on the screen that reads it.
+  A page is not the list, so a screen that offers an action on a row must not let the page stand in
+  for the whole set. `GET /api/payment-orders` takes `available=true` for the payment-run picker:
+  an order already gathered into a run cannot be gathered again (`payment_run_item.order_id` is
+  `UNIQUE`), so the server narrows the list rather than letting the screen offer an action that
+  fails. A screen that appends a row locally — registering a mandate — pages by the number of rows
+  the *server* handed over, not by the rows on screen, or the next page starts one row late and
+  skips the row at the boundary. A report that is over *all* of a
   list by definition — the *Mittelübersicht* and *Verrechnungspreise* print views — walks the pages
   instead of asking for one, and a short page ends the walk.

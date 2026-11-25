@@ -347,8 +347,8 @@ export class CampusErpApi {
     return this.http.get<m.Value>(this.base + `/api/lookups/${namespace}/${code}`);
   }
 
-  listPaymentOrders(status?: string, limit?: string, offset?: string): Observable<m.KasseOrderSummary[]> {
-    return this.http.get<m.KasseOrderSummary[]>(this.base + `/api/payment-orders${this._query({ status, limit, offset })}`);
+  listPaymentOrders(status?: string, limit?: string, offset?: string, available?: string): Observable<m.KasseOrderSummary[]> {
+    return this.http.get<m.KasseOrderSummary[]>(this.base + `/api/payment-orders${this._query({ status, limit, offset, available })}`);
   }
 
   createPaymentOrder(body: m.CreateOrderRequest): Observable<m.PaymentOrder> {

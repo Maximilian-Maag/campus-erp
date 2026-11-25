@@ -18,7 +18,7 @@ type OrderRepository interface {
 	GetOrder(ctx context.Context, id int64) (PaymentOrder, error)
 	SaveOrderStatus(ctx context.Context, o PaymentOrder, from OrderStatus) (PaymentOrder, error)
 	RecordDecision(ctx context.Context, orderID int64, decision OrderStatus, actor, reason string) error
-	ListOrders(ctx context.Context, status OrderStatus, limit, offset int) ([]OrderSummary, error)
+	ListOrders(ctx context.Context, status OrderStatus, available bool, limit, offset int) ([]OrderSummary, error)
 }
 
 // OrderRepo is the PostgreSQL implementation.
@@ -41,14 +41,19 @@ func scanOrder(row pgx.Row) (PaymentOrder, error) {
 
 // ListOrders lists payment orders, soonest due first — that is the order an operator works
 // through them in — with a status filter that is the server's own ("" for all).
-func (r *OrderRepo) ListOrders(ctx context.Context, status OrderStatus, limit, offset int) ([]OrderSummary, error) {
+//
+// `available` narrows to the orders a payment run may still gather: an order that is already in a
+// run cannot be gathered again (payment_run_item's unique key rejects it), so a picker that offers
+// it offers an action that fails. Filtering here is what keeps the picker honest (#180).
+func (r *OrderRepo) ListOrders(ctx context.Context, status OrderStatus, available bool, limit, offset int) ([]OrderSummary, error) {
 	// Ordered by due date then reference. The reference is UNIQUE, so the order is total: a page
 	// boundary cannot repeat or skip a row, unlike an order over a non-unique column.
 	rows, err := r.pool.Query(ctx,
 		`SELECT id, reference, amount_cents, currency, budget_position_id, purpose, due_date, status
-		   FROM payment_order
+		   FROM payment_order o
 		  WHERE ($1 = '' OR status = $1)
-		  ORDER BY due_date, reference LIMIT $2 OFFSET $3`, string(status), limit, offset)
+		    AND (NOT $4 OR NOT EXISTS (SELECT 1 FROM payment_run_item i WHERE i.order_id = o.id))
+		  ORDER BY due_date, reference LIMIT $2 OFFSET $3`, string(status), limit, offset, available)
 	if err != nil {
 		return nil, fmt.Errorf("kasse: list payment orders: %w", err)
 	}

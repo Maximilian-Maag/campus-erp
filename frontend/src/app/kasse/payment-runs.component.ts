@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, CashAccount, KasseOrderSummary, PaymentRun } from '../core/api/generated';
 import { formatCents, formatDay } from '../core/format';
+import { problemCode } from '../core/problem';
 import { PageComponent } from '../ui/page.component';
 
 /**
@@ -109,6 +110,18 @@ import { PageComponent } from '../ui/page.component';
                   }
                 </tbody>
               </table>
+              @if (hasMore()) {
+                <p>
+                  <button
+                    type="button"
+                    data-testid="load-more-orders"
+                    [disabled]="loadingMore()"
+                    (click)="loadMoreOrders()"
+                  >
+                    {{ (loadingMore() ? 'kasse.common.loadingMore' : 'kasse.common.loadMore') | transloco }}
+                  </button>
+                </p>
+              }
               <p role="status" [attr.data-testid]="'selected-sum'">
                 {{
                   'kasse.runs.selectedSummary'
@@ -158,6 +171,15 @@ export class PaymentRunsComponent implements OnInit {
   readonly accounts = signal<CashAccount[]>([]);
   readonly account = signal('');
   readonly orders = signal<KasseOrderSummary[]>([]);
+  /**
+   * One page of approved orders, sent explicitly rather than left to the server's default: a
+   * picker that reads the first 50 and offers no way to reach the rest silently hides orders the
+   * operator came here to put in a run (#179).
+   */
+  private readonly pageSize = 50;
+  /** True while the last page came back full, so there may be another. */
+  readonly hasMore = signal(false);
+  readonly loadingMore = signal(false);
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
@@ -200,9 +222,12 @@ export class PaymentRunsComponent implements OnInit {
 
   /** Loads the orders a run may gather — only the approved ones, the server's filter. */
   loadOrders(): void {
-    this.api.listPaymentOrders('approved').subscribe({
+    this.api.listPaymentOrders('approved', String(this.pageSize), '0', 'true').subscribe({
       next: (orders) => {
-        this.orders.set(orders ?? []);
+        const page = orders ?? [];
+        this.orders.set(page);
+        // A full page means there may be more; a short one is the end of the list.
+        this.hasMore.set(page.length === this.pageSize);
         // An order that is no longer offered cannot be gathered, so a stale selection is dropped.
         this.selected.set(
           this.selected().filter((id) => this.orders().some((o) => o.ID === id))
@@ -211,9 +236,36 @@ export class PaymentRunsComponent implements OnInit {
       },
       error: () => {
         this.loadError.set(this.i18n.translate('kasse.orders.loadFailed'));
+        this.hasMore.set(false);
         this.loading.set(false);
       },
     });
+  }
+
+  /**
+   * Reads the next page of approved orders and appends it. The offset is the number of rows the
+   * server has handed over so far, which is why the list is never re-sorted in the browser.
+   */
+  loadMoreOrders(): void {
+    if (!this.hasMore() || this.loadingMore()) {
+      return;
+    }
+    this.loadingMore.set(true);
+    this.actionError.set(null);
+    this.api
+      .listPaymentOrders('approved', String(this.pageSize), String(this.orders().length), 'true')
+      .subscribe({
+        next: (orders) => {
+          const page = orders ?? [];
+          this.orders.set([...this.orders(), ...page]);
+          this.hasMore.set(page.length === this.pageSize);
+          this.loadingMore.set(false);
+        },
+        error: () => {
+          this.loadingMore.set(false);
+          this.actionError.set(this.i18n.translate('kasse.orders.loadMoreFailed'));
+        },
+      });
   }
 
   isSelected(id: number): boolean {
@@ -265,10 +317,20 @@ export class PaymentRunsComponent implements OnInit {
           this.submitting.set(false);
           this.created.set(run);
           this.notice.set(this.i18n.translate('kasse.runs.created'));
+          // The orders just gathered are no longer available, so the picker is re-read: leaving
+          // them ticked offers a second run that the server refuses (#180).
+          this.selected.set([]);
+          this.loadOrders();
         },
-        error: () => {
+        error: (err) => {
           this.submitting.set(false);
-          this.actionError.set(this.i18n.translate('kasse.runs.createFailed'));
+          // An order already in a run is the one refusal the operator can act on — it names the
+          // reason instead of the generic "could not create".
+          this.actionError.set(
+            problemCode(err) === 'kasse.order_already_paid'
+              ? this.i18n.translate('kasse.runs.orderAlreadyPaid')
+              : this.i18n.translate('kasse.runs.createFailed')
+          );
         },
       });
   }

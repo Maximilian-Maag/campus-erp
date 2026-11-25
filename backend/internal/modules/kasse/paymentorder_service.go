@@ -57,8 +57,8 @@ func (s *OrderService) Create(ctx context.Context, o PaymentOrder) (PaymentOrder
 }
 
 // Orders lists payment orders, optionally narrowed to one status, one page at a time.
-func (s *OrderService) Orders(ctx context.Context, status OrderStatus, limit, offset int) ([]OrderSummary, error) {
-	return s.repo.ListOrders(ctx, status, limit, offset)
+func (s *OrderService) Orders(ctx context.Context, status OrderStatus, available bool, limit, offset int) ([]OrderSummary, error) {
+	return s.repo.ListOrders(ctx, status, available, limit, offset)
 }
 
 func (s *OrderService) Order(ctx context.Context, id int64) (PaymentOrder, error) {
