@@ -76,10 +76,10 @@ import { PageComponent } from '../ui/page.component';
                       —
                     } @else {
                       {{
-                        (invoice.MatchedOrderID
+                        (invoice.MatchedOrderNumber
                           ? 'erechnung.invoices.matchedOrder'
                           : 'erechnung.invoices.unmatched'
-                        ) | transloco: { number: invoice.MatchedOrderID }
+                        ) | transloco: { number: invoice.MatchedOrderNumber }
                       }}
                     }
                   </td>

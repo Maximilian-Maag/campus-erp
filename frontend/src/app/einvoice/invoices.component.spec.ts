@@ -18,12 +18,19 @@ describe('EInvoicesComponent', () => {
 
   afterEach(() => http.verify());
 
-  const invoice = (ID: number, Number: string, direction: string, matched: number): InvoiceSummary => ({
+  const invoice = (
+    ID: number,
+    Number: string,
+    direction: string,
+    matched: number,
+    matchedNumber = ''
+  ): InvoiceSummary => ({
     ID, Number, IssueDate: '2026-04-01T00:00:00Z', TypeCode: '380', Currency: 'EUR',
     BuyerReference: 'PO-2026-1', GrossCents: 35700, Direction: direction, MatchedOrderID: matched,
+    MatchedOrderNumber: matchedNumber,
   });
   const unmatched = invoice(1, 'RE-1', 'inbound', 0);
-  const matched = invoice(2, 'RE-2', 'inbound', 7);
+  const matched = invoice(2, 'RE-2', 'inbound', 7, 'PO-2026-0007');
   const outbound = invoice(3, 'RE-3', 'outbound', 0);
 
   /** A page's worth of invoices, so the screen believes there may be another. */
@@ -61,7 +68,10 @@ describe('EInvoicesComponent', () => {
     expect(cells[4].textContent).toContain('357,00');
     expect(html.querySelector('[data-testid="direction-RE-1"]')?.textContent).toContain('Eingang');
     expect(html.querySelector('[data-testid="match-RE-1"]')?.textContent).toContain('offen');
-    expect(html.querySelector('[data-testid="match-RE-2"]')?.textContent).toContain('Bestellung 7');
+    // The order's number, not its database id: id 7 is PO-2026-0007 (#172).
+    expect(html.querySelector('[data-testid="match-RE-2"]')?.textContent).toContain(
+      'Bestellung PO-2026-0007'
+    );
   });
 
   it('offers both syntaxes of the document: XRechnung (UBL) and ZUGFeRD (CII)', () => {
@@ -122,7 +132,10 @@ describe('EInvoicesComponent', () => {
     expect(fixture.componentInstance.matching()).toBeNull();
     expect(fixture.componentInstance.actionError()).toBeNull();
     const html = fixture.nativeElement as HTMLElement;
-    expect(html.querySelector('[data-testid="match-RE-2"]')?.textContent).toContain('Bestellung 7');
+    // The order's number, not its database id: id 7 is PO-2026-0007 (#172).
+    expect(html.querySelector('[data-testid="match-RE-2"]')?.textContent).toContain(
+      'Bestellung PO-2026-0007'
+    );
   });
 
   it('keeps the list and names the invoice when a match fails', () => {

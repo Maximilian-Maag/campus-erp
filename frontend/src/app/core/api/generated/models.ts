@@ -521,6 +521,7 @@ export interface InvoiceSummary {
   GrossCents: number;
   Direction: string;
   MatchedOrderID: number;
+  MatchedOrderNumber: string;
 }
 
 export interface IssueNoticeRequest {

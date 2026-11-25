@@ -231,6 +231,25 @@ func TestMatchIsRecordedOnTheAuditChain(t *testing.T) {
 	if again.MatchedOrderID != order.ID {
 		t.Fatalf("matched order = %d, want %d", again.MatchedOrderID, order.ID)
 	}
+	// The list carries the order's number as well as its id: the screen shows the number, and the
+	// id is a database key a clerk cannot look up (#172).
+	list, err := inSvc.Invoices(ctx, 1000, 0)
+	if err != nil {
+		t.Fatalf("Invoices: %v", err)
+	}
+	var summary *einvoice.InvoiceSummary
+	for i := range list {
+		if list[i].ID == saved.ID {
+			summary = &list[i]
+			break
+		}
+	}
+	if summary == nil {
+		t.Fatalf("invoice %d is missing from the list", saved.ID)
+	}
+	if summary.MatchedOrderNumber != number {
+		t.Fatalf("matched order number = %q, want %q", summary.MatchedOrderNumber, number)
+	}
 	if err := store.Verify(ctx); err != nil {
 		t.Fatalf("audit verify: %v", err)
 	}

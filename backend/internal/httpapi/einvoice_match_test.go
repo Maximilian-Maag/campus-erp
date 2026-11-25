@@ -75,6 +75,8 @@ func TestMatchEInvoiceRoute(t *testing.T) {
 		BuyerReference string
 		GrossCents     int64
 		MatchedOrderID int64
+		// The number a screen shows; the id above is a database key (#172).
+		MatchedOrderNumber string
 	}
 	listInvoices := func() []invoiceSummary {
 		t.Helper()
@@ -131,6 +133,10 @@ func TestMatchEInvoiceRoute(t *testing.T) {
 	}
 	if after.MatchedOrderID != order.ID {
 		t.Fatalf("matched order = %d, want %d", after.MatchedOrderID, order.ID)
+	}
+	// The screen shows the order's number, not the id it cannot look up.
+	if after.MatchedOrderNumber != order.Number {
+		t.Fatalf("matched order number = %q, want %q", after.MatchedOrderNumber, order.Number)
 	}
 
 	// Matching the same invoice again is a conflict: the invoice is already matched.
