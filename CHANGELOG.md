@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.162.0] - 2026-11-24
+
+A closed day cannot accept a booking, and its closing balance counts every booking it accepted.
+
+`Book` decided against a day it had read and then inserted against the day's id alone, so a booking
+that started before the close could commit after it. `CloseDay` read the bookings, computed the
+closing balance, and then closed the day with a status-only check, so a booking committed between
+the read and the close was missing from `closing_cents` — the Kassenabschluss no longer equalled
+opening plus its bookings.
+
+The insert now reads the day's status in the same statement that writes the booking, and takes a
+shared lock on the day row; the close takes the row for update and computes the closing balance
+inside its transaction. A booking either lands before the close and is counted, or is refused with
+`ErrDayClosed`; it cannot be lost in between (#169).
 ## [0.161.0] - 2026-11-24
 
 An invoice shows the purchase order it was matched to, not its database id.

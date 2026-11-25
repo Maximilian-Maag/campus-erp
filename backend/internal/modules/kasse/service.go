@@ -15,7 +15,7 @@ type Repository interface {
 	GetDay(ctx context.Context, id int64) (Day, error)
 	Bookings(ctx context.Context, dayID int64) ([]Booking, error)
 	InsertBooking(ctx context.Context, b Booking, by string) (Booking, error)
-	CloseDay(ctx context.Context, id, closingCents int64, by string) (Day, error)
+	CloseDay(ctx context.Context, id int64, by string) (Day, error)
 
 	// Import path (counter-book ETL): idempotent upserts keyed by date and the
 	// booking's legacy reference (docs/legacy/kbs-cashbook.md).
@@ -82,23 +82,17 @@ func (s *Service) Book(ctx context.Context, dayID int64, kind BookingKind, amoun
 	return saved, nil
 }
 
-// CloseDay finalises a day, storing its computed closing balance.
+// CloseDay finalises a day. The repository computes the closing balance in the
+// same transaction that closes the day, so no booking can slip between the
+// count and the close (#169).
 func (s *Service) CloseDay(ctx context.Context, dayID int64, by string) (Day, error) {
-	d, err := s.repo.GetDay(ctx, dayID)
+	closed, err := s.repo.CloseDay(ctx, dayID, by)
 	if err != nil {
 		return Day{}, err
 	}
-	if d.IsClosed() {
-		return Day{}, ErrDayClosed
-	}
-	bookings, err := s.repo.Bookings(ctx, dayID)
-	if err != nil {
-		return Day{}, err
-	}
-	closing := Balance(d.OpeningCents, bookings)
-	closed, err := s.repo.CloseDay(ctx, dayID, closing, by)
-	if err != nil {
-		return Day{}, err
+	closing := int64(0)
+	if closed.ClosingCents != nil {
+		closing = *closed.ClosingCents
 	}
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,

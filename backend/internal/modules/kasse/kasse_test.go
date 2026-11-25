@@ -123,10 +123,17 @@ func (f *fakeRepo) InsertBooking(_ context.Context, b Booking, _ string) (Bookin
 	return b, nil
 }
 
-func (f *fakeRepo) CloseDay(_ context.Context, _ int64, closing int64, _ string) (Day, error) {
+func (f *fakeRepo) CloseDay(_ context.Context, _ int64, _ string) (Day, error) {
 	if f.err != nil {
 		return Day{}, f.err
 	}
+	if f.day.IsClosed() {
+		return Day{}, ErrDayClosed
+	}
+	// The real repository computes the closing balance in the same transaction
+	// that closes the day; the fake mirrors that so the service test still
+	// exercises the balance arithmetic (#169).
+	closing := Balance(f.day.OpeningCents, f.bookings)
 	f.closed = true
 	f.day.Status = DayClosed
 	f.day.ClosingCents = &closing

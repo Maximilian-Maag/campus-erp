@@ -81,12 +81,22 @@ func (r *Repo) Bookings(ctx context.Context, dayID int64) ([]Booking, error) {
 // InsertBooking persists a booking.
 func (r *Repo) InsertBooking(ctx context.Context, b Booking, by string) (Booking, error) {
 	var out Booking
+	// The open check is part of the insert, not a separate read: a day that
+	// closes between the service's GetDay and this write must not accept a
+	// booking (#169). The SELECT reads the day's status in the same statement
+	// that inserts against it, so a closed day yields no row.
 	err := r.pool.QueryRow(ctx,
 		`INSERT INTO cash_booking (day_id, kind, amount_cents, purpose, booked_by)
-		 VALUES ($1, $2, $3, $4, $5)
+		 SELECT $1, $2, $3, $4, $5
+		   FROM cash_book_day
+		  WHERE id = $1 AND status = 'open'
+		    FOR SHARE
 		 RETURNING id, day_id, kind, amount_cents, purpose`,
 		b.DayID, b.Kind, b.AmountCents, b.Purpose, by,
 	).Scan(&out.ID, &out.DayID, &out.Kind, &out.AmountCents, &out.Purpose)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Booking{}, ErrDayClosed
+	}
 	if err != nil {
 		return Booking{}, fmt.Errorf("kasse: insert booking: %w", err)
 	}
@@ -144,18 +154,53 @@ func (r *Repo) SetDayClosing(ctx context.Context, id, closingCents int64, by str
 	return d, nil
 }
 
-// CloseDay finalises an open day with its computed closing balance.
-func (r *Repo) CloseDay(ctx context.Context, id, closingCents int64, by string) (Day, error) {
-	d, err := scanDay(r.pool.QueryRow(ctx,
+// CloseDay finalises an open day. The closing balance is computed inside the
+// transaction from the day's opening balance and the bookings it holds, after
+// locking the day row: a booking committed after the service read the day is
+// either counted here or refused by InsertBooking's open check, never lost
+// between the two (#169).
+func (r *Repo) CloseDay(ctx context.Context, id int64, by string) (Day, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return Day{}, fmt.Errorf("kasse: close day: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var d Day
+	err = tx.QueryRow(ctx,
+		`SELECT `+dayColumns+` FROM cash_book_day WHERE id = $1 FOR UPDATE`, id,
+	).Scan(&d.ID, &d.BusinessDate, &d.Status, &d.OpeningCents, &d.ClosingCents)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Day{}, fmt.Errorf("kasse: day %d: %w", id, ErrNotFound)
+	}
+	if err != nil {
+		return Day{}, fmt.Errorf("kasse: close day: %w", err)
+	}
+	if d.IsClosed() {
+		return Day{}, ErrDayClosed
+	}
+
+	var closing int64
+	if err := tx.QueryRow(ctx,
+		`SELECT $1 + COALESCE(SUM(CASE WHEN kind = 'income' THEN amount_cents ELSE -amount_cents END), 0)
+		   FROM cash_booking WHERE day_id = $2`, d.OpeningCents, id,
+	).Scan(&closing); err != nil {
+		return Day{}, fmt.Errorf("kasse: close day: balance: %w", err)
+	}
+
+	closed, err := scanDay(tx.QueryRow(ctx,
 		`UPDATE cash_book_day
 		    SET status = 'closed', closing_cents = $2, closed_by = $3, closed_at = now()
 		  WHERE id = $1 AND status = 'open'
-		  RETURNING `+dayColumns, id, closingCents, by))
+		  RETURNING `+dayColumns, id, closing, by))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Day{}, ErrDayClosed
 	}
 	if err != nil {
 		return Day{}, fmt.Errorf("kasse: close day: %w", err)
 	}
-	return d, nil
+	if err := tx.Commit(ctx); err != nil {
+		return Day{}, fmt.Errorf("kasse: close day: commit: %w", err)
+	}
+	return closed, nil
 }
