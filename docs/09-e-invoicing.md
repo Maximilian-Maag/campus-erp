@@ -116,7 +116,10 @@ is deliberate: an invoice without a buyer reference cannot name an order and is 
 
 A matched invoice **records the order it was bound to** (`e_invoice.matched_order_id`), so
 `GET /api/e-invoices` can say which invoices are still open. The audit stream alone would not
-do: that is the trail, not state a screen can read. A second match is refused
+do: that is the trail, not state a screen can read. The list also carries the order's **number**
+(`matched_order_number`), read with the row, because the id is an internal key a clerk cannot look
+up: the screen prints the number the order carries, and the id stays in the payload for the
+screens that key on it. A second match is refused
 (`ErrAlreadyMatched`) — the invoice, not the order's state, is the first thing that stops it.
 
 A stored invoice also carries its **direction**: `inbound` for a received Eingangsrechnung,
