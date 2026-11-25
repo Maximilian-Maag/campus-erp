@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { CampusErpApi, ProcurementOrderSummary, ReceiptState } from '../core/api/generated';
 import { formatCents, formatDay, formatMilli, isoDay, quantityToMilli } from '../core/format';
+import { problemCode } from '../core/problem';
 import { PageComponent } from '../ui/page.component';
 
 /**
@@ -229,6 +230,12 @@ export class GoodsReceiptsComponent implements OnInit {
   /** Books the quantities that arrived. */
   record(event: Event): void {
     event.preventDefault();
+    // A second Enter while the first request is in flight would post the delivery twice; the
+    // server refuses the duplicate with a 409, but the operator should not see a refusal for a
+    // delivery they only submitted once (#176).
+    if (this.busy()) {
+      return;
+    }
     this.actionError.set(null);
     this.notice.set(null);
 
@@ -258,6 +265,16 @@ export class GoodsReceiptsComponent implements OnInit {
         );
         return;
       }
+      if (milli > this.open(p)) {
+        this.actionError.set(
+          this.i18n.translate('beschaffung.goodsReceipts.quantityExceedsOpen', {
+            lineNo: p.LineNo,
+            typed: formatMilli(milli),
+            open: formatMilli(this.open(p)),
+          }),
+        );
+        return;
+      }
       lines.push({ line_no: p.LineNo, quantity_milli: milli });
     }
     if (lines.length === 0) {
@@ -266,6 +283,7 @@ export class GoodsReceiptsComponent implements OnInit {
     }
 
     this.busy.set(true);
+    this.actionError.set(null);
     this.api
       .recordGoodsReceipt(id, { reference: this.reference(), received_on: this.receivedOn(), lines })
       .subscribe({
@@ -286,8 +304,15 @@ export class GoodsReceiptsComponent implements OnInit {
           // An order that arrived in full leaves the approved list, so the picker is read again.
           this.loadOrders();
         },
-        error: () => {
-          this.actionError.set(this.i18n.translate('beschaffung.goodsReceipts.bookFailed'));
+        error: (err: unknown) => {
+          // The two refusals an operator can act on are named; the rest keep the generic sentence.
+          this.actionError.set(
+            problemCode(err) === 'procurement.over_receipt'
+              ? this.i18n.translate('beschaffung.goodsReceipts.overReceipt')
+              : problemCode(err) === 'procurement.receipt_exists'
+                ? this.i18n.translate('beschaffung.goodsReceipts.receiptExists')
+                : this.i18n.translate('beschaffung.goodsReceipts.bookFailed'),
+          );
           this.busy.set(false);
         },
       });

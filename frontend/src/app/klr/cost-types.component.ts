@@ -340,7 +340,16 @@ export class KlrCostTypesComponent implements OnInit {
     this.api.getCostTypeByAccount(account).subscribe({
       next: (found) => this.lookupResult.set(found),
       // An account nobody has mapped is an answer, not a failure: the API says so with a 404.
-      error: () => this.lookupMiss.set(true),
+      // Anything else — a session expiry, a timeout — is a failure and must not claim the
+      // account is unmapped (#176).
+      error: (err: unknown) => {
+        const status = (err as { status?: number } | null)?.status;
+        if (status === 404) {
+          this.lookupMiss.set(true);
+          return;
+        }
+        this.actionError.set(this.i18n.translate('klr.costTypes.lookupFailed'));
+      },
     });
   }
 }

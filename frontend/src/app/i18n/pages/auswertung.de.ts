@@ -18,6 +18,7 @@ export const auswertungDe = {
     loadFailed: 'Die Auswertungen konnten nicht geladen werden.',
     reportRequired: 'Es ist keine Auswertung gewählt.',
     periodRequired: 'Ein Zeitraum aus zwei Tagen ist erforderlich.',
+    periodReversed: 'Der Zeitraum beginnt nach seinem Ende.',
     queued:
       'Auswertung eingeplant (Auftrag {{ job }}). Die Datei liegt unter reports/{{ name }}, sobald der Worker sie erzeugt hat.',
     renderFailed: 'Die Auswertung konnte nicht eingeplant werden.',

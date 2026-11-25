@@ -52,6 +52,9 @@ export const beschaffungDe = {
     booked: 'Wareneingang gebucht ({{ amount }}).',
     bookedComplete: 'Wareneingang gebucht ({{ amount }}). Die Bestellung ist vollständig geliefert.',
     bookFailed: 'Der Wareneingang konnte nicht gebucht werden.',
+    overReceipt: 'Die Menge übersteigt, was noch offen ist.',
+    receiptExists: 'Diese Lieferscheinnummer ist bereits gebucht.',
+    quantityExceedsOpen: 'Zeile {{ lineNo }}: {{ typed }} ist mehr als die {{ open }} offen.',
   },
 };
 

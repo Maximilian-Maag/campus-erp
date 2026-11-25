@@ -13,6 +13,7 @@ export const auswertungEn: AuswertungMessages = {
     render: 'Generate report',
     loadFailed: 'The reports could not be loaded.',
     reportRequired: 'No report is selected.',
+    periodReversed: 'The period starts after it ends.',
     periodRequired: 'A period of two dates is required.',
     queued:
       'Report scheduled (job {{ job }}). The file will be at reports/{{ name }} once the worker has produced it.',

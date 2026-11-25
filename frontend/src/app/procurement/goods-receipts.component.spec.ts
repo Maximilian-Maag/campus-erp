@@ -231,6 +231,58 @@ describe('GoodsReceiptsComponent', () => {
     expect(el.textContent).toContain('Der Wareneingang konnte nicht gebucht werden.');
   });
 
+  it('refuses a quantity larger than what is still open', () => {
+    screen();
+    chooseWith(7, state());
+    component.reference.set('LS-1');
+    component.receivedOn.set('2026-11-20');
+    // Line 1 has 1,000 ordered and nothing received: 1,5 is more than the 1,0 open.
+    component.setQuantity(1, '1,5');
+    component.record(new Event('submit'));
+
+    expect(component.actionError()).toBe('Zeile 1: 1,5 ist mehr als die 1 offen.');
+    expect(component.busy()).toBeFalse();
+    http.expectNone('/api/purchase-orders/7/receipts');
+    // What was typed stays, so the operator can correct it.
+    expect(component.quantities()[1]).toBe('1,5');
+  });
+
+  it('names the two refusals an operator can act on', () => {
+    screen();
+    chooseWith(7, state());
+    component.reference.set('LS-1');
+    component.receivedOn.set('2026-11-20');
+    component.setQuantity(1, '1');
+    component.record(new Event('submit'));
+    http.expectOne('/api/purchase-orders/7/receipts').flush(
+      { error: 'over', code: 'procurement.over_receipt' },
+      { status: 422, statusText: 'Unprocessable Entity' }
+    );
+    expect(component.actionError()).toBe('Die Menge übersteigt, was noch offen ist.');
+
+    component.record(new Event('submit'));
+    http.expectOne('/api/purchase-orders/7/receipts').flush(
+      { error: 'duplicate', code: 'procurement.receipt_exists' },
+      { status: 409, statusText: 'Conflict' }
+    );
+    expect(component.actionError()).toBe('Diese Lieferscheinnummer ist bereits gebucht.');
+  });
+
+  it('ignores a second submit while the first is in flight', () => {
+    screen();
+    chooseWith(7, state());
+    component.reference.set('LS-1');
+    component.receivedOn.set('2026-11-20');
+    component.setQuantity(1, '1');
+    component.record(new Event('submit'));
+    component.record(new Event('submit'));
+
+    // One request, not two: the second Enter is the same delivery.
+    const req = http.expectOne('/api/purchase-orders/7/receipts');
+    req.flush({ error: 'no' }, { status: 500, statusText: 'Server Error' });
+    expect(component.busy()).toBeFalse();
+  });
+
   it('refuses an incomplete booking before asking the API', () => {
     screen();
     chooseWith(7, state());
