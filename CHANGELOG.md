@@ -2,6 +2,61 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.158.0] - 2026-11-24
+
+A direct debit the debtor's bank takes back is posted, and the debt it collected is owed again.
+
+The return export selected `status = 'returned'`, and that status was only ever set on a line that
+matched a **payment order**. A refused SEPA direct debit comes from a collection run: there is no
+payment order and no run item for it, so its line stayed `unmatched`, and the export whose whole
+purpose is posting key 009 could never contain one. The bank's own `is_return` was written on every
+line and read by nothing. The import now classifies a line `returned` whenever the bank reports it,
+whether or not anything matched, and the export selects that column instead of the derived status.
+The camt.052, camt.053 and camt.054 parsers set the flag from the return information block
+(`RtrInf`), the only return signal those messages carry — without it a CAMT import never reached the
+export at all.
+
+The other half of a return is the open item. A collection run marks its receivables `collected`, and
+both selectors that chase a debt — dunning and the next run — read `open` only, so a returned
+collection left the claim `collected` for the rest of its life: never dunned, never collected again,
+while the books said it was paid. The import now releases the claim in its own transaction, matching
+the reference the bank sent (the collection's end-to-end id, which is the mandate reference, or the
+mandate id itself) against the run the item points at, so the item is open again before the file is
+stored.
+
+`docs/30` and `docs/22` say how the classification and the release work.
+
+## [0.157.0] - 2026-11-24
+
+Approving a payment order binds its amount once, and a failed approval leaves the position as it
+found it.
+
+The approval bound the amount on the budget position and then saved the order's status. If the
+save lost a race the order stayed awaiting a decision while its amount stayed bound, and nothing
+released it: the position carried Mittel for an order that was never approved. The operator's
+retry then bound the amount a second time. A commitment is now bound once per reference
+(`ANORD:<reference>`), so a retry finds the amount already there, and a save that loses the race
+releases the binding before the conflict is reported. The position row is locked across the
+balance check and the insert, so two concurrent approvals cannot over-commit it.
+
+`docs/10` says how a binding is made and released.
+
+## [0.156.0] - 2026-11-24
+
+Twenty-one selects now show the option they carry, not the first one on offer.
+
+A `<select [value]="…">` whose options are created by `@for` is bound before those options exist,
+so the assignment was dropped and the browser's reset selected the first option. The screen
+displayed one value while the signal — and the request body — carried another: the collection-run
+screen said "je Mandat" while the run was filed as `RCUR`, the register form said `FRST` while the
+mandate was registered as `RCUR`, the holding filter said "alle" while the list asked for the
+active ones. Three sites were fixed with the collection-run work; the remaining twenty-one in
+budget, ETL, tax data, bank statements, dunning, mandates, payment runs, KLR, procurement and the
+reports screen now carry the selection on the option (`[selected]="'' + expr === signal()"`), and
+each spec reads `.value` rather than only the option list.
+
+`docs/32` states the rule, so a new screen cannot repeat it.
+
 ## [0.155.0] - 2026-11-24
 
 A mandate's sequence type moves with the collection it produced, so a second collection is a
@@ -23,37 +78,6 @@ A dunning run now stamps its notices with the run's `as_of` date instead of the 
 next step's grace period counts from `issued_on`, so a run dated away from today used to stamp
 today's date and make the following run skip or repeat a step. A notice issued by hand through the
 API is still dated the day it is issued. `docs/28` says so.
-
-## [0.156.0] - 2026-11-24
-
-Twenty-one selects now show the option they carry, not the first one on offer.
-
-A `<select [value]="…">` whose options are created by `@for` is bound before those options exist,
-so the assignment was dropped and the browser's reset selected the first option. The screen
-displayed one value while the signal — and the request body — carried another: the collection-run
-screen said "je Mandat" while the run was filed as `RCUR`, the register form said `FRST` while the
-mandate was registered as `RCUR`, the holding filter said "alle" while the list asked for the
-active ones. Three sites were fixed with the collection-run work; the remaining twenty-one in
-budget, ETL, tax data, bank statements, dunning, mandates, payment runs, KLR, procurement and the
-reports screen now carry the selection on the option (`[selected]="'' + expr === signal()"`), and
-each spec reads `.value` rather than only the option list.
-
-`docs/32` states the rule, so a new screen cannot repeat it.
-
-## [0.157.0] - 2026-11-24
-
-Approving a payment order binds its amount once, and a failed approval leaves the position as it
-found it.
-
-The approval bound the amount on the budget position and then saved the order's status. If the
-save lost a race the order stayed awaiting a decision while its amount stayed bound, and nothing
-released it: the position carried Mittel for an order that was never approved. The operator's
-retry then bound the amount a second time. A commitment is now bound once per reference
-(`ANORD:<reference>`), so a retry finds the amount already there, and a save that loses the race
-releases the binding before the conflict is reported. The position row is locked across the
-balance check and the insert, so two concurrent approvals cannot over-commit it.
-
-`docs/10` says how a binding is made and released.
 
 ## [0.154.0] - 2026-11-23
 

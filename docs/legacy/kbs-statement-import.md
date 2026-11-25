@@ -63,8 +63,9 @@ The parser is `backend/internal/core/mt940` (`mt940.Parse`); the service
 `kasse.StatementService` stores a `bank_file` (the physical import, keyed by hash)
 and its statements, then reconciles each line against the **paid** orders (those
 that belong to a payment run), matching on the order reference carried in the
-line's client reference. A matched line whose direction is a return is classified
-`returned`.
+line's client reference. A line the bank reports as a return is classified
+`returned` whether or not it matched anything — a refused direct debit has no
+payment order to match, and the return export posts those too (docs/30).
 
 ## Verification
 

@@ -66,9 +66,24 @@ type ntryDtls struct {
 }
 
 type txDtls struct {
-	Refs      refs      `xml:"Refs"`
+	Refs refs `xml:"Refs"`
+	// RtrInf is present exactly when the transaction is a return (ISO 20022 ReturnInformation,
+	// mandatory in a return and absent otherwise), so its presence — not a status code or a
+	// reason — is what marks a line the bank took back. It is a pointer so that absence and an
+	// empty element are distinguishable.
+	RtrInf    *rtrInf   `xml:"RtrInf"`
 	RltdPties rltdPties `xml:"RltdPties"`
 	RmtInf    rmtInf    `xml:"RmtInf"`
+}
+
+// rtrInf mirrors ReturnInformation. The original reference travels in Refs/EndToEndId (CGI
+// bank-to-corporate practice maps pacs.004 OrgnlEndToEndId there), so only presence is read.
+type rtrInf struct {
+	Rsn rtrRsn `xml:"Rsn"`
+}
+
+type rtrRsn struct {
+	Cd string `xml:"Cd"`
 }
 
 type refs struct {
@@ -144,6 +159,10 @@ func parseEntry(n ntry) bankstmt.Line {
 	tx := n.NtryDtls.TxDtls[0]
 	line.EndToEndRef = strings.TrimSpace(tx.Refs.EndToEndID)
 	line.ClientRef = strings.TrimSpace(tx.Refs.TxID)
+	// A recorded return carries its return information; the entry itself is otherwise
+	// indistinguishable from an ordinary booking, so this is the only return signal a camt
+	// notification gives.
+	line.Return = tx.RtrInf != nil
 	line.Purpose = strings.TrimSpace(strings.Join(tx.RmtInf.Ustrd, " "))
 	// The counterparty is the payer for a credit and the payee for a debit;
 	// prefer whichever party the message carries.

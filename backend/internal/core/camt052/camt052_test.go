@@ -76,6 +76,43 @@ func TestParseWithoutBalances(t *testing.T) {
 	}
 }
 
+// TestParseReturnFlag covers the only return signal a camt.052 gives: the return information block
+// on the transaction detail. An entry carrying it was taken back by the bank, and the original
+// reference travels in Refs/EndToEndId.
+func TestParseReturnFlag(t *testing.T) {
+	doc := func(details string) string {
+		return `<Document><BkToCstmrAcctRpt><Rpt><Id>R1</Id>` +
+			`<Acct><Id><IBAN>DE02120300000000202051</IBAN></Id><Ccy>EUR</Ccy></Acct>` +
+			`<Ntry><Amt Ccy="EUR">42.50</Amt><CdtDbtInd>DBIT</CdtDbtInd>` +
+			`<BookgDt><Dt>2026-11-22</Dt></BookgDt><ValDt><Dt>2026-11-22</Dt></ValDt>` +
+			`<NtryDtls><TxDtls>` + details + `</TxDtls></NtryDtls></Ntry>` +
+			`</Rpt></BkToCstmrAcctRpt></Document>`
+	}
+	for _, c := range []struct {
+		name       string
+		details    string
+		wantReturn bool
+	}{
+		{name: "ordinary", details: `<Refs><EndToEndId>MAND-1</EndToEndId></Refs>`},
+		{name: "return", details: `<Refs><EndToEndId>MAND-1</EndToEndId></Refs>` +
+			`<RtrInf><Rsn><Cd>AC04</Cd></Rsn></RtrInf>`, wantReturn: true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			stmts, err := Parse(doc(c.details))
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			line := stmts[0].Lines[0]
+			if line.Return != c.wantReturn {
+				t.Fatalf("Return = %t, want %t (%+v)", line.Return, c.wantReturn, line)
+			}
+			if line.EndToEndRef != "MAND-1" {
+				t.Fatalf("EndToEndRef = %q, want the original reference", line.EndToEndRef)
+			}
+		})
+	}
+}
+
 func TestParseAmount(t *testing.T) {
 	cases := []struct {
 		in   string

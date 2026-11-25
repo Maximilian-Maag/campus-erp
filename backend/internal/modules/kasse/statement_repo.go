@@ -133,7 +133,32 @@ func (r *StatementRepo) GetBankFile(ctx context.Context, id int64) (BankFile, er
 	return f, nil
 }
 
-// InsertStatements stores each statement and its lines in one transaction.
+// releaseReturnedClaimsSQL puts back the receivables a returning collection line took. The
+// receivable was marked collected when the run produced its file; the debtor's bank then took
+// the money back, so the debt is owed again and has to be collectable — dunning and the next
+// run both select state = 'open' only, so an item left collected is chased by neither.
+//
+// The link is the run the item points at plus the reference the bank sent: a SEPA collection
+// carries the mandate reference as its end-to-end id (CollectionItemsFromReceivables), and a
+// return notification names that original reference. Both are tried, because a bank may report
+// either its own copy of the mandate id or the end-to-end id it was given.
+const releaseReturnedClaimsSQL = `
+WITH returned AS (
+	SELECT DISTINCT coalesce(nullif(l.end_to_end_ref, ''), nullif(l.client_ref, '')) AS ref
+	  FROM bank_statement_line l
+	  JOIN bank_statement s ON s.id = l.statement_id
+	 WHERE s.bank_file_id = $1 AND l.is_return
+)
+UPDATE receivable rec
+   SET state = 'open', collected_run_id = NULL
+  FROM direct_debit_run_item i
+  JOIN returned ON i.end_to_end_id = returned.ref OR i.mandate_reference = returned.ref
+ WHERE rec.collected_run_id = i.run_id
+   AND rec.state = 'collected'`
+
+// InsertStatements stores each statement and its lines in one transaction, and releases the
+// receivables a returning collection line took in the same one: a stored return never leaves
+// its open item reading collected, which would hide a debt from both dunning and the next run.
 func (r *StatementRepo) InsertStatements(ctx context.Context, bankFileID int64, stmts []Statement) ([]Statement, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -176,6 +201,11 @@ func (r *StatementRepo) InsertStatements(ctx context.Context, bankFileID int64, 
 			saved.Lines = append(saved.Lines, savedLine)
 		}
 		out = append(out, saved)
+	}
+	// Before the commit, not after: a return whose release lost would be a debt nobody
+	// chases, and re-importing the file is refused as a duplicate.
+	if _, err := tx.Exec(ctx, releaseReturnedClaimsSQL, bankFileID); err != nil {
+		return nil, fmt.Errorf("kasse: release returned receivables: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("kasse: commit statement import: %w", err)
@@ -234,11 +264,15 @@ func (r *StatementRepo) GetStatement(ctx context.Context, id int64) (Statement, 
 // (effective date, id) order so the return export is deterministic. The effective date
 // is the value date, falling back to the booking date when the bank sent none: a
 // returning line that carried neither cannot be dated and does not belong to a period.
+//
+// The selection is the bank's own return flag (is_return), not the derived status: a
+// status is only as good as what the import could match, and a refused direct debit has
+// nothing to match.
 func (r *StatementRepo) ReturnedLines(ctx context.Context, from, to time.Time) ([]StatementLine, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT `+lineColumns+`
 		   FROM bank_statement_line
-		  WHERE status = 'returned'
+		  WHERE is_return
 		    AND coalesce(value_date, booking_date) BETWEEN $1 AND $2
 		  ORDER BY coalesce(value_date, booking_date), id`, from, to)
 	if err != nil {
