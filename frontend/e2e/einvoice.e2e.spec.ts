@@ -1,7 +1,13 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const summary = (ID: number, Number: string, direction: string, matched: number) => ({
+const summary = (
+  ID: number,
+  Number: string,
+  direction: string,
+  matched: number,
+  matchedNumber = ''
+) => ({
   ID,
   Number,
   IssueDate: '2026-04-01T00:00:00Z',
@@ -11,23 +17,25 @@ const summary = (ID: number, Number: string, direction: string, matched: number)
   GrossCents: 35700,
   Direction: direction,
   MatchedOrderID: matched,
+  // The number a clerk can look up; the id above is a database id (#172).
+  MatchedOrderNumber: matchedNumber,
 });
 
 test('Eingangsrechnungen lists the invoices, matches one and passes axe', async ({ page }) => {
   let invoices = [
     summary(1, 'RE-1', 'inbound', 0),
-    summary(2, 'RE-2', 'inbound', 7),
+    summary(2, 'RE-2', 'inbound', 7, 'PO-2026-0007'),
     summary(3, 'RE-3', 'outbound', 0),
   ];
   await page.route(/\/api\/e-invoices(\?|$)/, (route) => route.fulfill({ json: invoices }));
   await page.route('**/api/e-invoices/1/match', (route) => {
-    invoices = [summary(1, 'RE-1', 'inbound', 7), ...invoices.slice(1)];
+    invoices = [summary(1, 'RE-1', 'inbound', 7, 'PO-2026-0007'), ...invoices.slice(1)];
     return route.fulfill({ json: { Number: 'RE-1' } });
   });
 
   await page.goto('/einvoice/rechnungen');
   await expect(page.getByTestId('match-RE-1')).toContainText('offen');
-  await expect(page.getByTestId('invoice-RE-2')).toContainText('Bestellung 7');
+  await expect(page.getByTestId('invoice-RE-2')).toContainText('Bestellung PO-2026-0007');
   // An invoice this system issued carries no match action.
   await expect(page.getByTestId('direction-RE-3')).toContainText('Ausgang');
   await expect(page.getByTestId('invoice-RE-3').getByRole('button')).toHaveCount(0);
@@ -46,7 +54,7 @@ test('Eingangsrechnungen lists the invoices, matches one and passes axe', async 
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
   await page.getByRole('button', { name: 'Rechnung RE-1 der Bestellung zuordnen' }).click();
-  await expect(page.getByTestId('match-RE-1')).toContainText('Bestellung 7');
+  await expect(page.getByTestId('match-RE-1')).toContainText('Bestellung PO-2026-0007');
 
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
