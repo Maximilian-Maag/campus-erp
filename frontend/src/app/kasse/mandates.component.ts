@@ -222,6 +222,15 @@ export class MandatesComponent implements OnInit {
   private readonly pageSize = 50;
   /** True while the last page came back full, so there may be another. */
   readonly hasMore = signal(false);
+  /**
+   * How many rows the server has handed over so far — the offset the next page starts at.
+   *
+   * It is not the length of `mandates`: a mandate registered from this screen is appended to the
+   * list so the operator sees it, but it is not a row the server has counted for paging. Asking
+   * for `offset = mandates().length` after that registration starts one row too late and the
+   * server row at the boundary is never fetched (#182).
+   */
+  private readonly serverRows = signal(0);
   readonly loadingMore = signal(false);
   readonly loading = signal(false);
   readonly busy = signal(false);
@@ -340,6 +349,7 @@ export class MandatesComponent implements OnInit {
       next: (mandates) => {
         const page = mandates ?? [];
         this.mandates.set(page);
+        this.serverRows.set(page.length);
         // A full page means there may be more; a short one is the end of the list.
         this.hasMore.set(page.length === this.pageSize);
         this.loading.set(false);
@@ -347,6 +357,7 @@ export class MandatesComponent implements OnInit {
       error: () => {
         this.loadError.set(this.i18n.translate('kasse.mandates.loadFailed'));
         this.hasMore.set(false);
+        this.serverRows.set(0);
         this.loading.set(false);
       },
     });
@@ -367,11 +378,12 @@ export class MandatesComponent implements OnInit {
     this.loadingMore.set(true);
     this.actionError.set(null);
     this.api
-      .listMandates(this.active(), this.sequenceFilter(), String(this.pageSize), String(this.mandates().length))
+      .listMandates(this.active(), this.sequenceFilter(), String(this.pageSize), String(this.serverRows()))
       .subscribe({
         next: (mandates) => {
           const page = mandates ?? [];
           this.mandates.set([...this.mandates(), ...page]);
+          this.serverRows.update((n: number) => n + page.length);
           this.hasMore.set(page.length === this.pageSize);
           this.loadingMore.set(false);
         },
@@ -424,7 +436,9 @@ export class MandatesComponent implements OnInit {
       })
       .subscribe({
         next: (saved) => {
-          this.mandates.update((list) => [...list, saved].sort((a, b) => a.Reference.localeCompare(b.Reference)));
+          // Appended, not re-sorted: the pages only line up while the screen shows the server's
+          // order, and re-sorting would also change what `offset` means for the next page (#182).
+          this.mandates.update((list) => [...list, saved]);
           this.reference.set('');
           this.debtorName.set('');
           this.debtorIBAN.set('');

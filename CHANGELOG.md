@@ -2,7 +2,7 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
-## [0.159.0] - 2026-11-24
+## [0.160.0] - 2026-11-24
 
 A mutation shard that wedges now fails in minutes and is rerun, instead of being reported as a
 failure of the pull request.
@@ -26,6 +26,30 @@ Stryker has no timeout of its own, and the job had no `timeout-minutes` either, 
 could sit for six hours.
 
 `docs/build-and-deploy` says how the matrix and the bound are set.
+
+## [0.159.0] - 2026-11-24
+
+The Kasse lists page properly, and a page that lands after the selection changed is dropped.
+
+The payment-run picker read the first 50 approved orders and offered no way to reach the rest, so
+with more than 50 approved orders the remainder could not be put into a run at all — and there is no
+other screen that gathers them. It now pages like its sibling, and asks the server for the orders a
+run may still gather (`available=true`): an order already in a run cannot be gathered again, and the
+picker used to offer it and then fail with a generic message. A created run now re-reads the picker,
+so the orders it paid leave the list, and a refusal names the reason when the order is already paid.
+
+Registering a mandate appended the row to the list and re-sorted it, while the next page was asked
+for from the number of rows on screen: the server row at the page boundary was never fetched, so one
+mandate stayed invisible for the rest of the session. The next page now starts from the number of
+rows the server handed over.
+
+Two reads on the bank-statement screen wrote into whatever the screen showed when they landed: a
+page requested for account A and arriving after the operator chose B was appended under B, and a
+statement's lines opened after another statement was opened replaced the new panel's lines. Both now
+belong to the request that asked for them and are dropped when the screen has moved on.
+
+`docs/15` states the rule: a page is not the list, so a screen must not let a page stand in for the
+whole set.
 
 ## [0.158.0] - 2026-11-24
 

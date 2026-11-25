@@ -200,26 +200,28 @@ func TestCancel(t *testing.T) {
 // ── service level ───────────────────────────────────────────────────────────
 
 type fakeOrderRepo struct {
-	order       PaymentOrder
-	decisions   []OrderStatus
-	actors      []string
-	getErr      error
-	insertErr   error
-	saveErr     error
-	recordErr   error
-	recipient   Recipient
-	budget      BudgetPosition
-	createCalls int
-	summaries   []OrderSummary
-	lastStatus  OrderStatus
-	lastLimit   int
-	lastOffset  int
+	order         PaymentOrder
+	decisions     []OrderStatus
+	actors        []string
+	getErr        error
+	insertErr     error
+	saveErr       error
+	recordErr     error
+	recipient     Recipient
+	budget        BudgetPosition
+	createCalls   int
+	summaries     []OrderSummary
+	lastStatus    OrderStatus
+	lastAvailable bool
+	lastLimit     int
+	lastOffset    int
 }
 
 // ListOrders records the status and the page it was asked for, so the service's pass-through is
 // observable.
-func (f *fakeOrderRepo) ListOrders(_ context.Context, status OrderStatus, limit, offset int) ([]OrderSummary, error) {
+func (f *fakeOrderRepo) ListOrders(_ context.Context, status OrderStatus, available bool, limit, offset int) ([]OrderSummary, error) {
 	f.lastStatus = status
+	f.lastAvailable = available
 	f.lastLimit = limit
 	f.lastOffset = offset
 	return f.summaries, f.getErr
@@ -511,7 +513,7 @@ func TestOrdersPassesTheStatusThrough(t *testing.T) {
 	repo := &fakeOrderRepo{summaries: []OrderSummary{{ID: 1, Reference: "AO-1", Status: OrderDraft}}}
 	svc := NewOrderService(repo, nil, &fakeAudit{})
 
-	got, err := svc.Orders(ctx, OrderSubmitted, 25, 50)
+	got, err := svc.Orders(ctx, OrderSubmitted, false, 25, 50)
 	if err != nil {
 		t.Fatalf("Orders: %v", err)
 	}
@@ -528,7 +530,7 @@ func TestOrdersPassesTheStatusThrough(t *testing.T) {
 	}
 
 	boom := errors.New("boom")
-	if _, err := NewOrderService(&fakeOrderRepo{getErr: boom}, nil, &fakeAudit{}).Orders(ctx, "", 50, 0); !errors.Is(err, boom) {
+	if _, err := NewOrderService(&fakeOrderRepo{getErr: boom}, nil, &fakeAudit{}).Orders(ctx, "", false, 50, 0); !errors.Is(err, boom) {
 		t.Fatalf("store error = %v, want boom", err)
 	}
 }

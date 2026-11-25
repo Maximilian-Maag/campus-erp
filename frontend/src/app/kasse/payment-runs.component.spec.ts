@@ -51,13 +51,24 @@ describe('PaymentRunsComponent', () => {
     ...over,
   });
 
+  /**
+   * Flushes the run the screen posted and the picker re-read that follows it: a created run takes
+   * its orders out of the list, so the screen asks again (#180).
+   */
+  function flushCreate(created: PaymentRun = run(), remaining: KasseOrderSummary[] = []) {
+    http.expectOne('/api/payment-runs').flush(created);
+    http
+      .expectOne('/api/payment-orders?status=approved&limit=50&offset=0&available=true')
+      .flush(remaining);
+  }
+
   /** The screen with its accounts and approved orders loaded. */
   function loaded(accounts: CashAccount[] = [uni], orders: KasseOrderSummary[] = [first, secondOrder]) {
     const fixture = TestBed.createComponent(PaymentRunsComponent);
     fixture.detectChanges();
     http.expectOne('/api/cash-accounts').flush(accounts);
     if (accounts.length > 0) {
-      http.expectOne('/api/payment-orders?status=approved').flush(orders);
+      http.expectOne('/api/payment-orders?status=approved&limit=50&offset=0&available=true').flush(orders);
     }
     fixture.detectChanges();
     return fixture;
@@ -102,7 +113,7 @@ describe('PaymentRunsComponent', () => {
     component.load();
     expect(component.loading()).toBeTrue();
     http.expectOne('/api/cash-accounts').flush([uni, second]);
-    http.expectOne('/api/payment-orders?status=approved').flush([first]);
+    http.expectOne('/api/payment-orders?status=approved&limit=50&offset=0&available=true').flush([first]);
     fixture.detectChanges();
 
     expect(component.account()).toBe('2');
@@ -118,7 +129,7 @@ describe('PaymentRunsComponent', () => {
     const component = fixture.componentInstance;
     component.account.set('2');
     http.expectOne('/api/cash-accounts').flush([uni, second]);
-    http.expectOne('/api/payment-orders?status=approved').flush([first, secondOrder]);
+    http.expectOne('/api/payment-orders?status=approved&limit=50&offset=0&available=true').flush([first, secondOrder]);
     fixture.detectChanges();
 
     const select = (fixture.nativeElement as HTMLElement).querySelector('#payment-run-account') as HTMLSelectElement;
@@ -141,7 +152,7 @@ describe('PaymentRunsComponent', () => {
     const fixture = TestBed.createComponent(PaymentRunsComponent);
     fixture.detectChanges();
     http.expectOne('/api/cash-accounts').flush([uni]);
-    http.expectOne('/api/payment-orders?status=approved').flush(null);
+    http.expectOne('/api/payment-orders?status=approved&limit=50&offset=0&available=true').flush(null);
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -155,7 +166,7 @@ describe('PaymentRunsComponent', () => {
 
     expect(component.loading()).toBeFalse();
     expect(component.account()).toBe('');
-    http.expectNone('/api/payment-orders?status=approved');
+    http.expectNone('/api/payment-orders?status=approved&limit=50&offset=0&available=true');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('kein eigenes Konto angelegt');
   });
 
@@ -183,7 +194,7 @@ describe('PaymentRunsComponent', () => {
     const fixture = TestBed.createComponent(PaymentRunsComponent);
     fixture.detectChanges();
     http.expectOne('/api/cash-accounts').flush([uni]);
-    http.expectOne('/api/payment-orders?status=approved').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/payment-orders?status=approved&limit=50&offset=0&available=true').flush('nope', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -220,7 +231,7 @@ describe('PaymentRunsComponent', () => {
     http.expectOne('/api/cash-accounts').flush([uni]);
     // Only the second order is still approved; a third is offered alongside it.
     http
-      .expectOne('/api/payment-orders?status=approved')
+      .expectOne('/api/payment-orders?status=approved&limit=50&offset=0&available=true')
       .flush([secondOrder, order(3, { Reference: 'AO-3' })]);
     fixture.detectChanges();
 
@@ -250,6 +261,10 @@ describe('PaymentRunsComponent', () => {
       order_ids: [1, 2],
     });
     post.flush(run({ AccountID: 2 }));
+    // The created run takes its orders out of the picker, so the screen asks again (#180).
+    http
+      .expectOne('/api/payment-orders?status=approved&limit=50&offset=0&available=true')
+      .flush([]);
     fixture.detectChanges();
 
     expect(component.submitting()).toBeFalse();
@@ -308,7 +323,7 @@ describe('PaymentRunsComponent', () => {
     component.executionDate.set('2026-11-01');
     component.toggle(1);
     component.create(new Event('submit'));
-    http.expectOne('/api/payment-runs').flush(run());
+    flushCreate();
     fixture.detectChanges();
 
     component.fetchFile();
@@ -328,7 +343,7 @@ describe('PaymentRunsComponent', () => {
     component.executionDate.set('2026-11-01');
     component.toggle(1);
     component.create(new Event('submit'));
-    http.expectOne('/api/payment-runs').flush(run());
+    flushCreate();
     fixture.detectChanges();
 
     component.fetchFile();
@@ -346,7 +361,7 @@ describe('PaymentRunsComponent', () => {
     component.executionDate.set('2026-11-01');
     component.toggle(1);
     component.create(new Event('submit'));
-    http.expectOne('/api/payment-runs').flush(run());
+    flushCreate();
     fixture.detectChanges();
 
     component.queueExport();
@@ -367,7 +382,7 @@ describe('PaymentRunsComponent', () => {
     component.executionDate.set('2026-11-01');
     component.toggle(1);
     component.create(new Event('submit'));
-    http.expectOne('/api/payment-runs').flush(run());
+    flushCreate();
     fixture.detectChanges();
 
     component.queueExport();
@@ -397,5 +412,69 @@ describe('PaymentRunsComponent', () => {
     expect(component.euro(5500)).toBe('55,00');
     expect(component.euro(0)).toBe('0,00');
     expect(component.day('2026-11-01T00:00:00Z')).toBe('01.11.2026');
+  });
+  it('reads the next page of approved orders and appends it', () => {
+    // A full first page is what offers "load more": the server answered 50, so there may be more.
+    const firstPage = Array.from({ length: 50 }, (_, i) => order(i + 1));
+    const fixture = loaded([uni], firstPage);
+    const component = fixture.componentInstance;
+
+    expect(component.hasMore()).toBeTrue();
+    const more = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-testid="load-more-orders"]'
+    ) as HTMLButtonElement;
+    expect(more).not.toBeNull();
+
+    more.click();
+    fixture.detectChanges();
+    const next = http.expectOne(
+      '/api/payment-orders?status=approved&limit=50&offset=50&available=true'
+    );
+    next.flush([order(51)]);
+    fixture.detectChanges();
+
+    expect(component.orders().length).toBe(51);
+    expect(component.orders()[50].ID).toBe(51);
+    // A short page is the end of the list, so the control goes away.
+    expect(component.hasMore()).toBeFalse();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="load-more-orders"]')
+    ).toBeNull();
+  });
+
+  it('re-reads the picker after a run is created, so the gathered orders are gone', () => {
+    const fixture = loaded();
+    const component = fixture.componentInstance;
+    component.reference.set('RUN-1');
+    component.executionDate.set('2026-11-01');
+    component.toggle(1);
+    component.toggle(2);
+
+    component.create(new Event('submit'));
+    // The orders the run gathered are no longer available, so the screen asks again.
+    flushCreate(run(), []);
+    fixture.detectChanges();
+
+    expect(component.selected()).toEqual([]);
+    expect(component.orders()).toEqual([]);
+  });
+
+  it('names the order that is already in a run when the API refuses', () => {
+    const fixture = loaded();
+    const component = fixture.componentInstance;
+    component.reference.set('RUN-1');
+    component.executionDate.set('2026-11-01');
+    component.toggle(1);
+
+    component.create(new Event('submit'));
+    http.expectOne('/api/payment-runs').flush(
+      { error: 'conflict', code: 'kasse.order_already_paid', detail: 'AO-1 is already in a run' },
+      { status: 409, statusText: 'Conflict' }
+    );
+    fixture.detectChanges();
+
+    expect(component.actionError()).toBe(
+      'Eine gewählte Zahlungsanordnung ist bereits Teil eines Zahlungslaufs.'
+    );
   });
 });

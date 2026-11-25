@@ -71,6 +71,7 @@ export const kasseEn: KasseMessages = {
     selectionRequired: 'At least one payment order is required.',
     created: 'Payment run created.',
     createFailed: 'The payment run could not be created.',
+    orderAlreadyPaid: 'A selected payment order already belongs to a payment run.',
     fileFailed: 'The file could not be loaded.',
     exportQueued: 'Hand-over to the bank channel queued (job {{job}}).',
     exportFailed: 'The hand-over could not be queued.',

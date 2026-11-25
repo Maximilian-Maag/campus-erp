@@ -184,6 +184,47 @@ describe('BankStatementsComponent', () => {
     expect(component.loading()).toBeFalse();
   });
 
+  it('drops a page that lands after the account changed', () => {
+    const fixture = loaded([uni, second], fullPage(1));
+    const component = fixture.componentInstance;
+    expect(component.hasMore()).toBeTrue();
+
+    // "Weitere laden" on account 1, then the operator switches to account 2 before it lands.
+    component.loadMore();
+    const stale = http.expectOne('/api/bank-statements?account_id=1&limit=50&offset=50');
+    component.choose('2');
+    const fresh = http.expectOne('/api/bank-statements?account_id=2&limit=50&offset=0');
+
+    // The page for account 1 arrives last: it belongs to an account no longer on screen.
+    stale.flush([statement(999, 'STMT-OTHER')]);
+    fixture.detectChanges();
+    expect(component.statements().map((s) => s.Reference)).not.toContain('STMT-OTHER');
+
+    fresh.flush([statement(2, 'STMT-2')]);
+    fixture.detectChanges();
+    expect(component.statements().map((s) => s.Reference)).toEqual(['STMT-2']);
+  });
+
+  it('drops the lines of a statement that is no longer open', () => {
+    const fixture = loaded([uni], [first, statement(2, 'STMT-2')]);
+    const component = fixture.componentInstance;
+    const secondStatement = component.statements()[1];
+
+    component.toggleLines(first);
+    const stale = http.expectOne('/api/bank-statements/1');
+    // Opening the second statement while the first one's lines are still in flight.
+    component.toggleLines(secondStatement);
+    const fresh = http.expectOne('/api/bank-statements/2');
+
+    stale.flush({ Lines: [line(1, 'Erste Anweisung')] });
+    fixture.detectChanges();
+    expect(component.lines()).toEqual([]);
+
+    fresh.flush({ Lines: [line(2, 'Zweite Anweisung')] });
+    fixture.detectChanges();
+    expect(component.lines().map((l) => l.Purpose)).toEqual(['Zweite Anweisung']);
+  });
+
   it('opens the lines of a statement and closes them again', () => {
     const fixture = loaded([uni], [first]);
     const component = fixture.componentInstance;

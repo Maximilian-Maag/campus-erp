@@ -76,6 +76,7 @@ export const kasseDe = {
     selectionRequired: 'Mindestens eine Anordnung ist erforderlich.',
     created: 'Zahlungslauf erstellt.',
     createFailed: 'Konnte den Zahlungslauf nicht erstellen.',
+    orderAlreadyPaid: 'Eine gewählte Zahlungsanordnung ist bereits Teil eines Zahlungslaufs.',
     fileFailed: 'Konnte die Datei nicht laden.',
     exportQueued: 'Übergabe an den Bankkanal beauftragt (Job {{job}}).',
     exportFailed: 'Konnte die Übergabe nicht beauftragen.',

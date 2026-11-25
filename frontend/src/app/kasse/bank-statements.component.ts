@@ -183,6 +183,12 @@ export class BankStatementsComponent implements OnInit {
   /** The statement whose lines are open, if any. */
   readonly open = signal<number | null>(null);
   readonly lines = signal<StatementLine[]>([]);
+  /**
+   * The last statement read the screen asked for. A page that lands after the operator chose
+   * another account belongs to the account they left, so it is dropped rather than appended to
+   * the new one's rows — another account's money on a reconciliation screen (#181).
+   */
+  private loadSeq = 0;
 
   ngOnInit(): void {
     this.load();
@@ -214,8 +220,13 @@ export class BankStatementsComponent implements OnInit {
     this.open.set(null);
     this.lines.set([]);
     this.hasMore.set(false);
+    // A read that started before this one is no longer the account on screen.
+    const seq = ++this.loadSeq;
     this.api.listBankStatements(accountID, String(this.pageSize), '0').subscribe({
       next: (statements) => {
+        if (seq !== this.loadSeq) {
+          return;
+        }
         const page = statements ?? [];
         this.statements.set(page);
         // A full page means there may be more; a short one is the end of the list.
@@ -223,6 +234,9 @@ export class BankStatementsComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
+        if (seq !== this.loadSeq) {
+          return;
+        }
         this.loadError.set(this.i18n.translate('kasse.statements.loadFailed'));
         this.loading.set(false);
       },
@@ -243,16 +257,27 @@ export class BankStatementsComponent implements OnInit {
     }
     this.loadingMore.set(true);
     this.actionError.set(null);
+    // The account this page belongs to. If the operator chooses another one before it lands, the
+    // page is not this screen's any more and appending it would put A's rows under B's selector.
+    const seq = this.loadSeq;
     this.api
       .listBankStatements(this.account(), String(this.pageSize), String(this.statements().length))
       .subscribe({
         next: (statements) => {
+          if (seq !== this.loadSeq) {
+            this.loadingMore.set(false);
+            return;
+          }
           const page = statements ?? [];
           this.statements.set([...this.statements(), ...page]);
           this.hasMore.set(page.length === this.pageSize);
           this.loadingMore.set(false);
         },
         error: () => {
+          if (seq !== this.loadSeq) {
+            this.loadingMore.set(false);
+            return;
+          }
           this.loadingMore.set(false);
           this.actionError.set(this.i18n.translate('kasse.statements.loadMoreFailed'));
         },
@@ -276,9 +301,20 @@ export class BankStatementsComponent implements OnInit {
     }
     this.open.set(statement.ID);
     this.lines.set([]);
-    this.api.getBankStatement(statement.ID).subscribe({
-      next: (loaded) => this.lines.set(loaded?.Lines ?? []),
+    // Opening A and then B leaves A's read in flight. It belongs to a statement that is no longer
+    // open, so its lines are dropped rather than shown under B's heading (#181).
+    const id = statement.ID;
+    this.api.getBankStatement(id).subscribe({
+      next: (loaded) => {
+        if (this.open() !== id) {
+          return;
+        }
+        this.lines.set(loaded?.Lines ?? []);
+      },
       error: () => {
+        if (this.open() !== id) {
+          return;
+        }
         this.open.set(null);
         this.actionError.set(
           this.i18n.translate('kasse.statements.linesFailed', { reference: statement.Reference })

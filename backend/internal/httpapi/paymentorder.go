@@ -19,7 +19,7 @@ type orderService interface {
 	CreateBudgetPosition(ctx context.Context, b kasse.BudgetPosition) (kasse.BudgetPosition, error)
 	Create(ctx context.Context, o kasse.PaymentOrder) (kasse.PaymentOrder, error)
 	Order(ctx context.Context, id int64) (kasse.PaymentOrder, error)
-	Orders(ctx context.Context, status kasse.OrderStatus, limit, offset int) ([]kasse.OrderSummary, error)
+	Orders(ctx context.Context, status kasse.OrderStatus, available bool, limit, offset int) ([]kasse.OrderSummary, error)
 	Submit(ctx context.Context, id int64, by string) (kasse.PaymentOrder, error)
 	Approve(ctx context.Context, id int64, by string) (kasse.PaymentOrder, error)
 	Reject(ctx context.Context, id int64, by, reason string) (kasse.PaymentOrder, error)
@@ -224,7 +224,10 @@ func (s *Server) listOrders(w http.ResponseWriter, r *http.Request) {
 		writeProblemCode(w, http.StatusUnprocessableEntity, problem.Code, problem.Detail)
 		return
 	}
-	orders, err := s.orders.Orders(r.Context(), kasse.OrderStatus(strings.TrimSpace(r.URL.Query().Get("status"))), limit, offset)
+	// `available=true` narrows to the orders a payment run may still gather. Absent means "all",
+	// so a client that does not ask for it keeps the list it had before (#180).
+	available := strings.TrimSpace(r.URL.Query().Get("available")) == "true"
+	orders, err := s.orders.Orders(r.Context(), kasse.OrderStatus(strings.TrimSpace(r.URL.Query().Get("status"))), available, limit, offset)
 	if err != nil {
 		writeDomainProblem(w, statusForOrder(err), err)
 		return

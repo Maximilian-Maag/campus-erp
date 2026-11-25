@@ -297,7 +297,7 @@ func TestPaymentOrderListOrdersByDueDate(t *testing.T) {
 		refs = append(refs, ref)
 	}
 
-	all, err := svc.Orders(ctx, "", 1000, 0)
+	all, err := svc.Orders(ctx, "", false, 1000, 0)
 	if err != nil {
 		t.Fatalf("Orders: %v", err)
 	}
@@ -340,7 +340,7 @@ func TestPaymentOrderListOrdersByDueDate(t *testing.T) {
 		t.Fatalf("Submit: %v", err)
 	}
 
-	narrowed, err := svc.Orders(ctx, kasse.OrderSubmitted, 1000, 0)
+	narrowed, err := svc.Orders(ctx, kasse.OrderSubmitted, false, 1000, 0)
 	if err != nil {
 		t.Fatalf("Orders(submitted): %v", err)
 	}
@@ -404,7 +404,7 @@ func TestPaymentOrderListPages(t *testing.T) {
 	// order. Reading a window rather than assuming the table is empty keeps this independent of what
 	// the other tests in this package have already stored.
 	const window = 4
-	head, err := svc.Orders(ctx, "", window, 0)
+	head, err := svc.Orders(ctx, "", false, window, 0)
 	if err != nil {
 		t.Fatalf("Orders: %v", err)
 	}
@@ -416,14 +416,14 @@ func TestPaymentOrderListPages(t *testing.T) {
 	// first ended. A list that ignored the offset would repeat the first page; one that ignored the
 	// limit would answer with more than was asked for.
 	const pageSize = 2
-	first, err := svc.Orders(ctx, "", pageSize, 0)
+	first, err := svc.Orders(ctx, "", false, pageSize, 0)
 	if err != nil {
 		t.Fatalf("Orders(offset=0): %v", err)
 	}
 	if len(first) > pageSize {
 		t.Fatalf("a page of %d holds %d rows", pageSize, len(first))
 	}
-	second, err := svc.Orders(ctx, "", pageSize, pageSize)
+	second, err := svc.Orders(ctx, "", false, pageSize, pageSize)
 	if err != nil {
 		t.Fatalf("Orders(offset=%d): %v", pageSize, err)
 	}
@@ -444,7 +444,7 @@ func TestPaymentOrderListPages(t *testing.T) {
 
 	// Past the end is an empty page, not an error: a screen that asks once too often gets nothing
 	// rather than a failure it would have to explain.
-	past, err := svc.Orders(ctx, "", pageSize, 100000)
+	past, err := svc.Orders(ctx, "", false, pageSize, 100000)
 	if err != nil {
 		t.Fatalf("Orders past the end: %v", err)
 	}

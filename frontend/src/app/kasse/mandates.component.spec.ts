@@ -135,7 +135,7 @@ describe('MandatesComponent', () => {
     expect((el.querySelector('#mandate-sequence-filter') as HTMLSelectElement).value).toBe('FRST');
   });
 
-  it('registers a mandate and keeps the list in reference order', () => {
+  it('registers a mandate and appends it without re-sorting the server order', () => {
     screen([mandate({ Reference: 'MND-9' })]);
     component.reference.set('MND-1');
     component.debtorName.set('Max Mustermann');
@@ -160,7 +160,8 @@ describe('MandatesComponent', () => {
     fixture.detectChanges();
 
     expect(component.notice()).toBe('Mandat MND-1 aufgenommen.');
-    expect(component.mandates().map((m) => m.Reference)).toEqual(['MND-1', 'MND-9']);
+    // Appended, not re-sorted: the pages only line up while the screen shows the server's order.
+    expect(component.mandates().map((m) => m.Reference)).toEqual(['MND-9', 'MND-1']);
     // The form is cleared for the next one, and the sequence type stays as chosen.
     expect(component.reference()).toBe('');
     expect(component.debtorIBAN()).toBe('');
@@ -336,6 +337,38 @@ describe('MandatesComponent', () => {
     expect(el.querySelector('[data-testid="load-more"]')).toBeNull();
     component.loadMore();
     http.expectNone('/api/direct-debit/mandates?active=true&limit=50&offset=51');
+  });
+
+  it('asks the next page from the server row count, not from the rows on screen', () => {
+    // A full first page, so there is a next page to ask for.
+    screen(Array.from({ length: 50 }, (_, i) => mandate({ ID: i + 1, Reference: `MND-${i + 1}` })));
+    expect(component.hasMore()).toBeTrue();
+
+    // Registering appends a row to the list, but the server has not handed it over in a page: the
+    // next page must still start at server row 50, or the row at the boundary is never fetched (#182).
+    component.reference.set('MND-NEW');
+    component.debtorName.set('Max Mustermann');
+    component.debtorIBAN.set('DE02120300000000202051');
+    component.debtorBIC.set('BYLADEM1001');
+    component.signatureDate.set('2026-04-02');
+    component.sequenceType.set('FRST');
+    component.register(new Event('submit'));
+    http
+      .expectOne('/api/direct-debit/mandates')
+      .flush(mandate({ ID: 51, Reference: 'MND-NEW', SequenceType: 'FRST' }));
+    fixture.detectChanges();
+    expect(component.mandates().length).toBe(51);
+
+    component.loadMore();
+    http
+      .expectOne('/api/direct-debit/mandates?active=true&limit=50&offset=50')
+      .flush([mandate({ ID: 52, Reference: 'MND-52' })]);
+    fixture.detectChanges();
+
+    // The row the server held at position 50 is now on screen, and the appended one is not lost.
+    expect(component.mandates().map((m) => m.Reference)).toContain('MND-52');
+    expect(component.mandates().map((m) => m.Reference)).toContain('MND-NEW');
+    expect(component.mandates().length).toBe(52);
   });
 
   it('keeps the mandates it already has when the next page fails', () => {
