@@ -51,6 +51,17 @@ bookings, so an unbalanced file is never handed over.
 `POST /api/ledger/exports` (role `kasse`) queues one for a period: `{from, to}` -> `202`
 with the job id (docs/27 describes the queueing seam).
 
+## Closing a day
+
+A cash-book day is closed once, and its `closing_cents` must equal its opening balance plus
+every booking it accepted — the Kassenabschluss is the figure the ledger side is reconciled
+against. The close therefore computes that balance **inside the transaction that closes the
+day**, taking the day row for update, and the booking insert reads the day's status in the
+same statement that writes the booking, under a shared lock on the day row. A booking that
+started before the close either lands before it and is counted, or is refused with
+`ErrDayClosed`; it cannot fall between the count and the close. `POST
+/api/cashbook/days/{id}/close` performs the close (role `kasse`).
+
 ## Not yet done
 
 - Hand the file to the ledger/bank channel over SFTP (the artefact store is the swap point:
