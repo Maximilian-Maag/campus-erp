@@ -414,6 +414,41 @@ describe('FoundationsComponent', () => {
     expect(fixture.componentInstance.bookings()).toEqual([]);
   });
 
+  it('clears the previous book figures as soon as another book is chosen', () => {
+    const second = { ...buch, ID: 8, Reference: 'JAHR-2027' } as FoundationBook;
+    const fixture = withBook([buch], [booking(3)], balance());
+    const component = fixture.componentInstance;
+
+    component.selectBook(second);
+    // The reads are in flight: the first book's figures must not sit under the new heading.
+    expect(component.balance()).toBeNull();
+    expect(component.bookings()).toEqual([]);
+    http.expectOne('/api/foundation-books/8/bookings?limit=50&offset=0').flush([booking(4)]);
+    http.expectOne('/api/foundation-books/8/balance').flush(balance());
+  });
+
+  it('ignores a figure that arrives after another book was chosen', () => {
+    const second = { ...buch, ID: 8, Reference: 'JAHR-2027' } as FoundationBook;
+    const fixture = withBooks([stiftung], [buch]);
+    const component = fixture.componentInstance;
+
+    component.selectBook(buch);
+    const lateBookings = http.expectOne('/api/foundation-books/7/bookings?limit=50&offset=0');
+    const lateBalance = http.expectOne('/api/foundation-books/7/balance');
+
+    component.selectBook(second);
+    http.expectOne('/api/foundation-books/8/bookings?limit=50&offset=0').flush([booking(4)]);
+    http.expectOne('/api/foundation-books/8/balance').flush(balance());
+
+    // The first book's responses land late: they belong to a book the screen no longer shows.
+    lateBookings.flush([booking(3)]);
+    lateBalance.flush(balance());
+    fixture.detectChanges();
+
+    expect(component.selectedBook()?.ID).toBe(8);
+    expect(component.bookings().map((b) => b.ID)).toEqual([4]);
+  });
+
   it('reports a failed movements load and a failed balance load', () => {
     const fixture = withBooks([stiftung], [buch]);
     const component = fixture.componentInstance;
