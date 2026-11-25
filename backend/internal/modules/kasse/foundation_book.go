@@ -25,6 +25,10 @@ var (
 	// ErrCarryOverTargetMissing is returned when the next year's foundation record does not exist.
 	// Master data is not a side effect of a posting, so the operator opens the year first.
 	ErrCarryOverTargetMissing = errors.New("kasse: the next year's foundation does not exist")
+	// ErrCarryOverAlreadyCarried is returned when the source book's net has already been carried
+	// into the following year. Varying the target reference does not make a second carry-over a
+	// new movement: the money would move twice (#207).
+	ErrCarryOverAlreadyCarried = errors.New("kasse: the book's net has already been carried over")
 	// ErrCarryOverTargetNotEmpty is returned when the next year's book already carries movements, so
 	// posting an opening balance into it would count the money twice.
 	ErrCarryOverTargetNotEmpty = errors.New("kasse: the next year's book already carries movements")
@@ -75,6 +79,11 @@ type FoundationBooking struct {
 	// cannot both post the net (#171). It is a storage detail, not part of the
 	// movement a client reads, so it stays out of the JSON.
 	CarriesOver bool `json:"-"`
+	// CarriedFromBookID names the book whose net this opening movement carries. One
+	// opening movement per source book, enforced by a partial unique index, so the
+	// same source cannot be carried twice under two different target references
+	// (#207). Storage detail, so it stays out of the JSON.
+	CarriedFromBookID *int64 `json:"-"`
 }
 
 // Reversal is the result of cancelling one movement: the movement that was cancelled, the

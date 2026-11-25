@@ -27,7 +27,7 @@ func statusForFoundationBook(err error) int {
 		errors.Is(err, kasse.ErrBookingNotFound):
 		return http.StatusNotFound
 	case errors.Is(err, kasse.ErrFoundationBookExists), errors.Is(err, kasse.ErrCarryOverTargetNotEmpty),
-		errors.Is(err, kasse.ErrBookingAlreadyReversed):
+		errors.Is(err, kasse.ErrCarryOverAlreadyCarried), errors.Is(err, kasse.ErrBookingAlreadyReversed):
 		return http.StatusConflict
 	case errors.Is(err, kasse.ErrFoundationBookReferenceRequired),
 		errors.Is(err, kasse.ErrFoundationRequired),

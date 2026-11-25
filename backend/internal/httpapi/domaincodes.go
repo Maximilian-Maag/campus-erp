@@ -83,6 +83,7 @@ var domainErrorCodes = []domainCode{
 	{err: kasse.ErrBookingAlreadyReversed, code: "kasse.booking_already_reversed"},
 	{err: kasse.ErrBookingNotFound, code: "kasse.booking_not_found"},
 	{err: kasse.ErrBudgetPositionRequired, code: "kasse.budget_position_required"},
+	{err: kasse.ErrCarryOverAlreadyCarried, code: "kasse.carry_over_already_carried"},
 	{err: kasse.ErrCarryOverNotAllowed, code: "kasse.carry_over_not_allowed"},
 	{err: kasse.ErrCarryOverNothing, code: "kasse.carry_over_nothing"},
 	{err: kasse.ErrCarryOverTargetMissing, code: "kasse.carry_over_target_missing"},

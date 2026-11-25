@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.168.0] - 2026-11-25
+
+A year's foundation book is carried over once, whatever reference the second attempt names.
+
+The carry-over refused a second run only when the next year's book already carried movements. The
+target reference is caller-supplied, so a second attempt under a different reference opened a fresh
+book, found it empty and posted the same net again — the next year opened with double the money
+(#207). The opening movement now records the source book it came from and a partial unique index
+allows one per source, so the second attempt is refused with `kasse.carry_over_already_carried`
+(409) before it can post. The concurrent race is covered by the same index.
+
 ## [0.167.0] - 2026-11-24
 
 A failed read says what failed, and a figure names the period or selection it belongs to.

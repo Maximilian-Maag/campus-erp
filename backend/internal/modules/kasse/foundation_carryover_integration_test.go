@@ -93,6 +93,14 @@ func TestFoundationCarryOver(t *testing.T) {
 	if _, err := books.CarryOver(ctx, book.ID, "", "alice"); !errors.Is(err, kasse.ErrCarryOverTargetNotEmpty) {
 		t.Fatalf("second carry-over = %v, want ErrCarryOverTargetNotEmpty", err)
 	}
+
+	// A second carry-over under a different target reference is refused too. The
+	// "target is empty" check cannot see this one, because the second reference
+	// opens a fresh book; the source year's opening movement is what makes it
+	// impossible (#207).
+	if _, err := books.CarryOver(ctx, book.ID, "JAHR-2026-ZWEIT", "alice"); !errors.Is(err, kasse.ErrCarryOverAlreadyCarried) {
+		t.Fatalf("carry-over under a second reference = %v, want ErrCarryOverAlreadyCarried", err)
+	}
 }
 
 // TestFoundationCarryOverRefusals covers the four ways a carry-over is refused, each for its own
