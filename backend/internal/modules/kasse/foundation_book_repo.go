@@ -47,7 +47,7 @@ func NewFoundationBookRepo(pool *pgxpool.Pool) *FoundationBookRepo {
 
 const bookColumns = `id, foundation_id, reference, currency, created_by`
 
-const foundationBookingColumns = `id, book_id, kind, amount_cents, purpose, booked_by, reverses, reversed_by`
+const foundationBookingColumns = `id, book_id, kind, amount_cents, purpose, booked_by, reverses, reversed_by, carries_over`
 
 func scanBook(row pgx.Row) (FoundationBook, error) {
 	var b FoundationBook
@@ -57,7 +57,7 @@ func scanBook(row pgx.Row) (FoundationBook, error) {
 
 func scanFoundationBooking(row pgx.Row) (FoundationBooking, error) {
 	var b FoundationBooking
-	err := row.Scan(&b.ID, &b.BookID, &b.Kind, &b.AmountCents, &b.Purpose, &b.BookedBy, &b.Reverses, &b.ReversedBy)
+	err := row.Scan(&b.ID, &b.BookID, &b.Kind, &b.AmountCents, &b.Purpose, &b.BookedBy, &b.Reverses, &b.ReversedBy, &b.CarriesOver)
 	return b, err
 }
 
@@ -95,17 +95,24 @@ func (r *FoundationBookRepo) GetBook(ctx context.Context, id int64) (FoundationB
 	return b, nil
 }
 
-// InsertBooking appends a movement.
+// InsertBooking appends a movement. A second opening movement for the same book is
+// refused by the partial unique index, so a carry-over that loses the race against
+// a concurrent one cannot post the net twice (#171).
 func (r *FoundationBookRepo) InsertBooking(ctx context.Context, b FoundationBooking, by string) (FoundationBooking, error) {
 	saved, err := scanFoundationBooking(r.pool.QueryRow(ctx,
-		`INSERT INTO foundation_booking (book_id, kind, amount_cents, purpose, booked_by)
-		 VALUES ($1,$2,$3,$4,$5)
+		`INSERT INTO foundation_booking (book_id, kind, amount_cents, purpose, booked_by, carries_over)
+		 VALUES ($1,$2,$3,$4,$5,$6)
 		 RETURNING `+foundationBookingColumns,
-		b.BookID, b.Kind, b.AmountCents, b.Purpose, by))
+		b.BookID, b.Kind, b.AmountCents, b.Purpose, by, b.CarriesOver))
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation {
-			return FoundationBooking{}, fmt.Errorf("kasse: book %d: %w", b.BookID, ErrFoundationBookNotFound)
+		if errors.As(err, &pgErr) {
+			switch {
+			case pgErr.Code == foreignKeyViolation:
+				return FoundationBooking{}, fmt.Errorf("kasse: book %d: %w", b.BookID, ErrFoundationBookNotFound)
+			case pgErr.Code == uniqueViolation && pgErr.ConstraintName == "foundation_booking_carry_over_key":
+				return FoundationBooking{}, fmt.Errorf("%w: book %d", ErrCarryOverTargetNotEmpty, b.BookID)
+			}
 		}
 		return FoundationBooking{}, fmt.Errorf("kasse: insert foundation booking: %w", err)
 	}

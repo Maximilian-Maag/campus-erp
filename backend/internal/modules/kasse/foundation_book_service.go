@@ -2,6 +2,7 @@ package kasse
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -156,7 +157,26 @@ func (s *FoundationBookService) CarryOver(ctx context.Context, bookID int64, ref
 			Currency:     source.Currency,
 			CreatedBy:    by,
 		})
-		if err != nil {
+		if errors.Is(err, ErrFoundationBookExists) {
+			// A concurrent carry-over created the book between the lookup and the
+			// create. Take the book it created and apply the same emptiness rule: the
+			// partial unique index on the opening movement is what stops both of us
+			// posting the net (#171).
+			target, found, err = s.repo.BookByReference(ctx, next.ID, ref)
+			if err != nil {
+				return CarryOver{}, err
+			}
+			if !found {
+				return CarryOver{}, ErrFoundationBookExists
+			}
+			existing, err := s.repo.Bookings(ctx, target.ID, 1, 0)
+			if err != nil {
+				return CarryOver{}, err
+			}
+			if len(existing) > 0 {
+				return CarryOver{}, fmt.Errorf("%w: %s", ErrCarryOverTargetNotEmpty, target.Reference)
+			}
+		} else if err != nil {
 			return CarryOver{}, err
 		}
 	}
@@ -169,6 +189,7 @@ func (s *FoundationBookService) CarryOver(ctx context.Context, bookID int64, ref
 	if err != nil {
 		return CarryOver{}, err
 	}
+	booking.CarriesOver = true
 	saved, err := s.repo.InsertBooking(ctx, booking, by)
 	if err != nil {
 		return CarryOver{}, err

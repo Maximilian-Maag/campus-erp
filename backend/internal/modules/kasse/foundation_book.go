@@ -70,6 +70,11 @@ type FoundationBooking struct {
 	Reverses *int64
 	// ReversedBy is the counter-movement that cancels this booking, when it has been reversed.
 	ReversedBy *int64
+	// CarriesOver marks the opening movement a year's carry-over posts. A book has at
+	// most one, enforced by a partial unique index, so two concurrent carry-overs
+	// cannot both post the net (#171). It is a storage detail, not part of the
+	// movement a client reads, so it stays out of the JSON.
+	CarriesOver bool `json:"-"`
 }
 
 // Reversal is the result of cancelling one movement: the movement that was cancelled, the
