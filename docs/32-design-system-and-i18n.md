@@ -57,6 +57,29 @@ The selection therefore belongs on the option: `[selected]="'' + expr === signal
 number. A spec that only checks the option list cannot see this — it has to read `.value` on the
 select after the signal is set to something other than the first option.
 
+### A failed read says what failed
+
+A read that fails carries its own message: the screen names the thing that could not be loaded
+and the reason the API gave, in `.error`, rather than a generic "could not load". A `404` is the
+one exception — on a screen that asks for a key that may not exist yet, it means "no such
+record", not a failure, and the screen shows the empty state. A screen that loads several
+things shows the failure of the part that failed and keeps the rest of itself; one broken
+sub-read must not blank the page.
+
+### A figure belongs to the selection it was asked for
+
+A screen that shows a figure under a heading — a report, a balance, a list — sets the label
+and the figure together. When the selection changes, the figure is cleared with the label and
+the request that produced it is dropped if it lands after the change; a response is only
+rendered when the request that asked for it is still the one the screen is waiting on. A
+figure shown under a new heading belongs to the new selection, never to the old one.
+
+### A picker seeded from its own list waits for the list
+
+A form whose picker is seeded from the options it loads seeds when the options arrive, not when
+the form is created — and only if the user has not chosen in the meantime. A key form also
+refuses a zero id: the empty option is a prompt, not a value.
+
 ### Accessibility is part of the theme, not a pass at the end
 
 Focus is one ring (`--erp-ring`, 2px outline plus a soft halo) on every control; the skip link
