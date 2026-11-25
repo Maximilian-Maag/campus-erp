@@ -67,6 +67,7 @@ export const klrDe = {
     lookupHeading: 'Konto nachschlagen',
     lookupButton: 'Nachschlagen',
     lookupMiss: 'Für dieses Konto ist keine Kostenart hinterlegt.',
+    lookupFailed: 'Die Kostenart konnte nicht gelesen werden.',
     loadAccountsFailed: 'Konnte die Konten nicht laden.',
     createRequired: 'Schlüssel und Bezeichnung sind erforderlich.',
     created: 'Kostenart angelegt.',

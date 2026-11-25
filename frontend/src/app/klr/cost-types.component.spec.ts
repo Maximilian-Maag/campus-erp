@@ -390,6 +390,24 @@ describe('KlrCostTypesComponent', () => {
     ).not.toBeNull();
   });
 
+  it('reports a failed lookup as a failure, not as an unmapped account', () => {
+    const { fixture, component } = loaded();
+
+    component.lookupCode.set('6810');
+    component.lookup(new Event('submit'));
+    http
+      .expectOne('/api/klr/accounts/6810/cost-type')
+      .flush({}, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    // A 500 is not an answer: the account may well be mapped.
+    expect(component.lookupMiss()).toBeFalse();
+    expect(component.actionError()).toBe('Die Kostenart konnte nicht gelesen werden.');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="lookup-miss"]'),
+    ).toBeNull();
+  });
+
   it('leaves the lookup form empty until it is used', () => {
     const { fixture } = loaded();
     const html = fixture.nativeElement as HTMLElement;

@@ -153,11 +153,19 @@ export class AuswertungenComponent implements OnInit {
       this.actionError.set(this.i18n.translate('auswertung.reports.periodRequired'));
       return;
     }
+    // The period is read once: the request and the file name must name the same days, whatever
+    // the operator edits while the request is in flight (#176).
+    const from = this.from();
+    const to = this.to();
+    if (from > to) {
+      this.actionError.set(this.i18n.translate('auswertung.reports.periodReversed'));
+      return;
+    }
 
     this.busy.set(true);
-    this.api.requestReportRender({ report_id: id, from: this.from(), to: this.to() }).subscribe({
+    this.api.requestReportRender({ report_id: id, from, to }).subscribe({
       next: (queued) => {
-        const name = artefactName(id, this.from(), this.to());
+        const name = artefactName(id, from, to);
         this.notice.set(
           this.i18n.translate('auswertung.reports.queued', { job: queued.job_id, name }),
         );

@@ -47,6 +47,9 @@ export const beschaffungEn: BeschaffungMessages = {
     noQuantity: 'No quantity has been recorded.',
     booked: 'Goods receipt booked ({{ amount }}).',
     bookedComplete: 'Goods receipt booked ({{ amount }}). The purchase order has been delivered in full.',
+    overReceipt: 'The quantity exceeds what is still open.',
+    receiptExists: 'That delivery note is already booked.',
+    quantityExceedsOpen: 'Line {{ lineNo }}: {{ typed }} is more than the {{ open }} open.',
     bookFailed: 'The goods receipt could not be booked.',
   },
 };

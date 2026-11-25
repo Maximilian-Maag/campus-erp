@@ -153,6 +153,44 @@ describe('AuswertungenComponent', () => {
     expect(component.busy()).toBeFalse();
   });
 
+  it('refuses a period that ends before it starts', () => {
+    screen();
+    component.report.set('klr-allocation-overview');
+    component.from.set('2026-04-30');
+    component.to.set('2026-04-01');
+    component.render(new Event('submit'));
+
+    expect(component.actionError()).toBe('Der Zeitraum beginnt nach seinem Ende.');
+    http.expectNone('/api/reports/renders');
+    expect(component.busy()).toBeFalse();
+  });
+
+  it('names the file from the period it asked for, not the one on screen when it answers', () => {
+    screen();
+    component.report.set('klr-allocation-overview');
+    component.from.set('2026-04-01');
+    component.to.set('2026-04-30');
+    component.render(new Event('submit'));
+
+    const request = http.expectOne('/api/reports/renders');
+    expect(request.request.body).toEqual({
+      report_id: 'klr-allocation-overview',
+      from: '2026-04-01',
+      to: '2026-04-30',
+    });
+
+    // The operator edits the dates while the request is in flight.
+    component.from.set('2026-05-01');
+    component.to.set('2026-05-31');
+    request.flush({ job_id: 'job-1' });
+    fixture.detectChanges();
+
+    // The link names the file the job will produce, which is the period that was asked for.
+    expect(component.document()?.href).toBe(
+      '/api/artefacts/reports/klr-allocation-overview-20260401-20260430.pdf',
+    );
+  });
+
   it('names the artefact the render job stores, and reads the day form', () => {
     expect(artefactName('kasse-daily-close', '2026-04-01', '2026-04-30')).toBe(
       'kasse-daily-close-20260401-20260430.pdf'

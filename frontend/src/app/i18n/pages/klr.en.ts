@@ -60,6 +60,7 @@ export const klrEn: KlrMessages = {
     createHeading: 'Create cost type',
     lookupHeading: 'Look up account',
     lookupButton: 'Look up',
+    lookupFailed: 'The cost type could not be read.',
     lookupMiss: 'No cost type is held for this account.',
     loadAccountsFailed: 'The accounts could not be loaded.',
     createRequired: 'A key and a description are required.',

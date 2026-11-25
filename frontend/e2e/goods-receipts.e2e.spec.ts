@@ -109,7 +109,9 @@ test('Wareneingang reports a refused booking and an order that is complete, and 
   await page.getByLabel('Lieferschein').fill('LS-2');
   await page.getByTestId('quantity-1').fill('2');
   await page.getByRole('button', { name: 'Wareneingang buchen' }).click();
-  await expect(page.getByRole('alert')).toContainText('Der Wareneingang konnte nicht gebucht werden.');
+  // The screen refuses the over-receipt itself and names the line and the amount, so the
+  // operator can act on it; the request is never sent.
+  await expect(page.getByRole('alert')).toContainText('Zeile 1: 2 ist mehr als die 1 offen.');
 
   // An order that arrived in full offers no further booking.
   complete = true;

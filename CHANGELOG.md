@@ -2,6 +2,22 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.167.0] - 2026-11-24
+
+A failed read says what failed, and a figure names the period or selection it belongs to.
+
+Four small defects across the screens (#176):
+
+- A report render built its artefact name from the dates on screen when the answer arrived, so
+  editing a date in flight announced a file no job produces. The period is read once, and the
+  request and the name use those days.
+- A period that ended before it started was accepted and rendered an empty PDF. It is refused
+  before the request.
+- A 500 on the cost-type lookup was reported as "no mapping exists"; only a 404 is an answer, and
+  the rest are failures.
+- A refused goods receipt was reported as one generic sentence. The over-receipt 422 and the
+  duplicate-delivery 409 are named, the typed quantity is compared with what is still open before
+  the request, and a second Enter while the first is in flight is ignored.
 ## [0.166.0] - 2026-11-24
 
 A figure shown under a new heading is the new selection's, not the previous one's.
