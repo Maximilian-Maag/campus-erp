@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.164.0] - 2026-11-24
+
+Two carry-overs of the same year cannot both post the opening balance.
+
+The "is the target book still empty" test was a plain `SELECT` outside any transaction, and the
+opening movement was inserted separately. Two concurrent carry-overs both saw an empty target and
+both posted the net: the next year opened with double the money and every row looked legitimate.
+
+The opening movement is now marked as such and a partial unique index allows one per book, so the
+second caller loses the race at the insert and is refused with `ErrCarryOverTargetNotEmpty` — the
+same database-backed rule `Reverse` already uses for a double cancellation. A caller that loses the
+book-creation race takes the book the winner created and applies the same emptiness rule (#171).
 ## [0.163.0] - 2026-11-24
 
 A statement line reconciles to a payment order only when amount and direction agree.

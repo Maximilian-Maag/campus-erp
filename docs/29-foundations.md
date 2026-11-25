@@ -92,6 +92,11 @@ The rules, in the order they refuse, each with its own machine code so a client 
 | the next year is not open | `kasse.carry_over_target_missing` | no `foundation` row for `year + 1` with the same number |
 | the next book already carries movements | `kasse.carry_over_target_not_empty` | a second carry-over would count the money twice |
 
+The emptiness test is not the only guard: the opening movement is marked as a carry-over and a
+partial unique index allows one per book, so two concurrent carry-overs cannot both see an empty
+target and both post the net. The loser is refused with the same code as a second sequential
+carry-over.
+
 Two decisions are worth stating. **The next year's foundation record is not created here**: master
 data is not a side effect of a posting, so the operator opens the year first and the refusal names
 the year and number that are missing. And **the source book is not touched**: the years' books are
