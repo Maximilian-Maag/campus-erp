@@ -105,6 +105,12 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
+      # Every package starts as its own job. Starting all ~25 at once asks for more
+      # concurrent runners than the plan grants, so the excess queues and the runners
+      # that do start are recycled mid-job — the "runner has received a shutdown
+      # signal" shard in #186. Throttling the matrix keeps each shard on a runner that
+      # survives to report a score.
+      max-parallel: 8
       matrix:
         target: ${{ fromJSON(needs.mutation-go-targets.outputs.targets) }}
     services:
@@ -141,11 +147,21 @@ jobs:
       - name: gremlins ${{ matrix.target }}
         # One package per shard; the target gives every package its own cache dir and
         # fails a run that produced no mutants (a vacuous pass).
-        run: make backend-mutation PKG="${{ matrix.target }}"
+        #
+        # The shard's own wall-clock bound, inside the job's 45 minutes: a wedged mutant
+        # should fail in 40 and be rerun, not sit until the job timeout and be reported
+        # as a shutdown of the pull request (#186). The largest package has taken ~30
+        # minutes, so the bound is headroom above a healthy run, not a cap on it. The
+        # bound lives in the target, so a local run stays unbounded.
+        run: make backend-mutation PKG="${{ matrix.target }}" MUTATION_SHARD_TIMEOUT=40m
 
   mutation-web:
     name: mutation web (floor 85)
     runs-on: ubuntu-latest
+    # A bound, not a cap: the suite takes ~2 hours on a 2-core runner, so the bound is
+    # set above that and its job timeout above the bound. It still replaces the default
+    # 360-minute job timeout, which is how a wedged run sat all afternoon (#186).
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -154,7 +170,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: make frontend-install
-      - run: make frontend-mutation
+      - run: make frontend-mutation MUTATION_SHARD_TIMEOUT=120m
 
   # The release workflow publishes these images, so the thing they are published
   # from has to build - and the stack the README tells you to run has to come up:
