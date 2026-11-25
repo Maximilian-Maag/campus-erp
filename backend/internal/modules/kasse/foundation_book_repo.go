@@ -47,7 +47,7 @@ func NewFoundationBookRepo(pool *pgxpool.Pool) *FoundationBookRepo {
 
 const bookColumns = `id, foundation_id, reference, currency, created_by`
 
-const foundationBookingColumns = `id, book_id, kind, amount_cents, purpose, booked_by, reverses, reversed_by, carries_over`
+const foundationBookingColumns = `id, book_id, kind, amount_cents, purpose, booked_by, reverses, reversed_by, carries_over, carried_from_book_id`
 
 func scanBook(row pgx.Row) (FoundationBook, error) {
 	var b FoundationBook
@@ -57,7 +57,7 @@ func scanBook(row pgx.Row) (FoundationBook, error) {
 
 func scanFoundationBooking(row pgx.Row) (FoundationBooking, error) {
 	var b FoundationBooking
-	err := row.Scan(&b.ID, &b.BookID, &b.Kind, &b.AmountCents, &b.Purpose, &b.BookedBy, &b.Reverses, &b.ReversedBy, &b.CarriesOver)
+	err := row.Scan(&b.ID, &b.BookID, &b.Kind, &b.AmountCents, &b.Purpose, &b.BookedBy, &b.Reverses, &b.ReversedBy, &b.CarriesOver, &b.CarriedFromBookID)
 	return b, err
 }
 
@@ -100,10 +100,10 @@ func (r *FoundationBookRepo) GetBook(ctx context.Context, id int64) (FoundationB
 // a concurrent one cannot post the net twice (#171).
 func (r *FoundationBookRepo) InsertBooking(ctx context.Context, b FoundationBooking, by string) (FoundationBooking, error) {
 	saved, err := scanFoundationBooking(r.pool.QueryRow(ctx,
-		`INSERT INTO foundation_booking (book_id, kind, amount_cents, purpose, booked_by, carries_over)
-		 VALUES ($1,$2,$3,$4,$5,$6)
+		`INSERT INTO foundation_booking (book_id, kind, amount_cents, purpose, booked_by, carries_over, carried_from_book_id)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7)
 		 RETURNING `+foundationBookingColumns,
-		b.BookID, b.Kind, b.AmountCents, b.Purpose, by, b.CarriesOver))
+		b.BookID, b.Kind, b.AmountCents, b.Purpose, by, b.CarriesOver, b.CarriedFromBookID))
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -112,6 +112,12 @@ func (r *FoundationBookRepo) InsertBooking(ctx context.Context, b FoundationBook
 				return FoundationBooking{}, fmt.Errorf("kasse: book %d: %w", b.BookID, ErrFoundationBookNotFound)
 			case pgErr.Code == uniqueViolation && pgErr.ConstraintName == "foundation_booking_carry_over_key":
 				return FoundationBooking{}, fmt.Errorf("%w: book %d", ErrCarryOverTargetNotEmpty, b.BookID)
+			case pgErr.Code == uniqueViolation && pgErr.ConstraintName == "foundation_booking_carried_from_key":
+				from := b.BookID
+				if b.CarriedFromBookID != nil {
+					from = *b.CarriedFromBookID
+				}
+				return FoundationBooking{}, fmt.Errorf("%w: book %d", ErrCarryOverAlreadyCarried, from)
 			}
 		}
 		return FoundationBooking{}, fmt.Errorf("kasse: insert foundation booking: %w", err)

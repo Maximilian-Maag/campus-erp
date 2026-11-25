@@ -91,11 +91,14 @@ The rules, in the order they refuse, each with its own machine code so a client 
 | nothing to carry | `kasse.carry_over_nothing` | the net is zero |
 | the next year is not open | `kasse.carry_over_target_missing` | no `foundation` row for `year + 1` with the same number |
 | the next book already carries movements | `kasse.carry_over_target_not_empty` | a second carry-over would count the money twice |
+| the year has already been carried | `kasse.carry_over_already_carried` | the source year's net has already been posted into the next year, under some reference |
 
-The emptiness test is not the only guard: the opening movement is marked as a carry-over and a
-partial unique index allows one per book, so two concurrent carry-overs cannot both see an empty
-target and both post the net. The loser is refused with the same code as a second sequential
-carry-over.
+The emptiness test is not the only guard: the opening movement records the source book it was
+carried from, and a partial unique index allows one opening movement per source, so two concurrent
+carry-overs cannot both see an empty target and both post the net. Naming the source also closes the
+sequential hole the emptiness test cannot see: carrying the year over again under a different
+target reference opens a fresh book, which looks empty, but the source's opening movement already
+exists. The second attempt is refused with `kasse.carry_over_already_carried`.
 
 Two decisions are worth stating. **The next year's foundation record is not created here**: master
 data is not a side effect of a posting, so the operator opens the year first and the refusal names

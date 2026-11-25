@@ -190,6 +190,11 @@ func (s *FoundationBookService) CarryOver(ctx context.Context, bookID int64, ref
 		return CarryOver{}, err
 	}
 	booking.CarriesOver = true
+	// Naming the source book is what makes "a year is carried once" enforceable: the
+	// partial unique index on carried_from_book_id refuses a second opening movement
+	// for the same source, even when the second carry-over is aimed at a different
+	// target reference (#207). Without it, the same year posts its net twice.
+	booking.CarriedFromBookID = &source.ID
 	saved, err := s.repo.InsertBooking(ctx, booking, by)
 	if err != nil {
 		return CarryOver{}, err
