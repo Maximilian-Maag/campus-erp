@@ -8,11 +8,11 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/core/report"
 )
 
-// CostCenterOverviewDefinition is the KLR's per-centre overview (docs/25): every cost centre
+// CostCentreOverviewDefinition is the KLR's per-centre overview (docs/25): every cost centre
 // with what it carries and what it is up or down. Like the Mittelübersicht it is a snapshot of
 // the books, so it takes no period.
-var CostCenterOverviewDefinition = report.Definition{
-	ID:    "klr-cost-center-overview",
+var CostCentreOverviewDefinition = report.Definition{
+	ID:    "klr-cost-centre-overview",
 	Title: "Kostenstellenübersicht",
 	Columns: []report.Column{
 		{Key: "number", Title: "Kostenstelle", Align: report.Left},
@@ -23,24 +23,24 @@ var CostCenterOverviewDefinition = report.Definition{
 	},
 }
 
-// CostCenterLine is one cost centre with its report.
-type CostCenterLine struct {
-	CostCenter CostCenter
+// CostCentreLine is one cost centre with its report.
+type CostCentreLine struct {
+	CostCentre CostCentre
 	Report     Report
 }
 
-// CostCenterOverview builds the per-centre overview: one row per centre, then a totals row. The
+// CostCentreOverview builds the per-centre overview: one row per centre, then a totals row. The
 // balance is derived per centre from the same figures the report shows, so the totals cannot
 // disagree with the rows above them.
-func CostCenterOverview(generatedAt time.Time, lines []CostCenterLine) report.Report {
+func CostCentreOverview(generatedAt time.Time, lines []CostCentreLine) report.Report {
 	rows := make([][]string, 0, len(lines)+1)
 	var costs, revenues int64
 	for _, l := range lines {
 		costs += l.Report.CostsCents
 		revenues += l.Report.RevenuesCents
 		rows = append(rows, []string{
-			l.CostCenter.Number,
-			l.CostCenter.Name,
+			l.CostCentre.Number,
+			l.CostCentre.Name,
 			klrCents(l.Report.CostsCents),
 			klrCents(l.Report.RevenuesCents),
 			klrCents(l.Report.BalanceCents()),
@@ -52,7 +52,7 @@ func CostCenterOverview(generatedAt time.Time, lines []CostCenterLine) report.Re
 		klrCents(revenues),
 		klrCents(revenues - costs),
 	})
-	return report.Report{Definition: CostCenterOverviewDefinition, Rows: rows, GeneratedAt: generatedAt}
+	return report.Report{Definition: CostCentreOverviewDefinition, Rows: rows, GeneratedAt: generatedAt}
 }
 
 // CostUnitOverviewDefinition is the KLR's per-cost-unit view (Kostenträgerübersicht, docs/25):

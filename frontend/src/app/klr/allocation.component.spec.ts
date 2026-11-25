@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { KlrAllocationComponent } from './allocation.component';
-import { Allocation, CostCenter } from '../core/api/generated';
+import { Allocation, CostCentre } from '../core/api/generated';
 import { provideI18n } from '../i18n/provide-i18n';
 
 describe('KlrAllocationComponent', () => {
@@ -18,24 +18,24 @@ describe('KlrAllocationComponent', () => {
 
   afterEach(() => http.verify());
 
-  const center = (ID: number, Number: string, Name: string): CostCenter => ({
+  const centre = (ID: number, Number: string, Name: string): CostCentre => ({
     ID, Number, Name, CreatedBy: 'alice',
   });
-  const source = center(1, 'K-10', 'Bibliothek');
-  const receiver = center(2, 'K-20', 'Werkstatt');
+  const source = centre(1, 'K-10', 'Bibliothek');
+  const receiver = centre(2, 'K-20', 'Werkstatt');
 
-  const key = (ID: number, TargetCenterID: number, ShareBP: number): Allocation => ({
-    ID, SourceCenterID: 1, TargetCenterID, ShareBP,
+  const key = (ID: number, TargetCentreID: number, ShareBP: number): Allocation => ({
+    ID, SourceCentreID: 1, TargetCentreID, ShareBP,
     ValidFrom: '2026-04-01', ValidTo: null, CreatedBy: 'alice',
   });
 
   /** Brings the screen to the state after the centre list and the keys have loaded. */
-  function loaded(centers: CostCenter[] = [source, receiver], keys: Allocation[] = []) {
+  function loaded(centres: CostCentre[] = [source, receiver], keys: Allocation[] = []) {
     const fixture = TestBed.createComponent(KlrAllocationComponent);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-centers').flush(centers);
+    http.expectOne('/api/klr/cost-centres').flush(centres);
     fixture.detectChanges();
-    const keyReq = http.match((r) => r.url === '/api/klr/cost-centers/1/allocations');
+    const keyReq = http.match((r) => r.url === '/api/klr/cost-centres/1/allocations');
     keyReq.forEach((r) => r.flush(keys));
     fixture.detectChanges();
     return fixture;
@@ -46,7 +46,7 @@ describe('KlrAllocationComponent', () => {
     const component = fixture.componentInstance;
 
     expect(component.loading()).toBeFalse();
-    expect(component.centers().length).toBe(2);
+    expect(component.centres().length).toBe(2);
     expect(component.source()).toBe('1');
     expect(component.keys().length).toBe(1);
 
@@ -65,10 +65,10 @@ describe('KlrAllocationComponent', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance;
     const html = fixture.nativeElement as HTMLElement;
-    http.expectOne('/api/klr/cost-centers').flush([]);
+    http.expectOne('/api/klr/cost-centres').flush([]);
     fixture.detectChanges();
 
-    component.centers.set([source, receiver, center(3, 'K-30', 'Labor')]);
+    component.centres.set([source, receiver, centre(3, 'K-30', 'Labor')]);
     component.source.set('2');
     component.target.set('3');
     fixture.detectChanges();
@@ -85,7 +85,7 @@ describe('KlrAllocationComponent', () => {
     expect(component.target()).toBe('2');
     // Choosing the receiver as the source leaves the original source as the only receiver.
     component.chooseSource('2');
-    http.expectOne('/api/klr/cost-centers/2/allocations').flush([]);
+    http.expectOne('/api/klr/cost-centres/2/allocations').flush([]);
     expect(component.receivers().map((c) => c.ID)).toEqual([1]);
     expect(component.target()).toBe('1');
   });
@@ -96,7 +96,7 @@ describe('KlrAllocationComponent', () => {
     component.result.set({ AllocatedCents: 1000, Receivers: 1 });
 
     component.chooseSource('2');
-    const req = http.expectOne('/api/klr/cost-centers/2/allocations');
+    const req = http.expectOne('/api/klr/cost-centres/2/allocations');
     req.flush([key(8, 1, 10000)]);
     fixture.detectChanges();
 
@@ -123,7 +123,7 @@ describe('KlrAllocationComponent', () => {
   it('reports a failed load instead of an empty list', () => {
     const fixture = TestBed.createComponent(KlrAllocationComponent);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-centers').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/klr/cost-centres').flush('nope', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
@@ -135,9 +135,9 @@ describe('KlrAllocationComponent', () => {
   it('reports a failed key load', () => {
     const fixture = TestBed.createComponent(KlrAllocationComponent);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-centers').flush([source, receiver]);
+    http.expectOne('/api/klr/cost-centres').flush([source, receiver]);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-centers/1/allocations').flush('nope', { status: 500, statusText: 'Server Error' });
+    http.expectOne('/api/klr/cost-centres/1/allocations').flush('nope', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(fixture.componentInstance.loadError()).toBe('Konnte die Schlüssel nicht laden.');
@@ -153,17 +153,17 @@ describe('KlrAllocationComponent', () => {
     component.define(new Event('submit'));
 
     expect(component.saving()).toBeTrue();
-    const post = http.expectOne('/api/klr/cost-centers/1/allocations');
+    const post = http.expectOne('/api/klr/cost-centres/1/allocations');
     expect(post.request.method).toBe('POST');
     expect(post.request.body).toEqual({
-      target_center_id: 2, share_bp: 1250, valid_from: '2026-04-01', valid_to: '2026-06-30',
+      target_centre_id: 2, share_bp: 1250, valid_from: '2026-04-01', valid_to: '2026-06-30',
     });
     post.flush(key(9, 2, 1250));
     fixture.detectChanges();
 
     expect(component.saving()).toBeFalse();
     expect(component.notice()).toBe('Schlüssel angelegt.');
-    http.expectOne('/api/klr/cost-centers/1/allocations').flush([key(9, 2, 1250)]);
+    http.expectOne('/api/klr/cost-centres/1/allocations').flush([key(9, 2, 1250)]);
     fixture.detectChanges();
     expect(component.keys().length).toBe(1);
   });
@@ -178,7 +178,7 @@ describe('KlrAllocationComponent', () => {
 
     expect(component.actionError()).toBe('Der Anteil muss eine Prozentzahl zwischen 0 und 100 sein.');
     expect(component.saving()).toBeFalse();
-    http.expectNone('/api/klr/cost-centers/1/allocations');
+    http.expectNone('/api/klr/cost-centres/1/allocations');
   });
 
   it('requires a valid-from date', () => {
@@ -189,7 +189,7 @@ describe('KlrAllocationComponent', () => {
     component.define(new Event('submit'));
 
     expect(component.actionError()).toBe('Ein Gültig-ab-Datum ist erforderlich.');
-    http.expectNone('/api/klr/cost-centers/1/allocations');
+    http.expectNone('/api/klr/cost-centres/1/allocations');
   });
 
   it('keeps the screen usable when defining a key fails', () => {
@@ -198,7 +198,7 @@ describe('KlrAllocationComponent', () => {
     component.validFrom.set('2026-04-01');
 
     component.define(new Event('submit'));
-    http.expectOne('/api/klr/cost-centers/1/allocations').flush('no', { status: 422, statusText: 'Unprocessable' });
+    http.expectOne('/api/klr/cost-centres/1/allocations').flush('no', { status: 422, statusText: 'Unprocessable' });
     fixture.detectChanges();
 
     expect(component.actionError()).toBe('Konnte den Schlüssel nicht anlegen.');
@@ -216,10 +216,10 @@ describe('KlrAllocationComponent', () => {
     component.run(new Event('submit'));
 
     expect(component.running()).toBeTrue();
-    const post = http.expectOne('/api/klr/cost-centers/1/allocations/run');
+    const post = http.expectOne('/api/klr/cost-centres/1/allocations/run');
     expect(post.request.method).toBe('POST');
     expect(post.request.body).toEqual({ from: '2026-04-01', to: '2026-04-30' });
-    post.flush({ ID: 3, SourceCenterID: 1, PeriodFrom: '2026-04-01', PeriodTo: '2026-04-30', AllocatedCents: 80000, Receivers: 1, RunBy: 'carol' });
+    post.flush({ ID: 3, SourceCentreID: 1, PeriodFrom: '2026-04-01', PeriodTo: '2026-04-30', AllocatedCents: 80000, Receivers: 1, RunBy: 'carol' });
     fixture.detectChanges();
 
     expect(component.running()).toBeFalse();
@@ -236,7 +236,7 @@ describe('KlrAllocationComponent', () => {
     component.run(new Event('submit'));
 
     expect(component.actionError()).toBe('Für die Umlage sind Von und Bis erforderlich.');
-    http.expectNone('/api/klr/cost-centers/1/allocations/run');
+    http.expectNone('/api/klr/cost-centres/1/allocations/run');
   });
 
   it('names the failure when a run is refused', () => {
@@ -246,7 +246,7 @@ describe('KlrAllocationComponent', () => {
     component.runTo.set('2026-04-30');
 
     component.run(new Event('submit'));
-    http.expectOne('/api/klr/cost-centers/1/allocations/run').flush('no', { status: 409, statusText: 'Conflict' });
+    http.expectOne('/api/klr/cost-centres/1/allocations/run').flush('no', { status: 409, statusText: 'Conflict' });
     fixture.detectChanges();
 
     expect(component.actionError()).toBe('Konnte die Umlage nicht ausführen.');
@@ -261,8 +261,8 @@ describe('KlrAllocationComponent', () => {
     const component = fixture.componentInstance;
     const html = fixture.nativeElement as HTMLElement;
 
-    expect(component.centerLabel(99)).toBe('99');
-    expect(component.centerLabel(2)).toBe('K-20 Werkstatt');
+    expect(component.centreLabel(99)).toBe('99');
+    expect(component.centreLabel(2)).toBe('K-20 Werkstatt');
     expect(html.querySelector('[data-testid="key-target-7"]')?.textContent).toContain('99');
 
     const cells = html.querySelectorAll('[data-testid="key-7"] td');
@@ -287,7 +287,7 @@ describe('KlrAllocationComponent', () => {
     const fixture = TestBed.createComponent(KlrAllocationComponent);
     const component = fixture.componentInstance;
 
-    expect(component.centers()).toEqual([]);
+    expect(component.centres()).toEqual([]);
     expect(component.keys()).toEqual([]);
     expect(component.source()).toBe('');
     expect(component.target()).toBe('');
@@ -312,10 +312,10 @@ describe('KlrAllocationComponent', () => {
 
     component.load();
     expect(component.loading()).toBeTrue();
-    http.expectOne('/api/klr/cost-centers').flush([source, receiver]);
+    http.expectOne('/api/klr/cost-centres').flush([source, receiver]);
     fixture.detectChanges();
     // A reload keeps the chosen centre, so it does not ask for its keys again.
-    http.expectNone('/api/klr/cost-centers/1/allocations');
+    http.expectNone('/api/klr/cost-centres/1/allocations');
     expect(component.loading()).toBeFalse();
     expect(component.source()).toBe('1');
   });
@@ -323,23 +323,23 @@ describe('KlrAllocationComponent', () => {
   it('treats an empty centre response body as no centres', () => {
     const fixture = TestBed.createComponent(KlrAllocationComponent);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-centers').flush(null);
+    http.expectOne('/api/klr/cost-centres').flush(null);
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    expect(component.centers()).toEqual([]);
+    expect(component.centres()).toEqual([]);
     expect(component.source()).toBe('');
     expect(component.loading()).toBeFalse();
     // No centre was chosen, so nothing asked for keys.
-    http.expectNone('/api/klr/cost-centers/1/allocations');
+    http.expectNone('/api/klr/cost-centres/1/allocations');
   });
 
   it('treats an empty key response body as no keys', () => {
     const fixture = TestBed.createComponent(KlrAllocationComponent);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-centers').flush([source, receiver]);
+    http.expectOne('/api/klr/cost-centres').flush([source, receiver]);
     fixture.detectChanges();
-    http.expectOne('/api/klr/cost-centers/1/allocations').flush(null);
+    http.expectOne('/api/klr/cost-centres/1/allocations').flush(null);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.keys()).toEqual([]);
@@ -369,7 +369,7 @@ describe('KlrAllocationComponent', () => {
     expect(component.target()).toBe('');
 
     component.chooseSource('1');
-    http.expectOne('/api/klr/cost-centers/1/allocations').flush([]);
+    http.expectOne('/api/klr/cost-centres/1/allocations').flush([]);
     expect(component.target()).toBe('');
   });
 });

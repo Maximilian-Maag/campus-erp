@@ -13,23 +13,23 @@ import (
 
 // klrService is the KLR surface the HTTP layer needs.
 type klrService interface {
-	CreateCostCenter(ctx context.Context, number, name, by string) (klr.CostCenter, error)
-	CostCenters(ctx context.Context) ([]klr.CostCenter, error)
+	CreateCostCentre(ctx context.Context, number, name, by string) (klr.CostCentre, error)
+	CostCentres(ctx context.Context) ([]klr.CostCentre, error)
 	CreateCostUnit(ctx context.Context, number, name, by string) (klr.CostUnit, error)
-	Post(ctx context.Context, costCenterID int64, costUnitID, costTypeID *int64, kind klr.Kind, amountCents int64, businessDate time.Time, reference, by string) (klr.Record, error)
-	Report(ctx context.Context, costCenterID int64) (klr.Report, error)
-	DefineAllocation(ctx context.Context, sourceCenterID, targetCenterID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (klr.Allocation, error)
-	Allocations(ctx context.Context, sourceCenterID int64) ([]klr.Allocation, error)
-	Allocate(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (klr.Run, error)
+	Post(ctx context.Context, costCentreID int64, costUnitID, costTypeID *int64, kind klr.Kind, amountCents int64, businessDate time.Time, reference, by string) (klr.Record, error)
+	Report(ctx context.Context, costCentreID int64) (klr.Report, error)
+	DefineAllocation(ctx context.Context, sourceCentreID, targetCentreID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (klr.Allocation, error)
+	Allocations(ctx context.Context, sourceCentreID int64) ([]klr.Allocation, error)
+	Allocate(ctx context.Context, sourceCentreID int64, from, to time.Time, by string) (klr.Run, error)
 	PostCostType(ctx context.Context, code, name, by string) (klr.CostType, error)
 	CostTypes(ctx context.Context, limit, offset int) ([]klr.CostType, error)
-	DefineCostUnitKey(ctx context.Context, sourceCenterID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (klr.CostUnitKey, error)
-	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]klr.CostUnitKey, error)
+	DefineCostUnitKey(ctx context.Context, sourceCentreID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (klr.CostUnitKey, error)
+	CostUnitKeys(ctx context.Context, sourceCentreID int64) ([]klr.CostUnitKey, error)
 	CostUnits(ctx context.Context) ([]klr.CostUnit, error)
-	AllocateToCostUnits(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (klr.Run, error)
+	AllocateToCostUnits(ctx context.Context, sourceCentreID int64, from, to time.Time, by string) (klr.Run, error)
 	DefineServiceRate(ctx context.Context, costTypeID, rateCents int64, validFrom time.Time, validTo *time.Time, by string) (klr.ServiceRate, error)
 	ServiceRates(ctx context.Context) ([]klr.ServiceRate, error)
-	ChargeService(ctx context.Context, providerCenterID, receiverCenterID, costTypeID, quantity int64, chargedOn time.Time, by string) (klr.ServiceCharge, error)
+	ChargeService(ctx context.Context, providerCentreID, receiverCentreID, costTypeID, quantity int64, chargedOn time.Time, by string) (klr.ServiceCharge, error)
 	MapAccount(ctx context.Context, costTypeID int64, accountCode, by string) (klr.CostTypeAccount, error)
 	AccountsOf(ctx context.Context, costTypeID int64) ([]klr.CostTypeAccount, error)
 	CostTypeByAccount(ctx context.Context, accountCode string) (klr.CostType, error)
@@ -38,10 +38,10 @@ type klrService interface {
 // statusForKLR maps a KLR error to an HTTP status.
 func statusForKLR(err error) int {
 	switch {
-	case errors.Is(err, klr.ErrCostCenterNotFound), errors.Is(err, klr.ErrCostUnitNotFound),
+	case errors.Is(err, klr.ErrCostCentreNotFound), errors.Is(err, klr.ErrCostUnitNotFound),
 		errors.Is(err, klr.ErrCostTypeNotFound), errors.Is(err, klr.ErrAccountNotMapped):
 		return http.StatusNotFound
-	case errors.Is(err, klr.ErrCostCenterExists), errors.Is(err, klr.ErrCostUnitExists),
+	case errors.Is(err, klr.ErrCostCentreExists), errors.Is(err, klr.ErrCostUnitExists),
 		errors.Is(err, klr.ErrCostTypeExists), errors.Is(err, klr.ErrAccountAlreadyMapped):
 		return http.StatusConflict
 	case errors.Is(err, klr.ErrAlreadyAllocated):
@@ -77,29 +77,29 @@ type klrNamedRequest struct {
 	Name   string `json:"name"`
 }
 
-func (s *Server) createCostCenter(w http.ResponseWriter, r *http.Request) {
+func (s *Server) createCostCentre(w http.ResponseWriter, r *http.Request) {
 	var req klrNamedRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	center, err := s.klr.CreateCostCenter(r.Context(), req.Number, req.Name, actor(r))
+	centre, err := s.klr.CreateCostCentre(r.Context(), req.Number, req.Name, actor(r))
 	if err != nil {
 		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, center)
+	writeJSON(w, http.StatusCreated, centre)
 }
 
-// listCostCenters reads every cost centre, which is what a screen needs before it can ask about
+// listCostCentres reads every cost centre, which is what a screen needs before it can ask about
 // one.
-func (s *Server) listCostCenters(w http.ResponseWriter, r *http.Request) {
-	centers, err := s.klr.CostCenters(r.Context())
+func (s *Server) listCostCentres(w http.ResponseWriter, r *http.Request) {
+	centres, err := s.klr.CostCentres(r.Context())
 	if err != nil {
 		writeDomainProblem(w, statusForKLR(err), err)
 		return
 	}
-	writeJSON(w, http.StatusOK, centers)
+	writeJSON(w, http.StatusOK, centres)
 }
 
 func (s *Server) createCostUnit(w http.ResponseWriter, r *http.Request) {
@@ -165,7 +165,7 @@ func (s *Server) postAccountingRecord(w http.ResponseWriter, r *http.Request) {
 }
 
 type defineAllocationRequest struct {
-	TargetCenterID int64  `json:"target_center_id"`
+	TargetCentreID int64  `json:"target_centre_id"`
 	ShareBP        int64  `json:"share_bp"`
 	ValidFrom      string `json:"valid_from"`
 	ValidTo        string `json:"valid_to"`
@@ -199,7 +199,7 @@ func (s *Server) defineAllocation(w http.ResponseWriter, r *http.Request) {
 		}
 		to = &parsed
 	}
-	key, err := s.klr.DefineAllocation(r.Context(), sourceID, req.TargetCenterID, req.ShareBP, from, to, actor(r))
+	key, err := s.klr.DefineAllocation(r.Context(), sourceID, req.TargetCentreID, req.ShareBP, from, to, actor(r))
 	if err != nil {
 		writeDomainProblem(w, statusForKLR(err), err)
 		return
@@ -403,8 +403,8 @@ func (s *Server) listServiceRates(w http.ResponseWriter, r *http.Request) {
 }
 
 type serviceChargeRequest struct {
-	ProviderCenterID int64  `json:"provider_center_id"`
-	ReceiverCenterID int64  `json:"receiver_center_id"`
+	ProviderCentreID int64  `json:"provider_centre_id"`
+	ReceiverCentreID int64  `json:"receiver_centre_id"`
 	CostTypeID       int64  `json:"cost_type_id"`
 	Quantity         int64  `json:"quantity"`
 	ChargedOn        string `json:"charged_on"`
@@ -422,7 +422,7 @@ func (s *Server) chargeService(w http.ResponseWriter, r *http.Request) {
 		writeProblemCode(w, http.StatusUnprocessableEntity, "invalid_date", "charged_on must be a date (YYYY-MM-DD)")
 		return
 	}
-	charge, err := s.klr.ChargeService(r.Context(), req.ProviderCenterID, req.ReceiverCenterID,
+	charge, err := s.klr.ChargeService(r.Context(), req.ProviderCentreID, req.ReceiverCentreID,
 		req.CostTypeID, req.Quantity, on, actor(r))
 	if err != nil {
 		writeDomainProblem(w, statusForKLR(err), err)

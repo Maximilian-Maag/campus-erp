@@ -88,7 +88,7 @@ func (s *CollectionRunService) CreateCollectionRun(ctx context.Context, referenc
 // before dueBy, under active mandates matching the run's sequence type, and
 // collects them: one collection per mandate, the mandate's items summed. The
 // selected items are marked collected in the same transaction that stores the
-// run, so a stored run and its claims never disagree. It is idempotent on the
+// run, so a stored run and its receivables never disagree. It is idempotent on the
 // reference like the explicit run.
 func (s *CollectionRunService) CreateCollectionRunFromReceivables(ctx context.Context, reference string,
 	accountID int64, creditorID string, collectionDate time.Time, sequenceType MandateSequence,
@@ -130,7 +130,7 @@ func (s *CollectionRunService) CreateCollectionRunFromReceivables(ctx context.Co
 			return CollectionRun{}, fmt.Errorf("kasse: receivable %d: %w", r.ID, ErrReceivableCurrencyMismatch)
 		}
 	}
-	items, claims := CollectionItemsFromReceivables(recs)
+	items, receivables := CollectionItemsFromReceivables(recs)
 	_, reqItems, err := NewCollectionRun(ref, accountID, creditorID, collectionDate, sequenceType, localInstrument, items)
 	if err != nil {
 		return CollectionRun{}, err
@@ -143,7 +143,7 @@ func (s *CollectionRunService) CreateCollectionRunFromReceivables(ctx context.Co
 	if err != nil {
 		return CollectionRun{}, err
 	}
-	saved, advanced, err := s.repo.InsertCollectionRunFromReceivables(ctx, run, fileXML, reqItems, claimIDs(claims))
+	saved, advanced, err := s.repo.InsertCollectionRunFromReceivables(ctx, run, fileXML, reqItems, receivableIDs(receivables))
 	if err != nil {
 		return CollectionRun{}, err
 	}
@@ -309,9 +309,9 @@ func assembleRun(account CashAccount, ref, creditorID string, collectionDate tim
 	return run, fileXML, nil
 }
 
-// claimIDs flattens the mandate-to-ids map the grouping returns into the ids the
+// receivableIDs flattens the mandate-to-ids map the grouping returns into the ids the
 // store marks collected.
-func claimIDs(claims map[string][]int64) []int64 {
+func receivableIDs(claims map[string][]int64) []int64 {
 	ids := make([]int64, 0, len(claims))
 	for _, group := range claims {
 		ids = append(ids, group...)

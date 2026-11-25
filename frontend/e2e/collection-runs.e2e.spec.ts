@@ -20,7 +20,7 @@ const run = {
   CreatedBy: 'carol',
 };
 
-test('Einzüge creates a run from the open items and shows the file, and passes axe', async ({ page }) => {
+test('Einzugsläufe creates a run from the open items and shows the file, and passes axe', async ({ page }) => {
   const bodies: unknown[] = [];
   await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: accounts }));
   await page.route('**/api/direct-debit/runs/from-receivables', (route) => {
@@ -36,9 +36,9 @@ test('Einzüge creates a run from the open items and shows the file, and passes 
   await page.getByLabel('Gläubiger-ID').fill('DE98ZZZ09999999999');
   await page.getByLabel('Einzugsdatum').fill('2026-11-01');
   await page.getByLabel('Fälligkeit bis').fill('2026-10-15');
-  await page.getByRole('button', { name: 'Einzug erstellen' }).click();
+  await page.getByRole('button', { name: 'Einzugslauf erstellen' }).click();
 
-  await expect(page.getByText('Einzug erstellt.').first()).toBeVisible();
+  await expect(page.getByText('Einzugslauf erstellt.').first()).toBeVisible();
   await expect(page.getByTestId('run-RUN-1')).toContainText('2 Posten');
   await expect(page.getByTestId('run-RUN-1')).toContainText('55,00');
   expect(bodies).toEqual([
@@ -52,7 +52,7 @@ test('Einzüge creates a run from the open items and shows the file, and passes 
   expect(results.violations).toEqual([]);
 });
 
-test('Einzüge reports a refused run and passes axe', async ({ page }) => {
+test('Einzugsläufe reports a refused run and passes axe', async ({ page }) => {
   await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: accounts }));
   await page.route('**/api/direct-debit/runs/from-receivables', (route) =>
     route.fulfill({ status: 422, json: { error: 'nothing due' } })
@@ -63,15 +63,15 @@ test('Einzüge reports a refused run and passes axe', async ({ page }) => {
   await page.getByLabel('Gläubiger-ID').fill('DE98ZZZ09999999999');
   await page.getByLabel('Einzugsdatum').fill('2026-11-01');
   await page.getByLabel('Fälligkeit bis').fill('2026-10-15');
-  await page.getByRole('button', { name: 'Einzug erstellen' }).click();
+  await page.getByRole('button', { name: 'Einzugslauf erstellen' }).click();
 
-  await expect(page.getByRole('alert')).toContainText('Konnte den Einzug nicht erstellen.');
+  await expect(page.getByRole('alert')).toContainText('Konnte den Einzugslauf nicht erstellen.');
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
 
-test('Einzüge states that no own account exists and passes axe', async ({ page }) => {
+test('Einzugsläufe states that no own account exists and passes axe', async ({ page }) => {
   await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: [] }));
   await page.goto('/kasse/einzuege');
 
@@ -86,7 +86,7 @@ const mandates = [
   { ID: 2, Reference: 'MAN-2', DebtorName: 'Erika Musterfrau', DebtorIBAN: 'DE89370400440532013000', DebtorBIC: '', SignatureDate: '2025-03-14T00:00:00Z', SequenceType: 'RCUR', Active: true },
 ];
 
-test('Einzüge builds a run from hand-picked mandates and passes axe', async ({ page }) => {
+test('Einzugsläufe builds a run from hand-picked mandates and passes axe', async ({ page }) => {
   const bodies: unknown[] = [];
   await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: accounts }));
   await page.route(/\/api\/direct-debit\/mandates\?active=true/, (route) => route.fulfill({ json: mandates }));
@@ -108,8 +108,8 @@ test('Einzüge builds a run from hand-picked mandates and passes axe', async ({ 
   await page.getByRole('button', { name: 'Posten hinzufügen' }).click();
   await expect(page.getByTestId('item-MAN-1')).toContainText('42,50');
 
-  await page.getByRole('button', { name: 'Einzug erstellen' }).click();
-  await expect(page.getByText('Einzug erstellt.').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Einzugslauf erstellen' }).click();
+  await expect(page.getByText('Einzugslauf erstellt.').first()).toBeVisible();
   expect(bodies).toEqual([
     {
       reference: 'RUN-1',
@@ -126,7 +126,7 @@ test('Einzüge builds a run from hand-picked mandates and passes axe', async ({ 
   expect(results.violations).toEqual([]);
 });
 
-test('Einzüge files a run whose sequence types are mixed and says so, and passes axe', async ({ page }) => {
+test('Einzugsläufe files a run whose sequence types are mixed and says so, and passes axe', async ({ page }) => {
   const bodies: unknown[] = [];
   const mandateCalls: string[] = [];
   await page.route('**/api/cash-accounts', (route) => route.fulfill({ json: accounts }));
@@ -159,8 +159,8 @@ test('Einzüge files a run whose sequence types are mixed and says so, and passe
   await page.getByLabel('Verwendungszweck').fill('Semesterbeitrag');
   await page.getByRole('button', { name: 'Posten hinzufügen' }).click();
 
-  await page.getByRole('button', { name: 'Einzug erstellen' }).click();
-  await expect(page.getByText('Einzug erstellt.').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Einzugslauf erstellen' }).click();
+  await expect(page.getByText('Einzugslauf erstellt.').first()).toBeVisible();
   expect(bodies).toEqual([
     {
       reference: 'RUN-MIX',
@@ -179,7 +179,7 @@ test('Einzüge files a run whose sequence types are mixed and says so, and passe
   expect(results.violations).toEqual([]);
 });
 
-test('Einzüge offers more mandates than its first page, and passes axe', async ({ page }) => {
+test('Einzugsläufe offers more mandates than its first page, and passes axe', async ({ page }) => {
   const offsets: string[] = [];
   const page50 = Array.from({ length: 50 }, (_, i) => ({
     ID: i + 1,

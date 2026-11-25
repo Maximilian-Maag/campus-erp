@@ -11,8 +11,8 @@ import (
 // the service's own decisions — validation, the audit call, the error it hands back — can be
 // read without a database.
 type fakeRepo struct {
-	center        CostCenter
-	centers       []CostCenter
+	centre        CostCentre
+	centres       []CostCentre
 	record        Record
 	allocation    Allocation
 	allocations   []Allocation
@@ -32,14 +32,14 @@ type fakeRepo struct {
 	err           error
 }
 
-func (f *fakeRepo) CreateCostCenter(context.Context, CostCenter) (CostCenter, error) {
-	return f.center, f.err
+func (f *fakeRepo) CreateCostCentre(context.Context, CostCentre) (CostCentre, error) {
+	return f.centre, f.err
 }
-func (f *fakeRepo) GetCostCenter(context.Context, int64) (CostCenter, error) {
-	return f.center, f.err
+func (f *fakeRepo) GetCostCentre(context.Context, int64) (CostCentre, error) {
+	return f.centre, f.err
 }
-func (f *fakeRepo) CostCenters(context.Context) ([]CostCenter, error) {
-	return f.centers, f.err
+func (f *fakeRepo) CostCentres(context.Context) ([]CostCentre, error) {
+	return f.centres, f.err
 }
 func (f *fakeRepo) CreateCostUnit(context.Context, CostUnit) (CostUnit, error) {
 	return CostUnit{}, f.err
@@ -122,6 +122,7 @@ func (f *fakeRepo) RecordServiceCharge(_ context.Context, charge ServiceCharge, 
 	charge.ID = 1
 	return charge, nil
 }
+
 // CostTypes answers a page, like the repo it stands in for: a fake that returned everything would
 // make the paging below untestable.
 func (f *fakeRepo) CostTypes(_ context.Context, limit, offset int) ([]CostType, error) {

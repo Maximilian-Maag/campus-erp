@@ -9,7 +9,7 @@ import (
 //
 // A **source** (Mittelquelle, a Haushaltsstelle) is where a title's money comes from — the state's
 // chapter and title, a third-party funder, a foundation. A **centre** (Bewirtschaftungsstelle) is
-// who administers it. Both mirror the vendor's budget_source / budget_center
+// who administers it. Both mirror the vendor's budget_source / budget_centre
 // (docs/08-reuse-inventory.md §3); the vendor's two join tables are flattened onto the position,
 // because at this size a position draws on one source and is administered by one centre.
 //
@@ -27,14 +27,14 @@ var (
 	ErrSourceExists = errors.New("budget: a source with that code already exists")
 	// ErrSourceNotFound is returned when a source does not exist.
 	ErrSourceNotFound = errors.New("budget: budget source not found")
-	// ErrCenterCodeRequired is returned when a centre names no code.
-	ErrCenterCodeRequired = errors.New("budget: a centre needs a code")
-	// ErrCenterNameRequired is returned when a centre names no name.
-	ErrCenterNameRequired = errors.New("budget: a centre needs a name")
-	// ErrCenterExists is returned when a centre with that code already exists.
-	ErrCenterExists = errors.New("budget: a centre with that code already exists")
-	// ErrCenterNotFound is returned when a centre does not exist.
-	ErrCenterNotFound = errors.New("budget: budget centre not found")
+	// ErrCentreCodeRequired is returned when a centre names no code.
+	ErrCentreCodeRequired = errors.New("budget: a centre needs a code")
+	// ErrCentreNameRequired is returned when a centre names no name.
+	ErrCentreNameRequired = errors.New("budget: a centre needs a name")
+	// ErrCentreExists is returned when a centre with that code already exists.
+	ErrCentreExists = errors.New("budget: a centre with that code already exists")
+	// ErrCentreNotFound is returned when a centre does not exist.
+	ErrCentreNotFound = errors.New("budget: budget centre not found")
 	// ErrAssignmentUnknown is returned when an assignment names a source or a centre that does
 	// not exist. The foreign key is the authority on what exists, so the refusal carries the
 	// constraint that rejected it rather than guessing which half was wrong.
@@ -51,8 +51,8 @@ type Source struct {
 	CreatedBy string
 }
 
-// Center is a Bewirtschaftungsstelle: who administers a position's money.
-type Center struct {
+// Centre is a Bewirtschaftungsstelle: who administers a position's money.
+type Centre struct {
 	ID        int64
 	Code      string
 	Name      string
@@ -74,18 +74,18 @@ func NewSource(code, name, chapter string) (Source, error) {
 	return Source{Code: code, Name: name, Chapter: strings.TrimSpace(chapter), Active: true}, nil
 }
 
-// NewCenter validates and builds a centre.
-func NewCenter(code, name string) (Center, error) {
+// NewCentre validates and builds a centre.
+func NewCentre(code, name string) (Centre, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
-		return Center{}, ErrCenterCodeRequired
+		return Centre{}, ErrCentreCodeRequired
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return Center{}, ErrCenterNameRequired
+		return Centre{}, ErrCentreNameRequired
 	}
-	return Center{Code: code, Name: name, Active: true}, nil
+	return Centre{Code: code, Name: name, Active: true}, nil
 }
 
 // Named reports whether a position draws on a source or is administered by a centre.
-func (p Position) Named() bool { return p.SourceID != nil || p.CenterID != nil }
+func (p Position) Named() bool { return p.SourceID != nil || p.CentreID != nil }

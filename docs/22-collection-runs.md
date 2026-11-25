@@ -39,7 +39,7 @@ same account the credit-transfer run debits.
 Behind `erp-kasse` like the mandate routes. Creating a run and recording an item
 are audited (`collection_run.create`, `receivable.create`).
 
-*Kasse: Einzüge* (`/kasse/einzuege`) offers both routes: it gathers the open
+*Kasse: Einzugsläufe* (`/kasse/einzuege`) offers both routes: it gathers the open
 receivables due by a date, or names the mandates and amounts by hand. The hand-picked
 flow loads the mandates the run's sequence type can collect under (the list route of
 `docs/21`) one page at a time, so a choice the run would refuse is not offered — and

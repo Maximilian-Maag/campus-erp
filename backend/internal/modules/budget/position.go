@@ -34,7 +34,7 @@ const (
 	Actual PostingKind = "actual"
 )
 
-// Position is a budget title (Haushaltstitel).
+// Position is a budget position (Haushaltsstelle): a chapter and a title.
 type Position struct {
 	ID             int64
 	Year           int
@@ -43,12 +43,12 @@ type Position struct {
 	Description    string
 	AllocatedCents int64
 	CreatedBy      string
-	// SourceID is the Mittelquelle the position draws on and CenterID the
+	// SourceID is the Mittelquelle the position draws on and CentreID the
 	// Bewirtschaftungsstelle that administers it (source.go). Both are optional: a position may
 	// exist before its funding is settled. They are pointers so "not named" is distinguishable
 	// from "named the row with id 0", which nothing carries.
 	SourceID *int64
-	CenterID *int64
+	CentreID *int64
 }
 
 // Posting is one append-only movement on a position.

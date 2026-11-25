@@ -206,7 +206,7 @@ export const sharedEn: Messages = {
     chapter: 'Chapter',
     choose: 'Please choose',
     code: 'Code',
-    costCenter: 'Cost centre',
+    costCentre: 'Cost centre',
     costType: 'Cost type',
     created: 'Created',
     currency: 'Currency',

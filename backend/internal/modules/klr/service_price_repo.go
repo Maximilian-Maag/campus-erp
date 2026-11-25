@@ -83,9 +83,9 @@ func (r *Repo) RecordServiceCharge(ctx context.Context, charge ServiceCharge, re
 
 	var id int64
 	err = tx.QueryRow(ctx,
-		`INSERT INTO service_charge (provider_center_id, receiver_center_id, cost_type_id, quantity, amount_cents, charged_on, charged_by)
+		`INSERT INTO service_charge (provider_centre_id, receiver_centre_id, cost_type_id, quantity, amount_cents, charged_on, charged_by)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-		charge.ProviderCenterID, charge.ReceiverCenterID, charge.CostTypeID, charge.Quantity,
+		charge.ProviderCentreID, charge.ReceiverCentreID, charge.CostTypeID, charge.Quantity,
 		charge.AmountCents, charge.ChargedOn, charge.ChargedBy).Scan(&id)
 	if err != nil {
 		return ServiceCharge{}, fmt.Errorf("klr: record service charge: %w", err)
@@ -94,9 +94,9 @@ func (r *Repo) RecordServiceCharge(ctx context.Context, charge ServiceCharge, re
 	reference := serviceChargeReference(id)
 	for _, rec := range records {
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO accounting_record (cost_center_id, cost_unit_id, kind, amount_cents, business_date, reference, booked_by)
+			`INSERT INTO accounting_record (cost_centre_id, cost_unit_id, kind, amount_cents, business_date, reference, booked_by)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-			rec.CostCenterID, rec.CostUnitID, rec.Kind, rec.AmountCents, rec.BusinessDate,
+			rec.CostCentreID, rec.CostUnitID, rec.Kind, rec.AmountCents, rec.BusinessDate,
 			reference, rec.BookedBy); err != nil {
 			return ServiceCharge{}, fmt.Errorf("klr: record service charge posting: %w", err)
 		}

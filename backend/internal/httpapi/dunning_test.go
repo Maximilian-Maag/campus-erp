@@ -55,7 +55,7 @@ func TestHTTPDunningFlow(t *testing.T) {
 
 	// issue a notice: 12000 -> open-ended band, fee 2500 + 2% of 12000 = 240
 	resp = doJSON(t, http.MethodPost, srv.URL+"/api/dunning/notices", "alice",
-		`{"year":2026,"level_code":"`+code+`","claim_reference":"F-2026-001","outstanding_cents":12000}`)
+		`{"year":2026,"level_code":"`+code+`","receivable_reference":"F-2026-001","outstanding_cents":12000}`)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("issue notice = %d", resp.StatusCode)
 	}
@@ -105,7 +105,7 @@ func TestHTTPDunningErrorBranches(t *testing.T) {
 		t.Fatalf("unknown level = %d, want 404", resp.StatusCode)
 	}
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/dunning/notices", "alice",
-		`{"year":2026,"level_code":"nope","claim_reference":"F-1","outstanding_cents":100}`); resp.StatusCode != http.StatusNotFound {
+		`{"year":2026,"level_code":"nope","receivable_reference":"F-1","outstanding_cents":100}`); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("notice on unknown level = %d, want 404", resp.StatusCode)
 	}
 	// non-integer year
@@ -114,13 +114,13 @@ func TestHTTPDunningErrorBranches(t *testing.T) {
 	}
 	// zero outstanding amount
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/dunning/notices", "alice",
-		`{"year":2026,"level_code":"`+code+`","claim_reference":"F-1","outstanding_cents":0}`); resp.StatusCode != http.StatusUnprocessableEntity {
+		`{"year":2026,"level_code":"`+code+`","receivable_reference":"F-1","outstanding_cents":0}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("zero amount = %d, want 422", resp.StatusCode)
 	}
-	// blank claim reference
+	// blank receivable reference
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/dunning/notices", "alice",
-		`{"year":2026,"level_code":"`+code+`","claim_reference":"  ","outstanding_cents":100}`); resp.StatusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("blank claim = %d, want 422", resp.StatusCode)
+		`{"year":2026,"level_code":"`+code+`","receivable_reference":"  ","outstanding_cents":100}`); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("blank receivable = %d, want 422", resp.StatusCode)
 	}
 	// duplicate level -> conflict
 	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/dunning/levels", "alice", levelPayload(code)); resp.StatusCode != http.StatusConflict {

@@ -176,7 +176,7 @@ func CollectionItemsFromReceivables(recs []Receivable) ([]CollectionItem, map[st
 	}
 	sort.Strings(order)
 	items := make([]CollectionItem, 0, len(order))
-	claims := make(map[string][]int64, len(order))
+	receivables := make(map[string][]int64, len(order))
 	for _, ref := range order {
 		g := byMandate[ref]
 		items = append(items, CollectionItem{
@@ -185,13 +185,13 @@ func CollectionItemsFromReceivables(recs []Receivable) ([]CollectionItem, map[st
 			AmountCents:      g.amount,
 			Purpose:          joinPurposes(g.purposes),
 		})
-		claims[ref] = g.ids
+		receivables[ref] = g.ids
 	}
-	return items, claims
+	return items, receivables
 }
 
 // joinPurposes joins the distinct purposes in order, capped at the ISO Max140Text
-// limit the remittance field allows so one long list of claims still renders.
+// limit the remittance field allows so one long list of receivables still renders.
 func joinPurposes(purposes []string) string {
 	seen := make(map[string]bool, len(purposes))
 	kept := make([]string, 0, len(purposes))

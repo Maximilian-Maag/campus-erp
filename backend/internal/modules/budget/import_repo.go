@@ -20,9 +20,9 @@ type ImportResult struct {
 	// already existed, whose name is left as it is.
 	SourcesCreated int
 	SourcesKept    int
-	// CentersCreated / CentersKept count the Bewirtschaftungsstellen, on the same rule.
-	CentersCreated int
-	CentersKept    int
+	// CentresCreated / CentresKept count the Bewirtschaftungsstellen, on the same rule.
+	CentresCreated int
+	CentresKept    int
 	// PositionsCreated / PositionsKept count the Haushaltsstellen; kept means the year, chapter and
 	// title were already there, whose Ansatz and description are left as they are.
 	PositionsCreated int
@@ -47,7 +47,7 @@ func (r *PositionRepo) ImportBudget(ctx context.Context, rows []budgetimport.Row
 
 	res := ImportResult{Layout: layout}
 	for _, row := range rows {
-		var sourceID, centerID *int64
+		var sourceID, centreID *int64
 		if row.SourceCode != "" {
 			id, created, err := upsertSource(ctx, tx, row, by)
 			if err != nil {
@@ -60,16 +60,16 @@ func (r *PositionRepo) ImportBudget(ctx context.Context, rows []budgetimport.Row
 				res.SourcesKept++
 			}
 		}
-		if row.CenterCode != "" {
-			id, created, err := upsertCenter(ctx, tx, row, by)
+		if row.CentreCode != "" {
+			id, created, err := upsertCentre(ctx, tx, row, by)
 			if err != nil {
 				return ImportResult{}, err
 			}
-			centerID = &id
+			centreID = &id
 			if created {
-				res.CentersCreated++
+				res.CentresCreated++
 			} else {
-				res.CentersKept++
+				res.CentresKept++
 			}
 		}
 		positionID, created, err := upsertPosition(ctx, tx, row, by)
@@ -81,10 +81,10 @@ func (r *PositionRepo) ImportBudget(ctx context.Context, rows []budgetimport.Row
 		} else {
 			res.PositionsKept++
 		}
-		if sourceID == nil && centerID == nil {
+		if sourceID == nil && centreID == nil {
 			continue
 		}
-		named, err := nameUnnamed(ctx, tx, positionID, sourceID, centerID)
+		named, err := nameUnnamed(ctx, tx, positionID, sourceID, centreID)
 		if err != nil {
 			return ImportResult{}, err
 		}
@@ -121,22 +121,22 @@ func upsertSource(ctx context.Context, tx pgx.Tx, row budgetimport.Row, by strin
 	return id, false, nil
 }
 
-// upsertCenter is upsertSource for a Bewirtschaftungsstelle, which has no chapter.
-func upsertCenter(ctx context.Context, tx pgx.Tx, row budgetimport.Row, by string) (int64, bool, error) {
+// upsertCentre is upsertSource for a Bewirtschaftungsstelle, which has no chapter.
+func upsertCentre(ctx context.Context, tx pgx.Tx, row budgetimport.Row, by string) (int64, bool, error) {
 	var id int64
 	err := tx.QueryRow(ctx, `
-		INSERT INTO budget_center (code, name, created_by)
+		INSERT INTO budget_centre (code, name, created_by)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (code) DO NOTHING
 		RETURNING id`,
-		row.CenterCode, row.CenterName, by).Scan(&id)
+		row.CentreCode, row.CentreName, by).Scan(&id)
 	if err == nil {
 		return id, true, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, fmt.Errorf("budget: insert the centre: %w", err)
 	}
-	if err := tx.QueryRow(ctx, `SELECT id FROM budget_center WHERE code = $1`, row.CenterCode).Scan(&id); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT id FROM budget_centre WHERE code = $1`, row.CentreCode).Scan(&id); err != nil {
 		return 0, false, fmt.Errorf("budget: read the centre by code: %w", err)
 	}
 	return id, false, nil
@@ -168,13 +168,13 @@ func upsertPosition(ctx context.Context, tx pgx.Tx, row budgetimport.Row, by str
 
 // nameUnnamed gives a position a half it does not have, and never replaces one it does: COALESCE
 // keeps what is there. It reports whether it named anything.
-func nameUnnamed(ctx context.Context, tx pgx.Tx, positionID int64, sourceID, centerID *int64) (bool, error) {
+func nameUnnamed(ctx context.Context, tx pgx.Tx, positionID int64, sourceID, centreID *int64) (bool, error) {
 	tag, err := tx.Exec(ctx, `
 		UPDATE budget_position
-		SET source_id = COALESCE(source_id, $2), center_id = COALESCE(center_id, $3)
+		SET source_id = COALESCE(source_id, $2), centre_id = COALESCE(centre_id, $3)
 		WHERE id = $1
-		  AND ((source_id IS NULL AND $2::bigint IS NOT NULL) OR (center_id IS NULL AND $3::bigint IS NOT NULL))`,
-		positionID, sourceID, centerID)
+		  AND ((source_id IS NULL AND $2::bigint IS NOT NULL) OR (centre_id IS NULL AND $3::bigint IS NOT NULL))`,
+		positionID, sourceID, centreID)
 	if err != nil {
 		return false, fmt.Errorf("budget: name the position: %w", err)
 	}

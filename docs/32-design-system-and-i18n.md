@@ -110,11 +110,11 @@ and what they mean. The interface uses those terms, and only those. Concretely:
 
 - A concept has **one key** and therefore one name on every screen. `common.amount` is
   "Betrag" here, there and everywhere; a screen that wants to say "Summe" is a defect.
-- **Labels are nouns in sentence case** ("Zahlungsanordnungen", "Betrag in Cent").
+- **Labels are nouns in sentence case** ("Ausgabeanordnungen", "Betrag in Cent").
 - **Actions are verb phrases in the infinitive that name exactly one action** ("Anlegen",
   "Freigeben", "Tag eröffnen") — never a sentence, never "Hier klicken".
 - **A status is the state the backend reports**, translated, not paraphrased.
-- English is **British** and uses the same vocabulary: payment order (Zahlungsanordnung),
+- English is **British** and uses the same vocabulary: payment order (Ausgabeanordnung),
   payment run (Zahlungslauf), dunning / dunning run (Mahnwesen / Mahnlauf), cost centre
   (Kostenstelle), cost type (Kostenart), cost unit (Kostenträger), budget position
   (Haushaltsstelle), funding source (Mittelquelle), goods receipt (Wareneingang).

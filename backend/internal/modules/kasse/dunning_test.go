@@ -184,8 +184,8 @@ func TestNewDunningNotice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDunningNotice: %v", err)
 	}
-	if n.ClaimReference != "F-2026-001" {
-		t.Fatalf("claim = %q, want it trimmed", n.ClaimReference)
+	if n.ReceivableReference != "F-2026-001" {
+		t.Fatalf("claim = %q, want it trimmed", n.ReceivableReference)
 	}
 	if n.LevelCode != "1" || n.OutstandingCents != 12000 {
 		t.Fatalf("notice = %+v", n)
@@ -195,8 +195,8 @@ func TestNewDunningNotice(t *testing.T) {
 		t.Fatalf("charge = %d, want 1620", n.ChargeCents)
 	}
 
-	if _, err := NewDunningNotice(l, "   ", 12000, issued, "alice"); !errors.Is(err, ErrClaimRequired) {
-		t.Fatalf("blank claim: want ErrClaimRequired, got %v", err)
+	if _, err := NewDunningNotice(l, "   ", 12000, issued, "alice"); !errors.Is(err, ErrReceivableRequired) {
+		t.Fatalf("blank claim: want ErrReceivableRequired, got %v", err)
 	}
 	if _, err := NewDunningNotice(l, "F-1", 12000, issued, "  "); !errors.Is(err, ErrActorRequired) {
 		t.Fatalf("blank actor: want ErrActorRequired, got %v", err)

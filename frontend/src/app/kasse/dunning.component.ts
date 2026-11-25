@@ -46,7 +46,7 @@ interface BandRow {
  * Kasse — Mahnwesen (dunning).
  *
  * Lists a year's dunning levels with their bands, defines one, and issues a notice against a
- * claim. The charge is the API's to compute from the level's bands and to store as it was
+ * receivable. The charge is the API's to compute from the level's bands and to store as it was
  * computed — the screen states the outstanding amount and reports what came back, rather than
  * re-deriving fee and interest in TypeScript.
  *
@@ -254,12 +254,12 @@ interface BandRow {
                 </select>
               </div>
               <div class="field">
-                <label for="notice-claim">{{ 'kasse.dunning.claimReference' | transloco }}</label>
+                <label for="notice-receivable">{{ 'kasse.dunning.receivableReference' | transloco }}</label>
                 <input
-                  id="notice-claim"
+                  id="notice-receivable"
                   type="text"
-                  [value]="claimReference()"
-                  (input)="claimReference.set($any($event.target).value)"
+                  [value]="receivableReference()"
+                  (input)="receivableReference.set($any($event.target).value)"
                 />
               </div>
               <div class="field">
@@ -285,7 +285,7 @@ interface BandRow {
                     | transloco
                       : {
                           id: n.ID,
-                          claim: n.ClaimReference,
+                          receivable: n.ReceivableReference,
                           level: n.LevelCode,
                           charge: euro(n.ChargeCents),
                           day: day(n.IssuedOn),
@@ -327,7 +327,7 @@ export class DunningComponent implements OnInit {
 
   // The notice form.
   readonly noticeLevelKey = signal('');
-  readonly claimReference = signal('');
+  readonly receivableReference = signal('');
   readonly outstanding = signal('');
   /** True while a form is in flight, so neither can be submitted twice. */
   readonly submitting = signal(false);
@@ -439,7 +439,7 @@ export class DunningComponent implements OnInit {
       });
   }
 
-  /** Issues a notice for the chosen level and claim; the charge comes back from the API. */
+  /** Issues a notice for the chosen level and receivable; the charge comes back from the API. */
   issue(event: Event): void {
     event.preventDefault();
     const { year, code } = this.parseLevelKey(this.noticeLevelKey());
@@ -447,9 +447,9 @@ export class DunningComponent implements OnInit {
       this.actionError.set(this.i18n.translate('kasse.dunning.levelRequired'));
       return;
     }
-    const claim = this.claimReference().trim();
-    if (claim === '') {
-      this.actionError.set(this.i18n.translate('kasse.dunning.claimRequired'));
+    const receivable = this.receivableReference().trim();
+    if (receivable === '') {
+      this.actionError.set(this.i18n.translate('kasse.dunning.receivableRequired'));
       return;
     }
     const outstanding = euroToCents(this.outstanding());
@@ -461,13 +461,13 @@ export class DunningComponent implements OnInit {
     this.submitting.set(true);
     this.clearMessages();
     this.api
-      .issueDunningNotice({ year, level_code: code, claim_reference: claim, outstanding_cents: outstanding })
+      .issueDunningNotice({ year, level_code: code, receivable_reference: receivable, outstanding_cents: outstanding })
       .subscribe({
         next: (issued) => {
           this.submitting.set(false);
           this.issued.set(issued);
           this.notice.set(this.i18n.translate('kasse.dunning.issued'));
-          this.claimReference.set('');
+          this.receivableReference.set('');
           this.outstanding.set('');
         },
         error: () => {

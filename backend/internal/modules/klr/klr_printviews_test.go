@@ -77,11 +77,11 @@ func TestAllocationOverview(t *testing.T) {
 	end := printDay(30)
 	report := AllocationOverview(printDay(1), []AllocationLine{
 		{
-			Allocation:   Allocation{ID: 1, SourceCenterID: 1, TargetCenterID: 2, ShareBP: 1250, ValidFrom: printDay(1)},
+			Allocation:   Allocation{ID: 1, SourceCentreID: 1, TargetCentreID: 2, ShareBP: 1250, ValidFrom: printDay(1)},
 			SourceNumber: "K-10", SourceName: "Verwaltung", TargetNumber: "K-20", TargetName: "Bibliothek",
 		},
 		{
-			Allocation:   Allocation{ID: 2, SourceCenterID: 1, TargetCenterID: 3, ShareBP: 10000, ValidFrom: printDay(1), ValidTo: &end},
+			Allocation:   Allocation{ID: 2, SourceCentreID: 1, TargetCentreID: 3, ShareBP: 10000, ValidFrom: printDay(1), ValidTo: &end},
 			SourceNumber: "K-10", SourceName: "Verwaltung", TargetNumber: "K-30", TargetName: "Mensa",
 		},
 	})

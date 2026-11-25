@@ -75,7 +75,7 @@ def main() -> int:
             "goods_receipt",
             "goods_receipt_line",
             "budget_source",
-            "budget_center",
+            "budget_centre",
             "service_rate",
             "direct_debit_mandate",
         ):

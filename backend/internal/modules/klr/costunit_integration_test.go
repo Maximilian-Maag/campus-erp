@@ -18,9 +18,9 @@ func TestKostentraegerRun(t *testing.T) {
 	svc := newService(t)
 	mark := suffix(t)
 
-	center, err := svc.CreateCostCenter(ctx, "K-"+mark, "Verwaltung", "alice")
+	centre, err := svc.CreateCostCentre(ctx, "K-"+mark, "Verwaltung", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 	unitA, err := svc.CreateCostUnit(ctx, "TA-"+mark, "Studiengang A", "alice")
 	if err != nil {
@@ -32,22 +32,22 @@ func TestKostentraegerRun(t *testing.T) {
 	}
 
 	// 1000,00 in the period, plus one cost outside it that must not be touched.
-	if _, err := svc.Post(ctx, center.ID, nil, nil, klr.Cost, 100000, klrDay(2026, 4, 10), "RE-1-"+mark, "alice"); err != nil {
+	if _, err := svc.Post(ctx, centre.ID, nil, nil, klr.Cost, 100000, klrDay(2026, 4, 10), "RE-1-"+mark, "alice"); err != nil {
 		t.Fatalf("Post: %v", err)
 	}
-	if _, err := svc.Post(ctx, center.ID, nil, nil, klr.Cost, 7777, klrDay(2026, 5, 10), "RE-2-"+mark, "alice"); err != nil {
+	if _, err := svc.Post(ctx, centre.ID, nil, nil, klr.Cost, 7777, klrDay(2026, 5, 10), "RE-2-"+mark, "alice"); err != nil {
 		t.Fatalf("Post: %v", err)
 	}
 
 	// The keys: three quarters to A, one quarter to B.
-	if _, err := svc.DefineCostUnitKey(ctx, center.ID, unitA.ID, 7500, klrDay(2026, 1, 1), nil, "alice"); err != nil {
+	if _, err := svc.DefineCostUnitKey(ctx, centre.ID, unitA.ID, 7500, klrDay(2026, 1, 1), nil, "alice"); err != nil {
 		t.Fatalf("DefineCostUnitKey: %v", err)
 	}
-	if _, err := svc.DefineCostUnitKey(ctx, center.ID, unitB.ID, 2500, klrDay(2026, 1, 1), nil, "alice"); err != nil {
+	if _, err := svc.DefineCostUnitKey(ctx, centre.ID, unitB.ID, 2500, klrDay(2026, 1, 1), nil, "alice"); err != nil {
 		t.Fatalf("DefineCostUnitKey: %v", err)
 	}
 
-	keys, err := svc.CostUnitKeys(ctx, center.ID)
+	keys, err := svc.CostUnitKeys(ctx, centre.ID)
 	if err != nil || len(keys) != 2 {
 		t.Fatalf("CostUnitKeys = %+v, %v", keys, err)
 	}
@@ -66,12 +66,12 @@ func TestKostentraegerRun(t *testing.T) {
 		t.Fatalf("the new cost units are missing from the list of %d", len(all))
 	}
 
-	before, err := svc.Report(ctx, center.ID)
+	before, err := svc.Report(ctx, centre.ID)
 	if err != nil {
 		t.Fatalf("Report: %v", err)
 	}
 
-	run, err := svc.AllocateToCostUnits(ctx, center.ID, klrDay(2026, 4, 1), klrDay(2026, 4, 30), "alice")
+	run, err := svc.AllocateToCostUnits(ctx, centre.ID, klrDay(2026, 4, 1), klrDay(2026, 4, 30), "alice")
 	if err != nil {
 		t.Fatalf("AllocateToCostUnits: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestKostentraegerRun(t *testing.T) {
 
 	// The source centre's balance is exactly where it was: the tagged costs and the relief
 	// cancel, so attributing a centre's costs does not distort the centre.
-	after, err := svc.Report(ctx, center.ID)
+	after, err := svc.Report(ctx, centre.ID)
 	if err != nil {
 		t.Fatalf("Report: %v", err)
 	}
@@ -103,11 +103,11 @@ func TestKostentraegerRun(t *testing.T) {
 	}
 
 	// The same period cannot be attributed twice.
-	if _, err := svc.AllocateToCostUnits(ctx, center.ID, klrDay(2026, 4, 1), klrDay(2026, 4, 30), "alice"); !errors.Is(err, klr.ErrAlreadyAllocated) {
+	if _, err := svc.AllocateToCostUnits(ctx, centre.ID, klrDay(2026, 4, 1), klrDay(2026, 4, 30), "alice"); !errors.Is(err, klr.ErrAlreadyAllocated) {
 		t.Fatalf("second run = %v, want ErrAlreadyAllocated", err)
 	}
 	// Neither can a period overlapping it.
-	if _, err := svc.AllocateToCostUnits(ctx, center.ID, klrDay(2026, 4, 15), klrDay(2026, 5, 15), "alice"); !errors.Is(err, klr.ErrAlreadyAllocated) {
+	if _, err := svc.AllocateToCostUnits(ctx, centre.ID, klrDay(2026, 4, 15), klrDay(2026, 5, 15), "alice"); !errors.Is(err, klr.ErrAlreadyAllocated) {
 		t.Fatalf("overlapping run = %v, want ErrAlreadyAllocated", err)
 	}
 
@@ -122,26 +122,26 @@ func TestCostUnitKeyRefusals(t *testing.T) {
 	svc := newService(t)
 	mark := suffix(t)
 
-	center, err := svc.CreateCostCenter(ctx, "K-"+mark, "Verwaltung", "alice")
+	centre, err := svc.CreateCostCentre(ctx, "K-"+mark, "Verwaltung", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 	unit, err := svc.CreateCostUnit(ctx, "T-"+mark, "Studiengang A", "alice")
 	if err != nil {
 		t.Fatalf("CreateCostUnit: %v", err)
 	}
 
-	if _, err := svc.DefineCostUnitKey(ctx, center.ID, 9223372036854775807, 10000, klrDay(2026, 1, 1), nil, "alice"); !errors.Is(err, klr.ErrCostUnitNotFound) {
+	if _, err := svc.DefineCostUnitKey(ctx, centre.ID, 9223372036854775807, 10000, klrDay(2026, 1, 1), nil, "alice"); !errors.Is(err, klr.ErrCostUnitNotFound) {
 		t.Fatalf("unknown unit = %v, want ErrCostUnitNotFound", err)
 	}
-	if _, err := svc.DefineCostUnitKey(ctx, 9223372036854775807, unit.ID, 10000, klrDay(2026, 1, 1), nil, "alice"); !errors.Is(err, klr.ErrCostCenterNotFound) {
-		t.Fatalf("unknown centre = %v, want ErrCostCenterNotFound", err)
+	if _, err := svc.DefineCostUnitKey(ctx, 9223372036854775807, unit.ID, 10000, klrDay(2026, 1, 1), nil, "alice"); !errors.Is(err, klr.ErrCostCentreNotFound) {
+		t.Fatalf("unknown centre = %v, want ErrCostCentreNotFound", err)
 	}
 	// A key whose period has already closed does not distribute a later period.
-	if _, err := svc.DefineCostUnitKey(ctx, center.ID, unit.ID, 10000, klrDay(2026, 1, 1), ptrTime(klrDay(2026, 3, 1)), "alice"); err != nil {
+	if _, err := svc.DefineCostUnitKey(ctx, centre.ID, unit.ID, 10000, klrDay(2026, 1, 1), ptrTime(klrDay(2026, 3, 1)), "alice"); err != nil {
 		t.Fatalf("DefineCostUnitKey: %v", err)
 	}
-	if _, err := svc.AllocateToCostUnits(ctx, center.ID, klrDay(2026, 4, 1), klrDay(2026, 4, 30), "alice"); !errors.Is(err, klr.ErrAllocationRunNoTargets) {
+	if _, err := svc.AllocateToCostUnits(ctx, centre.ID, klrDay(2026, 4, 1), klrDay(2026, 4, 30), "alice"); !errors.Is(err, klr.ErrAllocationRunNoTargets) {
 		t.Fatalf("expired key = %v, want ErrAllocationRunNoTargets", err)
 	}
 }
@@ -156,11 +156,11 @@ func TestCreateCostUnitKeyTurnsAMissingUnitIntoANotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := klr.NewRepo(testPool(t))
 
-	center, err := repo.CreateCostCenter(ctx, klr.CostCenter{Number: "K-S6-" + suffix(t), Name: "Serverbetrieb", CreatedBy: "alice"})
+	centre, err := repo.CreateCostCentre(ctx, klr.CostCentre{Number: "K-S6-" + suffix(t), Name: "Serverbetrieb", CreatedBy: "alice"})
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
-	key, err := klr.NewCostUnitKey(center.ID, 9223372036854775807, 10000, klrDay(2026, 11, 1), nil)
+	key, err := klr.NewCostUnitKey(centre.ID, 9223372036854775807, 10000, klrDay(2026, 11, 1), nil)
 	if err != nil {
 		t.Fatalf("NewCostUnitKey: %v", err)
 	}

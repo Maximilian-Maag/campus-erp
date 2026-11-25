@@ -200,9 +200,9 @@ CONTRACT: dict[str, dict[str, tuple]] = {
         "post": ("createBudgetSource", "budget", "Create a budget source (Mittelquelle)", "httpapi.budgetSourceRequest", "budget.Source", 201, "json"),
         "get": ("listBudgetSources", "budget", "List the budget sources", None, "[]budget.Source", 200, "json"),
     },
-    "/api/budget/centers": {
-        "post": ("createBudgetCenter", "budget", "Create a budget centre (Bewirtschaftungsstelle)", "httpapi.budgetCenterRequest", "budget.Center", 201, "json"),
-        "get": ("listBudgetCenters", "budget", "List the budget centres", None, "[]budget.Center", 200, "json"),
+    "/api/budget/centres": {
+        "post": ("createBudgetCentre", "budget", "Create a budget centre (Bewirtschaftungsstelle)", "httpapi.budgetCentreRequest", "budget.Centre", 201, "json"),
+        "get": ("listBudgetCentres", "budget", "List the budget centres", None, "[]budget.Centre", 200, "json"),
     },
     "/api/budget/positions/{id}/assignment": {
         "post": ("assignBudgetPosition", "budget", "Assign a position its source and its centre", "httpapi.assignBudgetPositionRequest", "budget.Position", 200, "json"),
@@ -243,32 +243,32 @@ CONTRACT: dict[str, dict[str, tuple]] = {
         "get": ("listGoodsReceipts", "procurement", "Read an order's goods-receipt state: line progress and the receipts so far", None, "procurement.ReceiptState", 200, "json"),
     },
     # ── KLR ──────────────────────────────────────────────────────────────────
-    "/api/klr/cost-centers": {
-        "post": ("createCostCenter", "klr", "Create a cost centre", "httpapi.klrNamedRequest", "klr.CostCenter", 201, "json"),
-        "get": ("listCostCenters", "klr", "List the cost centres", None, "[]klr.CostCenter", 200, "json"),
+    "/api/klr/cost-centres": {
+        "post": ("createCostCentre", "klr", "Create a cost centre", "httpapi.klrNamedRequest", "klr.CostCentre", 201, "json"),
+        "get": ("listCostCentres", "klr", "List the cost centres", None, "[]klr.CostCentre", 200, "json"),
     },
     "/api/klr/cost-units": {
         "post": ("createCostUnit", "klr", "Create a cost unit", "httpapi.klrNamedRequest", "klr.CostUnit", 201, "json"),
         "get": ("listCostUnits", "klr", "List the cost units", None, "[]klr.CostUnit", 200, "json"),
     },
-    "/api/klr/cost-centers/{id}/records": {
+    "/api/klr/cost-centres/{id}/records": {
         "post": ("postAccountingRecord", "klr", "Post an accounting record", "httpapi.klrRecordRequest", "klr.Record", 201, "json"),
     },
-    "/api/klr/cost-centers/{id}/report": {
+    "/api/klr/cost-centres/{id}/report": {
         "get": ("getKLRReport", "klr", "Read the cost-centre report", None, "klr.Report", 200, "json"),
     },
-    "/api/klr/cost-centers/{id}/allocations": {
+    "/api/klr/cost-centres/{id}/allocations": {
         "post": ("defineAllocation", "klr", "Define a distribution key", "httpapi.defineAllocationRequest", "klr.Allocation", 201, "json"),
         "get": ("listAllocations", "klr", "List a cost centre's distribution keys", None, "[]klr.Allocation", 200, "json"),
     },
-    "/api/klr/cost-centers/{id}/allocations/run": {
+    "/api/klr/cost-centres/{id}/allocations/run": {
         "post": ("runAllocation", "klr", "Distribute a period's costs over the keys", "httpapi.runAllocationRequest", "klr.Run", 201, "json"),
     },
-    "/api/klr/cost-centers/{id}/cost-unit-keys": {
+    "/api/klr/cost-centres/{id}/cost-unit-keys": {
         "post": ("defineCostUnitKey", "klr", "Define a key from a cost centre to a cost unit", "httpapi.defineCostUnitKeyRequest", "klr.CostUnitKey", 201, "json"),
         "get": ("listCostUnitKeys", "klr", "List a cost centre's cost-unit keys", None, "[]klr.CostUnitKey", 200, "json"),
     },
-    "/api/klr/cost-centers/{id}/cost-unit-keys/run": {
+    "/api/klr/cost-centres/{id}/cost-unit-keys/run": {
         "post": ("runCostUnitAllocation", "klr", "Attribute a period's costs to the cost units", "httpapi.runAllocationRequest", "klr.Run", 201, "json"),
     },
     "/api/klr/service-rates": {

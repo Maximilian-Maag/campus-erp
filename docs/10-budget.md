@@ -14,7 +14,7 @@ title, cost centre/carrier) and is referenced by `payment_order`; migration
 
 | table | role |
 |---|---|
-| `budget_position` | a title (Haushaltstitel) with `allocated_cents` |
+| `budget_position` | a position (Haushaltsstelle) with a chapter, a title and `allocated_cents` |
 | `budget_posting` | append-only movements: `commitment` / `release` / `actual` |
 
 ## Rule

@@ -41,48 +41,48 @@ func (s *PositionService) Sources(ctx context.Context) ([]Source, error) {
 	return s.repo.Sources(ctx)
 }
 
-// CreateCenter validates and stores a Bewirtschaftungsstelle.
-func (s *PositionService) CreateCenter(ctx context.Context, code, name, by string) (Center, error) {
+// CreateCentre validates and stores a Bewirtschaftungsstelle.
+func (s *PositionService) CreateCentre(ctx context.Context, code, name, by string) (Centre, error) {
 	if strings.TrimSpace(by) == "" {
-		return Center{}, ErrActorRequired
+		return Centre{}, ErrActorRequired
 	}
-	center, err := NewCenter(code, name)
+	centre, err := NewCentre(code, name)
 	if err != nil {
-		return Center{}, err
+		return Centre{}, err
 	}
-	center.CreatedBy = by
-	saved, err := s.repo.CreateCenter(ctx, center)
+	centre.CreatedBy = by
+	saved, err := s.repo.CreateCentre(ctx, centre)
 	if err != nil {
-		return Center{}, err
+		return Centre{}, err
 	}
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
-		Action:  "budget_center.create",
-		Subject: centerSubject(saved.ID),
+		Action:  "budget_centre.create",
+		Subject: centreSubject(saved.ID),
 		After:   fmt.Sprintf("code=%s name=%s", saved.Code, saved.Name),
 	}); err != nil {
-		return Center{}, err
+		return Centre{}, err
 	}
 	return saved, nil
 }
 
-// Centers lists the Bewirtschaftungsstellen in code order.
-func (s *PositionService) Centers(ctx context.Context) ([]Center, error) {
-	return s.repo.Centers(ctx)
+// Centres lists the Bewirtschaftungsstellen in code order.
+func (s *PositionService) Centres(ctx context.Context) ([]Centre, error) {
+	return s.repo.Centres(ctx)
 }
 
 // AssignPosition names the source a position draws on and the centre that administers it. A nil
 // half clears it, so naming one and clearing the other is one operation rather than two. The
 // position is read first, so a position nothing carries is a not-found *before* the foreign keys
 // are asked about the source and the centre.
-func (s *PositionService) AssignPosition(ctx context.Context, positionID int64, sourceID, centerID *int64, by string) (Position, error) {
+func (s *PositionService) AssignPosition(ctx context.Context, positionID int64, sourceID, centreID *int64, by string) (Position, error) {
 	if strings.TrimSpace(by) == "" {
 		return Position{}, ErrActorRequired
 	}
 	if _, err := s.repo.GetPosition(ctx, positionID); err != nil {
 		return Position{}, err
 	}
-	saved, err := s.repo.AssignPosition(ctx, positionID, sourceID, centerID)
+	saved, err := s.repo.AssignPosition(ctx, positionID, sourceID, centreID)
 	if err != nil {
 		return Position{}, err
 	}
@@ -90,7 +90,7 @@ func (s *PositionService) AssignPosition(ctx context.Context, positionID int64, 
 		Actor:   by,
 		Action:  "budget_position.assign",
 		Subject: positionSubject(saved.ID),
-		After:   fmt.Sprintf("source_id=%s center_id=%s", idOrNone(saved.SourceID), idOrNone(saved.CenterID)),
+		After:   fmt.Sprintf("source_id=%s centre_id=%s", idOrNone(saved.SourceID), idOrNone(saved.CentreID)),
 	}); err != nil {
 		return Position{}, err
 	}
@@ -106,4 +106,4 @@ func idOrNone(id *int64) string {
 }
 
 func sourceSubject(id int64) string { return fmt.Sprintf("budget_source/%d", id) }
-func centerSubject(id int64) string { return fmt.Sprintf("budget_center/%d", id) }
+func centreSubject(id int64) string { return fmt.Sprintf("budget_centre/%d", id) }

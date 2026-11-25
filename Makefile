@@ -112,7 +112,8 @@ endef
         run stop logs test mutation quality clean \
         backend-vet backend-test backend-mutation \
         frontend-test frontend-e2e-install frontend-e2e frontend-mutation \
-        policy policy-ci hooks test-tools contracts-check contracts-gen contracts-validate \
+        policy policy-ci hooks test-tools language language-gen \
+        contracts-check contracts-gen contracts-validate \
         docker-images docker-backend docker-frontend docker-login docker-publish \
         deploy-backend deploy-frontend helm-lint helm-template deploy-k8s k8s-status \
         db-up db-shell clean-data workon-backend workon-frontend c4-pdf \
@@ -174,8 +175,8 @@ test: ## Fast suite: Go, Angular, tooling, contract (no mutation)
 
 mutation: backend-mutation frontend-mutation ## Mutation gates: gremlins per package + Stryker (floor 85)
 
-quality: ## Everything: policy, contract, the fast suite and the mutation gates
-	@$(MAKE) --no-print-directory policy contracts-check test mutation
+quality: ## Everything: policy, language, contract, the fast tests and the mutation gates
+	@$(MAKE) --no-print-directory policy language contracts-check test mutation
 
 clean: ## Remove build artefacts (bin, dist, c4 export)
 	rm -rf $(BACKEND)/bin $(FRONTEND)/dist $(FRONTEND)/.angular \
@@ -257,14 +258,22 @@ policy: ## Run the policy checker (changed files)
 policy-ci: ## Run the policy checker in CI mode (all files)
 	@python3 $(ROOT)/tools/policy_check.py --ci
 
+language: ## Enforce the ubiquitous language and keep its page current
+	@python3 $(ROOT)/tools/gen_language.py --check
+	@python3 $(ROOT)/tools/check_language.py
+
+language-gen: ## Regenerate docs/ubiquitous-language.md from the JSON
+	@python3 $(ROOT)/tools/gen_language.py
+
 hooks: ## Enable the repo's git hooks (core.hooksPath)
 	@git -C $(ROOT) config core.hooksPath .githooks
 	@echo "hooks enabled"
 
-test-tools: ## Self-test the tooling (ER-model generator + API contract + domain codes)
+test-tools: ## Self-test the tooling (ER model + API contract + domain codes + language)
 	@python3 $(ROOT)/tools/test_erm.py
 	@python3 $(ROOT)/tools/api_contract.py selftest
 	@python3 $(ROOT)/tools/test_domaincodes.py
+	@python3 $(ROOT)/tools/test_language.py
 
 contracts-check: ## Verify spec, client and domain codes match the Go routes (drift guard)
 	@python3 $(ROOT)/tools/api_contract.py selftest

@@ -16,7 +16,7 @@ import (
 func budgetFile(t *testing.T) (string, string, string, string) {
 	s := suffix(t)
 	file := strings.Join([]string{
-		"source_code;source_name;source_chapter;center_code;center_name;year;chapter;title;description;ansatz",
+		"source_code;source_name;source_chapter;centre_code;centre_name;year;chapter;title;description;ansatz",
 		"LHH-" + s + ";Landesmittel;05;BW-" + s + ";Fakultät 1;2026;05;A" + s + ";Beschaffung;10.000,00",
 		"DFG-" + s + ";Drittmittel;;BW-" + s + ";Fakultät 1;2026;07;B" + s + ";Projekt;2.500,50",
 		"", // a trailing blank line is not a row
@@ -42,7 +42,7 @@ func TestImportBudgetFile(t *testing.T) {
 	}
 	// Both rows name the same Bewirtschaftungsstelle, so it is created once and found once — the
 	// count that says the file's second reference did not become a second centre.
-	if res.SourcesCreated != 2 || res.CentersCreated != 1 || res.CentersKept != 1 ||
+	if res.SourcesCreated != 2 || res.CentresCreated != 1 || res.CentresKept != 1 ||
 		res.PositionsCreated != 2 || res.PositionsNamed != 2 {
 		t.Fatalf("import = %+v, want 2 sources, 1 centre created and 1 kept, 2 positions, 2 named", res)
 	}
@@ -79,7 +79,7 @@ func TestImportBudgetFile(t *testing.T) {
 	}
 	// Kept counts the file's references: both rows name the same centre, so it is found twice.
 	want := budget.ImportResult{
-		Layout: budgetimport.StandardLayout.ID, SourcesKept: 2, CentersKept: 2, PositionsKept: 2,
+		Layout: budgetimport.StandardLayout.ID, SourcesKept: 2, CentresKept: 2, PositionsKept: 2,
 	}
 	if again != want {
 		t.Fatalf("second import = %+v, want %+v", again, want)
@@ -95,7 +95,7 @@ func TestImportBudgetFile(t *testing.T) {
 		t.Fatalf("audit actor = %q, want alice", event.Actor)
 	}
 	// The detail carries this run's counts: everything kept, nothing created, nothing named.
-	for _, want := range []string{"sources_kept=2", "centers_kept=2", "positions_kept=2", "positions_named=0"} {
+	for _, want := range []string{"sources_kept=2", "centres_kept=2", "positions_kept=2", "positions_named=0"} {
 		if !strings.Contains(event.After, want) {
 			t.Fatalf("audit after = %q, want it to carry %q", event.After, want)
 		}
@@ -116,7 +116,7 @@ func TestImportDoesNotOverwriteWhatIsThere(t *testing.T) {
 	if _, err := pool.Exec(ctx, `UPDATE budget_source SET name = 'Landesmittel (korrigiert)' WHERE code = $1`, sourceCode); err != nil {
 		t.Fatalf("rename the source: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE budget_position SET source_id = NULL, center_id = NULL WHERE title = $1`, "A"+s); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE budget_position SET source_id = NULL, centre_id = NULL WHERE title = $1`, "A"+s); err != nil {
 		t.Fatalf("unname the position: %v", err)
 	}
 

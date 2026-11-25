@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { CampusErpApi, CostCenter, CostUnit, CostUnitKey } from '../core/api/generated';
+import { CampusErpApi, CostCentre, CostUnit, CostUnitKey } from '../core/api/generated';
 import { basisPointsToPercent, formatCents, formatDay, percentToBasisPoints } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
@@ -33,14 +33,14 @@ import { PageComponent } from '../ui/page.component';
 
         @if (loading()) {
           <p role="status">{{ 'klr.costUnits.loading' | transloco }}</p>
-        } @else if (centers().length === 0 && !loadError()) {
+        } @else if (centres().length === 0 && !loadError()) {
           <p role="status">{{ 'klr.common.noCostCentres' | transloco }}</p>
         } @else if (!loadError()) {
           <div class="picker">
-            <label for="klr-unit-source">{{ 'common.costCenter' | transloco }}</label>
+            <label for="klr-unit-source">{{ 'common.costCentre' | transloco }}</label>
             <select id="klr-unit-source" [value]="source()" (change)="chooseSource($any($event.target).value)">
-              @for (center of centers(); track center.ID) {
-                <option [value]="center.ID" [selected]="'' + center.ID === source()">{{ center.Number }} {{ center.Name }}</option>
+              @for (centre of centres(); track centre.ID) {
+                <option [value]="centre.ID" [selected]="'' + centre.ID === source()">{{ centre.Number }} {{ centre.Name }}</option>
               }
             </select>
           </div>
@@ -148,7 +148,7 @@ export class KlrCostUnitsComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
   private readonly i18n = inject(TranslocoService);
 
-  readonly centers = signal<CostCenter[]>([]);
+  readonly centres = signal<CostCentre[]>([]);
   readonly units = signal<CostUnit[]>([]);
   readonly keys = signal<CostUnitKey[]>([]);
   readonly source = signal('');
@@ -189,10 +189,10 @@ export class KlrCostUnitsComponent implements OnInit {
         this.loading.set(false);
       },
     });
-    this.api.listCostCenters().subscribe({
-      next: (centers) => {
-        const list = centers ?? [];
-        this.centers.set(list);
+    this.api.listCostCentres().subscribe({
+      next: (centres) => {
+        const list = centres ?? [];
+        this.centres.set(list);
         // A centre chosen before a reload stays chosen; a first load takes the first one.
         const stillThere = list.some((c) => String(c.ID) === this.source());
         if (!stillThere) {

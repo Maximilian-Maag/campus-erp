@@ -80,6 +80,15 @@ _REFERENCES_RE = re.compile(
     r"REFERENCES\s+(?P<tbl>[A-Za-z_][\w.]*)\s*\(\s*(?P<col>[A-Za-z_]\w*)\s*\)",
     re.IGNORECASE,
 )
+_RENAME_TABLE_RE = re.compile(
+    r"ALTER\s+TABLE\s+(?P<old>[A-Za-z_][\w.]*)\s+RENAME\s+TO\s+(?P<new>[A-Za-z_][\w.]*)",
+    re.IGNORECASE,
+)
+_RENAME_COLUMN_RE = re.compile(
+    r"ALTER\s+TABLE\s+(?P<tbl>[A-Za-z_][\w.]*)\s+RENAME\s+COLUMN\s+"
+    r"(?P<old>[A-Za-z_]\w*)\s+TO\s+(?P<new>[A-Za-z_]\w*)",
+    re.IGNORECASE,
+)
 _PK_TABLE_RE = re.compile(
     r"(?:CONSTRAINT\s+\w+\s+)?PRIMARY\s+KEY\s*\((?P<cols>[^)]*)\)",
     re.IGNORECASE,
@@ -152,6 +161,7 @@ _KEYWORDS = {
 def parse_migrations(path: Path) -> list[Table]:
     """Parse every CREATE TABLE in the migration directory."""
     tables: dict[str, Table] = {}
+    renamed: dict[str, str] = {}
     sql_files = sorted(path.glob("*.sql"))
     for sql_file in sql_files:
         text = sql_file.read_text(encoding="utf-8")
@@ -202,6 +212,31 @@ def parse_migrations(path: Path) -> list[Table]:
                 if c.name in tbl.pk:
                     c.pk = True
             tables[name] = tbl
+
+        # A later migration renames a table or column the ubiquitous language settled on
+        # (e.g. budget_center -> budget_centre). The ER model must show the final schema,
+        # so renames are applied in migration order and foreign-key targets follow the
+        # table they point at.
+        for m in _RENAME_TABLE_RE.finditer(text):
+            old = m.group("old").split(".")[-1]
+            new = m.group("new").split(".")[-1]
+            if old in tables:
+                tables[new] = tables.pop(old)
+                tables[new].name = new
+                renamed[old] = new
+        for m in _RENAME_COLUMN_RE.finditer(text):
+            tbl = tables.get(m.group("tbl").split(".")[-1])
+            if tbl is None:
+                continue
+            col = tbl.col(m.group("old"))
+            if col is not None:
+                col.name = m.group("new")
+    # A foreign key written against the old table name must follow the rename, or the
+    # edge disappears from the diagram.
+    for tbl in tables.values():
+        for col in tbl.columns:
+            if col.fk and col.fk.split("(")[0] in renamed:
+                col.fk = renamed[col.fk.split("(")[0]] + "(" + col.fk.split("(")[1]
     return list(tables.values())
 
 

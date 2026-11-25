@@ -112,7 +112,7 @@ describe('PaymentOrdersComponent', () => {
     const fixture = loaded([]);
     const html = fixture.nativeElement as HTMLElement;
     expect(html.querySelector('table')).toBeNull();
-    expect(html.querySelector('[role="status"]')?.textContent).toContain('keine Zahlungsanordnungen angelegt');
+    expect(html.querySelector('[role="status"]')?.textContent).toContain('keine Ausgabeanordnungen angelegt');
 
     fixture.componentInstance.filterTo('cancelled');
     http.expectOne('/api/payment-orders?status=cancelled&limit=50&offset=0').flush([]);
@@ -127,7 +127,7 @@ describe('PaymentOrdersComponent', () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    expect(component.loadError()).toBe('Konnte die Zahlungsanordnungen nicht laden.');
+    expect(component.loadError()).toBe('Konnte die Ausgabeanordnungen nicht laden.');
     expect(component.loading()).toBeFalse();
     const html = fixture.nativeElement as HTMLElement;
     expect(html.querySelector('[role="alert"]')).toBeTruthy();
@@ -389,7 +389,7 @@ describe('PaymentOrdersComponent', () => {
     // The orders that were read are still valid; blanking the screen would suggest they are not.
     expect(component.orders().length).toBe(50);
     expect(component.loadingMore()).toBeFalse();
-    expect(component.actionError()).toBe('Konnte die weiteren Zahlungsanordnungen nicht laden.');
+    expect(component.actionError()).toBe('Konnte die weiteren Ausgabeanordnungen nicht laden.');
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).toBeTruthy();
   });
 

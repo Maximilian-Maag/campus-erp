@@ -1,8 +1,8 @@
 # 28 — Dunning (Mahnwesen)
 
-A dunning level (Mahnstufe) prices a reminder: how long a claim may run before the
+A dunning level (Mahnstufe) prices a reminder: how long a receivable may run before the
 next step, and what the reminder costs — a fixed fee plus interest on the amount
-outstanding. Issuing a notice (Mahnung) against a claim charges it once, stores the
+outstanding. Issuing a notice (Mahnung) against a receivable charges it once, stores the
 computed charge **as it was computed**, and renders it to a PDF (`docs/24`).
 
 It is the counterpart of the collection run (`docs/22`): where a run gathers what is
@@ -16,7 +16,7 @@ owed and collects it, dunning is what happens when it is not paid.
 |---|---|
 | `dunning_level` | a stage per business year: `code`, `description`, `days_allowed`, soft `active`, `next_code`, `UNIQUE (year, code)` |
 | `dunning_band` | the amount bands of a level: `position` (ordered), `up_to_cents`, `fee_cents`, `rate_basis_points` |
-| `dunning_notice` | one issued notice: `claim_reference`, `level_code`, `outstanding_cents`, the stored `charge_cents`, `issued_on`, `issued_by`, `document_key` |
+| `dunning_notice` | one issued notice: `receivable_reference`, `level_code`, `outstanding_cents`, the stored `charge_cents`, `issued_on`, `issued_by`, `document_key` |
 
 The legacy table (`kbs.mahn`) flattened five bands into columns (`bis_betr1..5`,
 `mahn_geb1..5`, `prct1..5`) and kept rates as `numeric` percentages with no ordering
@@ -52,7 +52,7 @@ an unknown level is `ErrNotFound`; against an inactive level, `ErrLevelInactive`
 | `POST` | `/api/dunning/levels` — create a level with its bands (201) |
 | `GET` | `/api/dunning/levels` — list them with their bands, `?year=` to narrow |
 | `GET` | `/api/dunning/levels/{year}/{code}` — read one |
-| `POST` | `/api/dunning/notices` — issue a notice for a claim (201) |
+| `POST` | `/api/dunning/notices` — issue a notice for a receivable (201) |
 | `POST` | `/api/dunning/runs` — advance the open receivables due by a date one step (200) |
 | `GET` | `/api/dunning/notices/{id}/document` — the notice's stored PDF |
 
@@ -67,7 +67,7 @@ year, and a year nothing was entered for is an empty list, not a 404.
 
 *Kasse: Mahnwesen* (`/kasse/mahnwesen`) drives all of it: it lists the selected year's
 levels with their bands, defines one (bands entered as rows) and issues a notice
-against a claim, showing the charge that came back. Amounts are typed in euros and a
+against a receivable, showing the charge that came back. Amounts are typed in euros and a
 band's rate in percent — the two conversions sit in `core/format` with the cents
 pair — and the level's year and code travel from the picker, so a notice is always
 issued against a level that is on screen. A notice's PDF is linked by its document
@@ -77,7 +77,7 @@ the link appears only when the notice actually carries a document (`docs/24`).
 ## The run
 
 `POST /api/dunning/runs` `{ "year": 2026, "as_of": "2026-03-01" }` walks the open
-receivables and advances each claim **one** step along the year's chain:
+receivables and advances each receivable **one** step along the year's chain:
 
 1. The year's levels are resolved into one chain: a level names its successor in
    `next_code`. Exactly one level must be the first (no other level names it). A
@@ -85,19 +85,19 @@ receivables and advances each claim **one** step along the year's chain:
    be configured before its successor; several first levels, a cycle, or a level the
    first cannot reach is refused (`409`) rather than guessed at.
 2. The open receivables due on or before `as_of` are selected
-   (`OpenReceivablesDueBy`), and each claim's most recent notice is read. A claim
+   (`OpenReceivablesDueBy`), and each receivable's most recent notice is read. A receivable
    that has never been dunned starts at the chain's first level; otherwise the next
    level is its latest notice's level's `next_code`.
 3. A level's `days_allowed` is its grace period, counted from the previous step —
    the item's due date for the first level, the notice's `issued_on` afterwards. A
    step whose grace period has not elapsed is skipped as `not_due`.
-4. A claim is dunned at most once per as-of date: a notice issued on or after it is
+4. A receivable is dunned at most once per as-of date: a notice issued on or after it is
    skipped as `already_dunned`, so running the same day again is a no-op rather than
    a second notice.
 5. The notice goes through the same dunning service the screen uses, so it is
    charged, rendered to a PDF and audited exactly like a hand-issued one. A failed
    issue is reported as `issue_failed` with its detail, and the run continues with
-   the other claims. The run stamps the notice with its own `as_of` date rather than
+   the other receivables. The run stamps the notice with its own `as_of` date rather than
    the wall clock: the next step's grace period counts from `issued_on`, so a run
    dated in the future or the past must not stamp today's date and make the next run
    skip or repeat a step.
@@ -107,7 +107,7 @@ charge, document and notice id; for a skipped one the reason (`not_due`,
 `already_dunned`, `unknown_level`, `no_next_level`, `next_level_missing`,
 `issue_failed`). The run appends one `dunning.run` audit event with the counts.
 
-A run's notices carry the claim reference `receivable/<id>`: the open item's id is
+A run's notices carry the receivable reference `receivable/<id>`: the open item's id is
 stable and unique, so the notice stays traceable to the item without a second
 identifier on it.
 

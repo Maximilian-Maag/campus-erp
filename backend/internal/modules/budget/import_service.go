@@ -36,8 +36,8 @@ func (s *PositionService) Import(ctx context.Context, layoutID, content, by stri
 		Action:  "budget_import.run",
 		Subject: "budget_import/" + layout.ID,
 		After: fmt.Sprintf(
-			"sources_created=%d sources_kept=%d centers_created=%d centers_kept=%d positions_created=%d positions_kept=%d positions_named=%d",
-			res.SourcesCreated, res.SourcesKept, res.CentersCreated, res.CentersKept,
+			"sources_created=%d sources_kept=%d centres_created=%d centres_kept=%d positions_created=%d positions_kept=%d positions_named=%d",
+			res.SourcesCreated, res.SourcesKept, res.CentresCreated, res.CentresKept,
 			res.PositionsCreated, res.PositionsKept, res.PositionsNamed),
 	}); err != nil {
 		return ImportResult{}, err

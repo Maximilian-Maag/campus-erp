@@ -69,8 +69,8 @@ func (r ServiceRate) String() string {
 // service, at the rate in force on the day.
 type ServiceCharge struct {
 	ID               int64
-	ProviderCenterID int64
-	ReceiverCenterID int64
+	ProviderCentreID int64
+	ReceiverCentreID int64
 	CostTypeID       int64
 	Quantity         int64
 	AmountCents      int64
@@ -81,11 +81,11 @@ type ServiceCharge struct {
 // NewServiceCharge validates and builds a charge, pricing it at the rate it was given. The amount
 // is computed once, here, and then stored: a rate can change afterwards, and a charge that was
 // made is a fact about the books rather than a view of today's prices.
-func NewServiceCharge(providerCenterID, receiverCenterID, costTypeID, quantity, rateCents int64, chargedOn time.Time) (ServiceCharge, error) {
-	if providerCenterID <= 0 || receiverCenterID <= 0 {
-		return ServiceCharge{}, ErrCostCenterNotFound
+func NewServiceCharge(providerCentreID, receiverCentreID, costTypeID, quantity, rateCents int64, chargedOn time.Time) (ServiceCharge, error) {
+	if providerCentreID <= 0 || receiverCentreID <= 0 {
+		return ServiceCharge{}, ErrCostCentreNotFound
 	}
-	if providerCenterID == receiverCenterID {
+	if providerCentreID == receiverCentreID {
 		return ServiceCharge{}, ErrServiceChargeSelf
 	}
 	if costTypeID <= 0 {
@@ -101,7 +101,7 @@ func NewServiceCharge(providerCenterID, receiverCenterID, costTypeID, quantity, 
 		return ServiceCharge{}, ErrChargeTooLarge
 	}
 	return ServiceCharge{
-		ProviderCenterID: providerCenterID, ReceiverCenterID: receiverCenterID,
+		ProviderCentreID: providerCentreID, ReceiverCentreID: receiverCentreID,
 		CostTypeID: costTypeID, Quantity: quantity, AmountCents: rateCents * quantity,
 		ChargedOn: chargedOn,
 	}, nil
@@ -146,14 +146,14 @@ func (s *Service) ServiceRates(ctx context.Context) ([]ServiceRate, error) {
 // ChargeService charges one cost centre for another's service: the amount is the quantity priced
 // at the rate in force on the day, the receiver is charged it and the provider is relieved by it.
 // Both ends must exist and no rate in force means nothing to charge.
-func (s *Service) ChargeService(ctx context.Context, providerCenterID, receiverCenterID, costTypeID, quantity int64, chargedOn time.Time, by string) (ServiceCharge, error) {
+func (s *Service) ChargeService(ctx context.Context, providerCentreID, receiverCentreID, costTypeID, quantity int64, chargedOn time.Time, by string) (ServiceCharge, error) {
 	if strings.TrimSpace(by) == "" {
 		return ServiceCharge{}, ErrActorRequired
 	}
-	if _, err := s.repo.GetCostCenter(ctx, providerCenterID); err != nil {
+	if _, err := s.repo.GetCostCentre(ctx, providerCentreID); err != nil {
 		return ServiceCharge{}, err
 	}
-	receiver, err := s.repo.GetCostCenter(ctx, receiverCenterID)
+	receiver, err := s.repo.GetCostCentre(ctx, receiverCentreID)
 	if err != nil {
 		return ServiceCharge{}, err
 	}
@@ -161,7 +161,7 @@ func (s *Service) ChargeService(ctx context.Context, providerCenterID, receiverC
 	if err != nil {
 		return ServiceCharge{}, err
 	}
-	charge, err := NewServiceCharge(providerCenterID, receiverCenterID, costTypeID, quantity, rate.RateCents, chargedOn)
+	charge, err := NewServiceCharge(providerCentreID, receiverCentreID, costTypeID, quantity, rate.RateCents, chargedOn)
 	if err != nil {
 		return ServiceCharge{}, err
 	}
@@ -169,12 +169,12 @@ func (s *Service) ChargeService(ctx context.Context, providerCenterID, receiverC
 
 	// The provider is relieved by exactly what the receiver is charged, so a charge moves cost
 	// between centres without creating or destroying any.
-	cost, err := NewRecord(receiverCenterID, nil, nil, Cost, charge.AmountCents, chargedOn, "")
+	cost, err := NewRecord(receiverCentreID, nil, nil, Cost, charge.AmountCents, chargedOn, "")
 	if err != nil {
 		return ServiceCharge{}, err
 	}
 	cost.BookedBy = by
-	relief, err := NewRecord(providerCenterID, nil, nil, Revenue, charge.AmountCents, chargedOn, "")
+	relief, err := NewRecord(providerCentreID, nil, nil, Revenue, charge.AmountCents, chargedOn, "")
 	if err != nil {
 		return ServiceCharge{}, err
 	}
@@ -187,7 +187,7 @@ func (s *Service) ChargeService(ctx context.Context, providerCenterID, receiverC
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
 		Action:  "service_charge.record",
-		Subject: costCenterSubject(providerCenterID),
+		Subject: costCentreSubject(providerCentreID),
 		After: fmt.Sprintf("receiver=%s cost_type=%d quantity=%d amount_cents=%d charged_on=%s",
 			receiver.Number, saved.CostTypeID, saved.Quantity, saved.AmountCents,
 			saved.ChargedOn.Format("2006-01-02")),

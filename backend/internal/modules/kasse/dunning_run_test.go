@@ -24,7 +24,7 @@ type fakeNotices struct {
 	err     error
 }
 
-func (f fakeNotices) LatestNoticeByClaim(_ context.Context, claim string) (DunningNotice, bool, error) {
+func (f fakeNotices) LatestNoticeByReceivable(_ context.Context, claim string) (DunningNotice, bool, error) {
 	if f.err != nil {
 		return DunningNotice{}, false, f.err
 	}
@@ -49,12 +49,12 @@ type fakeIssuer struct {
 	notices []DunningNotice
 }
 
-func (f *fakeIssuer) Issue(_ context.Context, _ int, levelCode, claimReference string, _ int64, _ time.Time, _ string) (DunningNotice, error) {
-	f.calls = append(f.calls, levelCode+"|"+claimReference)
+func (f *fakeIssuer) Issue(_ context.Context, _ int, levelCode, receivableReference string, _ int64, _ time.Time, _ string) (DunningNotice, error) {
+	f.calls = append(f.calls, levelCode+"|"+receivableReference)
 	if f.err != nil {
 		return DunningNotice{}, f.err
 	}
-	n := DunningNotice{ID: int64(len(f.calls)), ClaimReference: claimReference, LevelCode: levelCode,
+	n := DunningNotice{ID: int64(len(f.calls)), ReceivableReference: receivableReference, LevelCode: levelCode,
 		ChargeCents: f.charge, DocumentKey: f.docKey}
 	f.notices = append(f.notices, n)
 	return n, nil
@@ -177,8 +177,8 @@ func TestValidateDunningRun(t *testing.T) {
 	}
 }
 
-func TestReceivableClaimReference(t *testing.T) {
-	if got := ReceivableClaimReference(42); got != "receivable/42" {
+func TestReceivableReceivableReference(t *testing.T) {
+	if got := ReceivableReceivableReference(42); got != "receivable/42" {
 		t.Fatalf("reference = %q", got)
 	}
 }
@@ -218,7 +218,7 @@ func TestDunningRunIssuesTheFirstLevelWhenDue(t *testing.T) {
 	}
 	o := got.Outcomes[0]
 	if !o.Issued || o.LevelCode != "1" || o.NoticeID != 1 || o.ChargeCents != 500 ||
-		o.DocumentKey != "dunning/1.pdf" || o.ClaimReference != "receivable/7" || o.Reason != "" {
+		o.DocumentKey != "dunning/1.pdf" || o.ReceivableReference != "receivable/7" || o.Reason != "" {
 		t.Fatalf("outcome = %+v", o)
 	}
 	if len(issuer.calls) != 1 || issuer.calls[0] != "1|receivable/7" {
@@ -239,7 +239,7 @@ func TestDunningRunAdvancesFromTheLatestNotice(t *testing.T) {
 	svc, _ := newRunService(
 		[]DunningLevel{chainLevel("1", "2", 14), chainLevel("2", "", 7)},
 		[]Receivable{openItem(7, "2026-01-01")},
-		map[string]DunningNotice{"receivable/7": {ID: 3, ClaimReference: "receivable/7",
+		map[string]DunningNotice{"receivable/7": {ID: 3, ReceivableReference: "receivable/7",
 			LevelCode: "1", IssuedOn: day("2026-01-10")}},
 		issuer)
 

@@ -60,12 +60,12 @@ func period() (time.Time, time.Time) {
 }
 
 type fakeCentres struct {
-	centres []klr.CostCenter
+	centres []klr.CostCentre
 	reports map[int64]klr.Report
 	err     error
 }
 
-func (f *fakeCentres) CostCenters(context.Context) ([]klr.CostCenter, error) {
+func (f *fakeCentres) CostCentres(context.Context) ([]klr.CostCentre, error) {
 	return f.centres, f.err
 }
 
@@ -124,7 +124,7 @@ func (f *fakePrices) CostTypes(_ context.Context, limit, offset int) ([]klr.Cost
 
 type fakeRules struct {
 	rules      []klr.Allocation
-	centres    []klr.CostCenter
+	centres    []klr.CostCentre
 	rulesErr   error
 	centresErr error
 }
@@ -133,7 +133,7 @@ func (f *fakeRules) AllocationRules(context.Context) ([]klr.Allocation, error) {
 	return f.rules, f.rulesErr
 }
 
-func (f *fakeRules) CostCenters(context.Context) ([]klr.CostCenter, error) {
+func (f *fakeRules) CostCentres(context.Context) ([]klr.CostCentre, error) {
 	return f.centres, f.centresErr
 }
 
@@ -146,7 +146,7 @@ func TestCatalogueIsTheSingleList(t *testing.T) {
 	want := []string{
 		kasse.DailyCloseDefinition.ID,
 		budget.PositionOverviewDefinition.ID,
-		klr.CostCenterOverviewDefinition.ID,
+		klr.CostCentreOverviewDefinition.ID,
 		klr.CostUnitOverviewDefinition.ID,
 		klr.CostTypeOverviewDefinition.ID,
 		klr.ServiceRateOverviewDefinition.ID,
@@ -163,7 +163,7 @@ func TestCatalogueIsTheSingleList(t *testing.T) {
 	if defs[1].Title != budget.PositionOverviewDefinition.Title || len(defs[1].Columns) != len(budget.PositionOverviewDefinition.Columns) {
 		t.Fatalf("second definition is not the budget overview: %+v", defs[1])
 	}
-	if defs[2].Title != klr.CostCenterOverviewDefinition.Title || len(defs[2].Columns) != len(klr.CostCenterOverviewDefinition.Columns) {
+	if defs[2].Title != klr.CostCentreOverviewDefinition.Title || len(defs[2].Columns) != len(klr.CostCentreOverviewDefinition.Columns) {
 		t.Fatalf("third definition is not the cost-centre overview: %+v", defs[2])
 	}
 	if defs[3].Title != klr.CostUnitOverviewDefinition.Title || len(defs[3].Columns) != len(klr.CostUnitOverviewDefinition.Columns) {
@@ -246,21 +246,21 @@ func TestRenderPositionOverview(t *testing.T) {
 	}
 }
 
-func TestRenderCostCenterOverview(t *testing.T) {
+func TestRenderCostCentreOverview(t *testing.T) {
 	from, to := period()
 	centres := &fakeCentres{
-		centres: []klr.CostCenter{
+		centres: []klr.CostCentre{
 			{ID: 1, Number: "K-10", Name: "Verwaltung"},
 			{ID: 2, Number: "K-99", Name: "Bibliothek"},
 		},
 		reports: map[int64]klr.Report{
-			1: {CostCenterID: 1, CostsCents: 100000, RevenuesCents: 25000},
-			2: {CostCenterID: 2, CostsCents: 5000, RevenuesCents: 10000},
+			1: {CostCentreID: 1, CostsCents: 100000, RevenuesCents: 25000},
+			2: {CostCentreID: 2, CostsCents: 5000, RevenuesCents: 10000},
 		},
 	}
 	c := reports.NewCatalogue(reports.DataSources{Centres: centres})
 
-	got, err := c.Render(context.Background(), klr.CostCenterOverviewDefinition.ID, from, to)
+	got, err := c.Render(context.Background(), klr.CostCentreOverviewDefinition.ID, from, to)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -385,10 +385,10 @@ func TestRenderAllocationOverview(t *testing.T) {
 	end := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
 	rules := &fakeRules{
 		rules: []klr.Allocation{
-			{ID: 1, SourceCenterID: 1, TargetCenterID: 2, ShareBP: 1250, ValidFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)},
-			{ID: 2, SourceCenterID: 1, TargetCenterID: 3, ShareBP: 10000, ValidFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC), ValidTo: &end},
+			{ID: 1, SourceCentreID: 1, TargetCentreID: 2, ShareBP: 1250, ValidFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)},
+			{ID: 2, SourceCentreID: 1, TargetCentreID: 3, ShareBP: 10000, ValidFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC), ValidTo: &end},
 		},
-		centres: []klr.CostCenter{
+		centres: []klr.CostCentre{
 			{ID: 1, Number: "K-10", Name: "Verwaltung"},
 			{ID: 2, Number: "K-20", Name: "Bibliothek"},
 			{ID: 3, Number: "K-30", Name: "Mensa"},
@@ -440,15 +440,15 @@ func TestRenderRefusals(t *testing.T) {
 	if _, err := reports.NewCatalogue(reports.DataSources{Positions: positions}).Render(context.Background(), budget.PositionOverviewDefinition.ID, from, to); err == nil {
 		t.Fatal("a missing balance did not stop the report")
 	}
-	if _, err := reports.NewCatalogue(reports.DataSources{}).Render(context.Background(), klr.CostCenterOverviewDefinition.ID, from, to); !errors.Is(err, reports.ErrNoSource) {
+	if _, err := reports.NewCatalogue(reports.DataSources{}).Render(context.Background(), klr.CostCentreOverviewDefinition.ID, from, to); !errors.Is(err, reports.ErrNoSource) {
 		t.Fatalf("no centres source = %v, want ErrNoSource", err)
 	}
-	if _, err := reports.NewCatalogue(reports.DataSources{Centres: &fakeCentres{err: boom}}).Render(context.Background(), klr.CostCenterOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
+	if _, err := reports.NewCatalogue(reports.DataSources{Centres: &fakeCentres{err: boom}}).Render(context.Background(), klr.CostCentreOverviewDefinition.ID, from, to); !errors.Is(err, boom) {
 		t.Fatalf("centres error = %v, want boom", err)
 	}
 	// A centre whose report cannot be read stops the report rather than writing a zero.
-	missing := &fakeCentres{centres: []klr.CostCenter{{ID: 9, Number: "K-9"}}}
-	if _, err := reports.NewCatalogue(reports.DataSources{Centres: missing}).Render(context.Background(), klr.CostCenterOverviewDefinition.ID, from, to); err == nil {
+	missing := &fakeCentres{centres: []klr.CostCentre{{ID: 9, Number: "K-9"}}}
+	if _, err := reports.NewCatalogue(reports.DataSources{Centres: missing}).Render(context.Background(), klr.CostCentreOverviewDefinition.ID, from, to); err == nil {
 		t.Fatal("a missing centre report did not stop the report")
 	}
 	if _, err := reports.NewCatalogue(reports.DataSources{}).Render(context.Background(), klr.CostUnitOverviewDefinition.ID, from, to); !errors.Is(err, reports.ErrNoSource) {

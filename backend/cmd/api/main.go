@@ -224,10 +224,10 @@ type dunningDocuments struct {
 
 // StoreNotice implements kasse.DunningDocuments.
 func (d dunningDocuments) StoreNotice(ctx context.Context, n kasse.DunningNotice, level kasse.DunningLevel) (string, error) {
-	// The claim reference stands in for the addressee until claims carry a debtor.
+	// The receivable reference stands in for the addressee until receivables carry a debtor.
 	html, err := (documents.DunningNotice{
-		Reference:   n.ClaimReference,
-		DebtorName:  n.ClaimReference,
+		Reference:   n.ReceivableReference,
+		DebtorName:  n.ReceivableReference,
 		Issuer:      d.issuer,
 		Level:       dunningLevelNumber(n.LevelCode),
 		AmountCents: n.OutstandingCents + n.ChargeCents,

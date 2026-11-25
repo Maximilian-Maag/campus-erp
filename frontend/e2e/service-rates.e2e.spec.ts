@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 const costTypes = [{ ID: 1, Code: '4711', Name: 'Personalkosten', CreatedBy: 'alice' }];
-const centers = [
+const centres = [
   { ID: 1, Number: 'P-1', Name: 'Rechenzentrum', CreatedBy: 'alice' },
   { ID: 2, Number: 'R-1', Name: 'Bibliothek', CreatedBy: 'alice' },
 ];
@@ -15,7 +15,7 @@ test('Verrechnungspreise shows the rates, defines one and charges a service, and
   const charges: unknown[] = [];
 
   await page.route(/\/api\/klr\/cost-types(\?.*)?$/, (route) => route.fulfill({ json: costTypes }));
-  await page.route('**/api/klr/cost-centers', (route) => route.fulfill({ json: centers }));
+  await page.route('**/api/klr/cost-centres', (route) => route.fulfill({ json: centres }));
   await page.route('**/api/klr/service-rates', (route) => {
     if (route.request().method() === 'POST') {
       defined.push(route.request().postDataJSON());
@@ -52,7 +52,7 @@ test('Verrechnungspreise shows the rates, defines one and charges a service, and
   await expect(page.getByTestId('charge-result')).toContainText('75,00');
   await expect(page.getByTestId('charge-result')).toContainText('3 Einheiten');
   expect(charges).toEqual([
-    { provider_center_id: 1, receiver_center_id: 2, cost_type_id: 1, quantity: 3, charged_on: '2026-04-30' },
+    { provider_centre_id: 1, receiver_centre_id: 2, cost_type_id: 1, quantity: 3, charged_on: '2026-04-30' },
   ]);
 
   const results = await new AxeBuilder({ page }).analyze();
@@ -61,7 +61,7 @@ test('Verrechnungspreise shows the rates, defines one and charges a service, and
 
 test('Verrechnungspreise reports refusals and an empty catalogue, and passes axe', async ({ page }) => {
   await page.route(/\/api\/klr\/cost-types(\?.*)?$/, (route) => route.fulfill({ json: costTypes }));
-  await page.route('**/api/klr/cost-centers', (route) => route.fulfill({ json: centers }));
+  await page.route('**/api/klr/cost-centres', (route) => route.fulfill({ json: centres }));
   await page.route('**/api/klr/service-rates', (route) => {
     if (route.request().method() === 'POST') {
       return route.fulfill({ status: 422, json: { error: 'rate must be positive' } });

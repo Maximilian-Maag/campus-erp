@@ -56,9 +56,9 @@ func (r *Repo) CostUnits(ctx context.Context) ([]CostUnit, error) {
 func (r *Repo) CreateCostUnitKey(ctx context.Context, k CostUnitKey) (CostUnitKey, error) {
 	saved := k
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO cost_unit_key (source_center_id, target_unit_id, share_bp, valid_from, valid_to, created_by)
+		`INSERT INTO cost_unit_key (source_centre_id, target_unit_id, share_bp, valid_from, valid_to, created_by)
 		 VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-		k.SourceCenterID, k.TargetUnitID, k.ShareBP, k.ValidFrom, k.ValidTo, k.CreatedBy).Scan(&saved.ID)
+		k.SourceCentreID, k.TargetUnitID, k.ShareBP, k.ValidFrom, k.ValidTo, k.CreatedBy).Scan(&saved.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation {
@@ -71,10 +71,10 @@ func (r *Repo) CreateCostUnitKey(ctx context.Context, k CostUnitKey) (CostUnitKe
 
 // CostUnitKeys lists a cost centre's keys, oldest first, so a run always splits in the same order
 // and its arithmetic is reproducible.
-func (r *Repo) CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]CostUnitKey, error) {
+func (r *Repo) CostUnitKeys(ctx context.Context, sourceCentreID int64) ([]CostUnitKey, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, source_center_id, target_unit_id, share_bp, valid_from, valid_to, created_by
-		   FROM cost_unit_key WHERE source_center_id = $1 ORDER BY id`, sourceCenterID)
+		`SELECT id, source_centre_id, target_unit_id, share_bp, valid_from, valid_to, created_by
+		   FROM cost_unit_key WHERE source_centre_id = $1 ORDER BY id`, sourceCentreID)
 	if err != nil {
 		return nil, fmt.Errorf("klr: list cost unit keys: %w", err)
 	}
@@ -82,7 +82,7 @@ func (r *Repo) CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]CostUn
 	out := []CostUnitKey{}
 	for rows.Next() {
 		var k CostUnitKey
-		if err := rows.Scan(&k.ID, &k.SourceCenterID, &k.TargetUnitID, &k.ShareBP,
+		if err := rows.Scan(&k.ID, &k.SourceCentreID, &k.TargetUnitID, &k.ShareBP,
 			&k.ValidFrom, &k.ValidTo, &k.CreatedBy); err != nil {
 			return nil, fmt.Errorf("klr: scan cost unit key: %w", err)
 		}
@@ -107,14 +107,14 @@ func (r *Repo) RecordCostUnitRun(ctx context.Context, run Run, records []Record)
 
 	var id int64
 	err = tx.QueryRow(ctx,
-		`INSERT INTO cost_unit_run (source_center_id, period_from, period_to, allocated_cents, receivers, run_by)
+		`INSERT INTO cost_unit_run (source_centre_id, period_from, period_to, allocated_cents, receivers, run_by)
 		 VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-		run.SourceCenterID, run.PeriodFrom, run.PeriodTo, run.AllocatedCents, run.Receivers, run.RunBy).Scan(&id)
+		run.SourceCentreID, run.PeriodFrom, run.PeriodTo, run.AllocatedCents, run.Receivers, run.RunBy).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == exclusionViolation {
 			return Run{}, fmt.Errorf("klr: cost unit run for centre %d over %s..%s: %w",
-				run.SourceCenterID, run.PeriodFrom.Format(time.DateOnly),
+				run.SourceCentreID, run.PeriodFrom.Format(time.DateOnly),
 				run.PeriodTo.Format(time.DateOnly), ErrAlreadyAllocated)
 		}
 		return Run{}, fmt.Errorf("klr: record cost unit run: %w", err)
@@ -123,9 +123,9 @@ func (r *Repo) RecordCostUnitRun(ctx context.Context, run Run, records []Record)
 	reference := costUnitRunReference(id)
 	for _, rec := range records {
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO accounting_record (cost_center_id, cost_unit_id, kind, amount_cents, business_date, reference, booked_by)
+			`INSERT INTO accounting_record (cost_centre_id, cost_unit_id, kind, amount_cents, business_date, reference, booked_by)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-			rec.CostCenterID, rec.CostUnitID, rec.Kind, rec.AmountCents, rec.BusinessDate,
+			rec.CostCentreID, rec.CostUnitID, rec.Kind, rec.AmountCents, rec.BusinessDate,
 			reference, rec.BookedBy); err != nil {
 			return Run{}, fmt.Errorf("klr: record cost unit allocation: %w", err)
 		}

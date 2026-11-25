@@ -334,11 +334,11 @@ func (s stubBudget) Sources(context.Context) ([]budget.Source, error) {
 	return nil, s.err
 }
 
-func (s stubBudget) CreateCenter(context.Context, string, string, string) (budget.Center, error) {
-	return budget.Center{}, s.err
+func (s stubBudget) CreateCentre(context.Context, string, string, string) (budget.Centre, error) {
+	return budget.Centre{}, s.err
 }
 
-func (s stubBudget) Centers(context.Context) ([]budget.Center, error) {
+func (s stubBudget) Centres(context.Context) ([]budget.Centre, error) {
 	return nil, s.err
 }
 
@@ -407,11 +407,11 @@ func (s stubProcurement) ReceiptState(context.Context, int64) (procurement.Recei
 // stubKLR satisfies the KLR interface with a fixed result.
 type stubKLR struct{ err error }
 
-func (s stubKLR) CreateCostCenter(context.Context, string, string, string) (klr.CostCenter, error) {
-	return klr.CostCenter{}, s.err
+func (s stubKLR) CreateCostCentre(context.Context, string, string, string) (klr.CostCentre, error) {
+	return klr.CostCentre{}, s.err
 }
 
-func (s stubKLR) CostCenters(context.Context) ([]klr.CostCenter, error) {
+func (s stubKLR) CostCentres(context.Context) ([]klr.CostCentre, error) {
 	return nil, s.err
 }
 

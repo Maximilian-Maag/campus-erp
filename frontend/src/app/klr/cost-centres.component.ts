@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { CampusErpApi, CostCenter, KlrReport } from '../core/api/generated';
+import { CampusErpApi, CostCentre, KlrReport } from '../core/api/generated';
 import { formatCents } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
@@ -18,7 +18,7 @@ import { PageComponent } from '../ui/page.component';
  * keys so the reading holds in either language.
  */
 @Component({
-  selector: 'app-klr-cost-centers',
+  selector: 'app-klr-cost-centres',
   imports: [PageComponent, TranslocoPipe],
   template: `
     <app-page titleKey="page.klrKostenstellen.title" subtitleKey="page.klrKostenstellen.subtitle">
@@ -51,12 +51,12 @@ import { PageComponent } from '../ui/page.component';
               </tr>
             </thead>
             <tbody>
-              @for (center of centers(); track center.ID) {
-                <tr [attr.data-testid]="'center-' + center.ID">
-                  <td>{{ center.Number }}</td>
-                  <td>{{ center.Name }}</td>
+              @for (centre of centres(); track centre.ID) {
+                <tr [attr.data-testid]="'centre-' + centre.ID">
+                  <td>{{ centre.Number }}</td>
+                  <td>{{ centre.Name }}</td>
                   <td>
-                    <button type="button" (click)="showReport(center)">{{ 'klr.common.show' | transloco }}</button>
+                    <button type="button" (click)="showReport(centre)">{{ 'klr.common.show' | transloco }}</button>
                   </td>
                 </tr>
               } @empty {
@@ -71,7 +71,7 @@ import { PageComponent } from '../ui/page.component';
         @if (report(); as r) {
           <h2 id="klr-report-heading">{{ 'klr.costCentres.reportHeading' | transloco }}</h2>
           <dl aria-labelledby="klr-report-heading" [attr.data-testid]="'report-' + reporting()?.ID">
-            <dt>{{ 'common.costCenter' | transloco }}</dt>
+            <dt>{{ 'common.costCentre' | transloco }}</dt>
             <dd>{{ reporting()?.Number }} {{ reporting()?.Name }}</dd>
             <dt>{{ 'klr.common.costs' | transloco }}</dt>
             <dd>{{ euros(r.CostsCents) }}</dd>
@@ -83,14 +83,14 @@ import { PageComponent } from '../ui/page.component';
         }
 
         <form (submit)="create($event)">
-          <h2 id="klr-center-new-heading">{{ 'klr.costCentres.createHeading' | transloco }}</h2>
+          <h2 id="klr-centre-new-heading">{{ 'klr.costCentres.createHeading' | transloco }}</h2>
           <div class="field">
-            <label for="center-number">{{ 'common.number' | transloco }}</label>
-            <input id="center-number" [value]="number()" (input)="number.set($any($event.target).value)" />
+            <label for="centre-number">{{ 'common.number' | transloco }}</label>
+            <input id="centre-number" [value]="number()" (input)="number.set($any($event.target).value)" />
           </div>
           <div class="field">
-            <label for="center-name">{{ 'common.description' | transloco }}</label>
-            <input id="center-name" [value]="name()" (input)="name.set($any($event.target).value)" />
+            <label for="centre-name">{{ 'common.description' | transloco }}</label>
+            <input id="centre-name" [value]="name()" (input)="name.set($any($event.target).value)" />
           </div>
           <div class="field">
             <button type="submit" [disabled]="busy()">{{ 'klr.costCentres.createButton' | transloco }}</button>
@@ -100,11 +100,11 @@ import { PageComponent } from '../ui/page.component';
     </app-page>
   `,
 })
-export class CostCentersComponent implements OnInit {
+export class CostCentresComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
   private readonly i18n = inject(TranslocoService);
 
-  readonly centers = signal<CostCenter[]>([]);
+  readonly centres = signal<CostCentre[]>([]);
   readonly loading = signal(true);
   readonly busy = signal(false);
   /** A read failure is kept apart per read: the list and one centre's report fail for themselves. */
@@ -115,7 +115,7 @@ export class CostCentersComponent implements OnInit {
 
   readonly report = signal<KlrReport | null>(null);
   /** The centre whose report is on screen, so the report is never shown without saying whose it is. */
-  readonly reporting = signal<CostCenter | null>(null);
+  readonly reporting = signal<CostCentre | null>(null);
 
   readonly number = signal('');
   readonly name = signal('');
@@ -128,9 +128,9 @@ export class CostCentersComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.listError.set(null);
-    this.api.listCostCenters().subscribe({
-      next: (centers) => {
-        this.centers.set(centers ?? []);
+    this.api.listCostCentres().subscribe({
+      next: (centres) => {
+        this.centres.set(centres ?? []);
         this.loading.set(false);
       },
       error: () => {
@@ -141,19 +141,19 @@ export class CostCentersComponent implements OnInit {
   }
 
   /** Reads one centre's report — a second request per centre, so it is asked for on demand. */
-  showReport(center: CostCenter): void {
+  showReport(centre: CostCentre): void {
     this.reportError.set(null);
-    this.reporting.set(center);
+    this.reporting.set(centre);
     // The previous centre's figures go with its heading, not with the new one (#174).
     this.report.set(null);
-    this.api.getKLRReport(center.ID).subscribe({
+    this.api.getKLRReport(centre.ID).subscribe({
       next: (report) => {
         // A response for a centre that is no longer shown belongs to nobody.
-        if (this.reporting()?.ID !== center.ID) return;
+        if (this.reporting()?.ID !== centre.ID) return;
         this.report.set(report);
       },
       error: () => {
-        if (this.reporting()?.ID !== center.ID) return;
+        if (this.reporting()?.ID !== centre.ID) return;
         this.reportError.set(this.i18n.translate('klr.costCentres.reportFailed'));
       },
     });
@@ -168,9 +168,9 @@ export class CostCentersComponent implements OnInit {
       return;
     }
     this.busy.set(true);
-    this.api.createCostCenter({ number: this.number().trim(), name: this.name().trim() }).subscribe({
+    this.api.createCostCentre({ number: this.number().trim(), name: this.name().trim() }).subscribe({
       next: (saved) => {
-        this.centers.update((list) => [...list, saved].sort((a, b) => a.Number.localeCompare(b.Number)));
+        this.centres.update((list) => [...list, saved].sort((a, b) => a.Number.localeCompare(b.Number)));
         this.number.set('');
         this.name.set('');
         this.notice.set(this.i18n.translate('klr.costCentres.created', { number: saved.Number }));

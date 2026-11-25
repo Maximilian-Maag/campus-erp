@@ -20,7 +20,7 @@ describe('DunningRunComponent', () => {
 
   const outcome = (over: Partial<DunningRunOutcome> = {}): DunningRunOutcome => ({
     ReceivableID: 7,
-    ClaimReference: 'receivable/7',
+    ReceivableReference: 'receivable/7',
     MandateReference: 'MAN-1',
     AmountCents: 10000,
     DueDate: '2026-10-15T00:00:00Z',

@@ -216,8 +216,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/budget/imports", s.authorize(s.importBudget, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/budget/sources", s.authorize(s.createBudgetSource, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/budget/sources", s.authorizeRead(s.listBudgetSources, auth.RoleFinanzen))
-	mux.HandleFunc("POST /api/budget/centers", s.authorize(s.createBudgetCenter, auth.RoleFinanzen))
-	mux.HandleFunc("GET /api/budget/centers", s.authorizeRead(s.listBudgetCenters, auth.RoleFinanzen))
+	mux.HandleFunc("POST /api/budget/centres", s.authorize(s.createBudgetCentre, auth.RoleFinanzen))
+	mux.HandleFunc("GET /api/budget/centres", s.authorizeRead(s.listBudgetCentres, auth.RoleFinanzen))
 	mux.HandleFunc("POST /api/budget/positions/{id}/assignment", s.authorize(s.assignBudgetPosition, auth.RoleFinanzen))
 
 	// The lookup catalogue is shared reference data: reads are open to any
@@ -236,20 +236,20 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/purchase-orders/{id}/receipts", s.authorize(s.recordGoodsReceipt, auth.RoleFinanzen))
 	mux.HandleFunc("GET /api/purchase-orders/{id}/receipts", s.authorizeRead(s.listGoodsReceipts, auth.RoleFinanzen))
 
-	mux.HandleFunc("POST /api/klr/cost-centers", s.authorize(s.createCostCenter, auth.RoleKLR))
-	mux.HandleFunc("GET /api/klr/cost-centers", s.authorizeRead(s.listCostCenters, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-centres", s.authorize(s.createCostCentre, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-centres", s.authorizeRead(s.listCostCentres, auth.RoleKLR))
 	mux.HandleFunc("POST /api/klr/cost-units", s.authorize(s.createCostUnit, auth.RoleKLR))
 	mux.HandleFunc("GET /api/klr/cost-units", s.authorizeRead(s.listCostUnits, auth.RoleKLR))
-	mux.HandleFunc("POST /api/klr/cost-centers/{id}/records", s.authorize(s.postAccountingRecord, auth.RoleKLR))
-	mux.HandleFunc("GET /api/klr/cost-centers/{id}/report", s.authorizeRead(s.getKLRReport, auth.RoleKLR))
-	mux.HandleFunc("POST /api/klr/cost-centers/{id}/allocations", s.authorize(s.defineAllocation, auth.RoleKLR))
-	mux.HandleFunc("GET /api/klr/cost-centers/{id}/allocations", s.authorizeRead(s.listAllocations, auth.RoleKLR))
-	mux.HandleFunc("POST /api/klr/cost-centers/{id}/allocations/run", s.authorize(s.runAllocation, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-centres/{id}/records", s.authorize(s.postAccountingRecord, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-centres/{id}/report", s.authorizeRead(s.getKLRReport, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-centres/{id}/allocations", s.authorize(s.defineAllocation, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-centres/{id}/allocations", s.authorizeRead(s.listAllocations, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-centres/{id}/allocations/run", s.authorize(s.runAllocation, auth.RoleKLR))
 
 	// Kostenträgerrechnung: the same distribution, with cost units as the receivers.
-	mux.HandleFunc("POST /api/klr/cost-centers/{id}/cost-unit-keys", s.authorize(s.defineCostUnitKey, auth.RoleKLR))
-	mux.HandleFunc("GET /api/klr/cost-centers/{id}/cost-unit-keys", s.authorizeRead(s.listCostUnitKeys, auth.RoleKLR))
-	mux.HandleFunc("POST /api/klr/cost-centers/{id}/cost-unit-keys/run", s.authorize(s.runCostUnitAllocation, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-centres/{id}/cost-unit-keys", s.authorize(s.defineCostUnitKey, auth.RoleKLR))
+	mux.HandleFunc("GET /api/klr/cost-centres/{id}/cost-unit-keys", s.authorizeRead(s.listCostUnitKeys, auth.RoleKLR))
+	mux.HandleFunc("POST /api/klr/cost-centres/{id}/cost-unit-keys/run", s.authorize(s.runCostUnitAllocation, auth.RoleKLR))
 
 	// Internal pricing: a rate per cost type, and the charges it prices.
 	mux.HandleFunc("POST /api/klr/service-rates", s.authorize(s.defineServiceRate, auth.RoleKLR))

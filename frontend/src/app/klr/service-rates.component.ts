@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { CampusErpApi, CostCenter, CostType, ServiceRate } from '../core/api/generated';
+import { CampusErpApi, CostCentre, CostType, ServiceRate } from '../core/api/generated';
 import { euroToCents, formatCents, formatDay } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
@@ -126,7 +126,7 @@ import { PageComponent } from '../ui/page.component';
             </form>
           }
 
-          @if (centers().length < 2 || costTypes().length === 0) {
+          @if (centres().length < 2 || costTypes().length === 0) {
             <p role="status">
               {{ 'klr.serviceRates.chargeRequirements' | transloco }}
             </p>
@@ -140,8 +140,8 @@ import { PageComponent } from '../ui/page.component';
                   [value]="provider()"
                   (change)="provider.set($any($event.target).value)"
                 >
-                  @for (center of centers(); track center.ID) {
-                    <option [value]="center.ID" [selected]="'' + center.ID === provider()">{{ center.Number }} {{ center.Name }}</option>
+                  @for (centre of centres(); track centre.ID) {
+                    <option [value]="centre.ID" [selected]="'' + centre.ID === provider()">{{ centre.Number }} {{ centre.Name }}</option>
                   }
                 </select>
               </div>
@@ -152,8 +152,8 @@ import { PageComponent } from '../ui/page.component';
                   [value]="receiver()"
                   (change)="receiver.set($any($event.target).value)"
                 >
-                  @for (center of centers(); track center.ID) {
-                    <option [value]="center.ID" [selected]="'' + center.ID === receiver()">{{ center.Number }} {{ center.Name }}</option>
+                  @for (centre of centres(); track centre.ID) {
+                    <option [value]="centre.ID" [selected]="'' + centre.ID === receiver()">{{ centre.Number }} {{ centre.Name }}</option>
                   }
                 </select>
               </div>
@@ -209,7 +209,7 @@ export class KlrServiceRatesComponent implements OnInit {
 
   readonly rates = signal<ServiceRate[]>([]);
   readonly costTypes = signal<CostType[]>([]);
-  readonly centers = signal<CostCenter[]>([]);
+  readonly centres = signal<CostCentre[]>([]);
   readonly rateCostType = signal('');
   readonly rateAmount = signal('');
   readonly rateFrom = signal('');
@@ -288,10 +288,10 @@ export class KlrServiceRatesComponent implements OnInit {
         this.loading.set(false);
       },
     });
-    this.api.listCostCenters().subscribe({
-      next: (centers) => {
-        const list = centers ?? [];
-        this.centers.set(list);
+    this.api.listCostCentres().subscribe({
+      next: (centres) => {
+        const list = centres ?? [];
+        this.centres.set(list);
         // Two centres and no more: the one that is not the provider is the receiver. Only seeded
         // when the operator has not chosen, so a reload does not undo their pick.
         if (!this.provider() && list.length > 0) {
@@ -369,8 +369,8 @@ export class KlrServiceRatesComponent implements OnInit {
     this.result.set(null);
     this.api
       .chargeService({
-        provider_center_id: Number(this.provider()),
-        receiver_center_id: Number(this.receiver()),
+        provider_centre_id: Number(this.provider()),
+        receiver_centre_id: Number(this.receiver()),
         cost_type_id: Number(this.chargeCostType()),
         quantity,
         charged_on: this.chargedOn(),

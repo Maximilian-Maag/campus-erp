@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { CampusErpApi, BudgetPositionResponse, Center, ImportResult, Source } from '../core/api/generated';
+import { CampusErpApi, BudgetPositionResponse, Centre, ImportResult, Source } from '../core/api/generated';
 import { formatCents } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
@@ -101,8 +101,8 @@ import { PageComponent } from '../ui/page.component';
               </tr>
             </thead>
             <tbody>
-              @for (c of centers(); track c.ID) {
-                <tr [attr.data-testid]="'center-' + c.ID">
+              @for (c of centres(); track c.ID) {
+                <tr [attr.data-testid]="'centre-' + c.ID">
                   <td>{{ c.Code }}</td>
                   <td>{{ c.Name }}</td>
                 </tr>
@@ -114,14 +114,14 @@ import { PageComponent } from '../ui/page.component';
             </tbody>
           </table>
 
-          <form class="form" (submit)="createCenter($event)">
+          <form class="form" (submit)="createCentre($event)">
             <div class="field">
-              <label for="center-code">{{ 'common.code' | transloco }}</label>
-              <input id="center-code" [value]="centerCode()" (input)="centerCode.set($any($event.target).value)" />
+              <label for="centre-code">{{ 'common.code' | transloco }}</label>
+              <input id="centre-code" [value]="centreCode()" (input)="centreCode.set($any($event.target).value)" />
             </div>
             <div class="field">
-              <label for="center-name">{{ 'common.description' | transloco }}</label>
-              <input id="center-name" [value]="centerName()" (input)="centerName.set($any($event.target).value)" />
+              <label for="centre-name">{{ 'common.description' | transloco }}</label>
+              <input id="centre-name" [value]="centreName()" (input)="centreName.set($any($event.target).value)" />
             </div>
             <div class="field">
               <button type="submit" [disabled]="busy()">{{ 'haushalt.sources.createCentre' | transloco }}</button>
@@ -153,11 +153,11 @@ import { PageComponent } from '../ui/page.component';
                 </select>
               </div>
               <div class="field">
-                <label for="assign-center">{{ 'haushalt.sources.centre' | transloco }}</label>
-                <select id="assign-center" [value]="center()" (change)="center.set($any($event.target).value)">
+                <label for="assign-centre">{{ 'haushalt.sources.centre' | transloco }}</label>
+                <select id="assign-centre" [value]="centre()" (change)="centre.set($any($event.target).value)">
                   <option value="">{{ 'haushalt.sources.noneChoice' | transloco }}</option>
-                  @for (c of centers(); track c.ID) {
-                    <option [value]="c.ID" [selected]="'' + c.ID === center()">{{ c.Code }} — {{ c.Name }}</option>
+                  @for (c of centres(); track c.ID) {
+                    <option [value]="c.ID" [selected]="'' + c.ID === centre()">{{ c.Code }} — {{ c.Name }}</option>
                   }
                 </select>
               </div>
@@ -186,7 +186,7 @@ import { PageComponent } from '../ui/page.component';
                     <td>{{ p.position.Description }}</td>
                     <td class="amount">{{ amount(p.position.AllocatedCents) }}</td>
                     <td>{{ sourceNameOf(p) }}</td>
-                    <td>{{ centerNameOf(p) }}</td>
+                    <td>{{ centreNameOf(p) }}</td>
                   </tr>
                 }
               </tbody>
@@ -242,7 +242,7 @@ export class BudgetSourcesComponent implements OnInit {
   private readonly i18n = inject(TranslocoService);
 
   readonly sources = signal<Source[]>([]);
-  readonly centers = signal<Center[]>([]);
+  readonly centres = signal<Centre[]>([]);
   readonly positions = signal<BudgetPositionResponse[]>([]);
   /**
    * One page of Haushaltsstellen, sent explicitly rather than left to the server's default: the
@@ -269,11 +269,11 @@ export class BudgetSourcesComponent implements OnInit {
   readonly sourceCode = signal('');
   readonly sourceName = signal('');
   readonly sourceChapter = signal('');
-  readonly centerCode = signal('');
-  readonly centerName = signal('');
+  readonly centreCode = signal('');
+  readonly centreName = signal('');
   readonly position = signal('');
   readonly source = signal('');
-  readonly center = signal('');
+  readonly centre = signal('');
   /** The file's format; empty means the standard layout, and the placeholder names it. */
   readonly layout = signal('');
   readonly file = signal('');
@@ -297,8 +297,8 @@ export class BudgetSourcesComponent implements OnInit {
         this.loading.set(false);
       },
     });
-    this.api.listBudgetCenters().subscribe({
-      next: (centers) => this.centers.set(centers),
+    this.api.listBudgetCentres().subscribe({
+      next: (centres) => this.centres.set(centres),
       error: () => this.centresError.set(this.i18n.translate('haushalt.sources.loadCentresFailed')),
     });
     this.api.listBudgetPositions(String(this.pageSize), '0').subscribe({
@@ -369,20 +369,20 @@ export class BudgetSourcesComponent implements OnInit {
       });
   }
 
-  createCenter(event: Event): void {
+  createCentre(event: Event): void {
     event.preventDefault();
     this.actionError.set(null);
     this.notice.set(null);
-    if (this.centerCode().trim() === '' || this.centerName().trim() === '') {
+    if (this.centreCode().trim() === '' || this.centreName().trim() === '') {
       this.actionError.set(this.i18n.translate('haushalt.sources.centreRequired'));
       return;
     }
     this.busy.set(true);
-    this.api.createBudgetCenter({ code: this.centerCode(), name: this.centerName() }).subscribe({
+    this.api.createBudgetCentre({ code: this.centreCode(), name: this.centreName() }).subscribe({
       next: (saved) => {
-        this.centers.update((list) => [...list, saved].sort((a, b) => a.Code.localeCompare(b.Code)));
-        this.centerCode.set('');
-        this.centerName.set('');
+        this.centres.update((list) => [...list, saved].sort((a, b) => a.Code.localeCompare(b.Code)));
+        this.centreCode.set('');
+        this.centreName.set('');
         this.notice.set(this.i18n.translate('haushalt.sources.centreCreated', { code: saved.Code }));
         this.busy.set(false);
       },
@@ -406,7 +406,7 @@ export class BudgetSourcesComponent implements OnInit {
     }
     const body = {
       source_id: this.source() === '' ? null : Number(this.source()),
-      center_id: this.center() === '' ? null : Number(this.center()),
+      centre_id: this.centre() === '' ? null : Number(this.centre()),
     };
     this.busy.set(true);
     this.api.assignBudgetPosition(id, body).subscribe({
@@ -457,7 +457,7 @@ export class BudgetSourcesComponent implements OnInit {
   importNotice(res: ImportResult): string {
     return this.i18n.translate('haushalt.sources.importNotice', {
       sourcesCreated: res.SourcesCreated,
-      centresCreated: res.CentersCreated,
+      centresCreated: res.CentresCreated,
       positionsCreated: res.PositionsCreated,
       sourcesKept: res.SourcesKept,
       positionsKept: res.PositionsKept,
@@ -475,12 +475,12 @@ export class BudgetSourcesComponent implements OnInit {
   }
 
   /** The name of a position's centre, or a plain "keine" when it names none. */
-  centerNameOf(p: BudgetPositionResponse): string {
-    if (p.position.CenterID === null) {
+  centreNameOf(p: BudgetPositionResponse): string {
+    if (p.position.CentreID === null) {
       return this.i18n.translate('haushalt.sources.none');
     }
-    const found = this.centers().find((c) => c.ID === p.position.CenterID);
-    return found === undefined ? String(p.position.CenterID) : `${found.Code} — ${found.Name}`;
+    const found = this.centres().find((c) => c.ID === p.position.CentreID);
+    return found === undefined ? String(p.position.CentreID) : `${found.Code} — ${found.Name}`;
   }
 
   amount(cents: number): string {

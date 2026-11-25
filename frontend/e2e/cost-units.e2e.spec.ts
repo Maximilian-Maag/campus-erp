@@ -1,24 +1,24 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const centers = [{ ID: 1, Number: 'K-10', Name: 'Verwaltung', CreatedBy: 'alice' }];
+const centres = [{ ID: 1, Number: 'K-10', Name: 'Verwaltung', CreatedBy: 'alice' }];
 const units = [{ ID: 1, Number: 'T-1', Name: 'Studiengang A', CreatedBy: 'alice' }];
 
 test('Kostenträgerrechnung defines a key and runs a period, and passes axe', async ({ page }) => {
-  const keys = [{ ID: 1, SourceCenterID: 1, TargetUnitID: 1, ShareBP: 10000, ValidFrom: '2026-01-01T00:00:00Z', ValidTo: null, CreatedBy: 'alice' }];
+  const keys = [{ ID: 1, SourceCentreID: 1, TargetUnitID: 1, ShareBP: 10000, ValidFrom: '2026-01-01T00:00:00Z', ValidTo: null, CreatedBy: 'alice' }];
   const defined: unknown[] = [];
   const runs: unknown[] = [];
 
-  await page.route('**/api/klr/cost-centers', (route) => route.fulfill({ json: centers }));
+  await page.route('**/api/klr/cost-centres', (route) => route.fulfill({ json: centres }));
   await page.route('**/api/klr/cost-units', (route) => route.fulfill({ json: units }));
-  await page.route('**/api/klr/cost-centers/1/cost-unit-keys', (route) => {
+  await page.route('**/api/klr/cost-centres/1/cost-unit-keys', (route) => {
     if (route.request().method() === 'POST') {
       defined.push(route.request().postDataJSON());
       return route.fulfill({ status: 201, json: keys[0] });
     }
     return route.fulfill({ json: keys });
   });
-  await page.route('**/api/klr/cost-centers/1/cost-unit-keys/run', (route) => {
+  await page.route('**/api/klr/cost-centres/1/cost-unit-keys/run', (route) => {
     runs.push(route.request().postDataJSON());
     return route.fulfill({ status: 201, json: { ID: 3, AllocatedCents: 100000, Receivers: 1 } });
   });
@@ -52,15 +52,15 @@ test('Kostenträgerrechnung defines a key and runs a period, and passes axe', as
 });
 
 test('Kostenträgerrechnung reports a refused share and an empty catalogue, and passes axe', async ({ page }) => {
-  await page.route('**/api/klr/cost-centers', (route) => route.fulfill({ json: centers }));
+  await page.route('**/api/klr/cost-centres', (route) => route.fulfill({ json: centres }));
   await page.route('**/api/klr/cost-units', (route) => route.fulfill({ json: units }));
-  await page.route('**/api/klr/cost-centers/1/cost-unit-keys', (route) => {
+  await page.route('**/api/klr/cost-centres/1/cost-unit-keys', (route) => {
     if (route.request().method() === 'POST') {
       return route.fulfill({ status: 409, json: { error: 'shares do not add up' } });
     }
     return route.fulfill({ json: [] });
   });
-  await page.route('**/api/klr/cost-centers/1/cost-unit-keys/run', (route) =>
+  await page.route('**/api/klr/cost-centres/1/cost-unit-keys/run', (route) =>
     route.fulfill({ status: 422, json: { error: 'nothing to allocate' } })
   );
 

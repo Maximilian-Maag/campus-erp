@@ -10,35 +10,35 @@ func TestHTTPKLRFlow(t *testing.T) {
 	srv, _ := newTestServer(t)
 
 	// Cost centre.
-	resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers", "alice",
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres", "alice",
 		`{"number":"CC-`+uniqueSuffix(t)+`","name":"Bibliothek"}`)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create centre = %d", resp.StatusCode)
 	}
-	var center struct{ ID int64 }
-	if err := json.NewDecoder(resp.Body).Decode(&center); err != nil {
+	var centre struct{ ID int64 }
+	if err := json.NewDecoder(resp.Body).Decode(&centre); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if center.ID == 0 {
+	if centre.ID == 0 {
 		t.Fatal("no id")
 	}
 
 	// The list a screen reads before it can ask about a centre.
-	resp = doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centers", "alice", "")
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centres", "alice", "")
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list centres = %d", resp.StatusCode)
 	}
-	var centers []struct {
+	var centres []struct {
 		ID     int64
 		Number string
 		Name   string
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&centers); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&centres); err != nil {
 		t.Fatalf("decode centres: %v", err)
 	}
 	found := false
-	for _, c := range centers {
-		if c.ID == center.ID {
+	for _, c := range centres {
+		if c.ID == centre.ID {
 			found = true
 			if c.Name != "Bibliothek" {
 				t.Fatalf("listed centre = %+v", c)
@@ -46,7 +46,7 @@ func TestHTTPKLRFlow(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("the centre just created is not in the list of %d", len(centers))
+		t.Fatalf("the centre just created is not in the list of %d", len(centres))
 	}
 
 	// Cost unit.
@@ -59,22 +59,22 @@ func TestHTTPKLRFlow(t *testing.T) {
 	_ = json.NewDecoder(resp.Body).Decode(&unit)
 
 	// Records.
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers/"+itoa(center.ID)+"/records", "alice",
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres/"+itoa(centre.ID)+"/records", "alice",
 		`{"cost_unit_id":`+itoa(unit.ID)+`,"kind":"cost","amount_cents":30000,"reference":"RE-1"}`); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("post cost = %d", resp.StatusCode)
 	}
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers/"+itoa(center.ID)+"/records", "alice",
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres/"+itoa(centre.ID)+"/records", "alice",
 		`{"kind":"revenue","amount_cents":50000,"reference":"ER-1"}`); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("post revenue = %d", resp.StatusCode)
 	}
 
 	// Report.
-	resp = doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centers/"+itoa(center.ID)+"/report", "alice", "")
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centres/"+itoa(centre.ID)+"/report", "alice", "")
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("report = %d", resp.StatusCode)
 	}
 	var rep struct {
-		CostCenterID  int64
+		CostCentreID  int64
 		CostsCents    int64
 		RevenuesCents int64
 	}
@@ -90,33 +90,33 @@ func TestHTTPKLRErrorBranches(t *testing.T) {
 	srv, _ := newTestServer(t)
 
 	// Malformed body.
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers", "a", `{`); resp.StatusCode != http.StatusBadRequest {
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres", "a", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad body = %d, want 400", resp.StatusCode)
 	}
 	// Validation (no name) -> 422.
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers", "a",
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres", "a",
 		`{"number":"X","name":""}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("validation = %d, want 422", resp.StatusCode)
 	}
 	// Duplicate -> 409.
 	num := "CC-DUP-" + uniqueSuffix(t)
 	body := `{"number":"` + num + `","name":"n"}`
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers", "a", body); resp.StatusCode != http.StatusCreated {
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres", "a", body); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("first = %d", resp.StatusCode)
 	}
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers", "a", body); resp.StatusCode != http.StatusConflict {
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres", "a", body); resp.StatusCode != http.StatusConflict {
 		t.Fatalf("duplicate = %d, want 409", resp.StatusCode)
 	}
 	// Unknown centre -> 404.
-	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centers/9223372036854775807/report", "a", ""); resp.StatusCode != http.StatusNotFound {
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centres/9223372036854775807/report", "a", ""); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown report = %d, want 404", resp.StatusCode)
 	}
 	// Bad id -> 400.
-	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centers/abc/report", "", ""); resp.StatusCode != http.StatusBadRequest {
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centres/abc/report", "", ""); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad id = %d, want 400", resp.StatusCode)
 	}
 	// Malformed record body -> 400.
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers/1/records", "a", `{`); resp.StatusCode != http.StatusBadRequest {
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres/1/records", "a", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad record body = %d, want 400", resp.StatusCode)
 	}
 	// Malformed cost-unit body -> 400.

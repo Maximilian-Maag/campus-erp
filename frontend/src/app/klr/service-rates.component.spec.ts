@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { KlrServiceRatesComponent } from './service-rates.component';
-import { CostCenter, CostType, ServiceRate } from '../core/api/generated';
+import { CostCentre, CostType, ServiceRate } from '../core/api/generated';
 import { provideI18n } from '../i18n/provide-i18n';
 
 describe('KlrServiceRatesComponent', () => {
@@ -18,7 +18,7 @@ describe('KlrServiceRatesComponent', () => {
 
   afterEach(() => http.verify());
 
-  const center = (ID: number, over: Partial<CostCenter> = {}): CostCenter => ({
+  const centre = (ID: number, over: Partial<CostCentre> = {}): CostCentre => ({
     ID,
     Number: 'K-' + ID,
     Name: 'Verwaltung',
@@ -47,14 +47,14 @@ describe('KlrServiceRatesComponent', () => {
   /** The screen with types, centres and rates loaded. */
   function loaded(
     types: CostType[] = [costType(1)],
-    centers: CostCenter[] = [center(1), center(2)],
+    centres: CostCentre[] = [centre(1), centre(2)],
     rates: ServiceRate[] = [rate(1)],
   ) {
     const fixture = TestBed.createComponent(KlrServiceRatesComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush(types);
-    http.expectOne('/api/klr/cost-centers').flush(centers);
+    http.expectOne('/api/klr/cost-centres').flush(centres);
     http.expectOne('/api/klr/service-rates').flush(rates);
     fixture.detectChanges();
     return { fixture, component };
@@ -66,7 +66,7 @@ describe('KlrServiceRatesComponent', () => {
 
     expect(component.rates()).toEqual([]);
     expect(component.costTypes()).toEqual([]);
-    expect(component.centers()).toEqual([]);
+    expect(component.centres()).toEqual([]);
     expect(component.rateCostType()).toBe('');
     expect(component.chargeCostType()).toBe('');
     expect(component.provider()).toBe('');
@@ -95,13 +95,13 @@ describe('KlrServiceRatesComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([]);
-    http.expectOne('/api/klr/cost-centers').flush([]);
+    http.expectOne('/api/klr/cost-centres').flush([]);
     http.expectOne('/api/klr/service-rates').flush([]);
     fixture.detectChanges();
     const html = fixture.nativeElement as HTMLElement;
 
     component.costTypes.set([costType(1), costType(2, { Code: '5000', Name: 'Sachkosten' })]);
-    component.centers.set([center(1), center(2), center(3)]);
+    component.centres.set([centre(1), centre(2), centre(3)]);
     component.rateCostType.set('2');
     component.chargeCostType.set('2');
     component.provider.set('2');
@@ -117,7 +117,7 @@ describe('KlrServiceRatesComponent', () => {
   it('loads the rates, seeds the pickers and renders the table', () => {
     const { fixture, component } = loaded(
       [costType(1), costType(2, { Code: '5000', Name: 'Sachkosten' })],
-      [center(1), center(2)],
+      [centre(1), centre(2)],
       [rate(1, { RateCents: 2500 }), rate(2, { CostTypeID: 2, ValidTo: '2026-06-30T00:00:00Z' })],
     );
     const html = fixture.nativeElement as HTMLElement;
@@ -147,7 +147,7 @@ describe('KlrServiceRatesComponent', () => {
     component.load();
     expect(component.loading()).toBeTrue();
     http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([costType(1)]);
-    http.expectOne('/api/klr/cost-centers').flush([center(1), center(2)]);
+    http.expectOne('/api/klr/cost-centres').flush([centre(1), centre(2)]);
     http.expectOne('/api/klr/service-rates').flush([]);
     expect(component.loading()).toBeFalse();
 
@@ -162,13 +162,13 @@ describe('KlrServiceRatesComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush(null);
-    http.expectOne('/api/klr/cost-centers').flush(null);
+    http.expectOne('/api/klr/cost-centres').flush(null);
     http.expectOne('/api/klr/service-rates').flush(null);
     fixture.detectChanges();
 
     expect(component.rates()).toEqual([]);
     expect(component.costTypes()).toEqual([]);
-    expect(component.centers()).toEqual([]);
+    expect(component.centres()).toEqual([]);
     expect(component.rateCostType()).toBe('');
     expect(component.chargeCostType()).toBe('');
     expect(component.provider()).toBe('');
@@ -179,7 +179,7 @@ describe('KlrServiceRatesComponent', () => {
   });
 
   it('offers no charge form with fewer than two centres', () => {
-    const { fixture, component } = loaded([costType(1)], [center(1)], []);
+    const { fixture, component } = loaded([costType(1)], [centre(1)], []);
     const html = fixture.nativeElement as HTMLElement;
 
     // One centre cannot charge another, so the form is not offered at all.
@@ -191,7 +191,7 @@ describe('KlrServiceRatesComponent', () => {
   });
 
   it('offers no rate form without a cost type, but still offers the charge form', () => {
-    const { fixture } = loaded([], [center(1), center(2)], []);
+    const { fixture } = loaded([], [centre(1), centre(2)], []);
     const html = fixture.nativeElement as HTMLElement;
 
     expect(html.querySelector('[data-testid="define-rate"]')).toBeNull();
@@ -201,7 +201,7 @@ describe('KlrServiceRatesComponent', () => {
   });
 
   it('falls back to the id for a cost type it has not loaded', () => {
-    const { fixture } = loaded([costType(1)], [center(1), center(2)], [rate(1, { CostTypeID: 99 })]);
+    const { fixture } = loaded([costType(1)], [centre(1), centre(2)], [rate(1, { CostTypeID: 99 })]);
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[data-testid="rate-cost-type-1"]')?.textContent?.trim(),
     ).toBe('99');
@@ -213,7 +213,7 @@ describe('KlrServiceRatesComponent', () => {
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-types?limit=50&offset=0').error(new ProgressEvent('error'));
     expect(component.loading()).toBeFalse();
-    http.expectOne('/api/klr/cost-centers').flush([center(1)]);
+    http.expectOne('/api/klr/cost-centres').flush([centre(1)]);
     http.expectOne('/api/klr/service-rates').flush([]);
     fixture.detectChanges();
 
@@ -225,7 +225,7 @@ describe('KlrServiceRatesComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([costType(1)]);
-    http.expectOne('/api/klr/cost-centers').error(new ProgressEvent('error'));
+    http.expectOne('/api/klr/cost-centres').error(new ProgressEvent('error'));
     expect(component.loading()).toBeFalse();
     http.expectOne('/api/klr/service-rates').flush([]);
     fixture.detectChanges();
@@ -238,7 +238,7 @@ describe('KlrServiceRatesComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-types?limit=50&offset=0').flush([costType(1)]);
-    http.expectOne('/api/klr/cost-centers').flush([center(1), center(2)]);
+    http.expectOne('/api/klr/cost-centres').flush([centre(1), centre(2)]);
     http.expectOne('/api/klr/service-rates').error(new ProgressEvent('error'));
     fixture.detectChanges();
 
@@ -261,7 +261,7 @@ describe('KlrServiceRatesComponent', () => {
   });
 
   it('defines a rate and reloads the list', () => {
-    const { component } = loaded([costType(1)], [center(1), center(2)], []);
+    const { component } = loaded([costType(1)], [centre(1), centre(2)], []);
 
     component.rateCostType.set('1');
     component.rateAmount.set('25,50');
@@ -289,7 +289,7 @@ describe('KlrServiceRatesComponent', () => {
   });
 
   it('reports a rate that could not be defined', () => {
-    const { component } = loaded([], [center(1), center(2)], []);
+    const { component } = loaded([], [centre(1), centre(2)], []);
 
     component.rateAmount.set('25,50');
     component.rateFrom.set('2026-01-01');
@@ -302,7 +302,7 @@ describe('KlrServiceRatesComponent', () => {
   });
 
   it('reports a rate list that could not be reloaded after defining one', () => {
-    const { component } = loaded([], [center(1), center(2)], []);
+    const { component } = loaded([], [centre(1), centre(2)], []);
 
     component.rateAmount.set('25,50');
     component.rateFrom.set('2026-01-01');
@@ -379,8 +379,8 @@ describe('KlrServiceRatesComponent', () => {
     const request = http.expectOne('/api/klr/service-charges');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({
-      provider_center_id: 1,
-      receiver_center_id: 2,
+      provider_centre_id: 1,
+      receiver_centre_id: 2,
       cost_type_id: 1,
       quantity: 3,
       charged_on: '2026-04-30',

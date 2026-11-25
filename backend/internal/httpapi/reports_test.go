@@ -27,7 +27,7 @@ func TestListReportsRoute(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 	want := []string{
-		"kasse-daily-close", "budget-position-overview", "klr-cost-center-overview",
+		"kasse-daily-close", "budget-position-overview", "klr-cost-centre-overview",
 		"klr-cost-unit-overview", "klr-cost-type-overview", "klr-service-rate-overview",
 		"klr-allocation-overview",
 	}

@@ -167,7 +167,7 @@ describe('CollectionRunsComponent', () => {
     fixture.detectChanges();
 
     expect(component.submitting()).toBeFalse();
-    expect(component.notice()).toBe('Einzug erstellt.');
+    expect(component.notice()).toBe('Einzugslauf erstellt.');
     const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="run-RUN-1"]');
     expect(row?.textContent).toContain('2 Posten');
     expect(row?.textContent).toContain('55,00');
@@ -263,7 +263,7 @@ describe('CollectionRunsComponent', () => {
     http.expectOne('/api/direct-debit/runs/from-receivables').flush('no', { status: 422, statusText: 'Unprocessable' });
     fixture.detectChanges();
 
-    expect(component.actionError()).toBe('Konnte den Einzug nicht erstellen.');
+    expect(component.actionError()).toBe('Konnte den Einzugslauf nicht erstellen.');
     expect(component.submitting()).toBeFalse();
     expect(component.created()).toBeNull();
     expect(component.reference()).toBe('RUN-1');
@@ -494,7 +494,7 @@ describe('CollectionRunsComponent', () => {
     fixture.detectChanges();
 
     expect(component.submitting()).toBeFalse();
-    expect(component.notice()).toBe('Einzug erstellt.');
+    expect(component.notice()).toBe('Einzugslauf erstellt.');
     expect(component.created()?.Reference).toBe('RUN-9');
   });
 
@@ -530,7 +530,7 @@ describe('CollectionRunsComponent', () => {
     http.expectOne('/api/direct-debit/runs').flush('no', { status: 422, statusText: 'Unprocessable' });
     fixture.detectChanges();
 
-    expect(component.actionError()).toBe('Konnte den Einzug nicht erstellen.');
+    expect(component.actionError()).toBe('Konnte den Einzugslauf nicht erstellen.');
     expect(component.submitting()).toBeFalse();
     expect(component.created()).toBeNull();
     expect(component.items().length).toBe(1);

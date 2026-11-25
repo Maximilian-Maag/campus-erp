@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "comment": "The ubiquitous language. One concept, one name. Edit here; docs/ubiquitous-language.md is generated from this file and tools/check_language.py enforces it.",
+  "orthography": {
+    "comment": "The same concept is spelled for its layer: British in prose and UI copy, the technical spelling in identifiers. Neither layer may mix the two.",
+    "prose": {
+      "canonical": "centre",
+      "avoid": [
+        "center"
+      ],
+      "why": "Prose and UI copy are British English; a cost centre and a budget centre are spelled with -re."
+    },
+    "code": {
+      "canonical": "centre",
+      "avoid": [
+        "center"
+      ],
+      "why": "Identifiers, JSON and SQL use the same -re spelling as the prose, so a search for the concept finds one word in every layer."
+    }
+  },
+  "terms": [
+    {
+      "concept": "cash book day",
+      "german": "Kassentag",
+      "definition": "One business date's cash book, opened and closed as a unit.",
+      "avoid": []
+    },
+    {
+      "concept": "cash booking",
+      "german": "Kassenbuchung",
+      "definition": "One income or expense movement in a cash book day.",
+      "avoid": []
+    },
+    {
+      "concept": "payment order",
+      "german": "Ausgabeanordnung",
+      "definition": "An instruction to pay one recipient one amount, approved before it is paid.",
+      "avoid": [
+        "Zahlungsanordnung"
+      ]
+    },
+    {
+      "concept": "payment run",
+      "german": "Zahlungslauf",
+      "definition": "A batch of approved payment orders exported as one SEPA credit-transfer file.",
+      "avoid": []
+    },
+    {
+      "concept": "collection run",
+      "german": "Einzugslauf",
+      "definition": "A batch of receivables collected under mandates as one SEPA direct-debit file.",
+      "avoid": [
+        "Einzug",
+        "Einzüge"
+      ]
+    },
+    {
+      "concept": "mandate",
+      "german": "SEPA-Mandat",
+      "definition": "A debtor's authorisation to collect, with its sequence type and reference.",
+      "avoid": []
+    },
+    {
+      "concept": "receivable",
+      "german": "Offener Posten",
+      "definition": "An amount owed by a debtor, collected by a collection run or settled another way.",
+      "avoid": [
+        "claim reference"
+      ]
+    },
+    {
+      "concept": "bank statement",
+      "german": "Kontoauszug",
+      "definition": "A CAMT or MT940 file imported against a cash account.",
+      "avoid": []
+    },
+    {
+      "concept": "return",
+      "german": "Rückläufer",
+      "definition": "A collection or transfer the bank sent back, releasing the receivable it settled.",
+      "avoid": []
+    },
+    {
+      "concept": "dunning notice",
+      "german": "Mahnung",
+      "definition": "One reminder issued to a debtor at a dunning level.",
+      "avoid": []
+    },
+    {
+      "concept": "dunning level",
+      "german": "Mahnstufe",
+      "definition": "A step in the dunning chain, priced by amount bands.",
+      "avoid": []
+    },
+    {
+      "concept": "foundation",
+      "german": "Stiftung",
+      "definition": "A foundation whose funds are administered in its own books.",
+      "avoid": []
+    },
+    {
+      "concept": "foundation book",
+      "german": "Stiftungsbuch",
+      "definition": "One year's book of a foundation, carried over into the next year.",
+      "avoid": []
+    },
+    {
+      "concept": "carry-over",
+      "german": "Übertrag",
+      "definition": "Posting a foundation book's net as the next year's opening movement.",
+      "avoid": [
+        "carryforward",
+        "carry forward",
+        "rollover"
+      ]
+    },
+    {
+      "concept": "budget position",
+      "german": "Haushaltsstelle",
+      "definition": "A budget line identified by year, chapter and title, carrying its allocation.",
+      "avoid": [
+        "Haushaltstitel"
+      ]
+    },
+    {
+      "concept": "budget source",
+      "german": "Mittelquelle",
+      "definition": "Where a position's money comes from: a chapter and title, a funder or a foundation.",
+      "avoid": []
+    },
+    {
+      "concept": "budget centre",
+      "german": "Bewirtschaftungsstelle",
+      "definition": "Who administers a position's money.",
+      "avoid": []
+    },
+    {
+      "concept": "commitment",
+      "german": "Mittelbindung",
+      "definition": "An amount reserved on a budget position before it is spent.",
+      "avoid": []
+    },
+    {
+      "concept": "purchase order",
+      "german": "Bestellung",
+      "definition": "An order to a supplier, approved before goods are received.",
+      "avoid": []
+    },
+    {
+      "concept": "goods receipt",
+      "german": "Wareneingang",
+      "definition": "The recorded delivery of ordered goods, with the quantity received.",
+      "avoid": []
+    },
+    {
+      "concept": "supplier",
+      "german": "Lieferant",
+      "definition": "A party the product orders goods or services from.",
+      "avoid": []
+    },
+    {
+      "concept": "incoming invoice",
+      "german": "Eingangsrechnung",
+      "definition": "A supplier's invoice received and matched to an order.",
+      "avoid": []
+    },
+    {
+      "concept": "e-invoice",
+      "german": "E-Rechnung",
+      "definition": "A structured invoice in UBL, CII or ebInterface form.",
+      "avoid": [
+        "electronic invoice"
+      ]
+    },
+    {
+      "concept": "cost centre",
+      "german": "Kostenstelle",
+      "definition": "An organisational unit that carries costs.",
+      "avoid": []
+    },
+    {
+      "concept": "cost type",
+      "german": "Kostenart",
+      "definition": "What a cost is: the nature of the expense.",
+      "avoid": []
+    },
+    {
+      "concept": "cost unit",
+      "german": "Kostenträger",
+      "definition": "The product, service or project a cost is carried to.",
+      "avoid": []
+    },
+    {
+      "concept": "allocation",
+      "german": "Umlage",
+      "definition": "Distributing a cost centre's costs onto receivers by a key.",
+      "avoid": []
+    },
+    {
+      "concept": "service rate",
+      "german": "Verrechnungssatz",
+      "definition": "The internal price per unit at which a cost centre bills its service.",
+      "avoid": []
+    },
+    {
+      "concept": "accounting record",
+      "german": "Buchung",
+      "definition": "One KLR movement booked on a cost centre.",
+      "avoid": []
+    },
+    {
+      "concept": "report",
+      "german": "Auswertung",
+      "definition": "A definition plus its rows, rendered as a file or a screen.",
+      "avoid": []
+    },
+    {
+      "concept": "artefact",
+      "german": "Artefakt",
+      "definition": "A stored file produced by a report, export or document render.",
+      "avoid": []
+    },
+    {
+      "concept": "lookup",
+      "german": "Nachschlagewert",
+      "definition": "A value in a namespace the product reads but does not own.",
+      "avoid": []
+    },
+    {
+      "concept": "role",
+      "german": "Rolle",
+      "definition": "A permission set a principal holds.",
+      "avoid": []
+    },
+    {
+      "concept": "principal",
+      "german": "Identität",
+      "definition": "The authenticated identity a request carries.",
+      "avoid": []
+    }
+  ]
+}

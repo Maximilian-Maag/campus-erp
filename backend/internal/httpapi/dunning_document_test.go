@@ -22,12 +22,12 @@ func TestDunningNoticeDocumentRoute(t *testing.T) {
 	repo := kasse.NewDunningRepo(pool)
 
 	notice, err := repo.InsertNotice(ctx, kasse.DunningNotice{
-		ClaimReference:   "CLAIM-DOC-" + itoa(time.Now().UnixNano()),
-		LevelCode:        "2",
-		OutstandingCents: 125000,
-		ChargeCents:      500,
-		IssuedOn:         time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC),
-		IssuedBy:         "setup",
+		ReceivableReference: "RECEIVABLE-DOC-" + itoa(time.Now().UnixNano()),
+		LevelCode:           "2",
+		OutstandingCents:    125000,
+		ChargeCents:         500,
+		IssuedOn:            time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC),
+		IssuedBy:            "setup",
 	})
 	if err != nil {
 		t.Fatalf("InsertNotice: %v", err)
@@ -70,12 +70,12 @@ func TestDunningNoticeDocumentRoute(t *testing.T) {
 	// A recorded key whose artefact is missing is a server-side inconsistency: the
 	// notice points at nothing the store can serve.
 	orphan, err := repo.InsertNotice(ctx, kasse.DunningNotice{
-		ClaimReference:   "CLAIM-ORPHAN-" + itoa(time.Now().UnixNano()),
-		LevelCode:        "2",
-		OutstandingCents: 5000,
-		ChargeCents:      100,
-		IssuedOn:         time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC),
-		IssuedBy:         "setup",
+		ReceivableReference: "RECEIVABLE-ORPHAN-" + itoa(time.Now().UnixNano()),
+		LevelCode:           "2",
+		OutstandingCents:    5000,
+		ChargeCents:         100,
+		IssuedOn:            time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC),
+		IssuedBy:            "setup",
 	})
 	if err != nil {
 		t.Fatalf("InsertNotice orphan: %v", err)

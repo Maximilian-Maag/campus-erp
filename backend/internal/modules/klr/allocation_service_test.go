@@ -21,7 +21,7 @@ func TestWritesFailWhenTheAuditFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAllocation: %v", err)
 	}
-	center := CostCenter{ID: 1, Number: "4711", Name: "Bibliothek"}
+	centre := CostCentre{ID: 1, Number: "4711", Name: "Bibliothek"}
 
 	cases := []struct {
 		name string
@@ -30,7 +30,7 @@ func TestWritesFailWhenTheAuditFails(t *testing.T) {
 	}{
 		{
 			name: "posting a record",
-			repo: &fakeRepo{center: center, record: Record{ID: 1, Kind: Cost, AmountCents: 100, BusinessDate: from}},
+			repo: &fakeRepo{centre: centre, record: Record{ID: 1, Kind: Cost, AmountCents: 100, BusinessDate: from}},
 			call: func(s *Service) error {
 				_, err := s.Post(ctx, 1, nil, nil, Cost, 100, from, "RE-1", "alice")
 				return err
@@ -38,7 +38,7 @@ func TestWritesFailWhenTheAuditFails(t *testing.T) {
 		},
 		{
 			name: "defining a key",
-			repo: &fakeRepo{center: center},
+			repo: &fakeRepo{centre: centre},
 			call: func(s *Service) error {
 				_, err := s.DefineAllocation(ctx, 1, 2, 10000, from, &to, "alice")
 				return err
@@ -46,7 +46,7 @@ func TestWritesFailWhenTheAuditFails(t *testing.T) {
 		},
 		{
 			name: "running a distribution",
-			repo: &fakeRepo{center: center, allocations: []Allocation{key}, costs: 50000},
+			repo: &fakeRepo{centre: centre, allocations: []Allocation{key}, costs: 50000},
 			call: func(s *Service) error {
 				_, err := s.Allocate(ctx, 1, from, to, "alice")
 				return err
@@ -72,7 +72,7 @@ func TestAllocateRecordsTheRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAllocation: %v", err)
 	}
-	repo := &fakeRepo{center: CostCenter{ID: 1, Number: "4711"}, allocations: []Allocation{key}, costs: 50000}
+	repo := &fakeRepo{centre: CostCentre{ID: 1, Number: "4711"}, allocations: []Allocation{key}, costs: 50000}
 	svc := NewService(repo, okAudit{})
 
 	run, err := svc.Allocate(ctx, 1, from, to, "alice")
@@ -85,8 +85,8 @@ func TestAllocateRecordsTheRun(t *testing.T) {
 	if !run.PeriodFrom.Equal(from) || !run.PeriodTo.Equal(to) {
 		t.Fatalf("period = %v..%v", run.PeriodFrom, run.PeriodTo)
 	}
-	if run.SourceCenterID != 1 {
-		t.Fatalf("source = %d", run.SourceCenterID)
+	if run.SourceCentreID != 1 {
+		t.Fatalf("source = %d", run.SourceCentreID)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestAllocateRollsBackWhenTheRepoRefuses(t *testing.T) {
 		t.Fatalf("NewAllocation: %v", err)
 	}
 	repo := &fakeRepo{
-		center: CostCenter{ID: 1, Number: "4711"}, allocations: []Allocation{key},
+		centre: CostCentre{ID: 1, Number: "4711"}, allocations: []Allocation{key},
 		costs: 50000, err: ErrAlreadyAllocated,
 	}
 	svc := NewService(repo, okAudit{})
@@ -115,14 +115,14 @@ func TestAllocateRollsBackWhenTheRepoRefuses(t *testing.T) {
 func TestDefineAllocationReportsTheStoredKey(t *testing.T) {
 	ctx := context.Background()
 	from, to := day(2026, 4, 1), day(2026, 4, 30)
-	repo := &fakeRepo{center: CostCenter{ID: 1, Number: "4711"}, allocation: Allocation{ID: 7}}
+	repo := &fakeRepo{centre: CostCentre{ID: 1, Number: "4711"}, allocation: Allocation{ID: 7}}
 	svc := NewService(repo, okAudit{})
 
 	key, err := svc.DefineAllocation(ctx, 1, 2, 2500, from, &to, "alice")
 	if err != nil {
 		t.Fatalf("DefineAllocation: %v", err)
 	}
-	if key.ID != 7 || key.SourceCenterID != 1 || key.TargetCenterID != 2 || key.ShareBP != 2500 {
+	if key.ID != 7 || key.SourceCentreID != 1 || key.TargetCentreID != 2 || key.ShareBP != 2500 {
 		t.Fatalf("key = %+v", key)
 	}
 	if key.CreatedBy != "alice" || !key.ValidFrom.Equal(from) || key.ValidTo == nil || !key.ValidTo.Equal(to) {
@@ -140,7 +140,7 @@ func TestAllocateRefusesAPeriodWithoutKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAllocation: %v", err)
 	}
-	repo := &fakeRepo{center: CostCenter{ID: 1}, allocations: []Allocation{old}, costs: 50000}
+	repo := &fakeRepo{centre: CostCentre{ID: 1}, allocations: []Allocation{old}, costs: 50000}
 	svc := NewService(repo, okAudit{})
 
 	if _, err := svc.Allocate(ctx, 1, from, to, "alice"); !errors.Is(err, ErrAllocationRunNoTargets) {

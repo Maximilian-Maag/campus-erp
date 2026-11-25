@@ -122,7 +122,7 @@ a percentage and stored as basis points, converted on the string rather than thr
 0,01 % is exactly one basis point. The rule that a centre's shares must add up to 100 % stays
 with the API.
 
-`frontend/src/app/kasse/payment-orders.component.ts` — *Kasse: Zahlungsanordnungen* (route
+`frontend/src/app/kasse/payment-orders.component.ts` — *Kasse: Ausgabeanordnungen* (route
 `/kasse/anordnungen`) — lists the payment orders soonest due first and drives their workflow:
 submit a draft, approve, reject (with a reason, entered as a second step) or cancel. The
 workflow's rules stay with the API — the screen offers what a state allows and reports a refusal
@@ -145,7 +145,7 @@ converted on the string so 0,01 € is exactly one cent; a comma is the decimal 
 German. Whether an item may actually be collected — its mandate active, the currency matching —
 is the API's decision at collection time, not the screen's.
 
-`frontend/src/app/kasse/collection-runs.component.ts` — *Kasse: Einzüge* (route `/kasse/einzuege`)
+`frontend/src/app/kasse/collection-runs.component.ts` — *Kasse: Einzugsläufe* (route `/kasse/einzuege`)
 — offers one of the university's own accounts, states a direct-debit run (reference, Gläubiger-ID,
 Einzugsdatum, Sequenztyp, Local Instrument) and creates it one of two ways: from the open
 receivables due by a date, or from mandates and amounts named by hand. Either way it shows the
@@ -279,14 +279,14 @@ nested types (`dunningBandRequest`, `recipientRequest`, `budgetPositionRequest`)
   Nine lists page so far: `GET /api/e-invoices` (*Belege*), `GET /api/bank-statements`
   (*Kontoauszüge* — filtered, where the page is of one account's statements, so the filter and the
   page are asked for together), `GET /api/procurement/orders` (*Bestellungen*, likewise filtered
-  by status), `GET /api/payment-orders` (*Zahlungsanordnungen*, likewise filtered),
+  by status), `GET /api/payment-orders` (*Ausgabeanordnungen*, likewise filtered),
   `GET /api/receivables` (*Offene Posten*, likewise filtered by state),
   `GET /api/direct-debit/mandates` (*Mandate*, likewise filtered by state and sequence type),
   `GET /api/foundation-books/{id}/bookings` (the movements of one book, scoped by the path's id),
   `GET /api/budget/positions` (the budget, each position with its balance, which is why the page is
   what keeps its per-position read affordable) and `GET /api/klr/cost-types` (the chart of cost
   types). Their screens read one page at a time (`Weitere laden`), keep what they have when a page
-  fails, and drop the offer once a short page ends the list. *Einzüge* reads the same mandate list a
+  fails, and drop the offer once a short page ends the list. *Einzugsläufe* reads the same mandate list a
   page at a time as its picker, because it offers the mandates a run can be given by hand rather than
   every mandate there is — and that is also why it **drops the hand-picked items when the sequence
   type changes**:

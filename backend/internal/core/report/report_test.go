@@ -96,7 +96,7 @@ func TestAlignmentValid(t *testing.T) {
 			t.Errorf("%q must be valid", a)
 		}
 	}
-	for _, a := range []report.Alignment{"", "center"} {
+	for _, a := range []report.Alignment{"", "centre"} {
 		if a.Valid() {
 			t.Errorf("%q must be invalid", a)
 		}

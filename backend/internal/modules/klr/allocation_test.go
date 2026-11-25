@@ -19,7 +19,7 @@ func TestNewAllocation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAllocation: %v", err)
 	}
-	if got.SourceCenterID != 1 || got.TargetCenterID != 2 || got.ShareBP != 2500 {
+	if got.SourceCentreID != 1 || got.TargetCentreID != 2 || got.ShareBP != 2500 {
 		t.Fatalf("key = %+v", got)
 	}
 	if got.ValidTo == nil || !got.ValidTo.Equal(to) {
@@ -36,8 +36,8 @@ func TestNewAllocation(t *testing.T) {
 		end                *time.Time
 		want               error
 	}{
-		{"no source", 0, 2, 1000, from, time.Time{}, nil, ErrCostCenterNotFound},
-		{"no target", 1, 0, 1000, from, time.Time{}, nil, ErrCostCenterNotFound},
+		{"no source", 0, 2, 1000, from, time.Time{}, nil, ErrCostCentreNotFound},
+		{"no target", 1, 0, 1000, from, time.Time{}, nil, ErrCostCentreNotFound},
 		{"distributes to itself", 1, 1, 1000, from, time.Time{}, nil, ErrAllocationSelf},
 		{"share above 100 percent", 1, 2, 10001, from, time.Time{}, nil, ErrAllocationShare},
 		{"share below zero", 1, 2, -1, from, time.Time{}, nil, ErrAllocationShare},
@@ -155,7 +155,7 @@ func TestSplitSharesRefusals(t *testing.T) {
 	}
 	// A share outside the range cannot come through the constructor (and the table refuses it),
 	// so the split checks the sum itself rather than trusting its caller.
-	over := Allocation{SourceCenterID: 1, TargetCenterID: 10, ShareBP: 11000}
+	over := Allocation{SourceCentreID: 1, TargetCentreID: 10, ShareBP: 11000}
 	if _, err := SplitShares(1000, []Allocation{over}); !errors.Is(err, ErrSharesIncomplete) {
 		t.Fatalf("over-full share = %v, want ErrSharesIncomplete", err)
 	}
@@ -173,7 +173,7 @@ func TestPlanBooksReceiversAndRelief(t *testing.T) {
 	}
 	for i, want := range []int64{33, 33, 34} {
 		rec := records[i]
-		if rec.Kind != Cost || rec.AmountCents != want || rec.CostCenterID != int64(10+i) {
+		if rec.Kind != Cost || rec.AmountCents != want || rec.CostCentreID != int64(10+i) {
 			t.Fatalf("receiver %d = %+v, want a cost of %d on centre %d", i, rec, want, 10+i)
 		}
 		if rec.BookedBy != "carol" {
@@ -185,7 +185,7 @@ func TestPlanBooksReceiversAndRelief(t *testing.T) {
 		}
 	}
 	relief := records[3]
-	if relief.Kind != Revenue || relief.AmountCents != 100 || relief.CostCenterID != 1 {
+	if relief.Kind != Revenue || relief.AmountCents != 100 || relief.CostCentreID != 1 {
 		t.Fatalf("relief = %+v, want a revenue of 100 on the source", relief)
 	}
 
@@ -198,7 +198,7 @@ func TestPlanBooksReceiversAndRelief(t *testing.T) {
 	if len(records) != 2 {
 		t.Fatalf("records = %+v, want one receiver and the relief", records)
 	}
-	if records[0].CostCenterID != 11 || records[0].AmountCents != 1 {
+	if records[0].CostCentreID != 11 || records[0].AmountCents != 1 {
 		t.Fatalf("receiver = %+v", records[0])
 	}
 	if records[1].Kind != Revenue || records[1].AmountCents != 1 {

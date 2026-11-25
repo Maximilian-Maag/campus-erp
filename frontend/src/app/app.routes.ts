@@ -18,7 +18,7 @@ import { TaxesComponent } from './finanzen/taxes.component';
 import { KlrAllocationComponent } from './klr/allocation.component';
 import { KlrCostTypesComponent } from './klr/cost-types.component';
 import { KlrCostUnitsComponent } from './klr/cost-units.component';
-import { CostCentersComponent } from './klr/cost-centers.component';
+import { CostCentresComponent } from './klr/cost-centres.component';
 import { KlrServiceRatesComponent } from './klr/service-rates.component';
 import { BankStatementsComponent } from './kasse/bank-statements.component';
 import { CollectionRunsComponent } from './kasse/collection-runs.component';
@@ -48,7 +48,7 @@ const DECLARED: Routes = [
   { path: 'klr/umlage', component: KlrAllocationComponent },
   { path: 'klr/kostenarten', component: KlrCostTypesComponent },
   { path: 'klr/kostentraeger', component: KlrCostUnitsComponent },
-  { path: 'klr/kostenstellen', component: CostCentersComponent },
+  { path: 'klr/kostenstellen', component: CostCentresComponent },
   { path: 'klr/verrechnungspreise', component: KlrServiceRatesComponent },
   { path: 'kasse/anordnungen', component: PaymentOrdersComponent },
   { path: 'kasse/zahlungslaeufe', component: PaymentRunsComponent },

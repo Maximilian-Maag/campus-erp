@@ -11,17 +11,17 @@ import (
 func TestHTTPKostentraegerRun(t *testing.T) {
 	srv, _ := newTestServer(t)
 
-	centerID := createCenter(t, srv.URL, "alice", "K")
+	centreID := createCentre(t, srv.URL, "alice", "K")
 	unitID := createUnit(t, srv.URL, "alice", "T")
 
 	// A cost in the period to attribute.
-	resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers/"+itoa(centerID)+"/records", "alice",
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres/"+itoa(centreID)+"/records", "alice",
 		`{"kind":"cost","amount_cents":100000,"business_date":"2026-04-10"}`)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("post record = %d", resp.StatusCode)
 	}
 
-	keysURL := srv.URL + "/api/klr/cost-centers/" + itoa(centerID) + "/cost-unit-keys"
+	keysURL := srv.URL + "/api/klr/cost-centres/" + itoa(centreID) + "/cost-unit-keys"
 	resp = doJSON(t, http.MethodPost, keysURL, "alice",
 		`{"target_unit_id":`+itoa(unitID)+`,"share_bp":10000,"valid_from":"2026-01-01"}`)
 	if resp.StatusCode != http.StatusCreated {
@@ -107,8 +107,8 @@ func TestHTTPKostentraegerRun(t *testing.T) {
 func TestHTTPCostUnitKeyRefusals(t *testing.T) {
 	srv, _ := newTestServer(t)
 
-	centerID := createCenter(t, srv.URL, "alice", "K")
-	keysURL := srv.URL + "/api/klr/cost-centers/" + itoa(centerID) + "/cost-unit-keys"
+	centreID := createCentre(t, srv.URL, "alice", "K")
+	keysURL := srv.URL + "/api/klr/cost-centres/" + itoa(centreID) + "/cost-unit-keys"
 
 	if resp := doJSON(t, http.MethodPost, keysURL, "alice",
 		`{"target_unit_id":9223372036854775807,"share_bp":10000,"valid_from":"2026-01-01"}`); resp.StatusCode != http.StatusNotFound {
@@ -129,7 +129,7 @@ func TestHTTPCostUnitKeyRefusals(t *testing.T) {
 	if resp := doJSON(t, http.MethodPost, keysURL, "alice", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("malformed body = %d, want 400", resp.StatusCode)
 	}
-	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centers/9223372036854775807/cost-unit-keys", "alice", ""); resp.StatusCode != http.StatusNotFound {
+	if resp := doJSON(t, http.MethodGet, srv.URL+"/api/klr/cost-centres/9223372036854775807/cost-unit-keys", "alice", ""); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown centre = %d, want 404", resp.StatusCode)
 	}
 	// A run over a period whose key is not in force has nothing to attribute.

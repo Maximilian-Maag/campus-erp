@@ -12,8 +12,8 @@ func TestHTTPInternalPricing(t *testing.T) {
 	srv, _ := newTestServer(t)
 	mark := uniqueSuffix(t)
 
-	provider := createCenter(t, srv.URL, "alice", "P")
-	receiver := createCenter(t, srv.URL, "alice", "R")
+	provider := createCentre(t, srv.URL, "alice", "P")
+	receiver := createCentre(t, srv.URL, "alice", "R")
 	costType := createCostType(t, srv.URL+"/api/klr/cost-types", "4711-"+mark, "Personalkosten")
 
 	resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/service-rates", "alice",
@@ -54,7 +54,7 @@ func TestHTTPInternalPricing(t *testing.T) {
 
 	// Three units at 25,00 is 75,00.
 	resp = doJSON(t, http.MethodPost, srv.URL+"/api/klr/service-charges", "alice",
-		`{"provider_center_id":`+itoa(provider)+`,"receiver_center_id":`+itoa(receiver)+
+		`{"provider_centre_id":`+itoa(provider)+`,"receiver_centre_id":`+itoa(receiver)+
 			`,"cost_type_id":`+itoa(costType)+`,"quantity":3,"charged_on":"2026-04-30"}`)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("charge = %d, want 201", resp.StatusCode)
@@ -77,8 +77,8 @@ func TestHTTPInternalPricingRefusals(t *testing.T) {
 	srv, _ := newTestServer(t)
 	mark := uniqueSuffix(t)
 
-	provider := createCenter(t, srv.URL, "alice", "P")
-	receiver := createCenter(t, srv.URL, "alice", "R")
+	provider := createCentre(t, srv.URL, "alice", "P")
+	receiver := createCentre(t, srv.URL, "alice", "R")
 	costType := createCostType(t, srv.URL+"/api/klr/cost-types", "5000-"+mark, "Sachkosten")
 
 	ratesURL := srv.URL + "/api/klr/service-rates"
@@ -106,12 +106,12 @@ func TestHTTPInternalPricingRefusals(t *testing.T) {
 
 	// No rate in force means nothing to charge.
 	if resp := doJSON(t, http.MethodPost, chargesURL, "alice",
-		`{"provider_center_id":`+itoa(provider)+`,"receiver_center_id":`+itoa(receiver)+
+		`{"provider_centre_id":`+itoa(provider)+`,"receiver_centre_id":`+itoa(receiver)+
 			`,"cost_type_id":`+itoa(costType)+`,"quantity":1,"charged_on":"2026-04-30"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("no rate = %d, want 422", resp.StatusCode)
 	}
 	if resp := doJSON(t, http.MethodPost, chargesURL, "alice",
-		`{"provider_center_id":`+itoa(provider)+`,"receiver_center_id":`+itoa(receiver)+
+		`{"provider_centre_id":`+itoa(provider)+`,"receiver_centre_id":`+itoa(receiver)+
 			`,"cost_type_id":`+itoa(costType)+`,"quantity":1,"charged_on":"nonsense"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("bad charged_on = %d, want 422", resp.StatusCode)
 	}
@@ -125,12 +125,12 @@ func TestHTTPInternalPricingRefusals(t *testing.T) {
 		t.Fatalf("define rate = %d", resp.StatusCode)
 	}
 	if resp := doJSON(t, http.MethodPost, chargesURL, "alice",
-		`{"provider_center_id":`+itoa(provider)+`,"receiver_center_id":`+itoa(provider)+
+		`{"provider_centre_id":`+itoa(provider)+`,"receiver_centre_id":`+itoa(provider)+
 			`,"cost_type_id":`+itoa(costType)+`,"quantity":1,"charged_on":"2026-04-30"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("self charge = %d, want 422", resp.StatusCode)
 	}
 	if resp := doJSON(t, http.MethodPost, chargesURL, "alice",
-		`{"provider_center_id":`+itoa(provider)+`,"receiver_center_id":`+itoa(receiver)+
+		`{"provider_centre_id":`+itoa(provider)+`,"receiver_centre_id":`+itoa(receiver)+
 			`,"cost_type_id":`+itoa(costType)+`,"quantity":0,"charged_on":"2026-04-30"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("no quantity = %d, want 422", resp.StatusCode)
 	}

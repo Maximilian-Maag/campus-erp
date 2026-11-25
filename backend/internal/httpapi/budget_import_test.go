@@ -18,7 +18,7 @@ func TestHTTPBudgetImport(t *testing.T) {
 	srv, _ := newTestServer(t)
 	code := fmt.Sprintf("IMP-%d", time.Now().UnixNano())
 	file := strings.Join([]string{
-		"source_code;source_name;source_chapter;center_code;center_name;year;chapter;title;description;ansatz",
+		"source_code;source_name;source_chapter;centre_code;centre_name;year;chapter;title;description;ansatz",
 		code + ";Landesmittel;05;" + code + "-BW;Fakultät 1;2026;05;" + code + ";Beschaffung;10.000,00",
 		"",
 	}, "\n")
@@ -33,7 +33,7 @@ func TestHTTPBudgetImport(t *testing.T) {
 	if res.Layout != "budget-import/v1" {
 		t.Fatalf("layout = %q, want the standard layout", res.Layout)
 	}
-	if res.SourcesCreated != 1 || res.CentersCreated != 1 || res.PositionsCreated != 1 || res.PositionsNamed != 1 {
+	if res.SourcesCreated != 1 || res.CentresCreated != 1 || res.PositionsCreated != 1 || res.PositionsNamed != 1 {
 		t.Fatalf("import = %+v, want one of each created and the position named", res)
 	}
 
@@ -52,7 +52,7 @@ func TestHTTPBudgetImport(t *testing.T) {
 		t.Fatalf("the imported source %s is missing from the list", code)
 	}
 	position := findHTTPPosition(t, srv.URL, 2026, "05", code)
-	if position.SourceID == nil || position.CenterID == nil {
+	if position.SourceID == nil || position.CentreID == nil {
 		t.Fatalf("position = %+v, want it named by the file", position)
 	}
 
@@ -73,7 +73,7 @@ func TestHTTPBudgetImport(t *testing.T) {
 func TestHTTPBudgetImportRefusals(t *testing.T) {
 	srv, _ := newTestServer(t)
 	code := fmt.Sprintf("BAD-%d", time.Now().UnixNano())
-	header := "source_code;source_name;source_chapter;center_code;center_name;year;chapter;title;description;ansatz\n"
+	header := "source_code;source_name;source_chapter;centre_code;centre_name;year;chapter;title;description;ansatz\n"
 	good := code + ";Mittel;05;" + code + "-BW;Stelle;2026;05;" + code + ";x;1,00\n"
 	bad := code + "-1;Mittel;05;" + code + "-BW;Stelle;2026;05;" + code + "-1;x;zuviel\n"
 

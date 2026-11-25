@@ -2065,25 +2065,25 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/budget/centers:
+  /api/budget/centres:
     post:
       tags:
       - budget
-      operationId: createBudgetCenter
+      operationId: createBudgetCentre
       summary: Create a budget centre (Bewirtschaftungsstelle)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BudgetCenterRequest'
+              $ref: '#/components/schemas/BudgetCentreRequest'
       responses:
         '201':
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Center'
+                $ref: '#/components/schemas/Centre'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2101,7 +2101,7 @@ paths:
     get:
       tags:
       - budget
-      operationId: listBudgetCenters
+      operationId: listBudgetCentres
       summary: List the budget centres
       responses:
         '200':
@@ -2111,7 +2111,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Center'
+                  $ref: '#/components/schemas/Centre'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2626,11 +2626,11 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/klr/cost-centers:
+  /api/klr/cost-centres:
     post:
       tags:
       - klr
-      operationId: createCostCenter
+      operationId: createCostCentre
       summary: Create a cost centre
       requestBody:
         required: true
@@ -2644,7 +2644,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CostCenter'
+                $ref: '#/components/schemas/CostCentre'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2662,7 +2662,7 @@ paths:
     get:
       tags:
       - klr
-      operationId: listCostCenters
+      operationId: listCostCentres
       summary: List the cost centres
       responses:
         '200':
@@ -2672,7 +2672,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CostCenter'
+                  $ref: '#/components/schemas/CostCentre'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2748,7 +2748,7 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/klr/cost-centers/{id}/records:
+  /api/klr/cost-centres/{id}/records:
     post:
       tags:
       - klr
@@ -2788,7 +2788,7 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/klr/cost-centers/{id}/report:
+  /api/klr/cost-centres/{id}/report:
     get:
       tags:
       - klr
@@ -2822,7 +2822,7 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/klr/cost-centers/{id}/allocations:
+  /api/klr/cost-centres/{id}/allocations:
     post:
       tags:
       - klr
@@ -2897,7 +2897,7 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/klr/cost-centers/{id}/allocations/run:
+  /api/klr/cost-centres/{id}/allocations/run:
     post:
       tags:
       - klr
@@ -2937,7 +2937,7 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/klr/cost-centers/{id}/cost-unit-keys:
+  /api/klr/cost-centres/{id}/cost-unit-keys:
     post:
       tags:
       - klr
@@ -3012,7 +3012,7 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/klr/cost-centers/{id}/cost-unit-keys/run:
+  /api/klr/cost-centres/{id}/cost-unit-keys/run:
     post:
       tags:
       - klr
@@ -4615,10 +4615,10 @@ components:
         ID:
           type: integer
           format: int64
-        ProviderCenterID:
+        ProviderCentreID:
           type: integer
           format: int64
-        ReceiverCenterID:
+        ReceiverCentreID:
           type: integer
           format: int64
         CostTypeID:
@@ -4637,8 +4637,8 @@ components:
           type: string
       required:
       - ID
-      - ProviderCenterID
-      - ReceiverCenterID
+      - ProviderCentreID
+      - ReceiverCentreID
       - CostTypeID
       - Quantity
       - AmountCents
@@ -4647,10 +4647,10 @@ components:
     ServiceChargeRequest:
       type: object
       properties:
-        provider_center_id:
+        provider_centre_id:
           type: integer
           format: int64
-        receiver_center_id:
+        receiver_centre_id:
           type: integer
           format: int64
         cost_type_id:
@@ -4662,8 +4662,8 @@ components:
         charged_on:
           type: string
       required:
-      - provider_center_id
-      - receiver_center_id
+      - provider_centre_id
+      - receiver_centre_id
       - cost_type_id
       - quantity
       - charged_on
@@ -4719,7 +4719,7 @@ components:
         ID:
           type: integer
           format: int64
-        SourceCenterID:
+        SourceCentreID:
           type: integer
           format: int64
         PeriodFrom:
@@ -4738,7 +4738,7 @@ components:
           type: string
       required:
       - ID
-      - SourceCenterID
+      - SourceCentreID
       - PeriodFrom
       - PeriodTo
       - AllocatedCents
@@ -4760,7 +4760,7 @@ components:
         ID:
           type: integer
           format: int64
-        SourceCenterID:
+        SourceCentreID:
           type: integer
           format: int64
         TargetUnitID:
@@ -4780,7 +4780,7 @@ components:
           type: string
       required:
       - ID
-      - SourceCenterID
+      - SourceCentreID
       - TargetUnitID
       - ShareBP
       - ValidFrom
@@ -4810,10 +4810,10 @@ components:
         ID:
           type: integer
           format: int64
-        SourceCenterID:
+        SourceCentreID:
           type: integer
           format: int64
-        TargetCenterID:
+        TargetCentreID:
           type: integer
           format: int64
         ShareBP:
@@ -4830,8 +4830,8 @@ components:
           type: string
       required:
       - ID
-      - SourceCenterID
-      - TargetCenterID
+      - SourceCentreID
+      - TargetCentreID
       - ShareBP
       - ValidFrom
       - ValidTo
@@ -4839,7 +4839,7 @@ components:
     DefineAllocationRequest:
       type: object
       properties:
-        target_center_id:
+        target_centre_id:
           type: integer
           format: int64
         share_bp:
@@ -4850,14 +4850,14 @@ components:
         valid_to:
           type: string
       required:
-      - target_center_id
+      - target_centre_id
       - share_bp
       - valid_from
       - valid_to
     KlrReport:
       type: object
       properties:
-        CostCenterID:
+        CostCentreID:
           type: integer
           format: int64
         CostsCents:
@@ -4867,7 +4867,7 @@ components:
           type: integer
           format: int64
       required:
-      - CostCenterID
+      - CostCentreID
       - CostsCents
       - RevenuesCents
     KlrRecord:
@@ -4876,7 +4876,7 @@ components:
         ID:
           type: integer
           format: int64
-        CostCenterID:
+        CostCentreID:
           type: integer
           format: int64
         CostUnitID:
@@ -4901,7 +4901,7 @@ components:
           type: string
       required:
       - ID
-      - CostCenterID
+      - CostCentreID
       - CostUnitID
       - CostTypeID
       - Kind
@@ -4963,7 +4963,7 @@ components:
       required:
       - number
       - name
-    CostCenter:
+    CostCentre:
       type: object
       properties:
         ID:
@@ -5366,7 +5366,7 @@ components:
           type: integer
           format: int64
           x-nullable: true
-        CenterID:
+        CentreID:
           type: integer
           format: int64
           x-nullable: true
@@ -5379,7 +5379,7 @@ components:
       - AllocatedCents
       - CreatedBy
       - SourceID
-      - CenterID
+      - CentreID
     AssignBudgetPositionRequest:
       type: object
       properties:
@@ -5387,14 +5387,14 @@ components:
           type: integer
           format: int64
           x-nullable: true
-        center_id:
+        centre_id:
           type: integer
           format: int64
           x-nullable: true
       required:
       - source_id
-      - center_id
-    Center:
+      - centre_id
+    Centre:
       type: object
       properties:
         ID:
@@ -5414,7 +5414,7 @@ components:
       - Name
       - Active
       - CreatedBy
-    BudgetCenterRequest:
+    BudgetCentreRequest:
       type: object
       properties:
         code:
@@ -5471,10 +5471,10 @@ components:
         SourcesKept:
           type: integer
           format: int64
-        CentersCreated:
+        CentresCreated:
           type: integer
           format: int64
-        CentersKept:
+        CentresKept:
           type: integer
           format: int64
         PositionsCreated:
@@ -5490,8 +5490,8 @@ components:
       - Layout
       - SourcesCreated
       - SourcesKept
-      - CentersCreated
-      - CentersKept
+      - CentresCreated
+      - CentresKept
       - PositionsCreated
       - PositionsKept
       - PositionsNamed
@@ -5877,7 +5877,7 @@ components:
         ReceivableID:
           type: integer
           format: int64
-        ClaimReference:
+        ReceivableReference:
           type: string
         MandateReference:
           type: string
@@ -5905,7 +5905,7 @@ components:
           type: string
       required:
       - ReceivableID
-      - ClaimReference
+      - ReceivableReference
       - MandateReference
       - AmountCents
       - DueDate
@@ -5933,7 +5933,7 @@ components:
         ID:
           type: integer
           format: int64
-        ClaimReference:
+        ReceivableReference:
           type: string
         LevelCode:
           type: string
@@ -5952,7 +5952,7 @@ components:
           type: string
       required:
       - ID
-      - ClaimReference
+      - ReceivableReference
       - LevelCode
       - OutstandingCents
       - ChargeCents
@@ -5967,7 +5967,7 @@ components:
           format: int64
         level_code:
           type: string
-        claim_reference:
+        receivable_reference:
           type: string
         outstanding_cents:
           type: integer
@@ -5975,7 +5975,7 @@ components:
       required:
       - year
       - level_code
-      - claim_reference
+      - receivable_reference
       - outstanding_cents
     DunningLevel:
       type: object

@@ -14,9 +14,9 @@ func TestCostUnitFigures(t *testing.T) {
 	svc := newService(t)
 	mark := suffix(t)
 
-	center, err := svc.CreateCostCenter(ctx, "K-"+mark, "Verwaltung", "alice")
+	centre, err := svc.CreateCostCentre(ctx, "K-"+mark, "Verwaltung", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 	withRecords, err := svc.CreateCostUnit(ctx, "T1-"+mark, "Studiengang A", "alice")
 	if err != nil {
@@ -28,17 +28,17 @@ func TestCostUnitFigures(t *testing.T) {
 		t.Fatalf("CreateCostUnit: %v", err)
 	}
 
-	if _, err := svc.Post(ctx, center.ID, &withRecords.ID, nil, klr.Cost, 100000, klrDay(2026, 4, 10), "RE-1-"+mark, "alice"); err != nil {
+	if _, err := svc.Post(ctx, centre.ID, &withRecords.ID, nil, klr.Cost, 100000, klrDay(2026, 4, 10), "RE-1-"+mark, "alice"); err != nil {
 		t.Fatalf("Post cost: %v", err)
 	}
-	if _, err := svc.Post(ctx, center.ID, &withRecords.ID, nil, klr.Cost, 5000, klrDay(2026, 4, 11), "RE-2-"+mark, "alice"); err != nil {
+	if _, err := svc.Post(ctx, centre.ID, &withRecords.ID, nil, klr.Cost, 5000, klrDay(2026, 4, 11), "RE-2-"+mark, "alice"); err != nil {
 		t.Fatalf("Post cost: %v", err)
 	}
-	if _, err := svc.Post(ctx, center.ID, &withRecords.ID, nil, klr.Revenue, 25000, klrDay(2026, 4, 12), "RE-3-"+mark, "alice"); err != nil {
+	if _, err := svc.Post(ctx, centre.ID, &withRecords.ID, nil, klr.Revenue, 25000, klrDay(2026, 4, 12), "RE-3-"+mark, "alice"); err != nil {
 		t.Fatalf("Post revenue: %v", err)
 	}
 	// A record with no cost unit belongs to no unit and must not land in one by accident.
-	if _, err := svc.Post(ctx, center.ID, nil, nil, klr.Cost, 999999, klrDay(2026, 4, 13), "RE-4-"+mark, "alice"); err != nil {
+	if _, err := svc.Post(ctx, centre.ID, nil, nil, klr.Cost, 999999, klrDay(2026, 4, 13), "RE-4-"+mark, "alice"); err != nil {
 		t.Fatalf("Post without a unit: %v", err)
 	}
 

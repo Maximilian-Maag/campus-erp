@@ -3,8 +3,8 @@
 
 export interface Allocation {
   ID: number;
-  SourceCenterID: number;
-  TargetCenterID: number;
+  SourceCentreID: number;
+  TargetCentreID: number;
   ShareBP: number;
   ValidFrom: string;
   ValidTo: string | null;
@@ -13,7 +13,7 @@ export interface Allocation {
 
 export interface AssignBudgetPositionRequest {
   source_id: number | null;
-  center_id: number | null;
+  centre_id: number | null;
 }
 
 export interface Balance {
@@ -51,7 +51,7 @@ export interface Booking {
   Purpose: string;
 }
 
-export interface BudgetCenterRequest {
+export interface BudgetCentreRequest {
   code: string;
   name: string;
 }
@@ -111,7 +111,7 @@ export interface CashAccount {
   Currency: string;
 }
 
-export interface Center {
+export interface Centre {
   ID: number;
   Code: string;
   Name: string;
@@ -167,7 +167,7 @@ export interface Column {
   Align: string;
 }
 
-export interface CostCenter {
+export interface CostCentre {
   ID: number;
   Number: string;
   Name: string;
@@ -196,7 +196,7 @@ export interface CostUnit {
 
 export interface CostUnitKey {
   ID: number;
-  SourceCenterID: number;
+  SourceCentreID: number;
   TargetUnitID: number;
   ShareBP: number;
   ValidFrom: string;
@@ -292,7 +292,7 @@ export interface DecisionRequest {
 }
 
 export interface DefineAllocationRequest {
-  target_center_id: number;
+  target_centre_id: number;
   share_bp: number;
   valid_from: string;
   valid_to: string;
@@ -336,7 +336,7 @@ export interface DunningLevel {
 
 export interface DunningNotice {
   ID: number;
-  ClaimReference: string;
+  ReceivableReference: string;
   LevelCode: string;
   OutstandingCents: number;
   ChargeCents: number;
@@ -347,7 +347,7 @@ export interface DunningNotice {
 
 export interface DunningRunOutcome {
   ReceivableID: number;
-  ClaimReference: string;
+  ReceivableReference: string;
   MandateReference: string;
   AmountCents: number;
   DueDate: string;
@@ -480,8 +480,8 @@ export interface ImportResult {
   Layout: string;
   SourcesCreated: number;
   SourcesKept: number;
-  CentersCreated: number;
-  CentersKept: number;
+  CentresCreated: number;
+  CentresKept: number;
   PositionsCreated: number;
   PositionsKept: number;
   PositionsNamed: number;
@@ -527,7 +527,7 @@ export interface InvoiceSummary {
 export interface IssueNoticeRequest {
   year: number;
   level_code: string;
-  claim_reference: string;
+  receivable_reference: string;
   outstanding_cents: number;
 }
 
@@ -558,7 +558,7 @@ export interface KlrNamedRequest {
 
 export interface KlrRecord {
   ID: number;
-  CostCenterID: number;
+  CostCentreID: number;
   CostUnitID: number | null;
   CostTypeID: number | null;
   Kind: string;
@@ -578,14 +578,14 @@ export interface KlrRecordRequest {
 }
 
 export interface KlrReport {
-  CostCenterID: number;
+  CostCentreID: number;
   CostsCents: number;
   RevenuesCents: number;
 }
 
 export interface KlrRun {
   ID: number;
-  SourceCenterID: number;
+  SourceCentreID: number;
   PeriodFrom: string;
   PeriodTo: string;
   AllocatedCents: number;
@@ -703,7 +703,7 @@ export interface Position {
   AllocatedCents: number;
   CreatedBy: string;
   SourceID: number | null;
-  CenterID: number | null;
+  CentreID: number | null;
 }
 
 export interface Posting {
@@ -852,8 +852,8 @@ export interface SeedResult {
 
 export interface ServiceCharge {
   ID: number;
-  ProviderCenterID: number;
-  ReceiverCenterID: number;
+  ProviderCentreID: number;
+  ReceiverCentreID: number;
   CostTypeID: number;
   Quantity: number;
   AmountCents: number;
@@ -862,8 +862,8 @@ export interface ServiceCharge {
 }
 
 export interface ServiceChargeRequest {
-  provider_center_id: number;
-  receiver_center_id: number;
+  provider_centre_id: number;
+  receiver_centre_id: number;
   cost_type_id: number;
   quantity: number;
   charged_on: string;

@@ -16,7 +16,7 @@ type dunningLevelReader interface {
 // dunningNoticeReader reads a claim's most recent notice. The bool is false when
 // the claim has never been dunned.
 type dunningNoticeReader interface {
-	LatestNoticeByClaim(ctx context.Context, claimReference string) (DunningNotice, bool, error)
+	LatestNoticeByReceivable(ctx context.Context, receivableReference string) (DunningNotice, bool, error)
 }
 
 // openReceivableReader selects the open items a dunning run walks: those due on or
@@ -31,7 +31,7 @@ type dunningNoticeIssuer interface {
 	// Issue stamps the notice with the run's as-of date, not the wall clock: the next step's grace
 	// period counts from the notice's issued_on, so a run dated in the future or the past must not
 	// stamp a notice with today's date and make the next run see a step it never took.
-	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, issuedOn time.Time, by string) (DunningNotice, error)
+	Issue(ctx context.Context, year int, levelCode, receivableReference string, outstandingCents int64, issuedOn time.Time, by string) (DunningNotice, error)
 }
 
 // DunningRunService implements the dunning run (Mahnlauf, docs/28).
@@ -90,11 +90,11 @@ func (s *DunningRunService) Run(ctx context.Context, year int, asOf time.Time, b
 	result := DunningRunResult{Year: year, AsOf: asOf, Outcomes: []DunningRunOutcome{}}
 	for _, r := range receivables {
 		outcome := DunningRunOutcome{
-			ReceivableID:     r.ID,
-			ClaimReference:   ReceivableClaimReference(r.ID),
-			MandateReference: r.MandateReference,
-			AmountCents:      r.AmountCents,
-			DueDate:          dateOnly(r.DueDate),
+			ReceivableID:        r.ID,
+			ReceivableReference: ReceivableReceivableReference(r.ID),
+			MandateReference:    r.MandateReference,
+			AmountCents:         r.AmountCents,
+			DueDate:             dateOnly(r.DueDate),
 		}
 		next, skip, err := s.nextStep(ctx, chain, r, asOf)
 		if err != nil {
@@ -108,7 +108,7 @@ func (s *DunningRunService) Run(ctx context.Context, year int, asOf time.Time, b
 			continue
 		}
 
-		notice, err := s.issuer.Issue(ctx, year, next.Code, outcome.ClaimReference, r.AmountCents, asOf, by)
+		notice, err := s.issuer.Issue(ctx, year, next.Code, outcome.ReceivableReference, r.AmountCents, asOf, by)
 		if err != nil {
 			outcome.Reason = DunningSkipIssueFailed
 			outcome.Detail = err.Error()
@@ -145,7 +145,7 @@ func (s *DunningRunService) Run(ctx context.Context, year int, asOf time.Time, b
 func (s *DunningRunService) nextStep(ctx context.Context, chain dunningChain, r Receivable,
 	asOf time.Time) (DunningLevel, string, error) {
 
-	latest, found, err := s.notices.LatestNoticeByClaim(ctx, ReceivableClaimReference(r.ID))
+	latest, found, err := s.notices.LatestNoticeByReceivable(ctx, ReceivableReceivableReference(r.ID))
 	if err != nil {
 		return DunningLevel{}, "", err
 	}

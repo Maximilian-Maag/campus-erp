@@ -129,19 +129,19 @@ func TestHTTPRecordCarriesItsCostType(t *testing.T) {
 	srv, _ := newTestServer(t)
 	mark := uniqueSuffix(t)
 
-	resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centers", "alice",
+	resp := doJSON(t, http.MethodPost, srv.URL+"/api/klr/cost-centres", "alice",
 		`{"number":"CC-`+mark+`","name":"Bibliothek"}`)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create centre = %d", resp.StatusCode)
 	}
-	var center struct{ ID int64 }
-	if err := json.NewDecoder(resp.Body).Decode(&center); err != nil {
+	var centre struct{ ID int64 }
+	if err := json.NewDecoder(resp.Body).Decode(&centre); err != nil {
 		t.Fatalf("decode centre: %v", err)
 	}
 
 	costType := createCostType(t, srv.URL+"/api/klr/cost-types", "4711-"+mark, "Personalkosten")
 
-	recordsURL := srv.URL + "/api/klr/cost-centers/" + strconv.FormatInt(center.ID, 10) + "/records"
+	recordsURL := srv.URL + "/api/klr/cost-centres/" + strconv.FormatInt(centre.ID, 10) + "/records"
 	resp = doJSON(t, http.MethodPost, recordsURL, "alice",
 		`{"kind":"cost","amount_cents":1250,"cost_type_id":`+strconv.FormatInt(costType, 10)+`}`)
 	if resp.StatusCode != http.StatusCreated {

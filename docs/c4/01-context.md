@@ -16,9 +16,9 @@ C4Context
     Person(leitung, "Hochschulleitung", "Management / controlling")
     Person(pruefer, "Revision / Prüfung", "Audit / internal revision")
 
-    System(erp, "the legacy university ERP", "Personal, Finanzen, Sachmittel, Kasse, Kosten-/Leistungsrechnung (modules the HR module, the finance module/the finance module, the cost-accounting module, the cash-book module)")
+    System(erp, "the legacy university ERP", "Personal, Finanzen, Sachmittel, Kasse, Kosten-/Leistungsrechnung (modules the HR module, the finance module, the cost-accounting module, the cash-book module)")
 
-    System_Ext(the reference source, "the reference implementation", "Campus management (APP/STU/EXA/DOC)")
+    System_Ext(campus_reference, "the reference implementation", "Campus management (APP/STU/EXA/DOC)")
     System_Ext(lbv, "LBV / Bezügestelle", "State payroll office (Besoldung/Bezüge)")
     System_Ext(bank, "Banken / SEPA", "Bank & payment traffic (SEPA, MT940)")
     System_Ext(finanzamt, "Finanzamt / ELSTER", "Tax office / e-tax filing")
@@ -37,7 +37,7 @@ C4Context
     Rel(leitung, erp, "Controlling, Auswertungen")
     Rel(pruefer, erp, "Revision, Protokolle")
 
-    Rel(erp, the reference source, "Stammdaten / Kostenstellen / Studierende", "Schnittstelle (inferred)")
+    Rel(erp, campus_reference, "Stammdaten / Kostenstellen / Studierende", "Schnittstelle (inferred)")
     Rel(erp, lbv, "Bezüge-/Besoldungsmeldungen", "File/Datenlieferung (bw_lbv_*, nrw_*)")
     Rel(erp, bank, "SEPA-Zahlungen, MT940-Auszüge", "Datei/Bank (bic_sepa_*, mt940)")
     Rel(erp, finanzamt, "Umsatzsteuer-Meldungen", "ELSTER (elster_webserver)")
@@ -75,7 +75,7 @@ C4Context
 | SAP HCM | `sva4.h1_sva_transfer`, `h1_sva_attribute_mapping` |
 | DMS | `dokumente`, `__dokumente*`, `k_dokumente_*` across schemas |
 | Statistics offices | `sva4.k_referenz_personalstatistik`, `out_*` exports |
-| the reference implementation campus | inferred; not present as tables in this dump |
+| the reference implementation (Campus) | inferred; not present as tables in this dump |
 | Identity provider (Shibboleth/OIDC) | `docs/14` (bundle ships an IdM connector: `UniBielefeldIdmConnectorService`) |
 | KfW student loan | `the student-loan client` — a shipped Axis2 SOAP client for the KfW portal (`docs/14` §4.2) |
 | Chip-card / cash terminal (BSOS) | `the card-terminal connector` (TCP bridge to `the card terminal.exe`, `docs/14` §4.1) |
@@ -85,5 +85,5 @@ C4Context
 ## Key open point
 
 Whether the project's "system of interest" is this **the legacy university ERP** or the
-separate **the reference implementation campus** product is unresolved (see `open-questions.md` Q1).
+separate **the reference implementation (Campus)** product is unresolved (see `open-questions.md` Q1).
 This context diagram documents the ERP, which is what the dump contains.

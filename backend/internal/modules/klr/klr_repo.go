@@ -20,15 +20,15 @@ const foreignKeyViolation = "23503"
 
 // Repository is the persistence port for the KLR.
 type Repository interface {
-	CreateCostCenter(ctx context.Context, c CostCenter) (CostCenter, error)
-	GetCostCenter(ctx context.Context, id int64) (CostCenter, error)
-	CostCenters(ctx context.Context) ([]CostCenter, error)
+	CreateCostCentre(ctx context.Context, c CostCentre) (CostCentre, error)
+	GetCostCentre(ctx context.Context, id int64) (CostCentre, error)
+	CostCentres(ctx context.Context) ([]CostCentre, error)
 	CreateCostUnit(ctx context.Context, u CostUnit) (CostUnit, error)
 	InsertRecord(ctx context.Context, r Record) (Record, error)
-	Report(ctx context.Context, costCenterID int64) (Report, error)
+	Report(ctx context.Context, costCentreID int64) (Report, error)
 
 	CreateAllocation(ctx context.Context, a Allocation) (Allocation, error)
-	Allocations(ctx context.Context, sourceCenterID int64) ([]Allocation, error)
+	Allocations(ctx context.Context, sourceCentreID int64) ([]Allocation, error)
 	// AllocationRules lists every allocation rule, whatever its source centre — the read a
 	// Umlage print view needs, where Allocations is the read one centre's screen needs.
 	AllocationRules(ctx context.Context) ([]Allocation, error)
@@ -36,13 +36,13 @@ type Repository interface {
 	GetCostUnit(ctx context.Context, id int64) (CostUnit, error)
 	CostUnits(ctx context.Context) ([]CostUnit, error)
 	CreateCostUnitKey(ctx context.Context, k CostUnitKey) (CostUnitKey, error)
-	CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]CostUnitKey, error)
+	CostUnitKeys(ctx context.Context, sourceCentreID int64) ([]CostUnitKey, error)
 	RecordCostUnitRun(ctx context.Context, run Run, records []Record) (Run, error)
 	CreateServiceRate(ctx context.Context, rate ServiceRate) (ServiceRate, error)
 	ServiceRates(ctx context.Context) ([]ServiceRate, error)
 	RateFor(ctx context.Context, costTypeID int64, on time.Time) (ServiceRate, error)
 	RecordServiceCharge(ctx context.Context, charge ServiceCharge, records []Record) (ServiceCharge, error)
-	CostsInPeriod(ctx context.Context, costCenterID int64, from, to time.Time) (int64, error)
+	CostsInPeriod(ctx context.Context, costCentreID int64, from, to time.Time) (int64, error)
 	RecordRun(ctx context.Context, run Run, records []Record) (Run, error)
 
 	CreateCostType(ctx context.Context, t CostType) (CostType, error)
@@ -62,49 +62,49 @@ type Repo struct{ pool *pgxpool.Pool }
 // NewRepo returns a Repo.
 func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
 
-// CreateCostCenter stores a cost centre.
-func (r *Repo) CreateCostCenter(ctx context.Context, c CostCenter) (CostCenter, error) {
+// CreateCostCentre stores a cost centre.
+func (r *Repo) CreateCostCentre(ctx context.Context, c CostCentre) (CostCentre, error) {
 	saved := c
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO cost_center (number, name, created_by) VALUES ($1,$2,$3)
+		`INSERT INTO cost_centre (number, name, created_by) VALUES ($1,$2,$3)
 		 RETURNING id`, c.Number, c.Name, c.CreatedBy).Scan(&saved.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
-			return CostCenter{}, ErrCostCenterExists
+			return CostCentre{}, ErrCostCentreExists
 		}
-		return CostCenter{}, fmt.Errorf("klr: create cost centre: %w", err)
+		return CostCentre{}, fmt.Errorf("klr: create cost centre: %w", err)
 	}
 	return saved, nil
 }
 
-// GetCostCenter loads a cost centre.
-func (r *Repo) GetCostCenter(ctx context.Context, id int64) (CostCenter, error) {
-	var c CostCenter
+// GetCostCentre loads a cost centre.
+func (r *Repo) GetCostCentre(ctx context.Context, id int64) (CostCentre, error) {
+	var c CostCentre
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, number, name, created_by FROM cost_center WHERE id = $1`, id).
+		`SELECT id, number, name, created_by FROM cost_centre WHERE id = $1`, id).
 		Scan(&c.ID, &c.Number, &c.Name, &c.CreatedBy)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return CostCenter{}, fmt.Errorf("klr: cost centre %d: %w", id, ErrCostCenterNotFound)
+		return CostCentre{}, fmt.Errorf("klr: cost centre %d: %w", id, ErrCostCentreNotFound)
 	}
 	if err != nil {
-		return CostCenter{}, fmt.Errorf("klr: get cost centre: %w", err)
+		return CostCentre{}, fmt.Errorf("klr: get cost centre: %w", err)
 	}
 	return c, nil
 }
 
-// CostCenters lists every cost centre by number, which is the order an operator reads them in
+// CostCentres lists every cost centre by number, which is the order an operator reads them in
 // and the order a screen shows them.
-func (r *Repo) CostCenters(ctx context.Context) ([]CostCenter, error) {
+func (r *Repo) CostCentres(ctx context.Context) ([]CostCentre, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, number, name, created_by FROM cost_center ORDER BY number`)
+		`SELECT id, number, name, created_by FROM cost_centre ORDER BY number`)
 	if err != nil {
 		return nil, fmt.Errorf("klr: list cost centres: %w", err)
 	}
 	defer rows.Close()
-	out := []CostCenter{}
+	out := []CostCentre{}
 	for rows.Next() {
-		var c CostCenter
+		var c CostCentre
 		if err := rows.Scan(&c.ID, &c.Number, &c.Name, &c.CreatedBy); err != nil {
 			return nil, fmt.Errorf("klr: scan cost centre: %w", err)
 		}
@@ -136,15 +136,15 @@ func (r *Repo) CreateCostUnit(ctx context.Context, u CostUnit) (CostUnit, error)
 func (r *Repo) InsertRecord(ctx context.Context, rec Record) (Record, error) {
 	saved := rec
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO accounting_record (cost_center_id, cost_unit_id, cost_type_id, kind, amount_cents, business_date, reference, booked_by)
+		`INSERT INTO accounting_record (cost_centre_id, cost_unit_id, cost_type_id, kind, amount_cents, business_date, reference, booked_by)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-		rec.CostCenterID, rec.CostUnitID, rec.CostTypeID, rec.Kind, rec.AmountCents, rec.BusinessDate,
+		rec.CostCentreID, rec.CostUnitID, rec.CostTypeID, rec.Kind, rec.AmountCents, rec.BusinessDate,
 		rec.Reference, rec.BookedBy).Scan(&saved.ID)
 	if err != nil {
 		// Which foreign key failed says which reference was unknown.
 		switch {
-		case isForeignKeyViolationOn(err, "accounting_record_cost_center_id_fkey"):
-			return Record{}, fmt.Errorf("klr: cost centre %d: %w", rec.CostCenterID, ErrCostCenterNotFound)
+		case isForeignKeyViolationOn(err, "accounting_record_cost_centre_id_fkey"):
+			return Record{}, fmt.Errorf("klr: cost centre %d: %w", rec.CostCentreID, ErrCostCentreNotFound)
 		case isForeignKeyViolationOn(err, "accounting_record_cost_unit_id_fkey"):
 			return Record{}, fmt.Errorf("klr: cost unit: %w", ErrCostUnitNotFound)
 		case isForeignKeyViolationOn(err, "accounting_record_cost_type_id_fkey"):
@@ -187,15 +187,15 @@ func (r *Repo) CostUnitFigures(ctx context.Context) ([]CostUnitLine, error) {
 }
 
 // Report sums a cost centre's costs and revenues.
-func (r *Repo) Report(ctx context.Context, costCenterID int64) (Report, error) {
-	if _, err := r.GetCostCenter(ctx, costCenterID); err != nil {
+func (r *Repo) Report(ctx context.Context, costCentreID int64) (Report, error) {
+	if _, err := r.GetCostCentre(ctx, costCentreID); err != nil {
 		return Report{}, err
 	}
-	rep := Report{CostCenterID: costCenterID}
+	rep := Report{CostCentreID: costCentreID}
 	err := r.pool.QueryRow(ctx,
 		`SELECT coalesce(sum(amount_cents) FILTER (WHERE kind = 'cost'), 0),
 		        coalesce(sum(amount_cents) FILTER (WHERE kind = 'revenue'), 0)
-		   FROM accounting_record WHERE cost_center_id = $1`, costCenterID).
+		   FROM accounting_record WHERE cost_centre_id = $1`, costCentreID).
 		Scan(&rep.CostsCents, &rep.RevenuesCents)
 	if err != nil {
 		return Report{}, fmt.Errorf("klr: report: %w", err)

@@ -24,7 +24,7 @@ describe('PageComponent', () => {
 
     const html = fixture.nativeElement as HTMLElement;
     expect(html.querySelector('[data-testid="page-title"]')?.textContent?.trim()).toBe(
-      'Zahlungsanordnungen',
+      'Ausgabeanordnungen',
     );
     expect(html.querySelector('.page-subtitle')?.textContent?.trim()).toBe(
       'Zahlungen anlegen, vorlegen und im Vier-Augen-Prinzip freigeben.',
@@ -52,7 +52,7 @@ describe('PageComponent', () => {
     fixture.componentRef.setInput('titleKey', 'page.kasseAnordnungen.title');
     fixture.detectChanges();
 
-    expect(document.title).toBe('Zahlungsanordnungen · Campus ERP');
+    expect(document.title).toBe('Ausgabeanordnungen · Campus ERP');
   });
 
   it('renames the tab when the language changes', () => {

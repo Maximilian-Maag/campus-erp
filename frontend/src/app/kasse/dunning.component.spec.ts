@@ -35,7 +35,7 @@ describe('DunningComponent', () => {
 
   const issuedNotice = (over: Partial<DunningNotice> = {}): DunningNotice => ({
     ID: 9,
-    ClaimReference: 'F-2026-001',
+    ReceivableReference: 'F-2026-001',
     LevelCode: '1',
     OutstandingCents: 12000,
     ChargeCents: 2740,
@@ -76,7 +76,7 @@ describe('DunningComponent', () => {
     expect(component.levelNext()).toBe('');
     expect(component.levelYear()).toBe(String(new Date().getFullYear()));
     // The notice form starts blank.
-    expect(component.claimReference()).toBe('');
+    expect(component.receivableReference()).toBe('');
     expect(component.outstanding()).toBe('');
   });
 
@@ -311,7 +311,7 @@ describe('DunningComponent', () => {
   it('issues a notice for the chosen level and shows the charge that came back', () => {
     const fixture = loaded([level({ Year: 2027, Code: 'B' })]);
     const component = fixture.componentInstance;
-    component.claimReference.set(' F-2026-001 ');
+    component.receivableReference.set(' F-2026-001 ');
     component.outstanding.set('120,00');
 
     component.issue(new Event('submit'));
@@ -323,7 +323,7 @@ describe('DunningComponent', () => {
     expect(post.request.body).toEqual({
       year: 2027,
       level_code: 'B',
-      claim_reference: 'F-2026-001',
+      receivable_reference: 'F-2026-001',
       outstanding_cents: 12000,
     });
     post.flush(issuedNotice({ LevelCode: 'B' }));
@@ -332,7 +332,7 @@ describe('DunningComponent', () => {
     expect(component.submitting()).toBeFalse();
     expect(component.notice()).toBe('Mahnung ausgestellt.');
     expect(component.issued()?.ChargeCents).toBe(2740);
-    expect(component.claimReference()).toBe('');
+    expect(component.receivableReference()).toBe('');
     expect(component.outstanding()).toBe('');
 
     const row = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="notice-9"]');
@@ -343,7 +343,7 @@ describe('DunningComponent', () => {
   it('links the PDF only when the notice carries one, and keeps the fields on a refusal', () => {
     const fixture = loaded();
     const component = fixture.componentInstance;
-    component.claimReference.set('F-1');
+    component.receivableReference.set('F-1');
     component.outstanding.set('10,00');
 
     component.issue(new Event('submit'));
@@ -355,17 +355,17 @@ describe('DunningComponent', () => {
     expect(html.textContent).toContain('kein Dokument erzeugt');
 
     // A second notice, this time with a document, and with the API refusing it.
-    component.claimReference.set('F-2');
+    component.receivableReference.set('F-2');
     component.outstanding.set('10,00');
     component.issue(new Event('submit'));
     http.expectOne('/api/dunning/notices').flush('no', { status: 422, statusText: 'Unprocessable' });
     fixture.detectChanges();
 
     expect(component.actionError()).toBe('Konnte die Mahnung nicht ausstellen.');
-    expect(component.claimReference()).toBe('F-2');
+    expect(component.receivableReference()).toBe('F-2');
     expect(component.submitting()).toBeFalse();
 
-    component.claimReference.set('F-3');
+    component.receivableReference.set('F-3');
     component.issue(new Event('submit'));
     http.expectOne('/api/dunning/notices').flush(issuedNotice({ ID: 11 }));
     fixture.detectChanges();
@@ -379,9 +379,9 @@ describe('DunningComponent', () => {
     const component = fixture.componentInstance;
 
     component.issue(new Event('submit'));
-    expect(component.actionError()).toBe('Eine Vorgangsnummer ist erforderlich.');
+    expect(component.actionError()).toBe('Ein offener Posten ist erforderlich.');
 
-    component.claimReference.set('F-1');
+    component.receivableReference.set('F-1');
     component.issue(new Event('submit'));
     expect(component.actionError()).toBe('Ein positiver offener Betrag ist erforderlich.');
 
@@ -416,7 +416,7 @@ describe('DunningComponent', () => {
   it('clears the previous result when a new submission starts', () => {
     const fixture = loaded();
     const component = fixture.componentInstance;
-    component.claimReference.set('F-1');
+    component.receivableReference.set('F-1');
     component.outstanding.set('10,00');
     component.issue(new Event('submit'));
     http.expectOne('/api/dunning/notices').flush(issuedNotice());

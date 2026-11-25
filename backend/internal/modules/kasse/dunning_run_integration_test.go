@@ -79,7 +79,7 @@ func newRunFixture(t *testing.T) (*kasse.DunningRunService, kasse.Receivable, in
 func outcomeFor(t *testing.T, result kasse.DunningRunResult, claim string) kasse.DunningRunOutcome {
 	t.Helper()
 	for _, o := range result.Outcomes {
-		if o.ClaimReference == claim {
+		if o.ReceivableReference == claim {
 			return o
 		}
 	}
@@ -91,7 +91,7 @@ func TestDunningRunIssuesAndThenSkipsTheSameDay(t *testing.T) {
 	ctx := context.Background()
 	run, rec, year := newRunFixture(t)
 	asOf := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
-	claim := kasse.ReceivableClaimReference(rec.ID)
+	claim := kasse.ReceivableReceivableReference(rec.ID)
 
 	first, err := run.Run(ctx, year, asOf, "clerk")
 	if err != nil {
@@ -143,7 +143,7 @@ func TestDunningRunIssuesAndThenSkipsTheSameDay(t *testing.T) {
 	}
 	var notices int
 	if err := testPool(t).QueryRow(ctx,
-		"SELECT count(*) FROM dunning_notice WHERE claim_reference = $1", claim).Scan(&notices); err != nil {
+		"SELECT count(*) FROM dunning_notice WHERE receivable_reference = $1", claim).Scan(&notices); err != nil {
 		t.Fatalf("count notices: %v", err)
 	}
 	if notices != 1 {
