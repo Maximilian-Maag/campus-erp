@@ -49,6 +49,9 @@ type InvoiceSummary struct {
 	Direction      core.Direction
 	// MatchedOrderID is 0 while the invoice is unmatched.
 	MatchedOrderID int64
+	// MatchedOrderNumber is the purchase order's number — the identifier a clerk can look up — and
+	// "" while the invoice is unmatched. The id is a database key and means nothing on a screen.
+	MatchedOrderNumber string
 }
 
 // InvoiceRepo is the PostgreSQL implementation.
@@ -135,10 +138,14 @@ func (r *InvoiceRepo) Insert(ctx context.Context, inv core.Invoice) (core.Invoic
 func (r *InvoiceRepo) List(ctx context.Context, limit, offset int) ([]InvoiceSummary, error) {
 	// Ordered by number so a page boundary is stable: a list that reorders between requests repeats
 	// one row on the next page and drops another, which is worse than a slow list.
+	// The matched order's number is read with the row: a screen shows the number a clerk can look
+	// up, and the id is a database key that means nothing to them (#172).
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, number, issue_date, type_code, currency, buyer_reference, gross_cents,
-		        matched_order_id, direction
-		   FROM e_invoice ORDER BY number LIMIT $1 OFFSET $2`, limit, offset)
+		`SELECT i.id, i.number, i.issue_date, i.type_code, i.currency, i.buyer_reference,
+		        i.gross_cents, i.matched_order_id, i.direction, COALESCE(o.number, '')
+		   FROM e_invoice i
+		   LEFT JOIN purchase_order o ON o.id = i.matched_order_id
+		  ORDER BY i.number LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("einvoice: list invoices: %w", err)
 	}
@@ -148,7 +155,7 @@ func (r *InvoiceRepo) List(ctx context.Context, limit, offset int) ([]InvoiceSum
 		var s InvoiceSummary
 		var matched *int64
 		if err := rows.Scan(&s.ID, &s.Number, &s.IssueDate, &s.TypeCode, &s.Currency,
-			&s.BuyerReference, &s.GrossCents, &matched, &s.Direction); err != nil {
+			&s.BuyerReference, &s.GrossCents, &matched, &s.Direction, &s.MatchedOrderNumber); err != nil {
 			return nil, fmt.Errorf("einvoice: scan invoice summary: %w", err)
 		}
 		if matched != nil {

@@ -5829,6 +5829,8 @@ components:
         MatchedOrderID:
           type: integer
           format: int64
+        MatchedOrderNumber:
+          type: string
       required:
       - ID
       - Number
@@ -5839,6 +5841,7 @@ components:
       - GrossCents
       - Direction
       - MatchedOrderID
+      - MatchedOrderNumber
     DunningRunResult:
       type: object
       properties:

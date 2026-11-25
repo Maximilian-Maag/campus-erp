@@ -2,6 +2,15 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.161.0] - 2026-11-24
+
+An invoice shows the purchase order it was matched to, not its database id.
+
+The list carried `matched_order_id` and the screen printed it as the order's number, so an invoice
+matched to order id 7 whose number is `PO-2026-0007` read "Bestellung 7" — a number the clerk cannot
+look up anywhere. The summary now carries the order's number, read with the row, and the screen
+shows that. The id stays in the payload for the screens that key on it.
+
 ## [0.160.0] - 2026-11-24
 
 A mutation shard that wedges now fails in minutes and is rerun, instead of being reported as a
