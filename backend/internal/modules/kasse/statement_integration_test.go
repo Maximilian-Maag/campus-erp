@@ -243,7 +243,7 @@ func TestStatementImportCAMT053(t *testing.T) {
 		`<Id>CAMT-` + uniqueSuffix(t) + `</Id><ElctrncSeqNb>1</ElctrncSeqNb>` +
 		`<Acct><Id><IBAN>DE02120300000000202051</IBAN></Id><Ccy>EUR</Ccy></Acct>` +
 		`<Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">10000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-10-01</Dt></Dt></Bal>` +
-		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>` +
+		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>DBIT</CdtDbtInd>` +
 		`<BookgDt><Dt>2026-10-01</Dt></BookgDt><ValDt><Dt>2026-10-01</Dt></ValDt>` +
 		`<NtryDtls><TxDtls><Refs><EndToEndId>` + order.Reference + `</EndToEndId></Refs>` +
 		`<RltdPties><Dbtr><Pty><Nm>Stadtwerke</Nm></Pty></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
@@ -285,7 +285,7 @@ func TestStatementImportCAMT054(t *testing.T) {
 		`<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.08"><BkToCstmrDbtCdtNtfctn><Ntfctn>` +
 		`<Id>NTC-` + uniqueSuffix(t) + `</Id>` +
 		`<Acct><Id><IBAN>DE02120300000000202051</IBAN></Id><Ccy>EUR</Ccy></Acct>` +
-		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>` +
+		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>DBIT</CdtDbtInd>` +
 		`<BookgDt><Dt>2026-10-28</Dt></BookgDt><ValDt><Dt>2026-10-28</Dt></ValDt>` +
 		`<NtryDtls><TxDtls><Refs><EndToEndId>` + order.Reference + `</EndToEndId></Refs>` +
 		`<RltdPties><Dbtr><Pty><Nm>Stadtwerke</Nm></Pty></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +
@@ -337,7 +337,7 @@ func TestStatementImportCAMT052(t *testing.T) {
 		`<Id>RPT-` + uniqueSuffix(t) + `</Id><ElctrncSeqNb>1</ElctrncSeqNb>` +
 		`<Acct><Id><IBAN>DE02120300000000202051</IBAN></Id><Ccy>EUR</Ccy></Acct>` +
 		`<Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">0.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-10-28</Dt></Dt></Bal>` +
-		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>CRDT</CdtDbtInd>` +
+		`<Ntry><Amt Ccy="EUR">1250.00</Amt><CdtDbtInd>DBIT</CdtDbtInd>` +
 		`<BookgDt><Dt>2026-10-28</Dt></BookgDt><ValDt><Dt>2026-10-28</Dt></ValDt>` +
 		`<NtryDtls><TxDtls><Refs><EndToEndId>` + order.Reference + `</EndToEndId></Refs>` +
 		`<RltdPties><Dbtr><Pty><Nm>Stadtwerke</Nm></Pty></Dbtr></RltdPties></TxDtls></NtryDtls></Ntry>` +

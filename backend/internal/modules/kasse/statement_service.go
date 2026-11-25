@@ -98,10 +98,18 @@ func (s *StatementService) Import(ctx context.Context, accountID int64, content,
 			if line.Currency == "" {
 				line.Currency = st.Currency
 			}
-			if orderID, ok := lookupPaid(paid, pl.ClientRef, pl.EndToEndRef); ok {
-				id := orderID
-				line.OrderID = &id
-				line.Status = StatusMatched
+			if order, ok := lookupPaid(paid, pl.ClientRef, pl.EndToEndRef); ok {
+				// A reference is not a settlement: the line must run the same way and
+				// carry the order's amount. A partial payment stays unmatched, with the
+				// shortfall recorded, so the order is not reported as settled while it
+				// is short (#170).
+				if !pl.Credit && order.AmountCents == pl.AmountCents {
+					id := order.ID
+					line.OrderID = &id
+					line.Status = StatusMatched
+				} else if !pl.Credit {
+					line.UnclearedCents = order.AmountCents - pl.AmountCents
+				}
 			}
 			// A return is the bank's own fact and outranks the match: a refused direct debit
 			// comes from a collection run and has no payment order at all, so deriving the
@@ -193,16 +201,16 @@ func collectRefs(stmts []bankstmt.Statement) []string {
 
 // lookupPaid returns the paid order for the first non-empty reference that
 // matches, preferring the earlier argument (client reference before end-to-end).
-func lookupPaid(paid map[string]int64, refs ...string) (int64, bool) {
+func lookupPaid(paid map[string]PaidOrder, refs ...string) (PaidOrder, bool) {
 	for _, r := range refs {
 		if r == "" {
 			continue
 		}
-		if id, ok := paid[r]; ok {
-			return id, true
+		if order, ok := paid[r]; ok {
+			return order, true
 		}
 	}
-	return 0, false
+	return PaidOrder{}, false
 }
 
 func hashBytes(s string) string {

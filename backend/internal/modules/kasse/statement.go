@@ -54,6 +54,14 @@ type StatementLine struct {
 	OrderID          *int64
 }
 
+// PaidOrder is the part of a paid payment order a statement line is reconciled
+// against: the order's id, and the amount and direction the bank must have
+// reported for the line to be its settlement (#170).
+type PaidOrder struct {
+	ID          int64
+	AmountCents int64
+}
+
 // BankFile is one imported file. A file may contain several statements.
 type BankFile struct {
 	ID         int64
