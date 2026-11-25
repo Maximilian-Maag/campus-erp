@@ -19,7 +19,7 @@ type StatementRepository interface {
 	StatementsByFile(ctx context.Context, accountID int64, fileHash string) ([]Statement, error)
 	GetStatement(ctx context.Context, id int64) (Statement, error)
 	Statements(ctx context.Context, accountID int64, limit, offset int) ([]StatementSummary, error)
-	PaidOrdersByReference(ctx context.Context, refs []string) (map[string]int64, error)
+	PaidOrdersByReference(ctx context.Context, refs []string) (map[string]PaidOrder, error)
 }
 
 // StatementRepo is the PostgreSQL implementation.
@@ -293,15 +293,17 @@ func (r *StatementRepo) ReturnedLines(ctx context.Context, from, to time.Time) (
 	return out, nil
 }
 
-// PaidOrdersByReference returns the ids of paid orders (those that belong to a
-// payment run) keyed by their reference.
-func (r *StatementRepo) PaidOrdersByReference(ctx context.Context, refs []string) (map[string]int64, error) {
-	out := make(map[string]int64)
+// PaidOrdersByReference returns the paid orders (those that belong to a payment
+// run) keyed by their reference, with the amount a line must carry to be their
+// settlement: a reference alone does not say whether the bank paid the order,
+// paid part of it, or paid something else that reused the reference (#170).
+func (r *StatementRepo) PaidOrdersByReference(ctx context.Context, refs []string) (map[string]PaidOrder, error) {
+	out := make(map[string]PaidOrder)
 	if len(refs) == 0 {
 		return out, nil
 	}
 	rows, err := r.pool.Query(ctx,
-		`SELECT o.reference, o.id
+		`SELECT o.reference, o.id, o.amount_cents
 		   FROM payment_order o
 		   JOIN payment_run_item i ON i.order_id = o.id
 		  WHERE o.reference = ANY($1)`, refs)
@@ -311,11 +313,11 @@ func (r *StatementRepo) PaidOrdersByReference(ctx context.Context, refs []string
 	defer rows.Close()
 	for rows.Next() {
 		var ref string
-		var id int64
-		if err := rows.Scan(&ref, &id); err != nil {
+		var order PaidOrder
+		if err := rows.Scan(&ref, &order.ID, &order.AmountCents); err != nil {
 			return nil, fmt.Errorf("kasse: scan paid order: %w", err)
 		}
-		out[ref] = id
+		out[ref] = order
 	}
 	return out, rows.Err()
 }

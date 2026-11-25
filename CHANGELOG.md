@@ -2,6 +2,18 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.163.0] - 2026-11-24
+
+A statement line reconciles to a payment order only when amount and direction agree.
+
+The import matched on the reference alone and stamped the line `matched` with that order whatever
+its amount and whichever way it ran. A line for 950.00 carrying the reference of a 1,000.00 order
+was recorded as a full reconciliation, and an incoming credit could be matched against an outbound
+order. `uncleared_cents` was scanned but never set, so the residual was invisible too.
+
+The reconciliation now reads the order's amount with its reference and requires the same direction
+and the exact amount. A partial payment stays unmatched and records the shortfall in
+`uncleared_cents`, so the order is not reported as settled while it is short (#170).
 ## [0.162.0] - 2026-11-24
 
 A closed day cannot accept a booking, and its closing balance counts every booking it accepted.

@@ -133,7 +133,10 @@ pre-empted in TypeScript.
 `/kasse/kontoauszuege`) — lists the statements imported for one of the university's own accounts,
 opens a statement's lines without leaving the page, and reads an MT940 file in by pasting its
 content. Its account filter is the server's too (`?account_id=`). Whether an import is a *new*
-file is the API's decision: importing the same file twice returns what was already stored.
+file is the API's decision: importing the same file twice returns what was already stored. A line
+reconciles to a paid order only when its reference matches, it runs the same way as the order
+(outbound), and it carries the order's exact amount; a partial payment stays unmatched with the
+shortfall in `uncleared_cents`, so an order is never reported as settled while it is short.
 
 `frontend/src/app/kasse/receivables.component.ts` — *Kasse: Offene Posten* (route
 `/kasse/offene-posten`) — lists the open items a collection run selects from, by state (the
