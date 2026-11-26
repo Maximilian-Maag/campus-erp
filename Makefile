@@ -55,10 +55,12 @@ STRUCTURIZR_LITE  ?= structurizr/lite:latest
 PLANTUML_IMAGE    ?= plantuml/plantuml:latest
 MUTATION_THRESHOLD ?= 85
 # gremlins bounds each mutant's test run by the suite's own runtime times this
-# coefficient. A wedged mutant is the difference between a shard that finishes in
-# minutes and one that sits for an hour (#186), so the knob is a target variable
-# rather than a gremlins default nobody can see.
-MUTATION_TIMEOUT_COEFFICIENT ?= 3
+# coefficient. The baseline is measured on the run gremlins does first, so a cold
+# build cache inflates it: at 3 a cold ledger shard gave every mutant ~3 minutes and
+# a warm one gave 0% efficacy because 3 x 2ms is shorter than process startup. The
+# target warms the build cache before gremlins, which makes the baseline the real
+# test time; 20 leaves room for a normal mutant and still bounds an infinite loop.
+MUTATION_TIMEOUT_COEFFICIENT ?= 20
 # Wall-clock bound for one shard. Empty locally: a laptop may take as long as it takes.
 # CI sets it so a wedged mutant fails in minutes and is rerun, instead of sitting until
 # the job timeout and being reported as a shutdown of the pull request (#186).
@@ -203,7 +205,9 @@ backend-test: ## Go unit + integration tests (integration needs DATABASE_URL)
 # One package per gremlins run, each with its own cache dir: a shared cache yields
 # wrong, non-reproducible scores (ADR-0008). PKG=<path> runs a single package, which
 # is how CI shards the sweep; without it every target in backend/mutation.json runs.
-# Output is streamed through tee: a shard is minutes long and a silent job looks hung.
+# Output goes to a log file, not through tee: when a shard's timeout kills gremlins,
+# tee can keep waiting on the test processes it left behind, so the step never ends.
+# The log is printed when the shard fails.
 backend-mutation: ## gremlins (floor 85 per package; PKG=<path> for one)
 	$(call require,gremlins)
 	@if [[ -n "$(PKG)" ]]; then targets="$(PKG)"; else \
@@ -213,11 +217,16 @@ backend-mutation: ## gremlins (floor 85 per package; PKG=<path> for one)
 	for pkg in $$targets; do \
 	  echo "== mutation/go $$pkg"; \
 	  log="$$cache/$${pkg//\//_}.log"; \
+	  # Warm the build cache first: gremlins measures its timeout from the first run, \
+	  # and a cold build would make that baseline the build time rather than the test time. \
+	  if ! ( cd $(BACKEND) && $(GO) test -run '^$$' "./$$pkg" >/dev/null 2>&1 ); then \
+	    echo "FAIL mutation/go $$pkg (the package does not build)"; exit 1; \
+	  fi; \
 	  if ! ( cd $(BACKEND) && XDG_CACHE_HOME="$$cache/$${pkg//\//_}" \
 	         $(if $(MUTATION_SHARD_TIMEOUT),timeout --kill-after=60s $(MUTATION_SHARD_TIMEOUT)) \
 	         stdbuf -oL -eL gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) \
-	           --timeout-coefficient $(MUTATION_TIMEOUT_COEFFICIENT) "./$$pkg" 2>&1 | tee "$$log" ); then \
-	    echo "FAIL mutation/go $$pkg (below floor, or the run itself failed)"; exit 1; \
+	           --timeout-coefficient $(MUTATION_TIMEOUT_COEFFICIENT) "./$$pkg" >"$$log" 2>&1 ); then \
+	    echo "FAIL mutation/go $$pkg (below floor, or the run itself failed)"; tail -40 "$$log"; exit 1; \
 	  fi; \
 	  if grep -q "No results to report" "$$log"; then echo "FAIL mutation/go $$pkg: vacuous run"; exit 1; fi; \
 	  echo "PASS mutation/go $$pkg"; \
@@ -274,6 +283,7 @@ test-tools: ## Self-test the tooling (ER model + API contract + domain codes + l
 	@python3 $(ROOT)/tools/api_contract.py selftest
 	@python3 $(ROOT)/tools/test_domaincodes.py
 	@python3 $(ROOT)/tools/test_language.py
+	@python3 $(ROOT)/tools/test_mutation_target.py
 
 contracts-check: ## Verify spec, client and domain codes match the Go routes (drift guard)
 	@python3 $(ROOT)/tools/api_contract.py selftest
