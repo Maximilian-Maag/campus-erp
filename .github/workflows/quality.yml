@@ -1,8 +1,19 @@
 name: quality
 
 on:
+  # A pull request runs the suite once. A push to a feature branch used to run it a
+  # second time under the same commit, which doubled the matrix and asked for more
+  # runners than the plan grants; the runners that did start were recycled mid-job
+  # ("runner has received a shutdown signal"). Only the release branches run on push.
   push:
+    branches: [dev, master]
   pull_request:
+
+# A new commit supersedes the run it replaces. Without this, a push and the pull
+# request it opens run the same suite twice and compete for the same runners.
+concurrency:
+  group: quality-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   go:

@@ -181,7 +181,10 @@ Both images are public, so a cluster needs no pull secret for them.
   `frontend/nginx.conf` proxies `/api` to `${API_UPSTREAM}` (same-origin API,
   ADR-0002) and does the SPA fallback.
 
-`quality.yml` builds both images on every push (the `images` job, build only, no push), so a
+`quality.yml` runs once per change: on every pull request, and on a push to `dev` or `master`
+only. A feature branch's push used to run the same suite a second time, which doubled the
+matrix and exhausted the runners; a `concurrency` group cancels the superseded run. It builds
+both images on every run (the `images` job, build only, no push), so a
 Dockerfile whose Go or Node base image drifts from `backend/go.mod` / `frontend/package.json`
 fails a pull request rather than the next release. It then runs `make stack-smoke`, which starts
 the stack from those exact images the way `make run` starts it, waits for `/readyz`, and checks

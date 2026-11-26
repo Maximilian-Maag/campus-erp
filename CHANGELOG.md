@@ -13,6 +13,11 @@ loop is still bounded. The shard's output goes to a log file instead of `tee`: w
 gremlins, tee can wait on the test processes it left behind and the step never ends. The log is
 printed when the shard fails.
 
+The workflow also ran twice for one change: once on the branch push and once on the pull request.
+That doubled the matrix and asked for more runners than the plan grants, and the runners that did
+start were recycled mid-job. It now runs on pull requests and on pushes to `dev` and `master` only,
+and a concurrency group cancels a superseded run.
+
 ## [0.168.0] - 2026-11-25
 
 A year's foundation book is carried over once, whatever reference the second attempt names.
