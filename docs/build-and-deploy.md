@@ -197,15 +197,22 @@ target, and then CI proves the copy.
 The `mutation-go` matrix runs at most eight shards at a time (`max-parallel`) and gives each one a
 wall-clock bound (`MUTATION_SHARD_TIMEOUT=40m`, which the target applies with `timeout`; locally the
 bound is empty, so a laptop is never cut short). The bound is headroom over a healthy run, not a cap
-on it: the largest package has taken ~30 minutes, so 40 leaves room for a slow runner while still
-failing a wedged shard long before the job's 45 minutes. Both exist because a wedged shard used to be
+on it: a cold ledger shard took 54 minutes before the cache was warmed, so 40 leaves room for a slow
+runner while still failing a wedged shard before the job's 45 minutes. Both exist because a wedged
+shard used to be
 reported as a failure of the pull request: a matrix that started every package at once queued past
 the plan's concurrent runners and the runners that did start were recycled mid-job ("runner has
 received a shutdown signal"), and a shard that hung sat until the job timeout and surfaced as a
 red check. A bound makes the wedge fail in minutes and be rerun, which is what the rerun was for.
-`MUTATION_TIMEOUT_COEFFICIENT` (default 3) is the same knob one level down: gremlins bounds each
-mutant's test run by the suite's runtime times that coefficient, so a single slow mutant cannot
-hold the shard open either. The `mutation-web` job carries the same bound (`MUTATION_SHARD_TIMEOUT=120m`
+`MUTATION_TIMEOUT_COEFFICIENT` (default 20) is the same knob one level down: gremlins bounds each
+mutant's test run by the suite's runtime times that coefficient. The target warms the build cache
+(`go test -run '^$'`) before gremlins measures its baseline, because a cold cache makes the build
+time the baseline and inflates every mutant's bound — that is how a ledger shard sat for 54 minutes.
+A warm cache at a coefficient of 3 is the opposite failure: the suite runs in milliseconds, so
+3 x 2ms is shorter than process startup and every mutant times out. 20 leaves room for a normal
+mutant and still bounds an infinite loop. The shard's output goes to a log file rather than `tee`:
+when a timeout kills gremlins, tee can wait on the test processes it left behind and the step never
+ends. The log is printed when the shard fails. The `mutation-web` job carries the same bound (`MUTATION_SHARD_TIMEOUT=120m`
 on `frontend-mutation`), because Stryker has no timeout of its own and its job's default was six
 hours. Its suite takes about two hours, so the bound and the job's 150 minutes are both set above
 that: the bound catches a wedge, it does not cap a healthy run.

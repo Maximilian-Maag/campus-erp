@@ -2,6 +2,17 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.169.0] - 2026-11-26
+
+The mutation gate measures its bound against a warm build, and a shard's timeout ends the step.
+
+A ledger shard sat for 54 minutes on a cold cache and a warm one at a coefficient of 3 gave every
+mutant a bound shorter than process startup. The target now warms the build cache before gremlins
+measures its baseline and raises the coefficient to 20, so a normal mutant finishes and an infinite
+loop is still bounded. The shard's output goes to a log file instead of `tee`: when a timeout kills
+gremlins, tee can wait on the test processes it left behind and the step never ends. The log is
+printed when the shard fails.
+
 ## [0.168.0] - 2026-11-25
 
 A year's foundation book is carried over once, whatever reference the second attempt names.
