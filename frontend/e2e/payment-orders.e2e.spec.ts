@@ -21,7 +21,7 @@ function stubList(orders: typeof draft[]) {
   };
 }
 
-test('Zahlungsanordnungen lists the orders with their states and passes axe', async ({ page }) => {
+test('Ausgabeanordnungen lists the orders with their states and passes axe', async ({ page }) => {
   await page.route(/\/api\/payment-orders(\?.*)?$/, stubList([draft, submitted, approved]));
   await page.goto('/kasse/anordnungen');
 
@@ -40,7 +40,7 @@ test('Zahlungsanordnungen lists the orders with their states and passes axe', as
   expect(results.violations).toEqual([]);
 });
 
-test('Zahlungsanordnungen filters by status on the server and passes axe', async ({ page }) => {
+test('Ausgabeanordnungen filters by status on the server and passes axe', async ({ page }) => {
   const seen: string[] = [];
   await page.route(/\/api\/payment-orders(\?.*)?$/, (route) => {
     const url = new URL(route.request().url());
@@ -64,7 +64,7 @@ test('Zahlungsanordnungen filters by status on the server and passes axe', async
   expect(results.violations).toEqual([]);
 });
 
-test('Zahlungsanordnungen submits a draft and shows the new state and passes axe', async ({ page }) => {
+test('Ausgabeanordnungen submits a draft and shows the new state and passes axe', async ({ page }) => {
   let state = [draft];
   await page.route(/\/api\/payment-orders(\?.*)?$/, (route) => route.fulfill({ json: state }));
   await page.route(/\/api\/payment-orders\/1\/submit$/, (route) => {
@@ -81,7 +81,7 @@ test('Zahlungsanordnungen submits a draft and shows the new state and passes axe
   expect(results.violations).toEqual([]);
 });
 
-test('Zahlungsanordnungen asks for a reason before rejecting and passes axe', async ({ page }) => {
+test('Ausgabeanordnungen asks for a reason before rejecting and passes axe', async ({ page }) => {
   let state = [submitted];
   const bodies: unknown[] = [];
   await page.route(/\/api\/payment-orders(\?.*)?$/, (route) => route.fulfill({ json: state }));
@@ -102,14 +102,14 @@ test('Zahlungsanordnungen asks for a reason before rejecting and passes axe', as
   await reason.fill('Sachlich falsch');
   await page.getByRole('button', { name: 'Ablehnung bestätigen' }).click();
 
-  await expect(page.getByText('Es sind keine Zahlungsanordnungen angelegt.')).toBeVisible();
+  await expect(page.getByText('Es sind keine Ausgabeanordnungen angelegt.')).toBeVisible();
   expect(bodies).toEqual([{ reason: 'Sachlich falsch' }]);
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
 
-test('Zahlungsanordnungen reports a refused action and passes axe', async ({ page }) => {
+test('Ausgabeanordnungen reports a refused action and passes axe', async ({ page }) => {
   await page.route(/\/api\/payment-orders(\?.*)?$/, stubList([submitted]));
   await page.route(/\/api\/payment-orders\/2\/approve$/, (route) =>
     route.fulfill({ status: 403, json: { error: 'four eyes' } })
@@ -126,17 +126,17 @@ test('Zahlungsanordnungen reports a refused action and passes axe', async ({ pag
   expect(results.violations).toEqual([]);
 });
 
-test('Zahlungsanordnungen states an empty list and passes axe', async ({ page }) => {
+test('Ausgabeanordnungen states an empty list and passes axe', async ({ page }) => {
   await page.route(/\/api\/payment-orders(\?.*)?$/, (route) => route.fulfill({ json: [] }));
   await page.goto('/kasse/anordnungen');
 
-  await expect(page.getByText('Es sind keine Zahlungsanordnungen angelegt.')).toBeVisible();
+  await expect(page.getByText('Es sind keine Ausgabeanordnungen angelegt.')).toBeVisible();
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });
 
-test('Zahlungsanordnungen reads the orders one page at a time, and passes axe', async ({ page }) => {
+test('Ausgabeanordnungen reads the orders one page at a time, and passes axe', async ({ page }) => {
   const offsets: string[] = [];
   const page50 = Array.from({ length: 50 }, (_, i) => ({
     ...base, ID: i + 1, Reference: `AO-P-${i + 1}`, Status: 'draft',

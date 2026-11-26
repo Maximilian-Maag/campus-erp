@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 const issued = {
   ReceivableID: 7,
-  ClaimReference: 'receivable/7',
+  ReceivableReference: 'receivable/7',
   MandateReference: 'MAN-1',
   AmountCents: 10000,
   DueDate: '2025-12-31T00:00:00Z',
@@ -19,7 +19,7 @@ const issued = {
 const skipped = {
   ...issued,
   ReceivableID: 8,
-  ClaimReference: 'receivable/8',
+  ReceivableReference: 'receivable/8',
   LevelCode: '2',
   ChargeCents: 0,
   NoticeID: 0,
@@ -55,12 +55,12 @@ test('Mahnlauf runs the dunning workflow and reports every outcome, and passes a
   await expect(
     page.getByText('Mahnlauf abgeschlossen: 1 ausgestellt, 1 übersprungen, 0 fehlgeschlagen.')
   ).toBeVisible();
-  // The issued claim carries its level, its charge and a link to the stored notice.
+  // The issued receivable carries its level, its charge and a link to the stored notice.
   await expect(page.getByTestId('run-7').locator('td').nth(4)).toHaveText('1');
   await expect(page.getByTestId('run-7').locator('td').nth(5)).toHaveText('5,00');
   await expect(page.getByTestId('run-7')).toContainText('ausgestellt');
   await expect(page.locator('a[href="/api/dunning/notices/9/document"]')).toBeVisible();
-  // A skipped claim says why, and carries no charge.
+  // A skipped receivable says why, and carries no charge.
   await expect(page.getByTestId('run-8')).toContainText('Frist nicht verstrichen');
   await expect(page.getByTestId('run-8')).not.toContainText('ausgestellt');
 

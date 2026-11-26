@@ -13,7 +13,7 @@ C4Container
 
     Container(web, "Web-Oberfläche / Portal", "Browser app", "Role-specific UI; metadata-driven forms from db_tabellen/db_spalten (inferred)")
     Container(app_pers, "the HR module application", "App server", "Personal- und Stellenverwaltung (inferred)")
-    Container(app_fin, "the finance module / the finance module application", "App server", "Finanz- und Sachmittelverfahren (inferred)")
+    Container(app_fin, "the finance module application", "App server", "Finanz- und Sachmittelverfahren (inferred)")
     Container(app_cob, "the cost-accounting module application", "App server", "Kosten- und Leistungsrechnung (inferred)")
     Container(app_kbs, "the cash-book module application", "App server", "Kassenbuchungssystem (inferred)")
     Container(workflow, "Workflow- & Rechte-Engine", "In-app framework", "sv_* / wof: Vorgänge, Aufgaben, Rechte, Kataloge (inferred)")
@@ -45,7 +45,7 @@ C4Container
 |---|---|
 | Web-Oberfläche / Portal | product material ("webbasiert", "Portal", "responsive") — **[c]** |
 | the HR module app | `sva4.db_version` = `the HR module-GX` — **[c]** |
-| the finance module / the finance module app | `mbs.db_version` = `the finance module-UNIX` / `the finance module-GX` — **[c]** |
+| the finance module app | `mbs.db_version` = `the finance module-UNIX` / `the finance module-GX` — **[c]** |
 | the cost-accounting module app | `cob.db_version` = `the cost-accounting module-GX` — **[c]** |
 | the cash-book module app | `kbs.db_version` = `the cash-book module` — **[c]** |
 | Workflow & Rechte engine | framework tables `sv_*`, `wof` — **[c]** (existence), **[i]** (that it is a shared in-app engine) |

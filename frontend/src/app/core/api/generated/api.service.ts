@@ -43,12 +43,12 @@ export class CampusErpApi {
     return this.http.get<m.Statement>(this.base + `/api/bank-statements/${id}`);
   }
 
-  listBudgetCenters(): Observable<m.Center[]> {
-    return this.http.get<m.Center[]>(this.base + `/api/budget/centers`);
+  listBudgetCentres(): Observable<m.Centre[]> {
+    return this.http.get<m.Centre[]>(this.base + `/api/budget/centres`);
   }
 
-  createBudgetCenter(body: m.BudgetCenterRequest): Observable<m.Center> {
-    return this.http.post<m.Center>(this.base + `/api/budget/centers`, body);
+  createBudgetCentre(body: m.BudgetCentreRequest): Observable<m.Centre> {
+    return this.http.post<m.Centre>(this.base + `/api/budget/centres`, body);
   }
 
   importBudget(body: m.BudgetImportRequest): Observable<m.ImportResult> {
@@ -247,44 +247,44 @@ export class CampusErpApi {
     return this.http.get<m.CostType>(this.base + `/api/klr/accounts/${account}/cost-type`);
   }
 
-  listCostCenters(): Observable<m.CostCenter[]> {
-    return this.http.get<m.CostCenter[]>(this.base + `/api/klr/cost-centers`);
+  listCostCentres(): Observable<m.CostCentre[]> {
+    return this.http.get<m.CostCentre[]>(this.base + `/api/klr/cost-centres`);
   }
 
-  createCostCenter(body: m.KlrNamedRequest): Observable<m.CostCenter> {
-    return this.http.post<m.CostCenter>(this.base + `/api/klr/cost-centers`, body);
+  createCostCentre(body: m.KlrNamedRequest): Observable<m.CostCentre> {
+    return this.http.post<m.CostCentre>(this.base + `/api/klr/cost-centres`, body);
   }
 
   listAllocations(id: number | string): Observable<m.Allocation[]> {
-    return this.http.get<m.Allocation[]>(this.base + `/api/klr/cost-centers/${id}/allocations`);
+    return this.http.get<m.Allocation[]>(this.base + `/api/klr/cost-centres/${id}/allocations`);
   }
 
   defineAllocation(id: number | string, body: m.DefineAllocationRequest): Observable<m.Allocation> {
-    return this.http.post<m.Allocation>(this.base + `/api/klr/cost-centers/${id}/allocations`, body);
+    return this.http.post<m.Allocation>(this.base + `/api/klr/cost-centres/${id}/allocations`, body);
   }
 
   runAllocation(id: number | string, body: m.RunAllocationRequest): Observable<m.KlrRun> {
-    return this.http.post<m.KlrRun>(this.base + `/api/klr/cost-centers/${id}/allocations/run`, body);
+    return this.http.post<m.KlrRun>(this.base + `/api/klr/cost-centres/${id}/allocations/run`, body);
   }
 
   listCostUnitKeys(id: number | string): Observable<m.CostUnitKey[]> {
-    return this.http.get<m.CostUnitKey[]>(this.base + `/api/klr/cost-centers/${id}/cost-unit-keys`);
+    return this.http.get<m.CostUnitKey[]>(this.base + `/api/klr/cost-centres/${id}/cost-unit-keys`);
   }
 
   defineCostUnitKey(id: number | string, body: m.DefineCostUnitKeyRequest): Observable<m.CostUnitKey> {
-    return this.http.post<m.CostUnitKey>(this.base + `/api/klr/cost-centers/${id}/cost-unit-keys`, body);
+    return this.http.post<m.CostUnitKey>(this.base + `/api/klr/cost-centres/${id}/cost-unit-keys`, body);
   }
 
   runCostUnitAllocation(id: number | string, body: m.RunAllocationRequest): Observable<m.KlrRun> {
-    return this.http.post<m.KlrRun>(this.base + `/api/klr/cost-centers/${id}/cost-unit-keys/run`, body);
+    return this.http.post<m.KlrRun>(this.base + `/api/klr/cost-centres/${id}/cost-unit-keys/run`, body);
   }
 
   postAccountingRecord(id: number | string, body: m.KlrRecordRequest): Observable<m.KlrRecord> {
-    return this.http.post<m.KlrRecord>(this.base + `/api/klr/cost-centers/${id}/records`, body);
+    return this.http.post<m.KlrRecord>(this.base + `/api/klr/cost-centres/${id}/records`, body);
   }
 
   getKLRReport(id: number | string): Observable<m.KlrReport> {
-    return this.http.get<m.KlrReport>(this.base + `/api/klr/cost-centers/${id}/report`);
+    return this.http.get<m.KlrReport>(this.base + `/api/klr/cost-centres/${id}/report`);
   }
 
   listCostTypes(limit?: string, offset?: string): Observable<m.CostType[]> {

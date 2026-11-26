@@ -27,14 +27,14 @@ func TestParseReadsTheSampleFile(t *testing.T) {
 	}
 	want := budgetimport.Row{
 		Line: 2, SourceCode: "LHH", SourceName: "Landesmittel", SourceChapter: "05",
-		CenterCode: "BW-1", CenterName: "Fakultaet 1", Year: 2026, Chapter: "05",
+		CentreCode: "BW-1", CentreName: "Fakultaet 1", Year: 2026, Chapter: "05",
 		Title: "1234", Description: "Beschaffung", AllocatedCents: 1000000,
 	}
 	if rows[0] != want {
 		t.Fatalf("row 0 = %+v, want %+v", rows[0], want)
 	}
 	// A row that names no source still carries its centre and its position.
-	if rows[3].SourceCode != "" || rows[3].CenterCode != "BW-1" || rows[3].AllocatedCents != 100000 {
+	if rows[3].SourceCode != "" || rows[3].CentreCode != "BW-1" || rows[3].AllocatedCents != 100000 {
 		t.Fatalf("row 3 = %+v, want no source, BW-1 and 1000.00", rows[3])
 	}
 	// The chapter-less third-party row keeps its empty chapter.

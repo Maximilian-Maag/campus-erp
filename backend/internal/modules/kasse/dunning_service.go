@@ -74,14 +74,14 @@ func (s *DunningService) Levels(ctx context.Context, year int) ([]DunningLevel, 
 // Issue computes the charge for a claim and records a dunning notice, stamped with the date the
 // issue is made as of. A run passes its own as-of date, so the grace period of the next step counts
 // from the day the step belongs to rather than from the day the run happened to execute.
-func (s *DunningService) Issue(ctx context.Context, year int, levelCode, claimReference string,
+func (s *DunningService) Issue(ctx context.Context, year int, levelCode, receivableReference string,
 	outstandingCents int64, issuedOn time.Time, by string) (DunningNotice, error) {
 
 	level, err := s.repo.GetLevel(ctx, year, levelCode)
 	if err != nil {
 		return DunningNotice{}, err
 	}
-	notice, err := NewDunningNotice(level, claimReference, outstandingCents, issuedOn, by)
+	notice, err := NewDunningNotice(level, receivableReference, outstandingCents, issuedOn, by)
 	if err != nil {
 		return DunningNotice{}, err
 	}
@@ -102,7 +102,7 @@ func (s *DunningService) Issue(ctx context.Context, year int, levelCode, claimRe
 		saved.DocumentKey = key
 	}
 	detail := fmt.Sprintf("claim=%s level=%s outstanding_cents=%d charge_cents=%d",
-		saved.ClaimReference, saved.LevelCode, saved.OutstandingCents, saved.ChargeCents)
+		saved.ReceivableReference, saved.LevelCode, saved.OutstandingCents, saved.ChargeCents)
 	if saved.DocumentKey != "" {
 		detail += " document=" + saved.DocumentKey
 	}

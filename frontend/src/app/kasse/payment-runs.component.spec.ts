@@ -176,7 +176,7 @@ describe('PaymentRunsComponent', () => {
 
     expect(component.loading()).toBeFalse();
     expect(component.orders()).toEqual([]);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('keine genehmigte Zahlungsanordnung');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('keine genehmigte Ausgabeanordnung');
   });
 
   it('reports a failed account load instead of an empty list', () => {
@@ -198,7 +198,7 @@ describe('PaymentRunsComponent', () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    expect(component.loadError()).toBe('Konnte die Zahlungsanordnungen nicht laden.');
+    expect(component.loadError()).toBe('Konnte die Ausgabeanordnungen nicht laden.');
     expect(component.loading()).toBeFalse();
   });
 
@@ -474,7 +474,7 @@ describe('PaymentRunsComponent', () => {
     fixture.detectChanges();
 
     expect(component.actionError()).toBe(
-      'Eine gewählte Zahlungsanordnung ist bereits Teil eines Zahlungslaufs.'
+      'Eine gewählte Ausgabeanordnung ist bereits Teil eines Zahlungslaufs.'
     );
   });
 });

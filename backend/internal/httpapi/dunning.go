@@ -18,7 +18,7 @@ type dunningService interface {
 	CreateLevel(ctx context.Context, l kasse.DunningLevel, by string) (kasse.DunningLevel, error)
 	Level(ctx context.Context, year int, code string) (kasse.DunningLevel, error)
 	Levels(ctx context.Context, year int) ([]kasse.DunningLevel, error)
-	Issue(ctx context.Context, year int, levelCode, claimReference string, outstandingCents int64, issuedOn time.Time, by string) (kasse.DunningNotice, error)
+	Issue(ctx context.Context, year int, levelCode, receivableReference string, outstandingCents int64, issuedOn time.Time, by string) (kasse.DunningNotice, error)
 	Notice(ctx context.Context, id int64) (kasse.DunningNotice, error)
 }
 
@@ -70,7 +70,7 @@ func statusForDunning(err error) int {
 		errors.Is(err, kasse.ErrBandsNotAscending),
 		errors.Is(err, kasse.ErrOpenBandNotLast),
 		errors.Is(err, kasse.ErrNegativeBand),
-		errors.Is(err, kasse.ErrClaimRequired),
+		errors.Is(err, kasse.ErrReceivableRequired),
 		errors.Is(err, kasse.ErrActorRequired),
 		errors.Is(err, kasse.ErrAmountNotPositive),
 		errors.Is(err, kasse.ErrNoDunningBand):
@@ -164,10 +164,10 @@ func (s *Server) getDunningLevel(w http.ResponseWriter, r *http.Request) {
 }
 
 type issueNoticeRequest struct {
-	Year             int    `json:"year"`
-	LevelCode        string `json:"level_code"`
-	ClaimReference   string `json:"claim_reference"`
-	OutstandingCents int64  `json:"outstanding_cents"`
+	Year                int    `json:"year"`
+	LevelCode           string `json:"level_code"`
+	ReceivableReference string `json:"receivable_reference"`
+	OutstandingCents    int64  `json:"outstanding_cents"`
 }
 
 func (s *Server) issueDunningNotice(w http.ResponseWriter, r *http.Request) {
@@ -177,7 +177,7 @@ func (s *Server) issueDunningNotice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// A notice issued by hand is dated the day it is issued: unlike a run, it has no as-of date of its own.
-	notice, err := s.dunning.Issue(r.Context(), req.Year, req.LevelCode, req.ClaimReference, req.OutstandingCents, time.Now().UTC(), actor(r))
+	notice, err := s.dunning.Issue(r.Context(), req.Year, req.LevelCode, req.ReceivableReference, req.OutstandingCents, time.Now().UTC(), actor(r))
 	if err != nil {
 		writeDomainProblem(w, statusForDunning(err), err)
 		return
@@ -190,7 +190,7 @@ type runDunningRequest struct {
 	AsOf string `json:"as_of"` // YYYY-MM-DD
 }
 
-// runDunning walks the open receivables due by as_of and advances each claim one
+// runDunning walks the open receivables due by as_of and advances each receivable one
 // step along the year's dunning chain (docs/28). The response is the run's report:
 // what was issued, what was skipped and why, and what failed — the run does not
 // abort on a single failed notice.

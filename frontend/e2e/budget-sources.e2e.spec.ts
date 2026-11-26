@@ -10,7 +10,7 @@ const source = {
   CreatedBy: 'alice',
 };
 
-const center = { ID: 2, Code: 'BW-1', Name: 'Fakultät 1', Active: true, CreatedBy: 'alice' };
+const centre = { ID: 2, Code: 'BW-1', Name: 'Fakultät 1', Active: true, CreatedBy: 'alice' };
 
 const position = {
   ID: 7,
@@ -21,7 +21,7 @@ const position = {
   AllocatedCents: 100000,
   CreatedBy: 'alice',
   SourceID: null as number | null,
-  CenterID: null as number | null,
+  CentreID: null as number | null,
 };
 
 const positionRow = {
@@ -39,24 +39,24 @@ test('Mittelherkunft creates a source and a centre and names a position, and pas
         route.fulfill({ status: 201, json: { ...source, ID: 3, Code: 'S-1', Name: 'Stipendien', Chapter: '' } }))
       : route.fulfill({ status: 200, json: [source] })
   );
-  await page.route('**/api/budget/centers', (route) =>
+  await page.route('**/api/budget/centres', (route) =>
     route.request().method() === 'POST'
       ? (created.push(route.request().postDataJSON()),
-        route.fulfill({ status: 201, json: { ...center, ID: 4, Code: 'BW-2', Name: 'Fakultät 2' } }))
-      : route.fulfill({ status: 200, json: [center] })
+        route.fulfill({ status: 201, json: { ...centre, ID: 4, Code: 'BW-2', Name: 'Fakultät 2' } }))
+      : route.fulfill({ status: 200, json: [centre] })
   );
   await page.route(/\/api\/budget\/positions(\?.*)?$/, (route) =>
     route.fulfill({ status: 200, json: [positionRow] })
   );
   await page.route('**/api/budget/positions/*/assignment', (route) => {
     assignments.push(route.request().postDataJSON());
-    return route.fulfill({ status: 200, json: { ...position, SourceID: 1, CenterID: 2 } });
+    return route.fulfill({ status: 200, json: { ...position, SourceID: 1, CentreID: 2 } });
   });
 
   await page.goto('/budget/mittelherkunft');
   await expect(page.getByRole('heading', { name: 'Mittelherkunft', exact: true })).toBeVisible();
   await expect(page.getByTestId('source-1')).toContainText('Landesmittel');
-  await expect(page.getByTestId('center-2')).toContainText('Fakultät 1');
+  await expect(page.getByTestId('centre-2')).toContainText('Fakultät 1');
 
   await page.getByLabel('Schlüssel', { exact: true }).first().fill('S-1');
   await page.getByLabel('Bezeichnung', { exact: true }).first().fill('Stipendien');
@@ -80,7 +80,7 @@ test('Mittelherkunft creates a source and a centre and names a position, and pas
   await page.getByRole('button', { name: 'Zuordnung speichern' }).click();
 
   await expect(page.getByText('Die Zuordnung ist gespeichert.')).toBeVisible();
-  expect(assignments).toEqual([{ source_id: 1, center_id: 2 }]);
+  expect(assignments).toEqual([{ source_id: 1, centre_id: 2 }]);
   await expect(page.getByTestId('position-7')).toContainText('LHH — Landesmittel');
 
   const results = await new AxeBuilder({ page }).analyze();
@@ -97,8 +97,8 @@ test('Mittelherkunft reads a budget file and states what it did, and passes axe'
         Layout: 'budget-import/v1',
         SourcesCreated: 1,
         SourcesKept: 0,
-        CentersCreated: 1,
-        CentersKept: 1,
+        CentresCreated: 1,
+        CentresKept: 1,
         PositionsCreated: 2,
         PositionsKept: 0,
         PositionsNamed: 2,
@@ -106,13 +106,13 @@ test('Mittelherkunft reads a budget file and states what it did, and passes axe'
     });
   });
   await page.route('**/api/budget/sources', (route) => route.fulfill({ status: 200, json: [source] }));
-  await page.route('**/api/budget/centers', (route) => route.fulfill({ status: 200, json: [center] }));
+  await page.route('**/api/budget/centres', (route) => route.fulfill({ status: 200, json: [centre] }));
   await page.route(/\/api\/budget\/positions(\?.*)?$/, (route) =>
     route.fulfill({ status: 200, json: [positionRow] })
   );
 
   await page.goto('/budget/mittelherkunft');
-  const file = 'source_code;source_name;source_chapter;center_code;center_name;year;chapter;title;description;ansatz\nLHH;Landesmittel;05;BW-1;Fakultaet 1;2026;05;1234;Beschaffung;10.000,00\n';
+  const file = 'source_code;source_name;source_chapter;centre_code;centre_name;year;chapter;title;description;ansatz\nLHH;Landesmittel;05;BW-1;Fakultaet 1;2026;05;1234;Beschaffung;10.000,00\n';
 
   // An empty textarea is refused before the API is asked.
   await page.getByRole('button', { name: 'Einlesen' }).click();
@@ -137,7 +137,7 @@ test('Mittelherkunft reports a refused create and an empty budget, and passes ax
       ? route.fulfill({ status: 409, json: { error: 'a source with that code already exists' } })
       : route.fulfill({ status: 200, json: [] })
   );
-  await page.route('**/api/budget/centers', (route) => route.fulfill({ status: 200, json: [] }));
+  await page.route('**/api/budget/centres', (route) => route.fulfill({ status: 200, json: [] }));
   await page.route(/\/api\/budget\/positions(\?.*)?$/, (route) => route.fulfill({ status: 200, json: [] }));
 
   await page.goto('/budget/mittelherkunft');

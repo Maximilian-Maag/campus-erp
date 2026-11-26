@@ -28,14 +28,14 @@ type PositionRepository interface {
 	BindCommitment(ctx context.Context, p Posting) (Posting, bool, error)
 	Postings(ctx context.Context, positionID int64) ([]Posting, error)
 	Balance(ctx context.Context, positionID int64) (Balance, error)
-	// CreateSource, Sources, CreateCenter and Centers are the Mittelquellen and
+	// CreateSource, Sources, CreateCentre and Centres are the Mittelquellen and
 	// Bewirtschaftungsstellen (source.go).
 	CreateSource(ctx context.Context, s Source) (Source, error)
 	Sources(ctx context.Context) ([]Source, error)
-	CreateCenter(ctx context.Context, c Center) (Center, error)
-	Centers(ctx context.Context) ([]Center, error)
+	CreateCentre(ctx context.Context, c Centre) (Centre, error)
+	Centres(ctx context.Context) ([]Centre, error)
 	// AssignPosition sets which source a position draws on and which centre administers it.
-	AssignPosition(ctx context.Context, positionID int64, sourceID, centerID *int64) (Position, error)
+	AssignPosition(ctx context.Context, positionID int64, sourceID, centreID *int64) (Position, error)
 	// ImportBudget writes a parsed budget file in one transaction — the sources and centres it
 	// names, the positions it carries, and each position's naming from its own line (import_repo.go).
 	ImportBudget(ctx context.Context, rows []budgetimport.Row, layout, by string) (ImportResult, error)
@@ -47,13 +47,13 @@ type PositionRepo struct{ pool *pgxpool.Pool }
 // NewPositionRepo returns a PositionRepo.
 func NewPositionRepo(pool *pgxpool.Pool) *PositionRepo { return &PositionRepo{pool: pool} }
 
-const positionColumns = `id, year, chapter, title, description, allocated_cents, created_by, source_id, center_id`
+const positionColumns = `id, year, chapter, title, description, allocated_cents, created_by, source_id, centre_id`
 const postingColumns = `id, position_id, kind, amount_cents, reference, booked_by`
 
 func scanPosition(row pgx.Row) (Position, error) {
 	var p Position
 	err := row.Scan(&p.ID, &p.Year, &p.Chapter, &p.Title, &p.Description, &p.AllocatedCents, &p.CreatedBy,
-		&p.SourceID, &p.CenterID)
+		&p.SourceID, &p.CentreID)
 	return p, err
 }
 

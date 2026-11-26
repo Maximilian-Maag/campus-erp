@@ -144,21 +144,21 @@ func (r *DunningRepo) Levels(ctx context.Context, year int) ([]DunningLevel, err
 func (r *DunningRepo) InsertNotice(ctx context.Context, n DunningNotice) (DunningNotice, error) {
 	row := r.pool.QueryRow(ctx,
 		`INSERT INTO dunning_notice
-		   (claim_reference, level_code, outstanding_cents, charge_cents, issued_on, issued_by)
+		   (receivable_reference, level_code, outstanding_cents, charge_cents, issued_on, issued_by)
 		 VALUES ($1,$2,$3,$4,$5,$6)
 		 RETURNING id`,
-		n.ClaimReference, n.LevelCode, n.OutstandingCents, n.ChargeCents, n.IssuedOn, n.IssuedBy)
+		n.ReceivableReference, n.LevelCode, n.OutstandingCents, n.ChargeCents, n.IssuedOn, n.IssuedBy)
 	if err := row.Scan(&n.ID); err != nil {
 		return DunningNotice{}, fmt.Errorf("kasse: insert dunning notice: %w", err)
 	}
 	return n, nil
 }
 
-const noticeColumns = "id, claim_reference, level_code, outstanding_cents, charge_cents, issued_on, issued_by, coalesce(document_key, '')"
+const noticeColumns = "id, receivable_reference, level_code, outstanding_cents, charge_cents, issued_on, issued_by, coalesce(document_key, '')"
 
 func scanNotice(row pgx.Row) (DunningNotice, error) {
 	var n DunningNotice
-	err := row.Scan(&n.ID, &n.ClaimReference, &n.LevelCode, &n.OutstandingCents,
+	err := row.Scan(&n.ID, &n.ReceivableReference, &n.LevelCode, &n.OutstandingCents,
 		&n.ChargeCents, &n.IssuedOn, &n.IssuedBy, &n.DocumentKey)
 	return n, err
 }
@@ -176,14 +176,14 @@ func (r *DunningRepo) GetNotice(ctx context.Context, id int64) (DunningNotice, e
 	return n, nil
 }
 
-// LatestNoticeByClaim reads the most recent notice issued for a claim reference —
-// the step a dunning run advances from. The bool is false when the claim has never
+// LatestNoticeByReceivable reads the most recent notice issued for a receivable reference —
+// the step a dunning run advances from. The bool is false when the receivable has never
 // been dunned. Ties on the same day resolve to the newest row, so two notices issued
 // on one day advance from the later one.
-func (r *DunningRepo) LatestNoticeByClaim(ctx context.Context, claimReference string) (DunningNotice, bool, error) {
+func (r *DunningRepo) LatestNoticeByReceivable(ctx context.Context, receivableReference string) (DunningNotice, bool, error) {
 	n, err := scanNotice(r.pool.QueryRow(ctx,
 		`SELECT `+noticeColumns+` FROM dunning_notice
-		  WHERE claim_reference = $1 ORDER BY issued_on DESC, id DESC LIMIT 1`, claimReference))
+		  WHERE receivable_reference = $1 ORDER BY issued_on DESC, id DESC LIMIT 1`, receivableReference))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return DunningNotice{}, false, nil
 	}

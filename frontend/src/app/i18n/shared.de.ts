@@ -45,11 +45,11 @@ export const sharedDe = {
     item: {
       kasseTag: 'Tagesabschluss',
       kasseKonten: 'Eigene Konten',
-      kasseAnordnungen: 'Zahlungsanordnungen',
+      kasseAnordnungen: 'Ausgabeanordnungen',
       kasseZahlungslaeufe: 'Zahlungsläufe',
       kasseKontoauszuege: 'Kontoauszüge',
       kasseOffenePosten: 'Offene Posten',
-      kasseEinzuege: 'Einzüge',
+      kasseEinzuege: 'Einzugsläufe',
       kasseMahnwesen: 'Mahnwesen',
       kasseMahnlauf: 'Mahnlauf',
       kasseRuecklaeufer: 'Rückläufer',
@@ -93,7 +93,7 @@ export const sharedDe = {
       subtitle: 'Konten der Hochschule, aus denen Zahlungen geleistet werden.',
     },
     kasseAnordnungen: {
-      title: 'Zahlungsanordnungen',
+      title: 'Ausgabeanordnungen',
       subtitle: 'Zahlungen anlegen, vorlegen und im Vier-Augen-Prinzip freigeben.',
     },
     kasseZahlungslaeufe: {
@@ -109,7 +109,7 @@ export const sharedDe = {
       subtitle: 'Forderungen und ihre Fälligkeit im Überblick.',
     },
     kasseEinzuege: {
-      title: 'Einzüge',
+      title: 'Einzugsläufe',
       subtitle: 'SEPA-Lastschriften einziehen und überwachen.',
     },
     kasseMahnwesen: {
@@ -207,7 +207,7 @@ export const sharedDe = {
     chapter: 'Kapitel',
     choose: 'Bitte wählen',
     code: 'Schlüssel',
-    costCenter: 'Kostenstelle',
+    costCentre: 'Kostenstelle',
     costType: 'Kostenart',
     created: 'Angelegt',
     currency: 'Währung',

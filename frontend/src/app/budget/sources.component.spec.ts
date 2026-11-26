@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BudgetSourcesComponent } from './sources.component';
-import { BudgetPositionResponse, Center, ImportResult, Position, Source } from '../core/api/generated';
+import { BudgetPositionResponse, Centre, ImportResult, Position, Source } from '../core/api/generated';
 import { provideI18n } from '../i18n/provide-i18n';
 
 describe('BudgetSourcesComponent', () => {
@@ -28,7 +28,7 @@ describe('BudgetSourcesComponent', () => {
     ...over,
   });
 
-  const center = (over: Partial<Center> = {}): Center => ({
+  const centre = (over: Partial<Centre> = {}): Centre => ({
     ID: 2,
     Code: 'BW-1',
     Name: 'Fakultät 1',
@@ -46,7 +46,7 @@ describe('BudgetSourcesComponent', () => {
     AllocatedCents: 100000,
     CreatedBy: 'alice',
     SourceID: null,
-    CenterID: null,
+    CentreID: null,
     ...over,
   });
 
@@ -54,8 +54,8 @@ describe('BudgetSourcesComponent', () => {
     Layout: 'budget-import/v1',
     SourcesCreated: 0,
     SourcesKept: 0,
-    CentersCreated: 0,
-    CentersKept: 0,
+    CentresCreated: 0,
+    CentresKept: 0,
     PositionsCreated: 0,
     PositionsKept: 0,
     PositionsNamed: 0,
@@ -75,7 +75,7 @@ describe('BudgetSourcesComponent', () => {
   /** Creates the screen and answers the three reads it starts with. */
   function screen(
     sources: Source[] = [source()],
-    centers: Center[] = [center()],
+    centres: Centre[] = [centre()],
     positions: BudgetPositionResponse[] = [row()]
   ): void {
     fixture = TestBed.createComponent(BudgetSourcesComponent);
@@ -83,19 +83,19 @@ describe('BudgetSourcesComponent', () => {
     component = fixture.componentInstance;
     el = fixture.nativeElement as HTMLElement;
     http.expectOne('/api/budget/sources').flush(sources);
-    http.expectOne('/api/budget/centers').flush(centers);
+    http.expectOne('/api/budget/centres').flush(centres);
     http.expectOne('/api/budget/positions?limit=50&offset=0').flush(positions);
     fixture.detectChanges();
   }
 
   it('lists the sources, the centres and the positions they name', () => {
-    screen([source()], [center()], [row({ SourceID: 1, CenterID: 2 })]);
+    screen([source()], [centre()], [row({ SourceID: 1, CentreID: 2 })]);
     expect(component.loading()).toBeFalse();
     expect(component.loadError()).toBeNull();
     // The screen names itself through `app-page` rather than its own heading.
     expect(el.querySelector('[data-testid="page-title"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="source-1"]')!.textContent).toContain('Landesmittel');
-    expect(el.querySelector('[data-testid="center-2"]')!.textContent).toContain('Fakultät 1');
+    expect(el.querySelector('[data-testid="centre-2"]')!.textContent).toContain('Fakultät 1');
     const cells = el.querySelector('[data-testid="position-7"]')!.querySelectorAll('td');
     expect(cells[0].textContent).toContain('05/1234');
     expect(cells[2].textContent).toContain('1.000,00');
@@ -113,7 +113,7 @@ describe('BudgetSourcesComponent', () => {
   });
 
   it('states that there is no position at all', () => {
-    screen([source()], [center()], []);
+    screen([source()], [centre()], []);
     expect(el.textContent).toContain('keine Haushaltsstelle angelegt');
     expect(el.querySelector('#assign-position')).toBeNull();
   });
@@ -127,7 +127,7 @@ describe('BudgetSourcesComponent', () => {
       { error: 'boom' },
       { status: 500, statusText: 'Server Error' }
     );
-    http.expectOne('/api/budget/centers').flush([center()]);
+    http.expectOne('/api/budget/centres').flush([centre()]);
     http.expectOne('/api/budget/positions?limit=50&offset=0').flush([row()]);
     fixture.detectChanges();
 
@@ -142,7 +142,7 @@ describe('BudgetSourcesComponent', () => {
     el = fixture.nativeElement as HTMLElement;
     http.expectOne('/api/budget/sources').flush([source()]);
     http
-      .expectOne('/api/budget/centers')
+      .expectOne('/api/budget/centres')
       .flush({ error: 'boom' }, { status: 500, statusText: 'Server Error' });
     http.expectOne('/api/budget/positions?limit=50&offset=0').flush([row()]);
     fixture.detectChanges();
@@ -155,7 +155,7 @@ describe('BudgetSourcesComponent', () => {
     expect(component.loadError()).toBeNull();
     expect(el.querySelector('[data-testid="source-1"]')).not.toBeNull();
     expect(el.querySelector('#source-code')).not.toBeNull();
-    expect(el.querySelector('#center-code')).not.toBeNull();
+    expect(el.querySelector('#centre-code')).not.toBeNull();
   });
 
   it('creates a source and keeps the list in code order', () => {
@@ -182,19 +182,19 @@ describe('BudgetSourcesComponent', () => {
   });
 
   it('creates a centre', () => {
-    screen([], [center()], []);
-    component.centerCode.set('BW-2');
-    component.centerName.set('Fakultät 2');
-    component.createCenter(new Event('submit'));
+    screen([], [centre()], []);
+    component.centreCode.set('BW-2');
+    component.centreName.set('Fakultät 2');
+    component.createCentre(new Event('submit'));
 
-    const req = http.expectOne('/api/budget/centers');
+    const req = http.expectOne('/api/budget/centres');
     expect(req.request.body).toEqual({ code: 'BW-2', name: 'Fakultät 2' });
-    req.flush(center({ ID: 4, Code: 'BW-2', Name: 'Fakultät 2' }));
+    req.flush(centre({ ID: 4, Code: 'BW-2', Name: 'Fakultät 2' }));
     fixture.detectChanges();
 
     expect(component.notice()).toBe('Bewirtschaftungsstelle BW-2 angelegt.');
-    expect(component.centers().map((c) => c.Code)).toEqual(['BW-1', 'BW-2']);
-    expect(component.centerCode()).toBe('');
+    expect(component.centres().map((c) => c.Code)).toEqual(['BW-1', 'BW-2']);
+    expect(component.centreCode()).toBe('');
   });
 
   it('refuses an incomplete source or centre before asking the API', () => {
@@ -205,7 +205,7 @@ describe('BudgetSourcesComponent', () => {
     component.createSource(new Event('submit'));
     expect(component.actionError()).toBe('Schlüssel und Bezeichnung der Mittelquelle sind erforderlich.');
 
-    component.createCenter(new Event('submit'));
+    component.createCentre(new Event('submit'));
     expect(component.actionError()).toBe(
       'Schlüssel und Bezeichnung der Bewirtschaftungsstelle sind erforderlich.'
     );
@@ -225,10 +225,10 @@ describe('BudgetSourcesComponent', () => {
     expect(component.actionError()).toBe('Die Mittelquelle konnte nicht angelegt werden.');
     expect(component.notice()).toBeNull();
 
-    component.centerCode.set('BW-9');
-    component.centerName.set('Neun');
-    component.createCenter(new Event('submit'));
-    http.expectOne('/api/budget/centers').flush({ error: 'boom' }, { status: 500, statusText: 'Server Error' });
+    component.centreCode.set('BW-9');
+    component.centreName.set('Neun');
+    component.createCentre(new Event('submit'));
+    http.expectOne('/api/budget/centres').flush({ error: 'boom' }, { status: 500, statusText: 'Server Error' });
     expect(component.actionError()).toBe('Die Bewirtschaftungsstelle konnte nicht angelegt werden.');
   });
 
@@ -236,13 +236,13 @@ describe('BudgetSourcesComponent', () => {
     screen();
     component.position.set('7');
     component.source.set('1');
-    component.center.set('2');
+    component.centre.set('2');
     component.assign(new Event('submit'));
 
     const req = http.expectOne('/api/budget/positions/7/assignment');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ source_id: 1, center_id: 2 });
-    req.flush(position({ SourceID: 1, CenterID: 2 }));
+    expect(req.request.body).toEqual({ source_id: 1, centre_id: 2 });
+    req.flush(position({ SourceID: 1, CentreID: 2 }));
     fixture.detectChanges();
 
     expect(component.notice()).toBe('Die Zuordnung ist gespeichert.');
@@ -261,9 +261,9 @@ describe('BudgetSourcesComponent', () => {
     el = fixture.nativeElement as HTMLElement;
     component.position.set('8');
     component.source.set('3');
-    component.center.set('4');
+    component.centre.set('4');
     http.expectOne('/api/budget/sources').flush([source(), source({ ID: 3, Code: 'Drittmittel' })]);
-    http.expectOne('/api/budget/centers').flush([center(), center({ ID: 4, Code: 'BW-2' })]);
+    http.expectOne('/api/budget/centres').flush([centre(), centre({ ID: 4, Code: 'BW-2' })]);
     http
       .expectOne('/api/budget/positions?limit=50&offset=0')
       .flush([row(), row({ ID: 8, Chapter: '05', Title: '9999' })]);
@@ -271,19 +271,19 @@ describe('BudgetSourcesComponent', () => {
 
     expect((el.querySelector('#assign-position') as HTMLSelectElement).value).toBe('8');
     expect((el.querySelector('#assign-source') as HTMLSelectElement).value).toBe('3');
-    expect((el.querySelector('#assign-center') as HTMLSelectElement).value).toBe('4');
+    expect((el.querySelector('#assign-centre') as HTMLSelectElement).value).toBe('4');
   });
 
   it('clears a half when the choice is emptied', () => {
-    screen([source()], [center()], [row({ SourceID: 1, CenterID: 2 })]);
+    screen([source()], [centre()], [row({ SourceID: 1, CentreID: 2 })]);
     component.position.set('7');
     component.source.set('');
-    component.center.set('2');
+    component.centre.set('2');
     component.assign(new Event('submit'));
 
     const req = http.expectOne('/api/budget/positions/7/assignment');
-    expect(req.request.body).toEqual({ source_id: null, center_id: 2 });
-    req.flush(position({ SourceID: null, CenterID: 2 }));
+    expect(req.request.body).toEqual({ source_id: null, centre_id: 2 });
+    req.flush(position({ SourceID: null, CentreID: 2 }));
   });
 
   it('refuses an assignment with no position chosen, and reports a refused one', () => {
@@ -314,7 +314,7 @@ describe('BudgetSourcesComponent', () => {
     expect(req.request.method).toBe('POST');
     // An untouched format field means the standard layout, which the API fills in.
     expect(req.request.body).toEqual({ layout: '', content: 'source_code;source_name;...\nLHH;Landesmittel;...' });
-    req.flush(importResult({ SourcesCreated: 1, CentersCreated: 1, PositionsCreated: 2, PositionsNamed: 2 }));
+    req.flush(importResult({ SourcesCreated: 1, CentresCreated: 1, PositionsCreated: 2, PositionsNamed: 2 }));
     fixture.detectChanges();
 
     expect(component.notice()).toBe(
@@ -325,7 +325,7 @@ describe('BudgetSourcesComponent', () => {
     expect(component.file()).toBe('');
     // The three lists are read again: the file may have added to every one of them.
     http.expectOne('/api/budget/sources').flush([source({ ID: 9, Code: 'LHH' })]);
-    http.expectOne('/api/budget/centers').flush([center({ ID: 9 })]);
+    http.expectOne('/api/budget/centres').flush([centre({ ID: 9 })]);
     http.expectOne('/api/budget/positions?limit=50&offset=0').flush([row()]);
     expect(component.sources().length).toBe(1);
     expect(component.loading()).toBeFalse();
@@ -340,7 +340,7 @@ describe('BudgetSourcesComponent', () => {
     expect(req.request.body).toEqual({ layout: 'vendor-import/v9', content: 'x' });
     req.flush(importResult());
     http.expectOne('/api/budget/sources').flush([]);
-    http.expectOne('/api/budget/centers').flush([]);
+    http.expectOne('/api/budget/centres').flush([]);
     http.expectOne('/api/budget/positions?limit=50&offset=0').flush([]);
   });
 
@@ -365,15 +365,15 @@ describe('BudgetSourcesComponent', () => {
   });
 
   it('falls back to the id when a named source or centre is not in the lists', () => {
-    screen([source()], [center()], [row({ SourceID: 99, CenterID: 98 })]);
+    screen([source()], [centre()], [row({ SourceID: 99, CentreID: 98 })]);
     expect(component.sourceNameOf(row({ SourceID: 99 }))).toBe('99');
-    expect(component.centerNameOf(row({ CenterID: 98 }))).toBe('98');
+    expect(component.centreNameOf(row({ CentreID: 98 }))).toBe('98');
     expect(component.sourceNameOf(row({ SourceID: null }))).toBe('keine');
     expect(component.amount(100000)).toBe('1.000,00');
   });
   it('offers more Haushaltsstellen than the first page, in the picker and the table alike', () => {
     const fifty = Array.from({ length: 50 }, (_, i) => row({ ID: i + 1, Title: String(i + 1) }));
-    screen([source()], [center()], fifty);
+    screen([source()], [centre()], fifty);
     expect(component.hasMore()).toBeTrue();
     expect(el.querySelector('[data-testid="load-more-positions"]')).not.toBeNull();
 
@@ -396,7 +396,7 @@ describe('BudgetSourcesComponent', () => {
 
   it('keeps the Haushaltsstellen it already offers when the next page fails', () => {
     const fifty = Array.from({ length: 50 }, (_, i) => row({ ID: i + 1, Title: String(i + 1) }));
-    screen([source()], [center()], fifty);
+    screen([source()], [centre()], fifty);
 
     component.loadMore();
     http

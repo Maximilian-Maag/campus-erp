@@ -16,8 +16,8 @@ var (
 	ErrAmountNotPositive  = errors.New("klr: the amount must be positive")
 	ErrUnknownKind        = errors.New("klr: unknown record kind")
 	ErrActorRequired      = errors.New("klr: an actor is required")
-	ErrCostCenterExists   = errors.New("klr: a cost centre with that number already exists")
-	ErrCostCenterNotFound = errors.New("klr: cost centre not found")
+	ErrCostCentreExists   = errors.New("klr: a cost centre with that number already exists")
+	ErrCostCentreNotFound = errors.New("klr: cost centre not found")
 	ErrCostUnitExists     = errors.New("klr: a cost unit with that number already exists")
 	ErrCostUnitNotFound   = errors.New("klr: cost unit not found")
 
@@ -43,8 +43,8 @@ const (
 	Revenue Kind = "revenue"
 )
 
-// CostCenter is a cost centre (Kostenstelle).
-type CostCenter struct {
+// CostCentre is a cost centre (Kostenstelle).
+type CostCentre struct {
 	ID        int64
 	Number    string
 	Name      string
@@ -66,7 +66,7 @@ type CostUnit struct {
 // the period the costs belong to (docs/13).
 type Record struct {
 	ID           int64
-	CostCenterID int64
+	CostCentreID int64
 	CostUnitID   *int64
 	CostTypeID   *int64
 	Kind         Kind
@@ -78,7 +78,7 @@ type Record struct {
 
 // Report is the derived state of a cost centre.
 type Report struct {
-	CostCenterID  int64
+	CostCentreID  int64
 	CostsCents    int64
 	RevenuesCents int64
 }
@@ -98,13 +98,13 @@ func requireNumberName(number, name string, errNumber, errName error) (string, s
 	return number, name, nil
 }
 
-// NewCostCenter validates and builds a cost centre.
-func NewCostCenter(number, name string) (CostCenter, error) {
+// NewCostCentre validates and builds a cost centre.
+func NewCostCentre(number, name string) (CostCentre, error) {
 	n, nm, err := requireNumberName(number, name, ErrNumberRequired, ErrNameRequired)
 	if err != nil {
-		return CostCenter{}, err
+		return CostCentre{}, err
 	}
-	return CostCenter{Number: n, Name: nm}, nil
+	return CostCentre{Number: n, Name: nm}, nil
 }
 
 // NewCostUnit validates and builds a cost unit.
@@ -120,9 +120,9 @@ func NewCostUnit(number, name string) (CostUnit, error) {
 // belong to a period, and "whenever it was typed in" is not one. The cost unit and the cost type
 // are optional — a record may be booked before either is known — and the store's foreign keys
 // refuse one that does not exist.
-func NewRecord(costCenterID int64, costUnitID, costTypeID *int64, kind Kind, amountCents int64, businessDate time.Time, reference string) (Record, error) {
-	if costCenterID <= 0 {
-		return Record{}, ErrCostCenterNotFound
+func NewRecord(costCentreID int64, costUnitID, costTypeID *int64, kind Kind, amountCents int64, businessDate time.Time, reference string) (Record, error) {
+	if costCentreID <= 0 {
+		return Record{}, ErrCostCentreNotFound
 	}
 	if kind != Cost && kind != Revenue {
 		return Record{}, ErrUnknownKind
@@ -134,7 +134,7 @@ func NewRecord(costCenterID int64, costUnitID, costTypeID *int64, kind Kind, amo
 		return Record{}, ErrBusinessDateRequired
 	}
 	return Record{
-		CostCenterID: costCenterID, CostUnitID: costUnitID, CostTypeID: costTypeID, Kind: kind,
+		CostCentreID: costCentreID, CostUnitID: costUnitID, CostTypeID: costTypeID, Kind: kind,
 		AmountCents: amountCents, BusinessDate: businessDate, Reference: strings.TrimSpace(reference),
 	}, nil
 }
@@ -145,8 +145,8 @@ func NewRecord(costCenterID int64, costUnitID, costTypeID *int64, kind Kind, amo
 // step (docs/13).
 type Allocation struct {
 	ID             int64
-	SourceCenterID int64
-	TargetCenterID int64
+	SourceCentreID int64
+	TargetCentreID int64
 	ShareBP        int64
 	ValidFrom      time.Time
 	ValidTo        *time.Time
@@ -156,7 +156,7 @@ type Allocation struct {
 // Run is one execution of the distribution engine over a period.
 type Run struct {
 	ID             int64
-	SourceCenterID int64
+	SourceCentreID int64
 	PeriodFrom     time.Time
 	PeriodTo       time.Time
 	AllocatedCents int64
@@ -165,11 +165,11 @@ type Run struct {
 }
 
 // NewAllocation validates and builds a distribution key.
-func NewAllocation(sourceCenterID, targetCenterID, shareBP int64, validFrom time.Time, validTo *time.Time) (Allocation, error) {
-	if sourceCenterID <= 0 || targetCenterID <= 0 {
-		return Allocation{}, ErrCostCenterNotFound
+func NewAllocation(sourceCentreID, targetCentreID, shareBP int64, validFrom time.Time, validTo *time.Time) (Allocation, error) {
+	if sourceCentreID <= 0 || targetCentreID <= 0 {
+		return Allocation{}, ErrCostCentreNotFound
 	}
-	if targetCenterID == sourceCenterID {
+	if targetCentreID == sourceCentreID {
 		return Allocation{}, ErrAllocationSelf
 	}
 	if shareBP < 0 || shareBP > 10000 {
@@ -179,7 +179,7 @@ func NewAllocation(sourceCenterID, targetCenterID, shareBP int64, validFrom time
 		return Allocation{}, ErrAllocationPeriod
 	}
 	return Allocation{
-		SourceCenterID: sourceCenterID, TargetCenterID: targetCenterID,
+		SourceCentreID: sourceCentreID, TargetCentreID: targetCentreID,
 		ShareBP: shareBP, ValidFrom: validFrom, ValidTo: validTo,
 	}, nil
 }
@@ -254,5 +254,5 @@ func splitByBasisPoints(amountCents int64, sharesBP []int64) ([]int64, error) {
 
 // String renders a key for messages and logs.
 func (a Allocation) String() string {
-	return fmt.Sprintf("allocation %d: centre %d -> centre %d at %d bp", a.ID, a.SourceCenterID, a.TargetCenterID, a.ShareBP)
+	return fmt.Sprintf("allocation %d: centre %d -> centre %d at %d bp", a.ID, a.SourceCentreID, a.TargetCentreID, a.ShareBP)
 }

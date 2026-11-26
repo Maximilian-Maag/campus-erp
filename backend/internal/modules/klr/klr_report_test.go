@@ -5,33 +5,33 @@ import (
 	"time"
 )
 
-func TestCostCenterOverviewDefinition(t *testing.T) {
-	if CostCenterOverviewDefinition.ID != "klr-cost-center-overview" {
-		t.Fatalf("id = %q", CostCenterOverviewDefinition.ID)
+func TestCostCentreOverviewDefinition(t *testing.T) {
+	if CostCentreOverviewDefinition.ID != "klr-cost-centre-overview" {
+		t.Fatalf("id = %q", CostCentreOverviewDefinition.ID)
 	}
-	if CostCenterOverviewDefinition.Title != "Kostenstellenübersicht" {
-		t.Fatalf("title = %q", CostCenterOverviewDefinition.Title)
+	if CostCentreOverviewDefinition.Title != "Kostenstellenübersicht" {
+		t.Fatalf("title = %q", CostCentreOverviewDefinition.Title)
 	}
 	// Kostenstelle, Bezeichnung, Kosten, Erlöse, Saldo.
-	if len(CostCenterOverviewDefinition.Columns) != 5 {
-		t.Fatalf("columns = %d, want 5", len(CostCenterOverviewDefinition.Columns))
+	if len(CostCentreOverviewDefinition.Columns) != 5 {
+		t.Fatalf("columns = %d, want 5", len(CostCentreOverviewDefinition.Columns))
 	}
-	if CostCenterOverviewDefinition.Columns[0].Key != "number" || CostCenterOverviewDefinition.Columns[4].Key != "balance" {
-		t.Fatalf("columns = %+v", CostCenterOverviewDefinition.Columns)
+	if CostCentreOverviewDefinition.Columns[0].Key != "number" || CostCentreOverviewDefinition.Columns[4].Key != "balance" {
+		t.Fatalf("columns = %+v", CostCentreOverviewDefinition.Columns)
 	}
 }
 
-func TestCostCenterOverviewRows(t *testing.T) {
+func TestCostCentreOverviewRows(t *testing.T) {
 	at := time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC)
-	lines := []CostCenterLine{
-		{CostCenter: CostCenter{ID: 1, Number: "K-10", Name: "Verwaltung"},
-			Report: Report{CostCenterID: 1, CostsCents: 100000, RevenuesCents: 25000}},
-		{CostCenter: CostCenter{ID: 2, Number: "K-99", Name: "Bibliothek"},
-			Report: Report{CostCenterID: 2, CostsCents: 5000, RevenuesCents: 10000}},
+	lines := []CostCentreLine{
+		{CostCentre: CostCentre{ID: 1, Number: "K-10", Name: "Verwaltung"},
+			Report: Report{CostCentreID: 1, CostsCents: 100000, RevenuesCents: 25000}},
+		{CostCentre: CostCentre{ID: 2, Number: "K-99", Name: "Bibliothek"},
+			Report: Report{CostCentreID: 2, CostsCents: 5000, RevenuesCents: 10000}},
 	}
-	got := CostCenterOverview(at, lines)
+	got := CostCentreOverview(at, lines)
 
-	if got.Definition.ID != CostCenterOverviewDefinition.ID || !got.GeneratedAt.Equal(at) {
+	if got.Definition.ID != CostCentreOverviewDefinition.ID || !got.GeneratedAt.Equal(at) {
 		t.Fatalf("report = %+v", got)
 	}
 	// One row per centre plus the totals row.
@@ -53,9 +53,9 @@ func TestCostCenterOverviewRows(t *testing.T) {
 	}
 }
 
-func TestCostCenterOverviewWithoutCentres(t *testing.T) {
+func TestCostCentreOverviewWithoutCentres(t *testing.T) {
 	// No centres is an empty list and a zero totals row, not a panic.
-	got := CostCenterOverview(time.Time{}, nil)
+	got := CostCentreOverview(time.Time{}, nil)
 	if len(got.Rows) != 1 {
 		t.Fatalf("rows = %d, want the totals row only", len(got.Rows))
 	}
@@ -79,7 +79,7 @@ func TestCostUnitOverviewDefinition(t *testing.T) {
 		t.Fatalf("columns = %+v", CostUnitOverviewDefinition.Columns)
 	}
 	// The two KLR overviews are told apart by their id, which is what a client asks for.
-	if CostUnitOverviewDefinition.ID == CostCenterOverviewDefinition.ID {
+	if CostUnitOverviewDefinition.ID == CostCentreOverviewDefinition.ID {
 		t.Fatal("both KLR overviews share an id")
 	}
 }

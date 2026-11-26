@@ -117,7 +117,7 @@ func (r *CollectionRunRepo) InsertCollectionRunFromReceivables(ctx context.Conte
 		`UPDATE receivable SET state = 'collected', collected_run_id = $2
 		  WHERE id = ANY($1) AND state = 'open'`, receivableIDs, saved.ID)
 	if err != nil {
-		return CollectionRun{}, nil, fmt.Errorf("kasse: claim receivables: %w", err)
+		return CollectionRun{}, nil, fmt.Errorf("kasse: collect receivables: %w", err)
 	}
 	if int(tag.RowsAffected()) != len(receivableIDs) {
 		return CollectionRun{}, nil, ErrReceivableNotOpen

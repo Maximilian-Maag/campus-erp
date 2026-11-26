@@ -30,7 +30,7 @@ func (s *stubDunningRun) Run(_ context.Context, year int, asOf time.Time, _ stri
 func TestRunDunningHandler(t *testing.T) {
 	stub := &stubDunningRun{result: kasse.DunningRunResult{
 		Year: 2026, AsOf: time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
-		Issued: 1, Outcomes: []kasse.DunningRunOutcome{{ReceivableID: 7, ClaimReference: "receivable/7", Issued: true}},
+		Issued: 1, Outcomes: []kasse.DunningRunOutcome{{ReceivableID: 7, ReceivableReference: "receivable/7", Issued: true}},
 	}}
 	srv := httptest.NewServer(httpapi.New(httpapi.Deps{DunningRun: stub}).Handler())
 	defer srv.Close()
@@ -48,15 +48,15 @@ func TestRunDunningHandler(t *testing.T) {
 	var got struct {
 		Issued   int
 		Outcomes []struct {
-			ClaimReference string
-			Issued         bool
+			ReceivableReference string
+			Issued              bool
 		}
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	if got.Issued != 1 || len(got.Outcomes) != 1 || !got.Outcomes[0].Issued ||
-		got.Outcomes[0].ClaimReference != "receivable/7" {
+		got.Outcomes[0].ReceivableReference != "receivable/7" {
 		t.Fatalf("report = %+v", got)
 	}
 }
@@ -124,7 +124,7 @@ func TestHTTPDunningRunEndToEnd(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&rec); err != nil {
 		t.Fatalf("decode receivable: %v", err)
 	}
-	claim := kasse.ReceivableClaimReference(rec.ID)
+	receivable := kasse.ReceivableReceivableReference(rec.ID)
 
 	runBody := fmt.Sprintf(`{"year":%d,"as_of":"%d-01-01"}`, year, year)
 	resp = doJSON(t, http.MethodPost, srv.URL+"/api/dunning/runs", "alice", runBody)
@@ -135,11 +135,11 @@ func TestHTTPDunningRunEndToEnd(t *testing.T) {
 		Issued   int
 		Skipped  int
 		Outcomes []struct {
-			ClaimReference string
-			LevelCode      string
-			ChargeCents    int64
-			Issued         bool
-			Reason         string
+			ReceivableReference string
+			LevelCode           string
+			ChargeCents         int64
+			Issued              bool
+			Reason              string
 		}
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
@@ -147,7 +147,7 @@ func TestHTTPDunningRunEndToEnd(t *testing.T) {
 	}
 	var found bool
 	for _, o := range report.Outcomes {
-		if o.ClaimReference != claim {
+		if o.ReceivableReference != receivable {
 			continue
 		}
 		found = true
@@ -156,33 +156,33 @@ func TestHTTPDunningRunEndToEnd(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("claim %q missing from the report: %+v", claim, report.Outcomes)
+		t.Fatalf("receivable %q missing from the report: %+v", receivable, report.Outcomes)
 	}
 
-	// The same run the same day must skip the claim rather than dun it twice.
+	// The same run the same day must skip the receivable rather than dun it twice.
 	resp = doJSON(t, http.MethodPost, srv.URL+"/api/dunning/runs", "alice", runBody)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("second run = %d (%s)", resp.StatusCode, readBody(t, resp))
 	}
 	var again struct {
 		Outcomes []struct {
-			ClaimReference string
-			Issued         bool
-			Reason         string
+			ReceivableReference string
+			Issued              bool
+			Reason              string
 		}
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&again); err != nil {
 		t.Fatalf("decode second run: %v", err)
 	}
 	for _, o := range again.Outcomes {
-		if o.ClaimReference == claim {
+		if o.ReceivableReference == receivable {
 			if o.Issued || o.Reason != kasse.DunningSkipAlreadyDunned {
 				t.Fatalf("second outcome = %+v, want already_dunned", o)
 			}
 			return
 		}
 	}
-	t.Fatalf("claim %q missing from the second report", claim)
+	t.Fatalf("receivable %q missing from the second report", receivable)
 }
 
 func readBody(t *testing.T, resp *http.Response) string {

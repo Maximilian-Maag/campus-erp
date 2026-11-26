@@ -18,12 +18,12 @@ workspace "university-ERP replacement" "As-is (legacy university ERP) and target
         statistik = softwareSystem "Statistik / Landesamt" "Statistics offices (per state)" "External"
         idp       = softwareSystem "Identity Provider" "Shibboleth / OIDC (DFN-AAI)" "External"
         dms       = softwareSystem "DMS" "Document management system" "External"
-        the reference source  = softwareSystem "the reference implementation Campus" "Campus management (APP/STU/EXA/DOC)" "External"
+        campus_reference = softwareSystem "the reference implementation (Campus)" "Campus management (APP/STU/EXA/DOC)" "External"
         qis       = softwareSystem "QIS" "External campus/exam system" "External"
         saphcm    = softwareSystem "SAP HCM" "External HR system" "External"
 
         // ══ AS-IS ═════════════════════════════════════════════════════════════
-        legacy = softwareSystem "legacy university ERP (legacy)" "legacy university ERP: the HR module, the finance module/the finance module, the cost-accounting module, the cash-book module. Replaced by the target system." {
+        legacy = softwareSystem "legacy university ERP (legacy)" "legacy university ERP: the HR module, the finance module, the cost-accounting module, the cash-book module. Replaced by the target system." {
 
             legacy_web = container "Web-Oberfläche / Portal" "Role-specific web UI" "Java/Web"
             legacy_sva = container "the HR module application" "Personal- und Stellenverwaltung" "Java" {
@@ -33,7 +33,7 @@ workspace "university-ERP replacement" "As-is (legacy university ERP) and target
                 fw_katalog = component "Katalogverwaltung" "k_*"
                 fw_meta = component "Metadata / UI" "db_tabellen, db_spalten, db_graph_*"
             }
-            legacy_mbs = container "the finance module / the finance module application" "Finanz- und Sachmittelverfahren" "Java"
+            legacy_mbs = container "the finance module application" "Finanz- und Sachmittelverfahren" "Java"
             legacy_cob = container "the cost-accounting module application" "Kosten- und Leistungsrechnung" "Java"
             legacy_kbs = container "the cash-book module application" "Kassenbuchungssystem" "Java"
             legacy_db  = container "PostgreSQL" "One DB, four module schemas, no foreign keys" "PostgreSQL 17" "Database"
@@ -95,7 +95,7 @@ workspace "university-ERP replacement" "As-is (legacy university ERP) and target
         legacy_batch -> elster "Umsatzsteuer (ERiC)"
         legacy_batch -> statistik "Personal-/Finanzstatistik (file)"
         legacy_web -> idp "authentication (Shibboleth)"
-        legacy -> the reference source "Stammdaten / Kostenstellen"
+        legacy -> campus_reference "Stammdaten / Kostenstellen"
         legacy -> qis "Personendaten-Transfer"
         legacy -> saphcm "HR master data"
         legacy -> dms "documents"
@@ -131,7 +131,7 @@ workspace "university-ERP replacement" "As-is (legacy university ERP) and target
         target_worker -> statistik "Statistik (file)"
         target_api -> target_obs "telemetry"
         target_worker -> target_obs "telemetry"
-        target_api -> the reference source "data exchange (optional connector)"
+        target_api -> campus_reference "data exchange (optional connector)"
         target_api -> qis "data exchange (optional connector)"
         target_api -> saphcm "data exchange (optional connector)"
         target_worker -> dms "optional DMS connector"

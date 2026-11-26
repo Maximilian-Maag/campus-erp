@@ -17,13 +17,13 @@ func TestInternalPricingChargesOut(t *testing.T) {
 	svc := newService(t)
 	mark := suffix(t)
 
-	provider, err := svc.CreateCostCenter(ctx, "P-"+mark, "Rechenzentrum", "alice")
+	provider, err := svc.CreateCostCentre(ctx, "P-"+mark, "Rechenzentrum", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
-	receiver, err := svc.CreateCostCenter(ctx, "R-"+mark, "Bibliothek", "alice")
+	receiver, err := svc.CreateCostCentre(ctx, "R-"+mark, "Bibliothek", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 	ct, err := svc.PostCostType(ctx, "4711-"+mark, "Personalkosten", "alice")
 	if err != nil {
@@ -88,13 +88,13 @@ func TestInternalPricingRefusals(t *testing.T) {
 	svc := newService(t)
 	mark := suffix(t)
 
-	provider, err := svc.CreateCostCenter(ctx, "P-"+mark, "Rechenzentrum", "alice")
+	provider, err := svc.CreateCostCentre(ctx, "P-"+mark, "Rechenzentrum", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
-	receiver, err := svc.CreateCostCenter(ctx, "R-"+mark, "Bibliothek", "alice")
+	receiver, err := svc.CreateCostCentre(ctx, "R-"+mark, "Bibliothek", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 	ct, err := svc.PostCostType(ctx, "5000-"+mark, "Sachkosten", "alice")
 	if err != nil {

@@ -6,13 +6,13 @@ import (
 	"time"
 )
 
-// The dunning run (Mahnlauf) walks the open receivables and advances each claim
-// one step along its dunning chain: the level a claim has reached is read from its
+// The dunning run (Mahnlauf) walks the open receivables and advances each receivable
+// one step along its dunning chain: the level a receivable has reached is read from its
 // most recent notice, and the next level is the one that notice's level names in
-// `next_code` (docs/28). A claim that has never been dunned starts at the chain's
+// `next_code` (docs/28). A receivable that has never been dunned starts at the chain's
 // first level. The run issues the next level only when its grace period
 // (`days_allowed`, counted from the previous step) has elapsed, and only once a
-// day per claim — so re-running the same day is a no-op rather than a second
+// day per receivable — so re-running the same day is a no-op rather than a second
 // notice.
 //
 // The chain is configuration: a level names its successor by code. Exactly one
@@ -27,31 +27,31 @@ var (
 	// ErrRunDateRequired is returned when a dunning run has no as-of date.
 	ErrRunDateRequired = errors.New("kasse: a dunning run needs an as-of date")
 	// ErrDunningChainHead is returned when the year's levels do not have exactly one
-	// first level, so there is no unambiguous place for a claim to start.
+	// first level, so there is no unambiguous place for a receivable to start.
 	ErrDunningChainHead = errors.New("kasse: the dunning levels must form one chain with exactly one first level")
 	// ErrDunningChainBroken is returned when the levels contain a cycle or a level the
 	// first level cannot reach.
 	ErrDunningChainBroken = errors.New("kasse: the dunning chain is broken (a cycle or an unreachable level)")
 )
 
-// Why a claim did not advance in a run. An issued claim carries no reason.
+// Why a receivable did not advance in a run. An issued receivable carries no reason.
 const (
-	// DunningSkipAlreadyDunned: the claim already carries a notice issued on or after
+	// DunningSkipAlreadyDunned: the receivable already carries a notice issued on or after
 	// the run's as-of date, so a second run the same day must not dun it again.
 	DunningSkipAlreadyDunned = "already_dunned"
 	// DunningSkipNotDue: the next level's grace period has not elapsed yet.
 	DunningSkipNotDue = "not_due"
-	// DunningSkipUnknownLevel: the claim's latest notice names a level that this
+	// DunningSkipUnknownLevel: the receivable's latest notice names a level that this
 	// year's chain does not carry (e.g. a retired configuration).
 	DunningSkipUnknownLevel = "unknown_level"
-	// DunningSkipNoNextLevel: the claim's latest level has no successor — the chain
+	// DunningSkipNoNextLevel: the receivable's latest level has no successor — the chain
 	// ends there, so there is nothing further to issue.
 	DunningSkipNoNextLevel = "no_next_level"
 	// DunningSkipNextLevelMissing: the latest level names a successor the year does
 	// not carry, so the run cannot know what to issue.
 	DunningSkipNextLevelMissing = "next_level_missing"
 	// DunningSkipIssueFailed: issuing the next notice failed; the detail carries the
-	// reason. The run continues with the other claims rather than aborting.
+	// reason. The run continues with the other receivables rather than aborting.
 	DunningSkipIssueFailed = "issue_failed"
 )
 
@@ -59,18 +59,18 @@ const (
 // received, or why it received none. It is flat rather than nesting the receivable
 // and the notice so the screen can render the run's report without joining.
 type DunningRunOutcome struct {
-	ReceivableID     int64
-	ClaimReference   string
-	MandateReference string
-	AmountCents      int64
-	DueDate          time.Time
-	LevelCode        string
-	ChargeCents      int64
-	NoticeID         int64
-	DocumentKey      string
-	Issued           bool
-	Reason           string
-	Detail           string
+	ReceivableID        int64
+	ReceivableReference string
+	MandateReference    string
+	AmountCents         int64
+	DueDate             time.Time
+	LevelCode           string
+	ChargeCents         int64
+	NoticeID            int64
+	DocumentKey         string
+	Issued              bool
+	Reason              string
+	Detail              string
 }
 
 // DunningRunResult is the report of one run: the as-of date, the counts, and one
@@ -84,11 +84,11 @@ type DunningRunResult struct {
 	Outcomes []DunningRunOutcome
 }
 
-// ReceivableClaimReference is the claim reference a run stores on the notices it
+// ReceivableReceivableReference is the receivable reference a run stores on the notices it
 // issues for an open receivable. The receivable's id is stable and unique, so the
 // notice stays traceable to the item without a second identifier on the item; the
 // form mirrors the audit subject convention (`receivable/<id>`).
-func ReceivableClaimReference(id int64) string { return fmt.Sprintf("receivable/%d", id) }
+func ReceivableReceivableReference(id int64) string { return fmt.Sprintf("receivable/%d", id) }
 
 // ValidateDunningRun checks the run's own inputs. The as-of date is a date, not a
 // moment: a run's grace periods are counted in days.
@@ -103,7 +103,7 @@ func ValidateDunningRun(year int, asOf time.Time) error {
 }
 
 // dunningChain is a year's levels resolved into one chain: a lookup by code and the
-// single level a never-dunned claim starts at.
+// single level a never-dunned receivable starts at.
 type dunningChain struct {
 	levels map[string]DunningLevel
 	head   DunningLevel

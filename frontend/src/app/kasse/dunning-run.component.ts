@@ -4,7 +4,7 @@ import { CampusErpApi, DunningRunOutcome, DunningRunResult } from '../core/api/g
 import { formatCents, formatDay, isoDay } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
-/** The message key of each reason a claim does not advance in a run. */
+/** The message key of each reason a receivable does not advance in a run. */
 const SKIP_REASON_KEYS: Record<string, string> = {
   already_dunned: 'kasse.dunningRun.reason.alreadyDunned',
   not_due: 'kasse.dunningRun.reason.notDue',
@@ -14,7 +14,7 @@ const SKIP_REASON_KEYS: Record<string, string> = {
   issue_failed: 'kasse.dunningRun.reason.issueFailed',
 };
 
-/** The message key of the reason a claim did not advance, or null for one this build does not know. */
+/** The message key of the reason a receivable did not advance, or null for one this build does not know. */
 export function skipReasonKey(reason: string): string | null {
   return SKIP_REASON_KEYS[reason] ?? null;
 }
@@ -22,13 +22,13 @@ export function skipReasonKey(reason: string): string | null {
 /**
  * Kasse — Mahnlauf (dunning run).
  *
- * Walks the open receivables due by a date and advances each claim one step along the year's
+ * Walks the open receivables due by a date and advances each receivable one step along the year's
  * dunning chain. The screen states the year and the as-of date and reports what the run did:
- * which notices were issued, which claims were skipped and why, and which failed. The level,
+ * which notices were issued, which receivables were skipped and why, and which failed. The level,
  * the charge and the document are the API's answer — the screen does not re-derive them, just
  * as the hand-issued notice screen does not.
  *
- * The run never removes a row from the list: a claim that was skipped is reported with its
+ * The run never removes a row from the list: a receivable that was skipped is reported with its
  * reason, so an operator sees why nothing happened to it rather than being left to guess.
  */
 @Component({
@@ -90,7 +90,7 @@ export function skipReasonKey(reason: string): string | null {
               <tbody>
                 @for (o of r.Outcomes; track o.ReceivableID) {
                   <tr [attr.data-testid]="'run-' + o.ReceivableID">
-                    <td>{{ o.ClaimReference }}</td>
+                    <td>{{ o.ReceivableReference }}</td>
                     <td>{{ o.MandateReference }}</td>
                     <td class="amount">{{ amount(o.AmountCents) }}</td>
                     <td>{{ day(o.DueDate) }}</td>

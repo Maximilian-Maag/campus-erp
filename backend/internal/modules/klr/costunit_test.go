@@ -15,7 +15,7 @@ func TestNewCostUnitKeyValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("valid key rejected: %v", err)
 	}
-	if key.SourceCenterID != 1 || key.TargetUnitID != 2 || key.ShareBP != 2500 {
+	if key.SourceCentreID != 1 || key.TargetUnitID != 2 || key.ShareBP != 2500 {
 		t.Fatalf("key = %+v", key)
 	}
 	if key.ValidTo == nil || !key.ValidTo.Equal(until) {
@@ -29,8 +29,8 @@ func TestNewCostUnitKeyValidation(t *testing.T) {
 		toPtr                 bool
 		want                  error
 	}{
-		{"no source centre", 0, 2, 2500, from, until, true, ErrCostCenterNotFound},
-		{"negative source", -1, 2, 2500, from, until, true, ErrCostCenterNotFound},
+		{"no source centre", 0, 2, 2500, from, until, true, ErrCostCentreNotFound},
+		{"negative source", -1, 2, 2500, from, until, true, ErrCostCentreNotFound},
 		{"no cost unit", 1, 0, 2500, from, until, true, ErrCostUnitNotFound},
 		{"share too large", 1, 2, 10001, from, until, true, ErrAllocationShare},
 		{"share negative", 1, 2, -1, from, until, true, ErrAllocationShare},
@@ -79,7 +79,7 @@ func TestCostUnitKeyActive(t *testing.T) {
 }
 
 func TestCostUnitKeyString(t *testing.T) {
-	key := CostUnitKey{ID: 7, SourceCenterID: 1, TargetUnitID: 2, ShareBP: 2500}
+	key := CostUnitKey{ID: 7, SourceCentreID: 1, TargetUnitID: 2, ShareBP: 2500}
 	got := key.String()
 	want := "cost unit key 7: centre 1 -> unit 2 at 2500 bp"
 	if got != want {
@@ -142,8 +142,8 @@ func TestPlanCostUnits(t *testing.T) {
 	}
 	for i, want := range []int64{1, 2} {
 		rec := records[i]
-		if rec.CostCenterID != 9 {
-			t.Fatalf("record %d sits on centre %d, want the source 9", i, rec.CostCenterID)
+		if rec.CostCentreID != 9 {
+			t.Fatalf("record %d sits on centre %d, want the source 9", i, rec.CostCentreID)
 		}
 		if rec.CostUnitID == nil || *rec.CostUnitID != want {
 			t.Fatalf("record %d unit = %v, want %d", i, rec.CostUnitID, want)
@@ -153,7 +153,7 @@ func TestPlanCostUnits(t *testing.T) {
 		}
 	}
 	relief := records[2]
-	if relief.Kind != Revenue || relief.AmountCents != 1000 || relief.CostUnitID != nil || relief.CostCenterID != 9 {
+	if relief.Kind != Revenue || relief.AmountCents != 1000 || relief.CostUnitID != nil || relief.CostCentreID != 9 {
 		t.Fatalf("relief = %+v", relief)
 	}
 	// The records belong to the period that was distributed, not to the day the run happens.
@@ -202,14 +202,14 @@ func TestDefineCostUnitKey(t *testing.T) {
 	if _, err := svc.DefineCostUnitKey(ctx, 1, 2, 2500, from, nil, "  "); !errors.Is(err, ErrActorRequired) {
 		t.Fatalf("no actor = %v", err)
 	}
-	if _, err := svc.DefineCostUnitKey(ctx, 0, 2, 2500, from, nil, "alice"); !errors.Is(err, ErrCostCenterNotFound) {
+	if _, err := svc.DefineCostUnitKey(ctx, 0, 2, 2500, from, nil, "alice"); !errors.Is(err, ErrCostCentreNotFound) {
 		t.Fatalf("no centre = %v", err)
 	}
 	if _, err := svc.DefineCostUnitKey(ctx, 1, 0, 2500, from, nil, "alice"); !errors.Is(err, ErrCostUnitNotFound) {
 		t.Fatalf("no unit = %v", err)
 	}
 	// The centre is looked up before the unit, so an unknown centre reports as one.
-	if _, err := NewService(&fakeRepo{err: ErrCostCenterNotFound}, okAudit{}).DefineCostUnitKey(ctx, 1, 2, 2500, from, nil, "alice"); !errors.Is(err, ErrCostCenterNotFound) {
+	if _, err := NewService(&fakeRepo{err: ErrCostCentreNotFound}, okAudit{}).DefineCostUnitKey(ctx, 1, 2, 2500, from, nil, "alice"); !errors.Is(err, ErrCostCentreNotFound) {
 		t.Fatalf("unknown centre = %v", err)
 	}
 
@@ -249,7 +249,7 @@ func TestCostUnitKeys(t *testing.T) {
 	}
 
 	// An unknown centre is a not-found, not an empty list.
-	if _, err := NewService(&fakeRepo{err: ErrCostCenterNotFound}, okAudit{}).CostUnitKeys(ctx, 1); !errors.Is(err, ErrCostCenterNotFound) {
+	if _, err := NewService(&fakeRepo{err: ErrCostCentreNotFound}, okAudit{}).CostUnitKeys(ctx, 1); !errors.Is(err, ErrCostCentreNotFound) {
 		t.Fatalf("unknown centre = %v", err)
 	}
 }
@@ -275,7 +275,7 @@ func TestAllocateToCostUnits(t *testing.T) {
 	if _, err := svc.AllocateToCostUnits(ctx, 1, to, from, "alice"); !errors.Is(err, ErrAllocationRunPeriod) {
 		t.Fatalf("period backwards = %v", err)
 	}
-	if _, err := NewService(&fakeRepo{err: ErrCostCenterNotFound}, okAudit{}).AllocateToCostUnits(ctx, 1, from, to, "alice"); !errors.Is(err, ErrCostCenterNotFound) {
+	if _, err := NewService(&fakeRepo{err: ErrCostCentreNotFound}, okAudit{}).AllocateToCostUnits(ctx, 1, from, to, "alice"); !errors.Is(err, ErrCostCentreNotFound) {
 		t.Fatalf("unknown centre = %v", err)
 	}
 

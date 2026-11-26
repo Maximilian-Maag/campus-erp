@@ -167,7 +167,7 @@ describe('ShellComponent', () => {
     ).map((el) => el.textContent?.trim());
 
     expect(labels).toContain('Payment orders');
-    expect(labels).not.toContain('Zahlungsanordnungen');
+    expect(labels).not.toContain('Ausgabeanordnungen');
   });
 
   describe('who is signed in', () => {

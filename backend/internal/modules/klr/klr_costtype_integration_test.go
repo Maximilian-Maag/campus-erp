@@ -121,16 +121,16 @@ func TestRecordCarriesItsCostType(t *testing.T) {
 	svc := newService(t)
 	mark := suffix(t)
 
-	center, err := svc.CreateCostCenter(ctx, "K-"+mark, "Verwaltung", "alice")
+	centre, err := svc.CreateCostCentre(ctx, "K-"+mark, "Verwaltung", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 	ct, err := svc.PostCostType(ctx, "4711-"+mark, "Personalkosten", "alice")
 	if err != nil {
 		t.Fatalf("PostCostType: %v", err)
 	}
 
-	rec, err := svc.Post(ctx, center.ID, nil, &ct.ID, klr.Cost, 1250, klrDay(2026, 4, 30), "RE-"+mark, "alice")
+	rec, err := svc.Post(ctx, centre.ID, nil, &ct.ID, klr.Cost, 1250, klrDay(2026, 4, 30), "RE-"+mark, "alice")
 	if err != nil {
 		t.Fatalf("Post: %v", err)
 	}
@@ -139,13 +139,13 @@ func TestRecordCarriesItsCostType(t *testing.T) {
 	}
 
 	// A record may carry no cost type (nobody has classified it yet).
-	if _, err := svc.Post(ctx, center.ID, nil, nil, klr.Cost, 100, klrDay(2026, 4, 30), "RE2-"+mark, "alice"); err != nil {
+	if _, err := svc.Post(ctx, centre.ID, nil, nil, klr.Cost, 100, klrDay(2026, 4, 30), "RE2-"+mark, "alice"); err != nil {
 		t.Fatalf("Post without a cost type: %v", err)
 	}
 
 	// A cost type that does not exist is refused by the store.
 	bogus := int64(9223372036854775807)
-	if _, err := svc.Post(ctx, center.ID, nil, &bogus, klr.Cost, 100, klrDay(2026, 4, 30), "RE3-"+mark, "alice"); !errors.Is(err, klr.ErrCostTypeNotFound) {
+	if _, err := svc.Post(ctx, centre.ID, nil, &bogus, klr.Cost, 100, klrDay(2026, 4, 30), "RE3-"+mark, "alice"); !errors.Is(err, klr.ErrCostTypeNotFound) {
 		t.Fatalf("unknown cost type = %v, want ErrCostTypeNotFound", err)
 	}
 }

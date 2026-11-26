@@ -16,7 +16,7 @@ import (
 const foreignKeyViolation = "23503"
 
 const sourceColumns = `id, code, name, chapter, active, created_by`
-const centerColumns = `id, code, name, active, created_by`
+const centreColumns = `id, code, name, active, created_by`
 
 func scanSource(row pgx.Row) (Source, error) {
 	var s Source
@@ -24,8 +24,8 @@ func scanSource(row pgx.Row) (Source, error) {
 	return s, err
 }
 
-func scanCenter(row pgx.Row) (Center, error) {
-	var c Center
+func scanCentre(row pgx.Row) (Centre, error) {
+	var c Centre
 	err := row.Scan(&c.ID, &c.Code, &c.Name, &c.Active, &c.CreatedBy)
 	return c, err
 }
@@ -69,32 +69,32 @@ func (r *PositionRepo) Sources(ctx context.Context) ([]Source, error) {
 	return out, nil
 }
 
-// CreateCenter stores a centre.
-func (r *PositionRepo) CreateCenter(ctx context.Context, c Center) (Center, error) {
-	saved, err := scanCenter(r.pool.QueryRow(ctx,
-		`INSERT INTO budget_center (code, name, active, created_by)
-		 VALUES ($1,$2,$3,$4) RETURNING `+centerColumns,
+// CreateCentre stores a centre.
+func (r *PositionRepo) CreateCentre(ctx context.Context, c Centre) (Centre, error) {
+	saved, err := scanCentre(r.pool.QueryRow(ctx,
+		`INSERT INTO budget_centre (code, name, active, created_by)
+		 VALUES ($1,$2,$3,$4) RETURNING `+centreColumns,
 		c.Code, c.Name, c.Active, c.CreatedBy))
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
-			return Center{}, fmt.Errorf("%w: %s", ErrCenterExists, c.Code)
+			return Centre{}, fmt.Errorf("%w: %s", ErrCentreExists, c.Code)
 		}
-		return Center{}, fmt.Errorf("budget: create centre: %w", err)
+		return Centre{}, fmt.Errorf("budget: create centre: %w", err)
 	}
 	return saved, nil
 }
 
-// Centers lists the centres by code.
-func (r *PositionRepo) Centers(ctx context.Context) ([]Center, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+centerColumns+` FROM budget_center ORDER BY code`)
+// Centres lists the centres by code.
+func (r *PositionRepo) Centres(ctx context.Context) ([]Centre, error) {
+	rows, err := r.pool.Query(ctx, `SELECT `+centreColumns+` FROM budget_centre ORDER BY code`)
 	if err != nil {
 		return nil, fmt.Errorf("budget: list centres: %w", err)
 	}
 	defer rows.Close()
-	out := []Center{}
+	out := []Centre{}
 	for rows.Next() {
-		c, err := scanCenter(rows)
+		c, err := scanCentre(rows)
 		if err != nil {
 			return nil, fmt.Errorf("budget: scan centre: %w", err)
 		}
@@ -110,10 +110,10 @@ func (r *PositionRepo) Centers(ctx context.Context) ([]Center, error) {
 // clears that half, so naming one and clearing the other is one operation rather than two. An
 // unknown source or centre is refused by the foreign keys and reported as the not-found it is,
 // rather than as a generic failure.
-func (r *PositionRepo) AssignPosition(ctx context.Context, positionID int64, sourceID, centerID *int64) (Position, error) {
+func (r *PositionRepo) AssignPosition(ctx context.Context, positionID int64, sourceID, centreID *int64) (Position, error) {
 	saved, err := scanPosition(r.pool.QueryRow(ctx,
-		`UPDATE budget_position SET source_id = $2, center_id = $3 WHERE id = $1 RETURNING `+positionColumns,
-		positionID, sourceID, centerID))
+		`UPDATE budget_position SET source_id = $2, centre_id = $3 WHERE id = $1 RETURNING `+positionColumns,
+		positionID, sourceID, centreID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Position{}, fmt.Errorf("budget: position %d: %w", positionID, ErrPositionNotFound)
 	}

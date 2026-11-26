@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { KlrCostUnitsComponent } from './cost-units.component';
-import { CostCenter, CostUnit, CostUnitKey } from '../core/api/generated';
+import { CostCentre, CostUnit, CostUnitKey } from '../core/api/generated';
 import { provideI18n } from '../i18n/provide-i18n';
 
 describe('KlrCostUnitsComponent', () => {
@@ -18,7 +18,7 @@ describe('KlrCostUnitsComponent', () => {
 
   afterEach(() => http.verify());
 
-  const center = (ID: number, over: Partial<CostCenter> = {}): CostCenter => ({
+  const centre = (ID: number, over: Partial<CostCentre> = {}): CostCentre => ({
     ID,
     Number: 'K-10',
     Name: 'Verwaltung',
@@ -36,7 +36,7 @@ describe('KlrCostUnitsComponent', () => {
 
   const key = (ID: number, TargetUnitID = 1, over: Partial<CostUnitKey> = {}): CostUnitKey => ({
     ID,
-    SourceCenterID: 1,
+    SourceCentreID: 1,
     TargetUnitID,
     ShareBP: 2500,
     ValidFrom: '2026-01-01T00:00:00Z',
@@ -45,17 +45,17 @@ describe('KlrCostUnitsComponent', () => {
     ...over,
   });
 
-  const keysURL = (id: number | string) => '/api/klr/cost-centers/' + id + '/cost-unit-keys';
+  const keysURL = (id: number | string) => '/api/klr/cost-centres/' + id + '/cost-unit-keys';
 
   /** The screen with centres, units and the first centre's keys loaded. */
-  function loaded(centers: CostCenter[] = [center(1)], units: CostUnit[] = [unit(1)], keys: CostUnitKey[] = [key(1)]) {
+  function loaded(centres: CostCentre[] = [centre(1)], units: CostUnit[] = [unit(1)], keys: CostUnitKey[] = [key(1)]) {
     const fixture = TestBed.createComponent(KlrCostUnitsComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-units').flush(units);
-    http.expectOne('/api/klr/cost-centers').flush(centers);
-    if (centers.length > 0) {
-      http.expectOne(keysURL(centers[0].ID)).flush(keys);
+    http.expectOne('/api/klr/cost-centres').flush(centres);
+    if (centres.length > 0) {
+      http.expectOne(keysURL(centres[0].ID)).flush(keys);
     }
     fixture.detectChanges();
     return { fixture, component };
@@ -65,7 +65,7 @@ describe('KlrCostUnitsComponent', () => {
     const fixture = TestBed.createComponent(KlrCostUnitsComponent);
     const component = fixture.componentInstance;
 
-    expect(component.centers()).toEqual([]);
+    expect(component.centres()).toEqual([]);
     expect(component.units()).toEqual([]);
     expect(component.keys()).toEqual([]);
     expect(component.source()).toBe('');
@@ -87,7 +87,7 @@ describe('KlrCostUnitsComponent', () => {
 
   it('loads the centres, the units and the first centre keys, and renders them', () => {
     const { fixture, component } = loaded(
-      [center(1), center(2, { Number: 'K-99', Name: 'Bibliothek' })],
+      [centre(1), centre(2, { Number: 'K-99', Name: 'Bibliothek' })],
       [unit(1), unit(2, { Number: 'T-2', Name: 'Studiengang B' })],
       [key(1, 2, { ShareBP: 7500 })],
     );
@@ -113,10 +113,10 @@ describe('KlrCostUnitsComponent', () => {
     const component = fixture.componentInstance;
     const html = fixture.nativeElement as HTMLElement;
     http.expectOne('/api/klr/cost-units').flush([]);
-    http.expectOne('/api/klr/cost-centers').flush([]);
+    http.expectOne('/api/klr/cost-centres').flush([]);
     fixture.detectChanges();
 
-    component.centers.set([center(1), center(2, { Number: 'K-99' })]);
+    component.centres.set([centre(1), centre(2, { Number: 'K-99' })]);
     component.units.set([unit(1), unit(2, { Number: 'T-2' })]);
     component.source.set('2');
     component.target.set('2');
@@ -131,10 +131,10 @@ describe('KlrCostUnitsComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-units').flush(null);
-    http.expectOne('/api/klr/cost-centers').flush(null);
+    http.expectOne('/api/klr/cost-centres').flush(null);
     fixture.detectChanges();
 
-    expect(component.centers()).toEqual([]);
+    expect(component.centres()).toEqual([]);
     expect(component.units()).toEqual([]);
     expect(component.keys()).toEqual([]);
     expect(component.source()).toBe('');
@@ -146,7 +146,7 @@ describe('KlrCostUnitsComponent', () => {
   });
 
   it('says so when a centre has no keys and there are no units at all', () => {
-    const { fixture } = loaded([center(1)], [], []);
+    const { fixture } = loaded([centre(1)], [], []);
     const html = fixture.nativeElement as HTMLElement;
 
     expect(html.querySelector('[data-testid="no-unit-keys"]')).not.toBeNull();
@@ -156,7 +156,7 @@ describe('KlrCostUnitsComponent', () => {
   });
 
   it('shows an unbounded key as unbegrenzt and a bounded one by its end date', () => {
-    const { fixture } = loaded([center(1)], [unit(1)], [
+    const { fixture } = loaded([centre(1)], [unit(1)], [
       key(1, 1, { ValidTo: '2026-06-30T00:00:00Z' }),
       key(2, 1, { ValidFrom: '2026-07-01T00:00:00Z' }),
     ]);
@@ -169,7 +169,7 @@ describe('KlrCostUnitsComponent', () => {
   });
 
   it('falls back to the id for a unit it has not loaded', () => {
-    const { fixture } = loaded([center(1)], [unit(1)], [key(1, 99)]);
+    const { fixture } = loaded([centre(1)], [unit(1)], [key(1, 99)]);
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[data-testid="unit-key-target-1"]')?.textContent?.trim(),
     ).toBe('99');
@@ -180,7 +180,7 @@ describe('KlrCostUnitsComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-units').flush([unit(1)]);
-    http.expectOne('/api/klr/cost-centers').flush([center(1)]);
+    http.expectOne('/api/klr/cost-centres').flush([centre(1)]);
     http.expectOne(keysURL(1)).flush(null);
     fixture.detectChanges();
 
@@ -189,7 +189,7 @@ describe('KlrCostUnitsComponent', () => {
   });
 
   it('keeps a chosen centre across a reload even when it is not the first in the list', () => {
-    const { component } = loaded([center(1), center(2, { Number: 'K-99' })], [unit(1), unit(2)], []);
+    const { component } = loaded([centre(1), centre(2, { Number: 'K-99' })], [unit(1), unit(2)], []);
 
     component.chooseSource('2');
     http.expectOne(keysURL(2)).flush([]);
@@ -197,7 +197,7 @@ describe('KlrCostUnitsComponent', () => {
 
     component.load();
     http.expectOne('/api/klr/cost-units').flush([unit(1), unit(2)]);
-    http.expectOne('/api/klr/cost-centers').flush([center(1), center(2, { Number: 'K-99' })]);
+    http.expectOne('/api/klr/cost-centres').flush([centre(1), centre(2, { Number: 'K-99' })]);
     http.expectOne(keysURL(2)).flush([]);
 
     // Not the first entry: only the "is it still there" check keeps it.
@@ -205,7 +205,7 @@ describe('KlrCostUnitsComponent', () => {
   });
 
   it('clears the unit picker when there is no unit to pick', () => {
-    const { component } = loaded([center(1), center(2)], [], []);
+    const { component } = loaded([centre(1), centre(2)], [], []);
 
     component.target.set('9');
     component.chooseSource('2');
@@ -221,7 +221,7 @@ describe('KlrCostUnitsComponent', () => {
     component.load();
     expect(component.loading()).toBeTrue();
     http.expectOne('/api/klr/cost-units').flush([unit(1)]);
-    http.expectOne('/api/klr/cost-centers').flush([center(1)]);
+    http.expectOne('/api/klr/cost-centres').flush([centre(1)]);
     http.expectOne(keysURL(1)).flush([]);
     expect(component.loading()).toBeFalse();
   });
@@ -230,7 +230,7 @@ describe('KlrCostUnitsComponent', () => {
     const fixture = TestBed.createComponent(KlrCostUnitsComponent);
     fixture.detectChanges();
     http.expectOne('/api/klr/cost-units').flush([unit(1)]);
-    http.expectOne('/api/klr/cost-centers').error(new ProgressEvent('error'));
+    http.expectOne('/api/klr/cost-centres').error(new ProgressEvent('error'));
     fixture.detectChanges();
 
     expect(fixture.componentInstance.loadError()).toBe('Konnte die Kostenstellen nicht laden.');
@@ -245,7 +245,7 @@ describe('KlrCostUnitsComponent', () => {
     // The centres request is still open, so this is the units handler's own doing: it is the one
     // that ends the loading state when the units are the thing that failed.
     expect(component.loading()).toBeFalse();
-    http.expectOne('/api/klr/cost-centers').flush([center(1)]);
+    http.expectOne('/api/klr/cost-centres').flush([centre(1)]);
     http.expectOne(keysURL(1)).flush([]);
     fixture.detectChanges();
 
@@ -274,7 +274,7 @@ describe('KlrCostUnitsComponent', () => {
   });
 
   it('switches to the centre the operator picks and reloads its keys', () => {
-    const { fixture, component } = loaded([center(1), center(2, { Number: 'K-99' })], [unit(1), unit(2)], []);
+    const { fixture, component } = loaded([centre(1), centre(2, { Number: 'K-99' })], [unit(1), unit(2)], []);
 
     component.result.set({ AllocatedCents: 1, Receivers: 1 });
     component.actionError.set('etwas');
@@ -297,7 +297,7 @@ describe('KlrCostUnitsComponent', () => {
     fixture.detectChanges();
 
     // The centres are the smaller table and usually land first; the units are still in flight.
-    http.expectOne('/api/klr/cost-centers').flush([center(1)]);
+    http.expectOne('/api/klr/cost-centres').flush([centre(1)]);
     http.expectOne(keysURL(1)).flush([]);
     expect(component.target()).toBe('');
 
@@ -309,7 +309,7 @@ describe('KlrCostUnitsComponent', () => {
   });
 
   it('refuses to post a key without a cost unit', () => {
-    const { component } = loaded([center(1)], []);
+    const { component } = loaded([centre(1)], []);
 
     component.validFrom.set('2026-01-01');
     component.define(new Event('submit'));
@@ -317,7 +317,7 @@ describe('KlrCostUnitsComponent', () => {
     expect(component.actionError()).toBe('Ein Kostenträger ist erforderlich.');
     expect(component.saving()).toBeFalse();
     // No request: an id of 0 would reach the server and fail there instead.
-    http.expectNone('/api/klr/cost-centers/1/cost-unit-keys');
+    http.expectNone('/api/klr/cost-centres/1/cost-unit-keys');
   });
 
   it('refuses a share that is not a percentage, and one with no start date', () => {
@@ -336,7 +336,7 @@ describe('KlrCostUnitsComponent', () => {
   });
 
   it('defines a key and reloads the keys', () => {
-    const { component } = loaded([center(1)], [unit(1), unit(2)], []);
+    const { component } = loaded([centre(1)], [unit(1), unit(2)], []);
 
     component.target.set('2');
     component.sharePercent.set('25');

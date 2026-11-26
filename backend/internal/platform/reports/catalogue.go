@@ -40,8 +40,8 @@ type Positions interface {
 
 // Centres lists cost centres and reads their reports (klr.Service satisfies it).
 type Centres interface {
-	CostCenters(ctx context.Context) ([]klr.CostCenter, error)
-	Report(ctx context.Context, costCenterID int64) (klr.Report, error)
+	CostCentres(ctx context.Context) ([]klr.CostCentre, error)
+	Report(ctx context.Context, costCentreID int64) (klr.Report, error)
 }
 
 // CostUnits lists cost units with what is booked on them (klr.Service satisfies it).
@@ -66,7 +66,7 @@ type Prices interface {
 // the Umlageregeln print view (docs/25).
 type Rules interface {
 	AllocationRules(ctx context.Context) ([]klr.Allocation, error)
-	CostCenters(ctx context.Context) ([]klr.CostCenter, error)
+	CostCentres(ctx context.Context) ([]klr.CostCentre, error)
 }
 
 // DataSources is the read-only data the catalogue's reports collect from.
@@ -102,8 +102,8 @@ func NewCatalogue(src DataSources) *Catalogue {
 			Collect:    collectPositionOverview(src.Positions),
 		},
 		{
-			Definition: klr.CostCenterOverviewDefinition,
-			Collect:    collectCostCenterOverview(src.Centres),
+			Definition: klr.CostCentreOverviewDefinition,
+			Collect:    collectCostCentreOverview(src.Centres),
 		},
 		{
 			Definition: klr.CostUnitOverviewDefinition,
@@ -201,26 +201,26 @@ func collectPositionOverview(positions Positions) func(context.Context, time.Tim
 	}
 }
 
-// collectCostCenterOverview builds the per-centre overview: every cost centre with the report
+// collectCostCentreOverview builds the per-centre overview: every cost centre with the report
 // booked against it.
-func collectCostCenterOverview(centres Centres) func(context.Context, time.Time, time.Time) (report.Report, error) {
+func collectCostCentreOverview(centres Centres) func(context.Context, time.Time, time.Time) (report.Report, error) {
 	return func(ctx context.Context, _ time.Time, _ time.Time) (report.Report, error) {
 		if centres == nil {
 			return report.Report{}, ErrNoSource
 		}
-		list, err := centres.CostCenters(ctx)
+		list, err := centres.CostCentres(ctx)
 		if err != nil {
 			return report.Report{}, err
 		}
-		lines := make([]klr.CostCenterLine, 0, len(list))
+		lines := make([]klr.CostCentreLine, 0, len(list))
 		for _, c := range list {
 			rep, err := centres.Report(ctx, c.ID)
 			if err != nil {
 				return report.Report{}, err
 			}
-			lines = append(lines, klr.CostCenterLine{CostCenter: c, Report: rep})
+			lines = append(lines, klr.CostCentreLine{CostCentre: c, Report: rep})
 		}
-		return klr.CostCenterOverview(generatedAt(), lines), nil
+		return klr.CostCentreOverview(generatedAt(), lines), nil
 	}
 }
 
@@ -312,17 +312,17 @@ func collectAllocationOverview(rules Rules) func(context.Context, time.Time, tim
 		if err != nil {
 			return report.Report{}, err
 		}
-		centres, err := rules.CostCenters(ctx)
+		centres, err := rules.CostCentres(ctx)
 		if err != nil {
 			return report.Report{}, err
 		}
-		byID := make(map[int64]klr.CostCenter, len(centres))
+		byID := make(map[int64]klr.CostCentre, len(centres))
 		for _, c := range centres {
 			byID[c.ID] = c
 		}
 		lines := make([]klr.AllocationLine, 0, len(list))
 		for _, a := range list {
-			source, target := byID[a.SourceCenterID], byID[a.TargetCenterID]
+			source, target := byID[a.SourceCentreID], byID[a.TargetCentreID]
 			lines = append(lines, klr.AllocationLine{
 				Allocation:   a,
 				SourceNumber: source.Number,

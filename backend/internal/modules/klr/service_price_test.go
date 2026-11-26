@@ -79,7 +79,7 @@ func TestNewServiceChargeValidation(t *testing.T) {
 		t.Fatalf("valid charge rejected: %v", err)
 	}
 	// The amount is the quantity priced at the rate, computed once and then stored.
-	if charge.AmountCents != 7500 || charge.Quantity != 3 || charge.ProviderCenterID != 1 || charge.ReceiverCenterID != 2 {
+	if charge.AmountCents != 7500 || charge.Quantity != 3 || charge.ProviderCentreID != 1 || charge.ReceiverCentreID != 2 {
 		t.Fatalf("charge = %+v", charge)
 	}
 
@@ -89,8 +89,8 @@ func TestNewServiceChargeValidation(t *testing.T) {
 		rateCents                   int64
 		want                        error
 	}{
-		{"no provider", 0, 2, 4, 3, 2500, ErrCostCenterNotFound},
-		{"no receiver", 1, 0, 4, 3, 2500, ErrCostCenterNotFound},
+		{"no provider", 0, 2, 4, 3, 2500, ErrCostCentreNotFound},
+		{"no receiver", 1, 0, 4, 3, 2500, ErrCostCentreNotFound},
 		{"charges itself", 1, 1, 4, 3, 2500, ErrServiceChargeSelf},
 		{"no cost type", 1, 2, 0, 3, 2500, ErrCostTypeNotFound},
 		{"no quantity", 1, 2, 4, 0, 2500, ErrQuantityNotPositive},
@@ -165,7 +165,7 @@ func TestChargeService(t *testing.T) {
 	ctx := context.Background()
 	on := day(2026, 4, 30)
 	repo := &fakeRepo{
-		center: CostCenter{ID: 1, Number: "K-10"},
+		centre: CostCentre{ID: 1, Number: "K-10"},
 		rate:   ServiceRate{ID: 2, CostTypeID: 4, RateCents: 2500, ValidFrom: day(2026, 1, 1)},
 	}
 	svc := newSvc(repo)
@@ -182,10 +182,10 @@ func TestChargeService(t *testing.T) {
 		t.Fatalf("records = %d, want 2 (%+v)", len(repo.chargeRecords), repo.chargeRecords)
 	}
 	posted, relief := repo.chargeRecords[0], repo.chargeRecords[1]
-	if posted.CostCenterID != 2 || posted.Kind != Cost || posted.AmountCents != 7500 {
+	if posted.CostCentreID != 2 || posted.Kind != Cost || posted.AmountCents != 7500 {
 		t.Fatalf("receiver record = %+v", posted)
 	}
-	if relief.CostCenterID != 1 || relief.Kind != Revenue || relief.AmountCents != 7500 {
+	if relief.CostCentreID != 1 || relief.Kind != Revenue || relief.AmountCents != 7500 {
 		t.Fatalf("relief record = %+v", relief)
 	}
 	if !posted.BusinessDate.Equal(on) || posted.BookedBy != "alice" {
@@ -196,16 +196,16 @@ func TestChargeService(t *testing.T) {
 		t.Fatalf("no actor = %v", err)
 	}
 	// Both ends must exist, and the provider is looked up first.
-	if _, err := newSvc(&fakeRepo{err: ErrCostCenterNotFound}).ChargeService(ctx, 1, 2, 4, 3, on, "alice"); !errors.Is(err, ErrCostCenterNotFound) {
+	if _, err := newSvc(&fakeRepo{err: ErrCostCentreNotFound}).ChargeService(ctx, 1, 2, 4, 3, on, "alice"); !errors.Is(err, ErrCostCentreNotFound) {
 		t.Fatalf("unknown centre = %v", err)
 	}
 	// No rate in force means nothing to charge.
-	noRate := &fakeRepo{center: CostCenter{ID: 1}, err: ErrNoRateInForce}
+	noRate := &fakeRepo{centre: CostCentre{ID: 1}, err: ErrNoRateInForce}
 	if _, err := newSvc(noRate).ChargeService(ctx, 1, 2, 4, 3, on, "alice"); !errors.Is(err, ErrNoRateInForce) {
 		t.Fatalf("no rate = %v", err)
 	}
 	// The quantity is checked after the rate is found, so a bad quantity still reports as one.
-	zero := &fakeRepo{center: CostCenter{ID: 1}, rate: ServiceRate{RateCents: 2500}}
+	zero := &fakeRepo{centre: CostCentre{ID: 1}, rate: ServiceRate{RateCents: 2500}}
 	if _, err := newSvc(zero).ChargeService(ctx, 1, 2, 4, 0, on, "alice"); !errors.Is(err, ErrQuantityNotPositive) {
 		t.Fatalf("no quantity = %v", err)
 	}
@@ -215,10 +215,10 @@ func TestChargeService(t *testing.T) {
 	}
 
 	boom := errors.New("boom")
-	if _, err := newSvc(&fakeRepo{center: CostCenter{ID: 1}, rate: ServiceRate{RateCents: 2500}, err: boom}).ChargeService(ctx, 1, 2, 4, 3, on, "alice"); !errors.Is(err, boom) {
+	if _, err := newSvc(&fakeRepo{centre: CostCentre{ID: 1}, rate: ServiceRate{RateCents: 2500}, err: boom}).ChargeService(ctx, 1, 2, 4, 3, on, "alice"); !errors.Is(err, boom) {
 		t.Fatalf("repo error = %v", err)
 	}
-	bad := newSvc(&fakeRepo{center: CostCenter{ID: 1}, rate: ServiceRate{RateCents: 2500}})
+	bad := newSvc(&fakeRepo{centre: CostCentre{ID: 1}, rate: ServiceRate{RateCents: 2500}})
 	bad.audit = failingAudit{err: boom}
 	if _, err := bad.ChargeService(ctx, 1, 2, 4, 3, on, "alice"); !errors.Is(err, boom) {
 		t.Fatalf("audit error = %v", err)

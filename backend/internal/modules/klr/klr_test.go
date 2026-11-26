@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-func TestNewCostCenterAndUnit(t *testing.T) {
-	c, err := NewCostCenter(" 4711 ", " Bibliothek ")
+func TestNewCostCentreAndUnit(t *testing.T) {
+	c, err := NewCostCentre(" 4711 ", " Bibliothek ")
 	if err != nil {
-		t.Fatalf("NewCostCenter: %v", err)
+		t.Fatalf("NewCostCentre: %v", err)
 	}
 	if c.Number != "4711" || c.Name != "Bibliothek" {
 		t.Fatalf("centre = %+v", c)
@@ -27,8 +27,8 @@ func TestNewCostCenterAndUnit(t *testing.T) {
 		fn   func() error
 		want error
 	}{
-		{"centre no number", func() error { _, err := NewCostCenter("  ", "n"); return err }, ErrNumberRequired},
-		{"centre no name", func() error { _, err := NewCostCenter("1", "  "); return err }, ErrNameRequired},
+		{"centre no number", func() error { _, err := NewCostCentre("  ", "n"); return err }, ErrNumberRequired},
+		{"centre no name", func() error { _, err := NewCostCentre("1", "  "); return err }, ErrNameRequired},
 		{"unit no number", func() error { _, err := NewCostUnit("  ", "n"); return err }, ErrNumberRequired},
 		{"unit no name", func() error { _, err := NewCostUnit("1", ""); return err }, ErrNameRequired},
 	} {
@@ -46,7 +46,7 @@ func TestNewRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRecord: %v", err)
 	}
-	if rec.CostCenterID != 7 || rec.CostUnitID == nil || *rec.CostUnitID != 5 || rec.Kind != Cost || rec.AmountCents != 1000 || rec.Reference != "RE-1" {
+	if rec.CostCentreID != 7 || rec.CostUnitID == nil || *rec.CostUnitID != 5 || rec.Kind != Cost || rec.AmountCents != 1000 || rec.Reference != "RE-1" {
 		t.Fatalf("record = %+v", rec)
 	}
 	if !rec.BusinessDate.Equal(day(2026, 4, 30)) {
@@ -57,7 +57,7 @@ func TestNewRecord(t *testing.T) {
 		t.Fatalf("no unit: %v", err)
 	}
 
-	if _, err := NewRecord(0, nil, nil, Cost, 1, day(2026, 4, 30), ""); !errors.Is(err, ErrCostCenterNotFound) {
+	if _, err := NewRecord(0, nil, nil, Cost, 1, day(2026, 4, 30), ""); !errors.Is(err, ErrCostCentreNotFound) {
 		t.Fatalf("no centre: %v", err)
 	}
 	if _, err := NewRecord(1, nil, nil, "gift", 1, day(2026, 4, 30), ""); !errors.Is(err, ErrUnknownKind) {
@@ -73,7 +73,7 @@ func TestNewRecord(t *testing.T) {
 }
 
 func TestReportBalance(t *testing.T) {
-	r := Report{CostCenterID: 1, CostsCents: 30000, RevenuesCents: 50000}
+	r := Report{CostCentreID: 1, CostsCents: 30000, RevenuesCents: 50000}
 	if r.BalanceCents() != 20000 {
 		t.Fatalf("balance = %d", r.BalanceCents())
 	}

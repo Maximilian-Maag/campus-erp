@@ -26,10 +26,10 @@ func period(t *testing.T) (time.Time, time.Time) {
 // change: a run moves cost between centres, it neither creates nor destroys any. (The cost
 // volume does rise by the allocated amount — the receivers' new records — while the source is
 // relieved through a revenue, because records are append-only. The balance is the invariant.)
-func balancesOf(t *testing.T, svc *klr.Service, centers ...klr.CostCenter) int64 {
+func balancesOf(t *testing.T, svc *klr.Service, centres ...klr.CostCentre) int64 {
 	t.Helper()
 	var total int64
-	for _, c := range centers {
+	for _, c := range centres {
 		rep, err := svc.Report(context.Background(), c.ID)
 		if err != nil {
 			t.Fatalf("Report(%d): %v", c.ID, err)
@@ -47,17 +47,17 @@ func TestAllocateDistributesCosts(t *testing.T) {
 	svc := newService(t)
 	from, to := period(t)
 
-	source, err := svc.CreateCostCenter(ctx, "K-SRC-"+suffix(t), "Serverbetrieb", "alice")
+	source, err := svc.CreateCostCentre(ctx, "K-SRC-"+suffix(t), "Serverbetrieb", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter source: %v", err)
+		t.Fatalf("CreateCostCentre source: %v", err)
 	}
-	receiverA, err := svc.CreateCostCenter(ctx, "K-A-"+suffix(t), "Fachbereich A", "alice")
+	receiverA, err := svc.CreateCostCentre(ctx, "K-A-"+suffix(t), "Fachbereich A", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter A: %v", err)
+		t.Fatalf("CreateCostCentre A: %v", err)
 	}
-	receiverB, err := svc.CreateCostCenter(ctx, "K-B-"+suffix(t), "Fachbereich B", "alice")
+	receiverB, err := svc.CreateCostCentre(ctx, "K-B-"+suffix(t), "Fachbereich B", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter B: %v", err)
+		t.Fatalf("CreateCostCentre B: %v", err)
 	}
 
 	if _, err := svc.DefineAllocation(ctx, source.ID, receiverA.ID, 7500, from, &to, "alice"); err != nil {
@@ -70,7 +70,7 @@ func TestAllocateDistributesCosts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Allocations: %v", err)
 	}
-	if len(keys) != 2 || keys[0].TargetCenterID != receiverA.ID || keys[1].ShareBP != 2500 {
+	if len(keys) != 2 || keys[0].TargetCentreID != receiverA.ID || keys[1].ShareBP != 2500 {
 		t.Fatalf("keys = %+v", keys)
 	}
 
@@ -139,13 +139,13 @@ func TestAllocateRefusesASecondRun(t *testing.T) {
 	svc := newService(t)
 	from, to := klrDay(2026, 5, 1), klrDay(2026, 5, 31)
 
-	source, err := svc.CreateCostCenter(ctx, "K-S2-"+suffix(t), "Serverbetrieb", "alice")
+	source, err := svc.CreateCostCentre(ctx, "K-S2-"+suffix(t), "Serverbetrieb", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
-	receiver, err := svc.CreateCostCenter(ctx, "K-R2-"+suffix(t), "Fachbereich", "alice")
+	receiver, err := svc.CreateCostCentre(ctx, "K-R2-"+suffix(t), "Fachbereich", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 	if _, err := svc.DefineAllocation(ctx, source.ID, receiver.ID, 10000, from, &to, "alice"); err != nil {
 		t.Fatalf("DefineAllocation: %v", err)
@@ -194,13 +194,13 @@ func TestAllocateRefusals(t *testing.T) {
 	ctx := context.Background()
 	svc := newService(t)
 
-	source, err := svc.CreateCostCenter(ctx, "K-S3-"+suffix(t), "Serverbetrieb", "alice")
+	source, err := svc.CreateCostCentre(ctx, "K-S3-"+suffix(t), "Serverbetrieb", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
-	receiver, err := svc.CreateCostCenter(ctx, "K-R3-"+suffix(t), "Fachbereich", "alice")
+	receiver, err := svc.CreateCostCentre(ctx, "K-R3-"+suffix(t), "Fachbereich", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 
 	// No key at all.
@@ -208,8 +208,8 @@ func TestAllocateRefusals(t *testing.T) {
 		t.Fatalf("no keys = %v, want ErrAllocationRunNoTargets", err)
 	}
 	// An unknown cost centre.
-	if _, err := svc.Allocate(ctx, 9223372036854775807, klrDay(2026, 7, 1), klrDay(2026, 7, 31), "carol"); !errors.Is(err, klr.ErrCostCenterNotFound) {
-		t.Fatalf("unknown centre = %v, want ErrCostCenterNotFound", err)
+	if _, err := svc.Allocate(ctx, 9223372036854775807, klrDay(2026, 7, 1), klrDay(2026, 7, 31), "carol"); !errors.Is(err, klr.ErrCostCentreNotFound) {
+		t.Fatalf("unknown centre = %v, want ErrCostCentreNotFound", err)
 	}
 	// A period that runs backwards, and a blank actor.
 	if _, err := svc.Allocate(ctx, source.ID, klrDay(2026, 7, 31), klrDay(2026, 7, 1), "carol"); !errors.Is(err, klr.ErrAllocationRunPeriod) {
@@ -248,11 +248,11 @@ func TestAllocateRefusals(t *testing.T) {
 	}
 
 	// Defining a key against an unknown centre is a clear not-found, not a foreign-key failure.
-	if _, err := svc.DefineAllocation(ctx, source.ID, 9223372036854775807, 1000, klrDay(2026, 1, 1), nil, "alice"); !errors.Is(err, klr.ErrCostCenterNotFound) {
-		t.Fatalf("unknown target = %v, want ErrCostCenterNotFound", err)
+	if _, err := svc.DefineAllocation(ctx, source.ID, 9223372036854775807, 1000, klrDay(2026, 1, 1), nil, "alice"); !errors.Is(err, klr.ErrCostCentreNotFound) {
+		t.Fatalf("unknown target = %v, want ErrCostCentreNotFound", err)
 	}
-	if _, err := svc.DefineAllocation(ctx, 9223372036854775807, receiver.ID, 1000, klrDay(2026, 1, 1), nil, "alice"); !errors.Is(err, klr.ErrCostCenterNotFound) {
-		t.Fatalf("unknown source = %v, want ErrCostCenterNotFound", err)
+	if _, err := svc.DefineAllocation(ctx, 9223372036854775807, receiver.ID, 1000, klrDay(2026, 1, 1), nil, "alice"); !errors.Is(err, klr.ErrCostCentreNotFound) {
+		t.Fatalf("unknown source = %v, want ErrCostCentreNotFound", err)
 	}
 	if _, err := svc.DefineAllocation(ctx, source.ID, receiver.ID, 1000, klrDay(2026, 1, 1), nil, "  "); !errors.Is(err, klr.ErrActorRequired) {
 		t.Fatalf("blank actor on define = %v, want ErrActorRequired", err)
@@ -267,13 +267,13 @@ func TestAllocateIsOnTheAuditChain(t *testing.T) {
 	store := audit.NewStore(pool)
 	svc := klr.NewService(klr.NewRepo(pool), store)
 
-	source, err := svc.CreateCostCenter(ctx, "K-S4-"+suffix(t), "Serverbetrieb", "alice")
+	source, err := svc.CreateCostCentre(ctx, "K-S4-"+suffix(t), "Serverbetrieb", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
-	receiver, err := svc.CreateCostCenter(ctx, "K-R4-"+suffix(t), "Fachbereich", "alice")
+	receiver, err := svc.CreateCostCentre(ctx, "K-R4-"+suffix(t), "Fachbereich", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 	if _, err := svc.DefineAllocation(ctx, source.ID, receiver.ID, 10000, klrDay(2026, 10, 1), nil, "alice"); err != nil {
 		t.Fatalf("DefineAllocation: %v", err)
@@ -298,15 +298,15 @@ func TestCreateAllocationTurnsAMissingCentreIntoANotFound(t *testing.T) {
 	pool := testPool(t)
 	repo := klr.NewRepo(pool)
 
-	center, err := repo.CreateCostCenter(ctx, klr.CostCenter{Number: "K-S5-" + suffix(t), Name: "Serverbetrieb", CreatedBy: "alice"})
+	centre, err := repo.CreateCostCentre(ctx, klr.CostCentre{Number: "K-S5-" + suffix(t), Name: "Serverbetrieb", CreatedBy: "alice"})
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
-	key, err := klr.NewAllocation(center.ID, 9223372036854775807, 10000, klrDay(2026, 11, 1), nil)
+	key, err := klr.NewAllocation(centre.ID, 9223372036854775807, 10000, klrDay(2026, 11, 1), nil)
 	if err != nil {
 		t.Fatalf("NewAllocation: %v", err)
 	}
-	if _, err := repo.CreateAllocation(ctx, key); !errors.Is(err, klr.ErrCostCenterNotFound) {
-		t.Fatalf("got %v, want ErrCostCenterNotFound", err)
+	if _, err := repo.CreateAllocation(ctx, key); !errors.Is(err, klr.ErrCostCentreNotFound) {
+		t.Fatalf("got %v, want ErrCostCentreNotFound", err)
 	}
 }

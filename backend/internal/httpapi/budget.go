@@ -23,9 +23,9 @@ type budgetService interface {
 	// The Mittelquellen and Bewirtschaftungsstellen a position is assigned to (docs/10).
 	CreateSource(ctx context.Context, code, name, chapter, by string) (budget.Source, error)
 	Sources(ctx context.Context) ([]budget.Source, error)
-	CreateCenter(ctx context.Context, code, name, by string) (budget.Center, error)
-	Centers(ctx context.Context) ([]budget.Center, error)
-	AssignPosition(ctx context.Context, positionID int64, sourceID, centerID *int64, by string) (budget.Position, error)
+	CreateCentre(ctx context.Context, code, name, by string) (budget.Centre, error)
+	Centres(ctx context.Context) ([]budget.Centre, error)
+	AssignPosition(ctx context.Context, positionID int64, sourceID, centreID *int64, by string) (budget.Position, error)
 }
 
 // budgetImportRequest is the payload of POST /api/budget/imports. The layout is optional: an
@@ -57,7 +57,7 @@ func statusForBudget(err error) int {
 	switch {
 	case errors.Is(err, budget.ErrPositionNotFound),
 		errors.Is(err, budget.ErrSourceNotFound),
-		errors.Is(err, budget.ErrCenterNotFound):
+		errors.Is(err, budget.ErrCentreNotFound):
 		return http.StatusNotFound
 	case errors.Is(err, budgetimport.ErrUnknownLayout),
 		errors.Is(err, budgetimport.ErrEmpty),
@@ -65,7 +65,7 @@ func statusForBudget(err error) int {
 		return http.StatusUnprocessableEntity
 	case errors.Is(err, budget.ErrPositionExists),
 		errors.Is(err, budget.ErrSourceExists),
-		errors.Is(err, budget.ErrCenterExists),
+		errors.Is(err, budget.ErrCentreExists),
 		errors.Is(err, budget.ErrBudgetExceeded):
 		return http.StatusConflict
 	case errors.Is(err, budget.ErrActorRequired),
@@ -77,8 +77,8 @@ func statusForBudget(err error) int {
 		errors.Is(err, budget.ErrUnknownKind),
 		errors.Is(err, budget.ErrSourceCodeRequired),
 		errors.Is(err, budget.ErrSourceNameRequired),
-		errors.Is(err, budget.ErrCenterCodeRequired),
-		errors.Is(err, budget.ErrCenterNameRequired),
+		errors.Is(err, budget.ErrCentreCodeRequired),
+		errors.Is(err, budget.ErrCentreNameRequired),
 		// An assignment naming a source or a centre nothing carries is a problem with the
 		// request rather than with the position: the position itself was found.
 		errors.Is(err, budget.ErrAssignmentUnknown):
@@ -211,8 +211,8 @@ type budgetSourceRequest struct {
 	Chapter string `json:"chapter"`
 }
 
-// budgetCenterRequest is the payload of POST /api/budget/centers.
-type budgetCenterRequest struct {
+// budgetCentreRequest is the payload of POST /api/budget/centres.
+type budgetCentreRequest struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
 }
@@ -222,7 +222,7 @@ type budgetCenterRequest struct {
 // (or sending null) clears it.
 type assignBudgetPositionRequest struct {
 	SourceID *int64 `json:"source_id"`
-	CenterID *int64 `json:"center_id"`
+	CentreID *int64 `json:"centre_id"`
 }
 
 func (s *Server) createBudgetSource(w http.ResponseWriter, r *http.Request) {
@@ -249,28 +249,28 @@ func (s *Server) listBudgetSources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, sources)
 }
 
-func (s *Server) createBudgetCenter(w http.ResponseWriter, r *http.Request) {
-	var req budgetCenterRequest
+func (s *Server) createBudgetCentre(w http.ResponseWriter, r *http.Request) {
+	var req budgetCentreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	center, err := s.budget.CreateCenter(r.Context(), req.Code, req.Name, actor(r))
+	centre, err := s.budget.CreateCentre(r.Context(), req.Code, req.Name, actor(r))
 	if err != nil {
 		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, center)
+	writeJSON(w, http.StatusCreated, centre)
 }
 
-// listBudgetCenters returns the Bewirtschaftungsstellen in code order.
-func (s *Server) listBudgetCenters(w http.ResponseWriter, r *http.Request) {
-	centers, err := s.budget.Centers(r.Context())
+// listBudgetCentres returns the Bewirtschaftungsstellen in code order.
+func (s *Server) listBudgetCentres(w http.ResponseWriter, r *http.Request) {
+	centres, err := s.budget.Centres(r.Context())
 	if err != nil {
 		writeDomainProblem(w, statusForBudget(err), err)
 		return
 	}
-	writeJSON(w, http.StatusOK, centers)
+	writeJSON(w, http.StatusOK, centres)
 }
 
 // assignBudgetPosition names the source a position draws on and the centre that administers it.
@@ -285,7 +285,7 @@ func (s *Server) assignBudgetPosition(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	pos, err := s.budget.AssignPosition(r.Context(), id, req.SourceID, req.CenterID, actor(r))
+	pos, err := s.budget.AssignPosition(r.Context(), id, req.SourceID, req.CentreID, actor(r))
 	if err != nil {
 		writeDomainProblem(w, statusForBudget(err), err)
 		return

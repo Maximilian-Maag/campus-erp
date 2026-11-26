@@ -27,10 +27,10 @@ const (
 	FieldSourceName
 	// FieldSourceChapter is the Haushaltsstelle's chapter, optional (a third-party funder has none).
 	FieldSourceChapter
-	// FieldCenterCode is the Bewirtschaftungsstelle's code.
-	FieldCenterCode
-	// FieldCenterName is the Bewirtschaftungsstelle's name, used when it is created.
-	FieldCenterName
+	// FieldCentreCode is the Bewirtschaftungsstelle's code.
+	FieldCentreCode
+	// FieldCentreName is the Bewirtschaftungsstelle's name, used when it is created.
+	FieldCentreName
 	// FieldYear is the Haushaltsjahr.
 	FieldYear
 	// FieldChapter is the position's Kapitel.
@@ -68,8 +68,8 @@ var StandardLayout = Layout{
 		FieldSourceCode:    0,
 		FieldSourceName:    1,
 		FieldSourceChapter: 2,
-		FieldCenterCode:    3,
-		FieldCenterName:    4,
+		FieldCentreCode:    3,
+		FieldCentreName:    4,
 		FieldYear:          5,
 		FieldChapter:       6,
 		FieldTitle:         7,
@@ -102,8 +102,8 @@ type Row struct {
 	SourceCode     string
 	SourceName     string
 	SourceChapter  string
-	CenterCode     string
-	CenterName     string
+	CentreCode     string
+	CentreName     string
 	Year           int
 	Chapter        string
 	Title          string
@@ -208,10 +208,10 @@ func (l Layout) parseLine(line int, raw string) (Row, error) {
 			row.SourceName = v
 		case FieldSourceChapter:
 			row.SourceChapter = v
-		case FieldCenterCode:
-			row.CenterCode = v
-		case FieldCenterName:
-			row.CenterName = v
+		case FieldCentreCode:
+			row.CentreCode = v
+		case FieldCentreName:
+			row.CentreName = v
 		case FieldYear:
 			year, err := strconv.Atoi(v)
 			if err != nil {
@@ -256,8 +256,8 @@ func (r Row) validate() error {
 	if r.SourceCode != "" && r.SourceName == "" {
 		return ErrRow(r.Line, "the Mittelquelle %s has no name", r.SourceCode)
 	}
-	if r.CenterCode != "" && r.CenterName == "" {
-		return ErrRow(r.Line, "the Bewirtschaftungsstelle %s has no name", r.CenterCode)
+	if r.CentreCode != "" && r.CentreName == "" {
+		return ErrRow(r.Line, "the Bewirtschaftungsstelle %s has no name", r.CentreCode)
 	}
 	return nil
 }

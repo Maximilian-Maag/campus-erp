@@ -39,13 +39,13 @@ func TestKLRReportAndIsolation(t *testing.T) {
 	ctx := context.Background()
 	svc := newService(t)
 
-	a, err := svc.CreateCostCenter(ctx, "CC-A-"+suffix(t), "Bibliothek", "alice")
+	a, err := svc.CreateCostCentre(ctx, "CC-A-"+suffix(t), "Bibliothek", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter A: %v", err)
+		t.Fatalf("CreateCostCentre A: %v", err)
 	}
-	b, err := svc.CreateCostCenter(ctx, "CC-B-"+suffix(t), "Labor", "alice")
+	b, err := svc.CreateCostCentre(ctx, "CC-B-"+suffix(t), "Labor", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter B: %v", err)
+		t.Fatalf("CreateCostCentre B: %v", err)
 	}
 	unit, err := svc.CreateCostUnit(ctx, "CU-"+suffix(t), "Lehre", "alice")
 	if err != nil {
@@ -87,17 +87,17 @@ func TestKLRValidation(t *testing.T) {
 	ctx := context.Background()
 	svc := newService(t)
 
-	if _, err := svc.CreateCostCenter(ctx, "1", "n", "  "); !errors.Is(err, klr.ErrActorRequired) {
+	if _, err := svc.CreateCostCentre(ctx, "1", "n", "  "); !errors.Is(err, klr.ErrActorRequired) {
 		t.Fatalf("centre actor: %v", err)
 	}
 	if _, err := svc.CreateCostUnit(ctx, "1", "n", ""); !errors.Is(err, klr.ErrActorRequired) {
 		t.Fatalf("unit actor: %v", err)
 	}
 	num := "CC-DUP-" + suffix(t)
-	if _, err := svc.CreateCostCenter(ctx, num, "n", "alice"); err != nil {
+	if _, err := svc.CreateCostCentre(ctx, num, "n", "alice"); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if _, err := svc.CreateCostCenter(ctx, num, "n", "alice"); !errors.Is(err, klr.ErrCostCenterExists) {
+	if _, err := svc.CreateCostCentre(ctx, num, "n", "alice"); !errors.Is(err, klr.ErrCostCentreExists) {
 		t.Fatalf("duplicate centre: %v", err)
 	}
 	unum := "CU-DUP-" + suffix(t)
@@ -108,43 +108,43 @@ func TestKLRValidation(t *testing.T) {
 		t.Fatalf("duplicate unit: %v", err)
 	}
 	// Posting to an unknown cost centre.
-	if _, err := svc.Post(ctx, 9223372036854775807, nil, nil, klr.Cost, 100, klrDay(2026, 4, 30), "r", "alice"); !errors.Is(err, klr.ErrCostCenterNotFound) {
+	if _, err := svc.Post(ctx, 9223372036854775807, nil, nil, klr.Cost, 100, klrDay(2026, 4, 30), "r", "alice"); !errors.Is(err, klr.ErrCostCentreNotFound) {
 		t.Fatalf("unknown centre: %v", err)
 	}
 	if _, err := svc.Post(ctx, 1, nil, nil, klr.Cost, 100, klrDay(2026, 4, 30), "r", "  "); !errors.Is(err, klr.ErrActorRequired) {
 		t.Fatalf("post actor: %v", err)
 	}
-	if _, err := svc.GetCostCenter(ctx, 9223372036854775807); !errors.Is(err, klr.ErrCostCenterNotFound) {
+	if _, err := svc.GetCostCentre(ctx, 9223372036854775807); !errors.Is(err, klr.ErrCostCentreNotFound) {
 		t.Fatalf("get unknown: %v", err)
 	}
-	if _, err := svc.Report(ctx, 9223372036854775807); !errors.Is(err, klr.ErrCostCenterNotFound) {
+	if _, err := svc.Report(ctx, 9223372036854775807); !errors.Is(err, klr.ErrCostCentreNotFound) {
 		t.Fatalf("report unknown: %v", err)
 	}
 }
 
-// TestCostCentersAreListedByNumber: a screen offering a cost centre to choose needs the list,
+// TestCostCentresAreListedByNumber: a screen offering a cost centre to choose needs the list,
 // and it reads in the order the numbers do.
-func TestCostCentersAreListedByNumber(t *testing.T) {
+func TestCostCentresAreListedByNumber(t *testing.T) {
 	ctx := context.Background()
 	svc := newService(t)
 	mark := suffix(t)
 
 	// "K-99-…" must come back after "K-10-…", which sorts the other way as text.
-	late, err := svc.CreateCostCenter(ctx, "K-99-"+mark, "Werkstatt", "alice")
+	late, err := svc.CreateCostCentre(ctx, "K-99-"+mark, "Werkstatt", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
-	early, err := svc.CreateCostCenter(ctx, "K-10-"+mark, "Bibliothek", "alice")
+	early, err := svc.CreateCostCentre(ctx, "K-10-"+mark, "Bibliothek", "alice")
 	if err != nil {
-		t.Fatalf("CreateCostCenter: %v", err)
+		t.Fatalf("CreateCostCentre: %v", err)
 	}
 
-	centers, err := svc.CostCenters(ctx)
+	centres, err := svc.CostCentres(ctx)
 	if err != nil {
-		t.Fatalf("CostCenters: %v", err)
+		t.Fatalf("CostCentres: %v", err)
 	}
 	posEarly, posLate := -1, -1
-	for i, c := range centers {
+	for i, c := range centres {
 		switch c.ID {
 		case early.ID:
 			posEarly = i
@@ -156,7 +156,7 @@ func TestCostCentersAreListedByNumber(t *testing.T) {
 		}
 	}
 	if posEarly < 0 || posLate < 0 {
-		t.Fatalf("both centres should be listed, got %d entries", len(centers))
+		t.Fatalf("both centres should be listed, got %d entries", len(centres))
 	}
 	if posEarly > posLate {
 		t.Fatalf("K-10 (%d) is listed after K-99 (%d)", posEarly, posLate)

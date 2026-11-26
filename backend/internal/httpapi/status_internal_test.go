@@ -94,7 +94,7 @@ func TestStatusForDunning(t *testing.T) {
 		{"bands not ascending", kasse.ErrBandsNotAscending, http.StatusUnprocessableEntity},
 		{"open band not last", kasse.ErrOpenBandNotLast, http.StatusUnprocessableEntity},
 		{"negative band", kasse.ErrNegativeBand, http.StatusUnprocessableEntity},
-		{"claim required", kasse.ErrClaimRequired, http.StatusUnprocessableEntity},
+		{"claim required", kasse.ErrReceivableRequired, http.StatusUnprocessableEntity},
 		{"actor required", kasse.ErrActorRequired, http.StatusUnprocessableEntity},
 		{"amount not positive", kasse.ErrAmountNotPositive, http.StatusUnprocessableEntity},
 		{"no band", kasse.ErrNoDunningBand, http.StatusUnprocessableEntity},
@@ -265,9 +265,9 @@ func TestStatusForBudget(t *testing.T) {
 		{"amount not positive", budget.ErrAmountNotPositive, http.StatusUnprocessableEntity},
 		{"unknown kind", budget.ErrUnknownKind, http.StatusUnprocessableEntity},
 		{"source not found", budget.ErrSourceNotFound, http.StatusNotFound},
-		{"center not found", budget.ErrCenterNotFound, http.StatusNotFound},
+		{"centre not found", budget.ErrCentreNotFound, http.StatusNotFound},
 		{"source exists", budget.ErrSourceExists, http.StatusConflict},
-		{"center exists", budget.ErrCenterExists, http.StatusConflict},
+		{"centre exists", budget.ErrCentreExists, http.StatusConflict},
 		{"assignment unknown", budget.ErrAssignmentUnknown, http.StatusUnprocessableEntity},
 		{"unknown import layout", budgetfile.ErrUnknownLayout, http.StatusUnprocessableEntity},
 		{"empty import file", budgetfile.ErrEmpty, http.StatusUnprocessableEntity},
@@ -352,9 +352,9 @@ func TestStatusForKLR(t *testing.T) {
 		err  error
 		want int
 	}{
-		{"centre not found", klr.ErrCostCenterNotFound, http.StatusNotFound},
+		{"centre not found", klr.ErrCostCentreNotFound, http.StatusNotFound},
 		{"unit not found", klr.ErrCostUnitNotFound, http.StatusNotFound},
-		{"centre exists", klr.ErrCostCenterExists, http.StatusConflict},
+		{"centre exists", klr.ErrCostCentreExists, http.StatusConflict},
 		{"unit exists", klr.ErrCostUnitExists, http.StatusConflict},
 		{"actor required", klr.ErrActorRequired, http.StatusUnprocessableEntity},
 		{"number required", klr.ErrNumberRequired, http.StatusUnprocessableEntity},

@@ -19,7 +19,7 @@ const levels = [
 
 const notice = {
   ID: 9,
-  ClaimReference: 'F-2026-001',
+  ReceivableReference: 'F-2026-001',
   LevelCode: '1',
   OutstandingCents: 12000,
   ChargeCents: 2740,
@@ -72,14 +72,14 @@ test('Mahnwesen lists the levels, defines one and issues a notice, and passes ax
     },
   ]);
 
-  await page.getByLabel('Vorgangsnummer').fill('F-2026-001');
+  await page.getByLabel('Offener Posten').fill('F-2026-001');
   await page.getByLabel('Offener Betrag').fill('120,00');
   await page.getByRole('button', { name: 'Mahnung ausstellen' }).click();
 
   await expect(page.getByText('Mahnung ausgestellt.').first()).toBeVisible();
   await expect(page.getByTestId('notice-9')).toContainText('27,40');
   expect(noticeBodies).toEqual([
-    { year: 2026, level_code: '1', claim_reference: 'F-2026-001', outstanding_cents: 12000 },
+    { year: 2026, level_code: '1', receivable_reference: 'F-2026-001', outstanding_cents: 12000 },
   ]);
   // The notice carries a stored PDF, so the screen links to it.
   await expect(page.locator('a[href="/api/dunning/notices/9/document"]')).toBeVisible();
@@ -114,7 +114,7 @@ test('Mahnwesen refuses an incomplete notice before asking the API and passes ax
   await page.goto('/kasse/mahnwesen');
   await page.getByRole('button', { name: 'Mahnung ausstellen' }).click();
 
-  await expect(page.getByRole('alert')).toContainText('Eine Vorgangsnummer ist erforderlich.');
+  await expect(page.getByRole('alert')).toContainText('Ein offener Posten ist erforderlich.');
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);

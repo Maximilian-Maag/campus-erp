@@ -63,7 +63,7 @@ test('the language picker switches the interface and remembers the choice', asyn
   // interface, tell the document, and still be in force after a reload.
   await page.route('**/api/**', (route) => route.fulfill({ json: [] }));
   await page.goto('/kasse/anordnungen');
-  await expect(page.getByTestId('page-title')).toHaveText('Zahlungsanordnungen');
+  await expect(page.getByTestId('page-title')).toHaveText('Ausgabeanordnungen');
 
   await page.getByTestId('language-picker').click();
   await page.getByTestId('language-option-en').click();
@@ -88,7 +88,7 @@ test('the browser tab is named after the screen, in the chosen language', async 
   await page.route('**/api/**', (route) => route.fulfill({ json: [] }));
 
   await page.goto('/kasse/anordnungen');
-  await expect(page).toHaveTitle('Zahlungsanordnungen · Campus ERP');
+  await expect(page).toHaveTitle('Ausgabeanordnungen · Campus ERP');
 
   await page.getByTestId('language-picker').click();
   await page.getByTestId('language-option-en').click();

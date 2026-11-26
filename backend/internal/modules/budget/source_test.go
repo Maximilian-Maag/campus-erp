@@ -40,25 +40,25 @@ func TestNewSource(t *testing.T) {
 	}
 }
 
-func TestNewCenter(t *testing.T) {
-	center, err := NewCenter("  BW-1 ", "  Fakultät 1 ")
+func TestNewCentre(t *testing.T) {
+	centre, err := NewCentre("  BW-1 ", "  Fakultät 1 ")
 	if err != nil {
-		t.Fatalf("NewCenter: %v", err)
+		t.Fatalf("NewCentre: %v", err)
 	}
-	if center.Code != "BW-1" || center.Name != "Fakultät 1" || !center.Active {
-		t.Fatalf("centre = %+v", center)
+	if centre.Code != "BW-1" || centre.Name != "Fakultät 1" || !centre.Active {
+		t.Fatalf("centre = %+v", centre)
 	}
 	for _, c := range []struct {
 		name        string
 		code, name2 string
 		want        error
 	}{
-		{"no code", "", "Fakultät 1", ErrCenterCodeRequired},
-		{"no name", "BW-1", "   ", ErrCenterNameRequired},
+		{"no code", "", "Fakultät 1", ErrCentreCodeRequired},
+		{"no name", "BW-1", "   ", ErrCentreNameRequired},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if _, err := NewCenter(c.code, c.name2); !errors.Is(err, c.want) {
-				t.Fatalf("NewCenter error = %v, want %v", err, c.want)
+			if _, err := NewCentre(c.code, c.name2); !errors.Is(err, c.want) {
+				t.Fatalf("NewCentre error = %v, want %v", err, c.want)
 			}
 		})
 	}
@@ -70,10 +70,10 @@ func TestPositionNamed(t *testing.T) {
 		t.Fatal("a position with neither half is not named")
 	}
 	id := int64(7)
-	if !(Position{SourceID: &id}).Named() || !(Position{CenterID: &id}).Named() {
+	if !(Position{SourceID: &id}).Named() || !(Position{CentreID: &id}).Named() {
 		t.Fatal("either half names the position")
 	}
-	if !(Position{SourceID: &id, CenterID: &id}).Named() {
+	if !(Position{SourceID: &id, CentreID: &id}).Named() {
 		t.Fatal("both halves name the position")
 	}
 }

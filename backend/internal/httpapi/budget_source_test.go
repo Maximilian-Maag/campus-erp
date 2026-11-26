@@ -10,10 +10,10 @@ import (
 	"github.com/Maximilian-Maag/campus-erp/backend/internal/httpapi"
 )
 
-// TestHTTPBudgetSourceAndCenter drives the whole path through the real service and database: a
+// TestHTTPBudgetSourceAndCentre drives the whole path through the real service and database: a
 // Mittelquelle and a Bewirtschaftungsstelle are created and listed, a position is assigned both,
 // and the assignment is readable back — the position's own read carries it.
-func TestHTTPBudgetSourceAndCenter(t *testing.T) {
+func TestHTTPBudgetSourceAndCentre(t *testing.T) {
 	srv, _ := newTestServer(t)
 
 	sourceCode := "LHH-" + uniqueSuffix(t)
@@ -37,22 +37,22 @@ func TestHTTPBudgetSourceAndCenter(t *testing.T) {
 		t.Fatalf("source = %+v", source)
 	}
 
-	centerCode := "BW-" + uniqueSuffix(t)
-	resp = doJSON(t, http.MethodPost, srv.URL+"/api/budget/centers", "alice",
-		`{"code":"`+centerCode+`","name":"Fakultät 1"}`)
+	centreCode := "BW-" + uniqueSuffix(t)
+	resp = doJSON(t, http.MethodPost, srv.URL+"/api/budget/centres", "alice",
+		`{"code":"`+centreCode+`","name":"Fakultät 1"}`)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create centre = %d (%s)", resp.StatusCode, readBody(t, resp))
 	}
-	var center struct {
+	var centre struct {
 		ID   int64
 		Code string
 		Name string
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&center); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&centre); err != nil {
 		t.Fatalf("decode centre: %v", err)
 	}
-	if center.ID == 0 || center.Code != centerCode {
-		t.Fatalf("centre = %+v", center)
+	if centre.ID == 0 || centre.Code != centreCode {
+		t.Fatalf("centre = %+v", centre)
 	}
 
 	// Both lists carry what was created.
@@ -73,37 +73,37 @@ func TestHTTPBudgetSourceAndCenter(t *testing.T) {
 	if !sawSource {
 		t.Fatalf("the created source is not among %d sources", len(sources))
 	}
-	resp = doJSON(t, http.MethodGet, srv.URL+"/api/budget/centers", "alice", "")
-	var centers []struct{ ID int64 }
-	if err := json.NewDecoder(resp.Body).Decode(&centers); err != nil {
+	resp = doJSON(t, http.MethodGet, srv.URL+"/api/budget/centres", "alice", "")
+	var centres []struct{ ID int64 }
+	if err := json.NewDecoder(resp.Body).Decode(&centres); err != nil {
 		t.Fatalf("decode centres: %v", err)
 	}
-	var sawCenter bool
-	for _, c := range centers {
-		if c.ID == center.ID {
-			sawCenter = true
+	var sawCentre bool
+	for _, c := range centres {
+		if c.ID == centre.ID {
+			sawCentre = true
 		}
 	}
-	if !sawCenter {
-		t.Fatalf("the created centre is not among %d centres", len(centers))
+	if !sawCentre {
+		t.Fatalf("the created centre is not among %d centres", len(centres))
 	}
 
 	// A position is assigned both halves, and the assignment comes back on its own read.
 	positionID := newBudgetPosition(t, srv.URL)
 	resp = doJSON(t, http.MethodPost, srv.URL+"/api/budget/positions/"+itoa(positionID)+"/assignment", "alice",
-		fmt.Sprintf(`{"source_id":%d,"center_id":%d}`, source.ID, center.ID))
+		fmt.Sprintf(`{"source_id":%d,"centre_id":%d}`, source.ID, centre.ID))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("assign = %d (%s)", resp.StatusCode, readBody(t, resp))
 	}
 	var assigned struct {
 		ID       int64
 		SourceID *int64
-		CenterID *int64
+		CentreID *int64
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&assigned); err != nil {
 		t.Fatalf("decode assigned: %v", err)
 	}
-	if assigned.SourceID == nil || *assigned.SourceID != source.ID || assigned.CenterID == nil || *assigned.CenterID != center.ID {
+	if assigned.SourceID == nil || *assigned.SourceID != source.ID || assigned.CentreID == nil || *assigned.CentreID != centre.ID {
 		t.Fatalf("assigned = %+v", assigned)
 	}
 	resp = doJSON(t, http.MethodGet, srv.URL+"/api/budget/positions/"+itoa(positionID), "alice", "")
@@ -111,31 +111,31 @@ func TestHTTPBudgetSourceAndCenter(t *testing.T) {
 		Position struct {
 			ID       int64
 			SourceID *int64
-			CenterID *int64
+			CentreID *int64
 		}
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&loaded); err != nil {
 		t.Fatalf("decode position: %v", err)
 	}
 	if loaded.Position.SourceID == nil || *loaded.Position.SourceID != source.ID ||
-		loaded.Position.CenterID == nil || *loaded.Position.CenterID != center.ID {
+		loaded.Position.CentreID == nil || *loaded.Position.CentreID != centre.ID {
 		t.Fatalf("loaded position = %+v", loaded.Position)
 	}
 
 	// Clearing one half leaves the other, which is what a nullable half is for.
 	resp = doJSON(t, http.MethodPost, srv.URL+"/api/budget/positions/"+itoa(positionID)+"/assignment", "alice",
-		fmt.Sprintf(`{"source_id":null,"center_id":%d}`, center.ID))
+		fmt.Sprintf(`{"source_id":null,"centre_id":%d}`, centre.ID))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("clear the source = %d (%s)", resp.StatusCode, readBody(t, resp))
 	}
 	var cleared struct {
 		SourceID *int64
-		CenterID *int64
+		CentreID *int64
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&cleared); err != nil {
 		t.Fatalf("decode cleared: %v", err)
 	}
-	if cleared.SourceID != nil || cleared.CenterID == nil {
+	if cleared.SourceID != nil || cleared.CentreID == nil {
 		t.Fatalf("cleared = %+v", cleared)
 	}
 }
@@ -164,11 +164,11 @@ func TestHTTPBudgetSourceRefusals(t *testing.T) {
 		`{"code":"  ","name":"Ohne Code"}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("blank code = %d, want 422", resp.StatusCode)
 	}
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/budget/centers", "alice",
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/budget/centres", "alice",
 		`{"code":"X-`+uniqueSuffix(t)+`","name":"  "}`); resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("blank name = %d, want 422", resp.StatusCode)
 	}
-	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/budget/centers", "alice", `{`); resp.StatusCode != http.StatusBadRequest {
+	if resp := doJSON(t, http.MethodPost, srv.URL+"/api/budget/centres", "alice", `{`); resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad centre body = %d, want 400", resp.StatusCode)
 	}
 
@@ -196,13 +196,13 @@ func TestHTTPBudgetSourceRefusals(t *testing.T) {
 	var loaded struct {
 		Position struct {
 			SourceID *int64
-			CenterID *int64
+			CentreID *int64
 		}
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&loaded); err != nil {
 		t.Fatalf("decode position: %v", err)
 	}
-	if loaded.Position.SourceID != nil || loaded.Position.CenterID != nil {
+	if loaded.Position.SourceID != nil || loaded.Position.CentreID != nil {
 		t.Fatalf("a refused assignment changed the position: %+v", loaded.Position)
 	}
 }
@@ -212,7 +212,7 @@ func TestHTTPBudgetSourceRefusals(t *testing.T) {
 func TestHTTPBudgetSourceEmptyLists(t *testing.T) {
 	srv := httptest.NewServer(httpapi.New(httpapi.Deps{Budget: stubBudget{}}).Routes())
 	t.Cleanup(srv.Close)
-	for _, path := range []string{"/api/budget/sources", "/api/budget/centers"} {
+	for _, path := range []string{"/api/budget/sources", "/api/budget/centres"} {
 		resp := doJSON(t, http.MethodGet, srv.URL+path, "alice", "")
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("%s = %d, want 200", path, resp.StatusCode)

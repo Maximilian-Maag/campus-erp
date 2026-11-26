@@ -37,7 +37,7 @@ C4Component
 | Payments | `import_payment*`, `calc_transaction`, `entry_transaction` |
 | External integration | `qis_*`, `person_taa_config` |
 
-## the finance module / the finance module (`mbs`) — Finanz- und Sachmittelverfahren
+## the finance module (`mbs`) — Finanz- und Sachmittelverfahren
 
 | Component | Tables |
 |---|---|

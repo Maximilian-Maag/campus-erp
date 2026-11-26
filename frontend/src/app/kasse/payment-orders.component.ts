@@ -6,7 +6,7 @@ import { formatCents, formatDay } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
 /**
- * Kasse — Zahlungsanordnungen (payment orders).
+ * Kasse — Ausgabeanordnungen (payment orders).
  *
  * Lists the payment orders soonest due first and drives their workflow: a draft is submitted,
  * a submitted order is approved, rejected (with a reason) or cancelled. The status filter is the

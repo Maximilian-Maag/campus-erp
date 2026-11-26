@@ -83,7 +83,7 @@ test('Zahlungsläufe states that no approved order exists and passes axe', async
 
   await page.goto('/kasse/zahlungslaeufe');
 
-  await expect(page.getByText('Es ist keine genehmigte Zahlungsanordnung vorhanden.')).toBeVisible();
+  await expect(page.getByText('Es ist keine genehmigte Ausgabeanordnung vorhanden.')).toBeVisible();
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);

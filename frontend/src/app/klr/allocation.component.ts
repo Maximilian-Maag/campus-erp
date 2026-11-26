@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { Allocation, CampusErpApi, CostCenter } from '../core/api/generated';
+import { Allocation, CampusErpApi, CostCentre } from '../core/api/generated';
 import { basisPointsToPercent, formatCents, percentToBasisPoints } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
@@ -33,14 +33,14 @@ import { PageComponent } from '../ui/page.component';
 
         @if (loading()) {
           <p role="status">{{ 'klr.common.loadingCostCentres' | transloco }}</p>
-        } @else if (centers().length === 0 && !loadError()) {
+        } @else if (centres().length === 0 && !loadError()) {
           <p role="status">{{ 'klr.common.noCostCentres' | transloco }}</p>
         } @else if (!loadError()) {
           <div class="picker">
-            <label for="klr-source">{{ 'common.costCenter' | transloco }}</label>
+            <label for="klr-source">{{ 'common.costCentre' | transloco }}</label>
             <select id="klr-source" [value]="source()" (change)="chooseSource($any($event.target).value)">
-              @for (center of centers(); track center.ID) {
-                <option [value]="center.ID" [selected]="'' + center.ID === source()">{{ center.Number }} {{ center.Name }}</option>
+              @for (centre of centres(); track centre.ID) {
+                <option [value]="centre.ID" [selected]="'' + centre.ID === source()">{{ centre.Number }} {{ centre.Name }}</option>
               }
             </select>
           </div>
@@ -64,7 +64,7 @@ import { PageComponent } from '../ui/page.component';
               <tbody>
                 @for (key of keys(); track key.ID) {
                   <tr [attr.data-testid]="'key-' + key.ID">
-                    <td [attr.data-testid]="'key-target-' + key.ID">{{ centerLabel(key.TargetCenterID) }}</td>
+                    <td [attr.data-testid]="'key-target-' + key.ID">{{ centreLabel(key.TargetCentreID) }}</td>
                     <td class="amount" [attr.data-testid]="'key-share-' + key.ID">{{ share(key.ShareBP) }}</td>
                     <td>{{ day(key.ValidFrom) }}</td>
                     <td>{{ key.ValidTo ? day(key.ValidTo) : ('klr.common.unbounded' | transloco) }}</td>
@@ -79,8 +79,8 @@ import { PageComponent } from '../ui/page.component';
             <div class="field">
               <label for="klr-target">{{ 'klr.common.receiver' | transloco }}</label>
               <select id="klr-target" [value]="target()" (change)="target.set($any($event.target).value)">
-                @for (center of receivers(); track center.ID) {
-                  <option [value]="center.ID" [selected]="'' + center.ID === target()">{{ center.Number }} {{ center.Name }}</option>
+                @for (centre of receivers(); track centre.ID) {
+                  <option [value]="centre.ID" [selected]="'' + centre.ID === target()">{{ centre.Number }} {{ centre.Name }}</option>
                 }
               </select>
             </div>
@@ -138,7 +138,7 @@ export class KlrAllocationComponent implements OnInit {
   private readonly api = inject(CampusErpApi);
   private readonly i18n = inject(TranslocoService);
 
-  readonly centers = signal<CostCenter[]>([]);
+  readonly centres = signal<CostCentre[]>([]);
   readonly keys = signal<Allocation[]>([]);
   readonly source = signal('');
   readonly target = signal('');
@@ -162,10 +162,10 @@ export class KlrAllocationComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.loadError.set(null);
-    this.api.listCostCenters().subscribe({
-      next: (centers) => {
-        const list = centers ?? [];
-        this.centers.set(list);
+    this.api.listCostCentres().subscribe({
+      next: (centres) => {
+        const list = centres ?? [];
+        this.centres.set(list);
         if (list.length > 0 && !this.source()) {
           // The first centre is the one the operator most likely means to start with, and
           // choosing it here means the keys below are never about an unselected centre.
@@ -195,8 +195,8 @@ export class KlrAllocationComponent implements OnInit {
   }
 
   /** Every centre but the chosen source can be a receiver. */
-  receivers(): CostCenter[] {
-    return this.centers().filter((c) => String(c.ID) !== this.source());
+  receivers(): CostCentre[] {
+    return this.centres().filter((c) => String(c.ID) !== this.source());
   }
 
   chooseSource(id: string): void {
@@ -223,7 +223,7 @@ export class KlrAllocationComponent implements OnInit {
     this.notice.set(null);
     this.api
       .defineAllocation(this.source(), {
-        target_center_id: Number(this.target()),
+        target_centre_id: Number(this.target()),
         share_bp: shareBP,
         valid_from: this.validFrom(),
         valid_to: this.validUntil(),
@@ -263,9 +263,9 @@ export class KlrAllocationComponent implements OnInit {
   }
 
   /** A centre as the operator reads it, falling back to the id if it is not loaded. */
-  centerLabel(id: number): string {
-    const center = this.centers().find((c) => c.ID === id);
-    return center ? center.Number + ' ' + center.Name : String(id);
+  centreLabel(id: number): string {
+    const centre = this.centres().find((c) => c.ID === id);
+    return centre ? centre.Number + ' ' + centre.Name : String(id);
   }
 
   readonly share = basisPointsToPercent;

@@ -13,7 +13,7 @@ import (
 // of the centre's costs the unit takes.
 type CostUnitKey struct {
 	ID             int64
-	SourceCenterID int64
+	SourceCentreID int64
 	TargetUnitID   int64
 	ShareBP        int64
 	ValidFrom      time.Time
@@ -23,9 +23,9 @@ type CostUnitKey struct {
 
 // NewCostUnitKey validates and builds a key. The share and period rules are the same as the
 // centre-side keys', so they are reported with the same errors rather than a second set.
-func NewCostUnitKey(sourceCenterID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time) (CostUnitKey, error) {
-	if sourceCenterID <= 0 {
-		return CostUnitKey{}, ErrCostCenterNotFound
+func NewCostUnitKey(sourceCentreID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time) (CostUnitKey, error) {
+	if sourceCentreID <= 0 {
+		return CostUnitKey{}, ErrCostCentreNotFound
 	}
 	if targetUnitID <= 0 {
 		return CostUnitKey{}, ErrCostUnitNotFound
@@ -37,7 +37,7 @@ func NewCostUnitKey(sourceCenterID, targetUnitID, shareBP int64, validFrom time.
 		return CostUnitKey{}, ErrAllocationPeriod
 	}
 	return CostUnitKey{
-		SourceCenterID: sourceCenterID, TargetUnitID: targetUnitID,
+		SourceCentreID: sourceCentreID, TargetUnitID: targetUnitID,
 		ShareBP: shareBP, ValidFrom: validFrom, ValidTo: validTo,
 	}, nil
 }
@@ -53,7 +53,7 @@ func (k CostUnitKey) Active(at time.Time) bool {
 
 // String renders a key for messages and logs.
 func (k CostUnitKey) String() string {
-	return fmt.Sprintf("cost unit key %d: centre %d -> unit %d at %d bp", k.ID, k.SourceCenterID, k.TargetUnitID, k.ShareBP)
+	return fmt.Sprintf("cost unit key %d: centre %d -> unit %d at %d bp", k.ID, k.SourceCentreID, k.TargetUnitID, k.ShareBP)
 }
 
 // UnitShare is one cost unit's slice of a Kostenträger run.
@@ -88,7 +88,7 @@ func SplitUnitShares(amountCents int64, keys []CostUnitKey) ([]UnitShare, error)
 // The source centre keeps the same balance it had — the tagged costs and the relief cancel — so
 // the centre is not distorted by attributing its costs, and the unit carries them. Records are
 // append-only, so the cost *volume* rises by the attributed amount; the balances do not.
-func planCostUnits(sourceCenterID, amountCents int64, keys []CostUnitKey, businessDate time.Time, by string) ([]Record, error) {
+func planCostUnits(sourceCentreID, amountCents int64, keys []CostUnitKey, businessDate time.Time, by string) ([]Record, error) {
 	shares, err := SplitUnitShares(amountCents, keys)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func planCostUnits(sourceCenterID, amountCents int64, keys []CostUnitKey, busine
 			continue
 		}
 		unitID := share.Key.TargetUnitID
-		rec, err := NewRecord(sourceCenterID, &unitID, nil, Cost, share.Cents, businessDate, "")
+		rec, err := NewRecord(sourceCentreID, &unitID, nil, Cost, share.Cents, businessDate, "")
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +110,7 @@ func planCostUnits(sourceCenterID, amountCents int64, keys []CostUnitKey, busine
 		records = append(records, rec)
 		moved += share.Cents
 	}
-	relief, err := NewRecord(sourceCenterID, nil, nil, Revenue, moved, businessDate, "")
+	relief, err := NewRecord(sourceCentreID, nil, nil, Revenue, moved, businessDate, "")
 	if err != nil {
 		return nil, err
 	}
@@ -119,16 +119,16 @@ func planCostUnits(sourceCenterID, amountCents int64, keys []CostUnitKey, busine
 }
 
 // DefineCostUnitKey validates and stores a Kostenträger key.
-func (s *Service) DefineCostUnitKey(ctx context.Context, sourceCenterID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (CostUnitKey, error) {
+func (s *Service) DefineCostUnitKey(ctx context.Context, sourceCentreID, targetUnitID, shareBP int64, validFrom time.Time, validTo *time.Time, by string) (CostUnitKey, error) {
 	if strings.TrimSpace(by) == "" {
 		return CostUnitKey{}, ErrActorRequired
 	}
-	key, err := NewCostUnitKey(sourceCenterID, targetUnitID, shareBP, validFrom, validTo)
+	key, err := NewCostUnitKey(sourceCentreID, targetUnitID, shareBP, validFrom, validTo)
 	if err != nil {
 		return CostUnitKey{}, err
 	}
 	// Both ends must exist, so a typo is a clear not-found rather than a foreign-key failure.
-	if _, err := s.repo.GetCostCenter(ctx, sourceCenterID); err != nil {
+	if _, err := s.repo.GetCostCentre(ctx, sourceCentreID); err != nil {
 		return CostUnitKey{}, err
 	}
 	unit, err := s.repo.GetCostUnit(ctx, targetUnitID)
@@ -143,7 +143,7 @@ func (s *Service) DefineCostUnitKey(ctx context.Context, sourceCenterID, targetU
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
 		Action:  "cost_unit_key.define",
-		Subject: costCenterSubject(sourceCenterID),
+		Subject: costCentreSubject(sourceCentreID),
 		After: fmt.Sprintf("target_unit=%s share_bp=%d valid_from=%s",
 			unit.Number, saved.ShareBP, saved.ValidFrom.Format("2006-01-02")),
 	}); err != nil {
@@ -154,29 +154,29 @@ func (s *Service) DefineCostUnitKey(ctx context.Context, sourceCenterID, targetU
 
 // CostUnitKeys lists a cost centre's Kostenträger keys. An unknown centre is a not-found rather
 // than an empty list, exactly as reading its report is.
-func (s *Service) CostUnitKeys(ctx context.Context, sourceCenterID int64) ([]CostUnitKey, error) {
-	if _, err := s.repo.GetCostCenter(ctx, sourceCenterID); err != nil {
+func (s *Service) CostUnitKeys(ctx context.Context, sourceCentreID int64) ([]CostUnitKey, error) {
+	if _, err := s.repo.GetCostCentre(ctx, sourceCentreID); err != nil {
 		return nil, err
 	}
-	return s.repo.CostUnitKeys(ctx, sourceCenterID)
+	return s.repo.CostUnitKeys(ctx, sourceCentreID)
 }
 
 // AllocateToCostUnits runs the Kostenträgerrechnung for one cost centre over a period: the costs
 // booked on it in that period are attributed to its cost units in the shares its keys give, and
 // the source is relieved by the same amount. A second run over the same period is refused — the
 // costs must not be attributed twice — and so is a run over a period with no costs.
-func (s *Service) AllocateToCostUnits(ctx context.Context, sourceCenterID int64, from, to time.Time, by string) (Run, error) {
+func (s *Service) AllocateToCostUnits(ctx context.Context, sourceCentreID int64, from, to time.Time, by string) (Run, error) {
 	if strings.TrimSpace(by) == "" {
 		return Run{}, ErrActorRequired
 	}
 	if to.Before(from) {
 		return Run{}, ErrAllocationRunPeriod
 	}
-	if _, err := s.repo.GetCostCenter(ctx, sourceCenterID); err != nil {
+	if _, err := s.repo.GetCostCentre(ctx, sourceCentreID); err != nil {
 		return Run{}, err
 	}
 
-	keys, err := s.repo.CostUnitKeys(ctx, sourceCenterID)
+	keys, err := s.repo.CostUnitKeys(ctx, sourceCentreID)
 	if err != nil {
 		return Run{}, err
 	}
@@ -191,7 +191,7 @@ func (s *Service) AllocateToCostUnits(ctx context.Context, sourceCenterID int64,
 		return Run{}, ErrAllocationRunNoTargets
 	}
 
-	amount, err := s.repo.CostsInPeriod(ctx, sourceCenterID, from, to)
+	amount, err := s.repo.CostsInPeriod(ctx, sourceCentreID, from, to)
 	if err != nil {
 		return Run{}, err
 	}
@@ -199,12 +199,12 @@ func (s *Service) AllocateToCostUnits(ctx context.Context, sourceCenterID int64,
 	// than by a second check here, so the rule lives in one place.
 
 	// The records a run writes belong to the period it distributed, not to the day it ran.
-	records, err := planCostUnits(sourceCenterID, amount, eligible, to, by)
+	records, err := planCostUnits(sourceCentreID, amount, eligible, to, by)
 	if err != nil {
 		return Run{}, err
 	}
 	run, err := s.repo.RecordCostUnitRun(ctx, Run{
-		SourceCenterID: sourceCenterID,
+		SourceCentreID: sourceCentreID,
 		PeriodFrom:     from,
 		PeriodTo:       to,
 		AllocatedCents: amount,
@@ -217,7 +217,7 @@ func (s *Service) AllocateToCostUnits(ctx context.Context, sourceCenterID int64,
 	if _, err := s.audit.Append(ctx, audit.Event{
 		Actor:   by,
 		Action:  "cost_unit_run.run",
-		Subject: costCenterSubject(sourceCenterID),
+		Subject: costCentreSubject(sourceCentreID),
 		After: fmt.Sprintf("period=%s..%s allocated_cents=%d receivers=%d",
 			from.Format("2006-01-02"), to.Format("2006-01-02"), run.AllocatedCents, run.Receivers),
 	}); err != nil {

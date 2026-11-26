@@ -8,14 +8,14 @@ import (
 
 func TestNoticeLoadsTheStoredDocumentKey(t *testing.T) {
 	repo := &fakeDunningRepo{notice: DunningNotice{
-		ClaimReference: "CLAIM-1", LevelCode: "2", OutstandingCents: 10000,
+		ReceivableReference: "RECEIVABLE-1", LevelCode: "2", OutstandingCents: 10000,
 		ChargeCents: 500, DocumentKey: "dunning/9.pdf",
 	}}
 	got, err := NewDunningService(repo, &fakeAudit{}).Notice(context.Background(), 9)
 	if err != nil {
 		t.Fatalf("Notice: %v", err)
 	}
-	if got.ID != 9 || got.DocumentKey != "dunning/9.pdf" || got.ClaimReference != "CLAIM-1" {
+	if got.ID != 9 || got.DocumentKey != "dunning/9.pdf" || got.ReceivableReference != "RECEIVABLE-1" {
 		t.Fatalf("notice = %+v", got)
 	}
 }

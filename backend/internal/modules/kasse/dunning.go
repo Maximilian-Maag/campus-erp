@@ -19,8 +19,8 @@ var (
 	ErrNegativeBand = errors.New("kasse: dunning band values must not be negative")
 	// ErrLevelInactive is returned when an inactive level is used.
 	ErrLevelInactive = errors.New("kasse: the dunning level is inactive")
-	// ErrClaimRequired is returned when a notice has no claim reference.
-	ErrClaimRequired = errors.New("kasse: a claim reference is required")
+	// ErrReceivableRequired is returned when a notice has no receivable reference.
+	ErrReceivableRequired = errors.New("kasse: a receivable reference is required")
 	// ErrOpenBandNotLast is returned when an open-ended band is not the last one.
 	ErrOpenBandNotLast = errors.New("kasse: an open-ended band must be the last band")
 	// ErrLevelExists is returned when the (year, code) pair is already taken.
@@ -116,26 +116,26 @@ func roundDiv(n, div int64) int64 {
 	return (n + div/2) / div
 }
 
-// DunningNotice is an issued dunning notice for a claim.
+// DunningNotice is an issued dunning notice for a receivable.
 type DunningNotice struct {
-	ID               int64
-	ClaimReference   string
-	LevelCode        string
-	OutstandingCents int64
-	ChargeCents      int64
-	IssuedOn         time.Time
-	IssuedBy         string
+	ID                  int64
+	ReceivableReference string
+	LevelCode           string
+	OutstandingCents    int64
+	ChargeCents         int64
+	IssuedOn            time.Time
+	IssuedBy            string
 	// DocumentKey names the stored PDF of this notice, empty when none was produced.
 	DocumentKey string
 }
 
 // NewDunningNotice validates a notice and computes its charge from the level.
-func NewDunningNotice(level DunningLevel, claimReference string, outstandingCents int64,
+func NewDunningNotice(level DunningLevel, receivableReference string, outstandingCents int64,
 	issuedOn time.Time, issuedBy string) (DunningNotice, error) {
 
-	claimReference = strings.TrimSpace(claimReference)
-	if claimReference == "" {
-		return DunningNotice{}, ErrClaimRequired
+	receivableReference = strings.TrimSpace(receivableReference)
+	if receivableReference == "" {
+		return DunningNotice{}, ErrReceivableRequired
 	}
 	if strings.TrimSpace(issuedBy) == "" {
 		return DunningNotice{}, ErrActorRequired
@@ -148,11 +148,11 @@ func NewDunningNotice(level DunningLevel, claimReference string, outstandingCent
 		return DunningNotice{}, err
 	}
 	return DunningNotice{
-		ClaimReference:   claimReference,
-		LevelCode:        level.Code,
-		OutstandingCents: outstandingCents,
-		ChargeCents:      charge,
-		IssuedOn:         issuedOn,
-		IssuedBy:         issuedBy,
+		ReceivableReference: receivableReference,
+		LevelCode:           level.Code,
+		OutstandingCents:    outstandingCents,
+		ChargeCents:         charge,
+		IssuedOn:            issuedOn,
+		IssuedBy:            issuedBy,
 	}, nil
 }

@@ -6,7 +6,7 @@ import { euroToCents, formatCents, formatDay } from '../core/format';
 import { PageComponent } from '../ui/page.component';
 
 /**
- * Kasse — Einzüge (SEPA direct-debit collection runs).
+ * Kasse — Einzugsläufe (SEPA direct-debit collection runs).
  *
  * A run produces one pain.008 file for one collection date and sequence type, and the screen
  * offers the two ways the API accepts items: gather the open receivables due by a date, or name
