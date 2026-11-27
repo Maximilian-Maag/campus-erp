@@ -90,6 +90,20 @@
         "erp-klr",
         "erp-reader"
       ]
+    },
+    {
+      "username": "leser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Lea",
+      "lastName": "Leser",
+      "email": "lea.leser@uni.ac.at",
+      "credentials": [
+        { "type": "password", "value": "lesen", "temporary": false }
+      ],
+      "realmRoles": [
+        "erp-reader"
+      ]
     }
   ]
 }

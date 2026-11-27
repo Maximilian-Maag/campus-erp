@@ -35,11 +35,13 @@ services:
       ERP_HTTP_ADDR: ":8080"
       ERP_TENANT: ${ERP_TENANT:-demo}
       ERP_ROLE: api
-      # OIDC (ADR-0003): with ERP_OIDC_JWKS_URL set the API requires bearer tokens
-      # on /api/* and enforces per-route roles.
-      ERP_OIDC_ISSUER: ${ERP_OIDC_ISSUER:-}
-      ERP_OIDC_AUDIENCE: ${ERP_OIDC_AUDIENCE:-}
-      ERP_OIDC_JWKS_URL: ${ERP_OIDC_JWKS_URL:-}
+      # OIDC (ADR-0003). Required: the api will not start without these. The issuer is the
+      # address the *browser* uses (it is what the token's `iss` says), the keys are fetched
+      # inside the compose network. Both defaults point at the bundled IdP; a deployment
+      # overrides them with its own (see the chart's config.oidc).
+      ERP_OIDC_ISSUER: ${ERP_OIDC_ISSUER:-http://localhost:9080/realms/campus-erp}
+      ERP_OIDC_AUDIENCE: ${ERP_OIDC_AUDIENCE:-campus-erp}
+      ERP_OIDC_JWKS_URL: ${ERP_OIDC_JWKS_URL:-http://keycloak:8080/realms/campus-erp/protocol/openid-connect/certs}
       # Multi-tenant DSN template (ADR-0002); unset runs single-tenant.
       ERP_TENANT_DSN: ${ERP_TENANT_DSN:-}
     depends_on:
@@ -99,10 +101,11 @@ services:
     image: ${IMAGE_FRONTEND:-campus-erp-frontend:dev}
     environment:
       API_UPSTREAM: api:8080
-      # The interface signs in against the same IdP as the API (ADR-0003). Empty means the
-      # login screen is not offered, which is the local default.
-      ERP_OIDC_ISSUER: ${ERP_OIDC_ISSUER:-}
-      ERP_OIDC_CLIENT_ID: ${ERP_OIDC_CLIENT_ID:-}
+      # The interface signs in against the same IdP as the API (ADR-0003): the login screen
+      # is the front door, not an option. Both values are what the api above is configured
+      # with, so the token the browser obtains is one the api will accept.
+      ERP_OIDC_ISSUER: ${ERP_OIDC_ISSUER:-http://localhost:9080/realms/campus-erp}
+      ERP_OIDC_CLIENT_ID: ${ERP_OIDC_CLIENT_ID:-campus-erp}
       ERP_OIDC_SCOPE: ${ERP_OIDC_SCOPE:-openid profile email}
       ERP_OIDC_REDIRECT_URI: ${ERP_OIDC_REDIRECT_URI:-}
     depends_on:
@@ -114,12 +117,10 @@ services:
 
   # ── ADR-0007 infrastructure (dev / single-host parity with the chart) ─────────
   keycloak:
-    # The local identity provider, so the sign-in flow can be tried for real:
-    #   make run-idp
-    # Opt-in (profile `idp`): `make run` leaves the stack unauthenticated, which is what
-    # the end-to-end tests assume (docs/33). The realm is imported from a file every
+    # The identity provider this stack signs in against (docs/33). It is not optional: the
+    # api refuses to start without an issuer, because a web application on a host answers
+    # people, and it has to know who they are. The realm is imported from a file every
     # start, so the users, roles and the PKCE client are declared, not clicked together.
-    profiles: ["idp"]
     image: quay.io/keycloak/keycloak:26.0
     command: ["start-dev", "--import-realm"]
     environment:

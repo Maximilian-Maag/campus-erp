@@ -68,9 +68,9 @@ MUTATION_SHARD_TIMEOUT ?=
 API_PROXY_TARGET ?= http://localhost:8080   # workon-frontend -> deployed backend
 DATABASE_URL     ?= postgres://postgres:***@localhost:5433/campus_erp?sslmode=disable
 
-# The local identity provider (`make run-idp`, deploy/local/keycloak). Two addresses on
-# purpose: the browser reaches the issuer on the host port, the API fetches the signing
-# keys from inside the compose network — and the token's `iss` must be the browser's.
+# Sign-in: the stack ships a Keycloak realm (deploy/local/keycloak) and the api refuses to
+# start without an issuer (ADR-0003), so these defaults are what `make run` gives you. A real
+# deployment overrides all four with its own IdP — the chart requires them.
 IDP_PORT     ?= 9080
 IDP_REALM    ?= campus-erp
 IDP_ISSUER   ?= http://localhost:$(IDP_PORT)/realms/$(IDP_REALM)
@@ -161,28 +161,26 @@ check-tools: ## Report which optional tools are available
 deps: go-deps frontend-install ## Install the dependencies (Go modules, npm packages)
 
 dev-setup: ## Wire a fresh checkout into a running stack (deps, hooks, .env, IdP)
-	@$(ROOT)/tools/dev_setup.sh $(if $(filter 0,$(IDP)),--no-idp,)
+	@$(ROOT)/tools/dev_setup.sh
 
 build: backend-build frontend-build ## Build the backend binaries and the Angular bundle
 
-run: ## Build the images and start the stack (postgres, api, worker, connectors, web)
+run: ## Build the images and start the stack (postgres, api, worker, connectors, web, IdP)
 	$(call require,docker)
-	$(COMPOSE) $(if $(IDP),--profile idp,) up -d --build
-	# The local IdP has to have imported its realm before the interface asks it for a
-	# discovery document, or the first sign-in says "the IdP is unreachable".
-	@if [[ -n "$(IDP)" ]]; then \
-	  echo "waiting for the local IdP ($(IDP_ISSUER))"; \
-	  for i in $$(seq 1 60); do \
-	    if curl -fsS -o /dev/null "$(IDP_ISSUER)/.well-known/openid-configuration" 2>/dev/null; then \
-	      echo "ok: $(IDP_ISSUER)"; break; \
-	    fi; \
-	    if (( i == 60 )); then \
-	      $(COMPOSE) --profile idp logs --tail=30 keycloak; \
-	      echo "error: the local IdP did not report ready within 2 minutes"; exit 1; \
-	    fi; \
-	    sleep 2; \
-	  done; \
-	fi
+	$(COMPOSE) up -d --build
+	# The IdP has to have imported its realm before the interface asks it for a discovery
+	# document, or the first sign-in says "the IdP is unreachable".
+	@echo "waiting for the IdP ($(IDP_ISSUER))"
+	@for i in $$(seq 1 60); do \
+	  if curl -fsS -o /dev/null "$(IDP_ISSUER)/.well-known/openid-configuration" 2>/dev/null; then \
+	    echo "ok: $(IDP_ISSUER)"; break; \
+	  fi; \
+	  if (( i == 60 )); then \
+	    $(COMPOSE) logs --tail=30 keycloak; \
+	    echo "error: the IdP did not report ready within 2 minutes"; exit 1; \
+	  fi; \
+	  sleep 2; \
+	done
 	# Wait on the api's own readiness route rather than on `--wait`: a cold postgres
 	# needs a while to accept connections, and `--wait` aborts the moment a container
 	# is *unhealthy* once - which a first boot with migrations can be, permanently red
@@ -201,24 +199,14 @@ run: ## Build the images and start the stack (postgres, api, worker, connectors,
 	@echo
 	@echo "web  http://localhost:8081"
 	@echo "api  http://localhost:8080  (readiness: /readyz)"
-	@if [[ -n "$(IDP)" ]]; then \
-	  echo "idp  $(IDP_ISSUER)  (sign in as max.maag / kasse)"; \
-	else \
-	  echo "auth off  -  the interface opens without a session (the e2e mode);"; \
-	  echo "            'make run-idp' or 'make dev-setup' to reach the login page"; \
-	fi
+	@echo "idp  $(IDP_ISSUER)  (sign in as max.maag / kasse)"
 
-run-idp: ## Start the stack with a local IdP (Keycloak), so the login page is live
-	# The four values are what the interface and the API need to agree on; they are
-	# passed to the sub-make so that a plain `make run` keeps the stack open.
-	$(MAKE) --no-print-directory run IDP=1 \
-	  ERP_OIDC_ISSUER=$(IDP_ISSUER) \
-	  ERP_OIDC_CLIENT_ID=$(IDP_CLIENT) \
-	  ERP_OIDC_AUDIENCE=$(IDP_CLIENT) \
-	  ERP_OIDC_JWKS_URL=$(IDP_JWKS_URL)
+run-idp: ## Alias of `run`: the stack always signs in (kept for muscle memory)
+	@echo "note: every stack now includes the IdP; 'make run' is the same thing"
+	@$(MAKE) --no-print-directory run
 
 stop: ## Stop the stack (keeps the database volume)
-	$(COMPOSE) --profile idp down
+	$(COMPOSE) down
 
 logs: ## Tail the stack's logs (make logs S=api to filter)
 	$(COMPOSE) logs -f $(S)
@@ -477,9 +465,15 @@ shell: ## A shell inside the running api container
 clean-data: ## Stop the stack and delete the database volume
 	$(COMPOSE) down -v
 
-workon-backend: db-up ## Run the api locally against the compose database
+workon-backend: db-up ## Run the api locally against the compose database and the compose IdP
 	@echo "backend: http://localhost:8080  ->  $(DATABASE_URL)"
-	cd $(BACKEND) && DATABASE_URL="$(DATABASE_URL)" $(GO) run ./cmd/api
+	# The api refuses to start without an issuer (ADR-0003), and a locally-run process reaches
+	# the IdP on the host port rather than inside the compose network.
+	cd $(BACKEND) && DATABASE_URL="$(DATABASE_URL)" \
+	  ERP_OIDC_ISSUER="$(IDP_ISSUER)" \
+	  ERP_OIDC_AUDIENCE="$(IDP_CLIENT)" \
+	  ERP_OIDC_JWKS_URL="$(IDP_ISSUER)/protocol/openid-connect/certs" \
+	  $(GO) run ./cmd/api
 
 workon-frontend: ## Dev-serve the SPA, proxying /api to API_PROXY_TARGET (deployed backend)
 	@echo "frontend: http://localhost:4200  ->  /api -> $(API_PROXY_TARGET)"

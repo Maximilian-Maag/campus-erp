@@ -12,7 +12,10 @@ type Config struct {
 	Role     string
 	Tenant   string
 
-	// OIDC (ADR-0003). When OIDCJWKSURL is set the API requires bearer tokens.
+	// OIDC (ADR-0003). Required for the api role: the interface is a web application on a
+	// host, so every /api/* request is proved against an IdP's keys and the roles in the
+	// token decide what the caller may do. A build with no issuer would answer anyone who
+	// can reach the Service, which is why config.Load refuses it rather than logging it.
 	OIDCIssuer   string
 	OIDCAudience string
 	OIDCJWKSURL  string
@@ -56,6 +59,16 @@ func FromEnv(get func(string) string) (Config, error) {
 	case RoleAPI, RoleWorker, RoleConnectors:
 	default:
 		return Config{}, fmt.Errorf("config: unknown role %q", c.Role)
+	}
+	// The api answers requests on behalf of people, so it does not run without a way to tell
+	// who they are: an issuer to check tokens against and the keys to check them with. The
+	// worker and the connectors serve nobody and need neither.
+	if c.Role == RoleAPI {
+		if c.OIDCIssuer == "" || c.OIDCJWKSURL == "" {
+			return Config{}, fmt.Errorf(
+				"config: ERP_OIDC_ISSUER and ERP_OIDC_JWKS_URL are required for the api role: " +
+					"without them the api would answer /api/* without a token (ADR-0003)")
+		}
 	}
 	return c, nil
 }

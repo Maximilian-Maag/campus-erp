@@ -36,7 +36,7 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		log.Fatalf("%v", err)
 	}
 	ctx := context.Background()
 
@@ -129,12 +129,12 @@ func main() {
 			Exports:         jobs.NewExports(enqueuer),
 			Reports:         reportCatalogue,
 		}
-		if cfg.OIDCJWKSURL != "" {
-			deps.Auth = &auth.JWKVerifier{
-				Keys:     &auth.RemoteKeySet{URL: cfg.OIDCJWKSURL, TTL: time.Hour},
-				Issuer:   cfg.OIDCIssuer,
-				Audience: cfg.OIDCAudience,
-			}
+		// Config refuses to load the api role without these, so there is no branch here: a
+		// server that answered /api/* without checking a token cannot be built (ADR-0003).
+		deps.Auth = &auth.JWKVerifier{
+			Keys:     &auth.RemoteKeySet{URL: cfg.OIDCJWKSURL, TTL: time.Hour},
+			Issuer:   cfg.OIDCIssuer,
+			Audience: cfg.OIDCAudience,
 		}
 		return httpapi.New(deps)
 	}
@@ -175,11 +175,7 @@ func main() {
 		log.Printf("api listening on %s (tenant=%q role=%q)", cfg.HTTPAddr, cfg.Tenant, cfg.Role)
 	}
 
-	if cfg.OIDCJWKSURL == "" {
-		log.Printf("auth: DISABLED - /api/* answers without a token; set ERP_OIDC_JWKS_URL to require one (never deploy this way)")
-	} else {
-		log.Printf("auth: OIDC enabled (issuer=%q)", cfg.OIDCIssuer)
-	}
+	log.Printf("auth: OIDC enabled (issuer=%q, audience=%q)", cfg.OIDCIssuer, cfg.OIDCAudience)
 
 	if err := http.ListenAndServe(cfg.HTTPAddr, handler); err != nil {
 		log.Fatalf("serve: %v", err)
