@@ -1,0 +1,95 @@
+{
+  "realm": "campus-erp",
+  "enabled": true,
+  "displayName": "Campus ERP (local)",
+  "displayNameHtml": "Campus ERP (local)",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "erp-admin", "description": "Every module (the API accepts it wherever a module role is listed)" },
+      { "name": "erp-kasse", "description": "Cash desk, dunning, collection runs, mandates" },
+      { "name": "erp-finanzen", "description": "Foundations and tax data" },
+      { "name": "erp-personal", "description": "Personnel" },
+      { "name": "erp-klr", "description": "Cost and activity accounting" },
+      { "name": "erp-reader", "description": "Read-only access to every module" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "campus-erp",
+      "name": "Campus ERP",
+      "description": "The Angular interface: a public client using Authorization Code with PKCE",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8081/*",
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8081",
+        "http://localhost:4200"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "protocolMappers": [
+        {
+          "name": "campus-erp audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "campus-erp",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "realm roles as roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "max.maag",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Max",
+      "lastName": "Maag",
+      "email": "max.maag@uni.ac.at",
+      "credentials": [
+        { "type": "password", "value": "kasse", "temporary": false }
+      ],
+      "realmRoles": [
+        "erp-admin",
+        "erp-kasse",
+        "erp-finanzen",
+        "erp-personal",
+        "erp-klr",
+        "erp-reader"
+      ]
+    }
+  ]
+}

@@ -41,6 +41,36 @@ without a session, because the API is open — which is how the local compose st
 what the end-to-end tests assume. The guard and the interceptor are inert in that mode rather
 than pretending: with an issuer configured and no session, they redirect.
 
+## Signing in locally
+
+`make run-idp` starts the same stack plus a Keycloak realm
+(`deploy/local/keycloak/realm.json`, compose profile `idp`) and configures both halves
+against it, so the login screen is live and the whole round trip can be walked:
+
+```
+make run-idp        # http://localhost:8081, Keycloak on http://localhost:9080
+```
+
+Sign in as **max.maag / kasse**. The realm declares the six `erp-*` roles and gives that user
+all of them, so every screen is reachable; it also declares the public client `campus-erp`
+with `S256` PKCE, `http://localhost:8081/*` (and `:4200` for `ng serve`) as the redirect
+address, and the two mappers that matter to the API:
+
+- **realm roles → `roles`** — the API reads `roles`, Keycloak's own claim is
+  `realm_access.roles`, so without this mapper every request is authenticated and forbidden.
+- **audience `campus-erp`** — so `ERP_OIDC_AUDIENCE` can be, and is, set: a token minted for
+  another client is refused.
+
+Two addresses, on purpose: the browser reaches the issuer at `http://localhost:9080/...`, and
+the token's `iss` is that value, so `ERP_OIDC_ISSUER` must be it — but the API fetches the
+signing keys from inside the compose network (`ERP_OIDC_JWKS_URL=http://keycloak:8080/...`).
+Setting the four `ERP_OIDC_*` values in `.env` instead of passing them makes a plain
+`make run` sit behind the login as well.
+
+The realm is imported from the file on every start; `make stop` also stops the IdP
+(`--profile idp`). Keycloak's `start-dev` keeps an in-memory database and serves plain HTTP —
+this is a development fixture, not a deployment.
+
 ## Configuration
 
 The image is built once and deployed many times, so the values are read at container start by
