@@ -192,6 +192,9 @@ run: ## Build the images and start the stack (postgres, api, worker, connectors,
 	@echo "api  http://localhost:8080  (readiness: /readyz)"
 	@if [[ -n "$(IDP)" ]]; then \
 	  echo "idp  $(IDP_ISSUER)  (sign in as max.maag / kasse)"; \
+	else \
+	  echo "auth off  -  the interface opens without a session (the e2e mode);"; \
+	  echo "            'make run-idp' or 'make dev-setup' to reach the login page"; \
 	fi
 
 run-idp: ## Start the stack with a local IdP (Keycloak), so the login page is live
