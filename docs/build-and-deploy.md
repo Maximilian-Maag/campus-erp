@@ -18,7 +18,8 @@ compose, installs what is missing (`make deps`, the Playwright chromium), sets
 `core.hooksPath`, copies `.env.example` to `.env` when there is none, and brings the whole
 stack up **including the local IdP** — so `http://localhost:8081` shows the login screen, not
 an open cashbook. It is idempotent: everything it would do, it checks first. `make dev-setup
-IDP=0` wires the same stack without the IdP, which is the mode the e2e suite assumes.
+`IDP=0` wires the same stack without the IdP, which is what plain `make run` does; the e2e
+suite stubs its own IdP and does not need this one.
 
 The Makefile needs only **docker**; the Go toolchain is optional (it falls back to the
 `golang:<go.mod version>-alpine` image with a named module cache), Node/npm is required for the
