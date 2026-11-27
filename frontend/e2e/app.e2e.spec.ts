@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session';
 import AxeBuilder from '@axe-core/playwright';
 
 test('shell renders and is accessible', async ({ page }) => {

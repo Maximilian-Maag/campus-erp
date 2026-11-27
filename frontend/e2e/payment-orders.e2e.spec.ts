@@ -1,4 +1,5 @@
-import { test, expect, type Route } from '@playwright/test';
+import { type Route } from '@playwright/test';
+import { test, expect } from './session';
 import AxeBuilder from '@axe-core/playwright';
 
 const base = {

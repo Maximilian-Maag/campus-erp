@@ -37,9 +37,27 @@ not verify the signature and never decides what is allowed: that is the API's ro
 ## A deployment without an issuer
 
 An empty `ERP_OIDC_ISSUER` writes a `config.json` with sign-in off. Every screen then works
-without a session, because the API is open — which is how the local compose stack runs, and
-what the end-to-end tests assume. The guard and the interceptor are inert in that mode rather
-than pretending: with an issuer configured and no session, they redirect.
+without a session, because the API is open — which is how `make run` starts, and what the
+compose stack defaults to for local work. The guard and the interceptor are inert in that mode
+rather than pretending: with an issuer configured and no session, they redirect.
+
+This is a *development* mode, not a deployment mode: it makes the API answer without a token,
+so it is only safe where nobody else can reach it. `make run-idp` and `make dev-setup` start
+the stack behind the local IdP for that reason, and the Helm chart is where a deployment
+declares its issuer (`config.oidc`).
+
+## The end-to-end suite runs signed in
+
+`frontend/e2e/session.ts` is the only `test` the specs import: an automatic fixture signs the
+tab in before the spec body, by walking the real round trip — the guard's redirect, the login
+screen's one action, the IdP's answer, the callback's exchange — against an IdP stubbed at the
+network edge. It does not seed `sessionStorage`: seeding tests that the application *reads* a
+session, the round trip tests that it *obtains* one, and every screen then renders for a
+signed-in clerk with a bearer token on each request.
+
+`auth.e2e.spec.ts` opts out and drives the states that exist without a session (the redirect,
+the callback, sign-out) on its own, including the one assertion about a deployment without an
+issuer.
 
 ## Signing in locally
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session';
 import AxeBuilder from '@axe-core/playwright';
 
 const costTypes = [{ ID: 1, Code: '4711', Name: 'Personalkosten', CreatedBy: 'alice' }];

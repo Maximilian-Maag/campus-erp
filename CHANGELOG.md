@@ -2,6 +2,20 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.171.0] - 2026-11-27
+
+Every end-to-end test now signs in, instead of running around the guard.
+
+Twenty-five of the twenty-six specs ran in the shape `make run` starts in, where `authGuard` is
+inert — ninety-six assertions about screens that were, in effect, assertions about a deployment
+nobody runs. `e2e/session.ts` exports the `test` the specs import: an automatic fixture signs
+the tab in before the body by walking the real round trip (guard, login action, IdP answer,
+callback exchange) against an IdP stubbed at the network edge, and leaves a bearer token on
+every request the screen then makes. It seeds nothing — the session is written by the
+application's own callback, so what it tests is that the interface *obtains* a session, not
+that it reads one. `auth.e2e.spec.ts` keeps the states that exist without a session, including
+the one assertion that a deployment with no issuer offers no login screen.
+
 ## [0.170.0] - 2026-11-27
 
 A fresh checkout becomes a running stack in one command, and the clock is the only thing it
