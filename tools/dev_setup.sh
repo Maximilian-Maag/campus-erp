@@ -10,8 +10,8 @@
 #   3. browser    the Playwright chromium `make test` and Stryker need
 #   4. hooks      `.githooks` as core.hooksPath, so the policy check runs on commit
 #   5. env        `.env` from `.env.example` when absent — never overwrites a real one
-#   6. stack      postgres, api, worker, connectors, web and the local IdP, so the login
-#                 screen is live (`make run-idp`); `--no-idp` leaves the stack open
+#   6. stack      postgres, api, worker, connectors, web and the IdP — every stack signs
+#                 in, because the api refuses to start without a way to identify a caller
 #   7. summary    the addresses, the demo credentials and the commands that come next
 #
 # Not here: `make build` (the images build themselves in step 6) and the mutation gates
@@ -20,10 +20,8 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-with_idp=1
 for arg in "$@"; do
   case $arg in
-    --no-idp) with_idp=0 ;;
     -h | --help)
       # The header comment, without the shebang: the same text, one place.
       awk 'NR > 1 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0"
@@ -109,21 +107,15 @@ set -a; . "$ROOT/.env"; set +a
 
 # ── 6. the stack ────────────────────────────────────────────────────────────
 step "local stack"
-if ((with_idp)); then
-  make -C "$ROOT" --no-print-directory run-idp || die "starting the stack failed"
-else
-  make -C "$ROOT" --no-print-directory run || die "starting the stack failed"
-fi
+make -C "$ROOT" --no-print-directory run || die "starting the stack failed"
 
 # ── 7. what now ─────────────────────────────────────────────────────────────
 step "ready"
 say "  web       http://localhost:${WEB_PORT:-8081}"
 say "  api       http://localhost:${API_PORT:-8080}  (readiness: /readyz)"
 say "  postgres  localhost:${POSTGRES_PORT:-5433}  -  'make db-shell' for a psql prompt"
-if ((with_idp)); then
-  say "  idp       http://localhost:${KEYCLOAK_PORT:-9080}/realms/${IDP_REALM:-campus-erp}"
-  say "            sign in as max.maag / kasse"
-fi
+say "  idp       http://localhost:${KEYCLOAK_PORT:-9080}/realms/${IDP_REALM:-campus-erp}"
+say "            sign in as max.maag / kasse"
 say "  shell     'make shell' for a shell inside the api container"
 say ""
 say "next:  make test      # the fast quality suite"

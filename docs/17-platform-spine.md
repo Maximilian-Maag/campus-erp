@@ -26,10 +26,11 @@ audit row says which tenant it belongs to. Roles are coarse (`erp-kasse`,
 `erp-admin`, …); the fine-grained legacy `sv_rechte_sachb` model maps onto them at
 the IdP.
 
-Config: `ERP_OIDC_ISSUER`, `ERP_OIDC_AUDIENCE`, `ERP_OIDC_JWKS_URL`. With the
-JWKS URL unset the API logs `auth: DISABLED`: it then answers `/api/*` without a token, which
-is a local-development shape only — the Helm chart refuses to render a release without an
-issuer and a JWKS URL (docs/build-and-deploy.md), and the message says so at startup.
+Config: `ERP_OIDC_ISSUER`, `ERP_OIDC_AUDIENCE`, `ERP_OIDC_JWKS_URL`. The first and the third
+are required for the `api` role: `config.Load` refuses to build one without them, so the
+process exits instead of serving `/api/*` unauthenticated (the worker and the connectors serve
+nobody and need neither). The Helm chart refuses to render a release without them too, so a
+missing issuer fails twice, at render and at start-up.
 
 ## 2. Tenancy — database per tenant (`internal/platform/tenant`)
 

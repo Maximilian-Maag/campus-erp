@@ -2,6 +2,25 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.173.0] - 2026-11-27
+
+There is no unauthenticated mode left to deploy by accident.
+
+The api has answered every `/api/*` request without a token whenever `ERP_OIDC_JWKS_URL` was
+unset, and the local stack shipped exactly that way — a web application on a host trusting
+whoever could reach it, with a log line as its only defence. `config.Load` now refuses the `api`
+role unless `ERP_OIDC_ISSUER` and `ERP_OIDC_JWKS_URL` are both set, and the process exits before
+it listens; the worker and the connectors serve nobody and still run without either. With that
+failsafe in place the chart's anonymous flag has nothing to enable, so it is gone: the only way
+to the api is a token the IdP signed, and the roles in it decide what the caller may do.
+
+Locally nothing has to be switched on any more. `make run` starts Keycloak with the rest of the
+stack and points both halves at it, so `/` is the login screen; `make run-idp` remains an alias
+for the muscle memory. `make workon-backend` passes the same issuer, which is what lets a
+locally-run api start at all. The interface keeps its graceful degradation for a `config.json`
+with no issuer — a blank screen is never the better failure — but that is now an error state
+with no api behind it rather than a mode with one.
+
 ## [0.172.0] - 2026-11-27
 
 A release cannot be installed without an identity provider any more.

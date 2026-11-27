@@ -16,10 +16,11 @@ make mutation   # the mutation gates (floor 0.85)
 `make dev-setup` is the first day in one command (`tools/dev_setup.sh`): it checks docker and
 compose, installs what is missing (`make deps`, the Playwright chromium), sets
 `core.hooksPath`, copies `.env.example` to `.env` when there is none, and brings the whole
-stack up **including the local IdP** — so `http://localhost:8081` shows the login screen, not
-an open cashbook. It is idempotent: everything it would do, it checks first. `make dev-setup
-`IDP=0` wires the same stack without the IdP, which is what plain `make run` does; the e2e
-suite stubs its own IdP and does not need this one.
+stack up. It is idempotent: everything it would do, it checks first.
+
+Every stack signs in. `make run` starts the IdP with the rest, because the api refuses to start
+without one — `http://localhost:8081` shows the login screen, never an open cashbook. The
+end-to-end suite stubs its own IdP at the network edge and needs no running Keycloak.
 
 The Makefile needs only **docker**; the Go toolchain is optional (it falls back to the
 `golang:<go.mod version>-alpine` image with a named module cache), Node/npm is required for the
@@ -33,7 +34,7 @@ needs day to day.
 
 | Group | Targets |
 |---|---|
-| Start here | `dev-setup`, `deps`, `build`, `run`, `run-idp`, `stop`, `logs`, `test`, `mutation`, `quality`, `clean` |
+| Start here | `dev-setup`, `deps`, `build`, `run`, `stop`, `logs`, `test`, `mutation`, `quality`, `clean` |
 | Components (what the verbs compose; CI runs them directly) | `go-deps`, `backend-build`, `backend-vet`, `backend-test`, `backend-mutation` (`PKG=` for one package), `frontend-install`, `frontend-build`, `frontend-test`, `frontend-e2e-install`, `frontend-e2e`, `frontend-mutation` |
 | Policy, contract, tooling | `policy`, `policy-ci`, `hooks`, `test-tools`, `contracts-check`, `contracts-gen`, `contracts-validate` |
 | Images & deploy | `docker-images`, `docker-backend`, `docker-frontend`, `docker-login`, `docker-publish`, `deploy-backend`, `deploy-frontend`, `helm-lint`, `helm-template`, `deploy-k8s`, `k8s-status` |
@@ -287,15 +288,13 @@ helm upgrade --install campus-erp deploy/helm/campus-erp \
   --set ingress.enabled=true
 ```
 
-**The chart fails closed.** `config.oidc.issuer` and `config.oidc.jwksUrl` are `required` in
-`templates/api.yaml`, so a `helm install` that forgets them stops with a message that names the
-value — it does not deploy an API that answers `/api/*` to anyone who can reach the Service.
-`make helm-template` renders the chart *and* asserts the refusal, so the guard cannot be
-removed quietly. The one way to get an open API is to ask for it by name:
-
-```bash
---set config.allowAnonymous=true      # a demo, never a release
-```
+**The chart fails closed, and so does the api.** `config.oidc.issuer` and
+`config.oidc.jwksUrl` are `required` in `templates/api.yaml`, so a `helm install` that forgets
+them stops with a message that names the value — it does not deploy an API that answers
+`/api/*` to anyone who can reach the Service. `make helm-template` renders the chart *and*
+asserts the refusal, so the guard cannot be removed quietly. There is no anonymous flag: the
+api itself refuses to start without an issuer (`ERP_OIDC_ISSUER`, `ERP_OIDC_JWKS_URL`), so a
+release that slipped past the chart would crash-loop instead of serving.
 
 ## Knobs (override on the command line or in `.env`)
 

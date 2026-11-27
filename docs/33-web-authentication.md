@@ -34,17 +34,21 @@ forgotten and the user is sent back to the login screen with `returnUrl` set.
 The interface only decodes the token to greet the user and to know when to refresh. It does
 not verify the signature and never decides what is allowed: that is the API's role table.
 
-## A deployment without an issuer
+## There is no unauthenticated mode
 
-An empty `ERP_OIDC_ISSUER` writes a `config.json` with sign-in off. Every screen then works
-without a session, because the API is open — which is how `make run` starts, and what the
-compose stack defaults to for local work. The guard and the interceptor are inert in that mode
-rather than pretending: with an issuer configured and no session, they redirect.
+The API is a web application on a host, so it does not run without a way to identify its
+caller: `config.Load` refuses the `api` role unless `ERP_OIDC_ISSUER` and `ERP_OIDC_JWKS_URL`
+are set, and the process exits before it opens a listener. A deployment that forgets them fails
+at start rather than answering `/api/*` to anyone who can reach it, and the Helm chart refuses
+to render without them for the same reason.
 
-This is a *development* mode, not a deployment mode: it makes the API answer without a token,
-so it is only safe where nobody else can reach it. `make run-idp` and `make dev-setup` start
-the stack behind the local IdP for that reason, and the Helm chart is where a deployment
-declares its issuer (`config.oidc`).
+The interface still degrades when a `config.json` carries no issuer — it drops the guard and
+the interceptor instead of pretending to be signed in — because a misconfigured web container
+must not blank the screen. With no api to talk to that is an error state, not a mode, and
+`auth.e2e.spec.ts` keeps a test for it so the fallback stays tested.
+
+In development the stack ships its own IdP, so there is nothing to switch on: `make run` starts
+Keycloak, the api and the interface against the same realm.
 
 ## The end-to-end suite runs signed in
 
@@ -61,16 +65,19 @@ issuer.
 
 ## Signing in locally
 
-`make run-idp` starts the same stack plus a Keycloak realm
-(`deploy/local/keycloak/realm.json`, compose profile `idp`) and configures both halves
-against it, so the login screen is live and the whole round trip can be walked:
+`make run` (and `make dev-setup`) starts the stack with a Keycloak realm imported from
+`deploy/local/keycloak/realm.json`, and configures both halves against it, so the login screen
+is live and the whole round trip can be walked:
 
 ```
-make run-idp        # http://localhost:8081, Keycloak on http://localhost:9080
+make run            # http://localhost:8081, Keycloak on http://localhost:9080
 ```
 
-Sign in as **max.maag / kasse**. The realm declares the six `erp-*` roles and gives that user
-all of them, so every screen is reachable; it also declares the public client `campus-erp`
+Sign in as **max.maag / kasse** — the clerk with all six `erp-*` roles, so every screen is
+reachable. **leser / lesen** is the second account: `erp-reader` only, which reads every module
+and is refused (403) on any write. The pair exists so the role gate can be seen working rather
+than described: `GET /api/payment-orders` answers 200 for both, `POST` answers 403 for the
+reader. The realm also declares the public client `campus-erp`
 with `S256` PKCE, `http://localhost:8081/*` (and `:4200` for `ng serve`) as the redirect
 address, and the two mappers that matter to the API:
 
@@ -82,12 +89,11 @@ address, and the two mappers that matter to the API:
 Two addresses, on purpose: the browser reaches the issuer at `http://localhost:9080/...`, and
 the token's `iss` is that value, so `ERP_OIDC_ISSUER` must be it — but the API fetches the
 signing keys from inside the compose network (`ERP_OIDC_JWKS_URL=http://keycloak:8080/...`).
-Setting the four `ERP_OIDC_*` values in `.env` instead of passing them makes a plain
-`make run` sit behind the login as well.
+Both defaults live in `docker-compose.yml`; `.env` overrides them for another IdP.
 
-The realm is imported from the file on every start; `make stop` also stops the IdP
-(`--profile idp`). Keycloak's `start-dev` keeps an in-memory database and serves plain HTTP —
-this is a development fixture, not a deployment.
+The realm is imported from the file on every start, and `make stop` stops the IdP with the rest
+of the stack. Keycloak's `start-dev` keeps an in-memory database and serves plain HTTP — this is
+a development fixture. A deployment brings its own IdP and its own `config.oidc` values.
 
 ## Configuration
 

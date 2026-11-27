@@ -22,7 +22,9 @@ make test          # fast suite: Go, Angular, tooling, contract
 ```
 
 `make dev-setup` is the one to run first: it wires what is missing and starts the stack with a
-local Keycloak realm, so the login screen is live (`max.maag` / `kasse`).
+local Keycloak realm, so the login screen is live (`max.maag` / `kasse`). Every stack signs in,
+and the API refuses to start without an issuer — the interface is a web application on a host,
+so who is calling decides what is allowed (ADR-0003).
 
 Only docker is required; the Go and Node toolchains are optional
 ([`docs/build-and-deploy.md`](docs/build-and-deploy.md)).
