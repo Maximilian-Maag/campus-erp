@@ -85,6 +85,17 @@ KUBE_CONTEXT ?=
 KUBECTL      := kubectl $(if $(KUBE_CONTEXT),--context $(KUBE_CONTEXT),)
 HELM         := helm $(if $(KUBE_CONTEXT),--kube-context $(KUBE_CONTEXT),)
 
+# The chart's image coordinates as `--set` flags: every target that renders the chart needs
+# them, and a release that renders with the wrong tag is a deployment of someone else's build.
+HELM_IMAGES = --set images.backend.repository="$(firstword $(subst :, ,$(IMAGE_BACKEND)))" \
+              --set images.backend.tag="$(lastword $(subst :, ,$(IMAGE_BACKEND)))" \
+              --set images.frontend.repository="$(firstword $(subst :, ,$(IMAGE_FRONTEND)))" \
+              --set images.frontend.tag="$(lastword $(subst :, ,$(IMAGE_FRONTEND)))"
+# A throwaway issuer for rendering and linting. The chart fails closed without one (ADR-0003),
+# so `helm template` needs *an* issuer; deploys take the real values from the operator.
+HELM_TEST_OIDC = --set config.oidc.issuer="https://idp.example.ac.at/realms/campus" \
+                 --set config.oidc.jwksUrl="https://idp.example.ac.at/realms/campus/protocol/openid-connect/certs"
+
 # Use the local Go toolchain when present, otherwise the container. The container
 # gets a named module cache volume: without one every `go` invocation downloads the
 # whole module set again, and `make deps` would install into a throwaway layer.
@@ -379,24 +390,27 @@ deploy-frontend: docker-frontend ## Build + (re)start the web service only
 
 helm-lint: ## helm lint the chart
 	$(call require,helm)
-	helm lint $(CHART)
+	# With an issuer: the chart renders. (Without one it fails closed, which is the point.)
+	helm lint $(CHART) $(HELM_TEST_OIDC)
 
-helm-template: ## Render the chart locally (no cluster needed)
+helm-template: ## Render the chart locally, and prove it refuses to render an open API
 	$(call require,helm)
 	helm template $(RELEASE) $(CHART) --namespace $(NAMESPACE) \
-	  --set images.backend.repository="$(firstword $(subst :, ,$(IMAGE_BACKEND)))" \
-	  --set images.backend.tag="$(lastword $(subst :, ,$(IMAGE_BACKEND)))" \
-	  --set images.frontend.repository="$(firstword $(subst :, ,$(IMAGE_FRONTEND)))" \
-	  --set images.frontend.tag="$(lastword $(subst :, ,$(IMAGE_FRONTEND)))"
+	  $(HELM_IMAGES) $(HELM_TEST_OIDC)
+	# The negative: an API that answers without a token must not be renderable by accident.
+	# `config.allowAnonymous=true` is the only way to get one, and it has to be typed.
+	@if helm template $(RELEASE) $(CHART) --namespace $(NAMESPACE) $(HELM_IMAGES) >/dev/null 2>&1; then \
+	  echo "FAIL: the chart rendered without config.oidc.jwksUrl - that release has an open API"; \
+	  exit 1; \
+	fi
+	@echo "ok: the chart refuses to render without config.oidc.issuer / jwksUrl"
 
-deploy-k8s: docker-publish ## helm upgrade --install the whole release
+deploy-k8s: docker-publish ## helm upgrade --install the whole release (needs config.oidc values)
 	$(call require,helm)
+	# No throwaway issuer here: a release takes the real `config.oidc.*` from its values file,
+	# and the chart fails closed when they are missing rather than deploying an open API.
 	$(HELM) upgrade --install $(RELEASE) $(CHART) \
-	  --namespace $(NAMESPACE) --create-namespace \
-	  --set images.backend.repository="$(firstword $(subst :, ,$(IMAGE_BACKEND)))" \
-	  --set images.backend.tag="$(lastword $(subst :, ,$(IMAGE_BACKEND)))" \
-	  --set images.frontend.repository="$(firstword $(subst :, ,$(IMAGE_FRONTEND)))" \
-	  --set images.frontend.tag="$(lastword $(subst :, ,$(IMAGE_FRONTEND)))"
+	  --namespace $(NAMESPACE) --create-namespace $(HELM_IMAGES)
 
 k8s-status: ## Show pods/services/ingress
 	$(call require,kubectl)
