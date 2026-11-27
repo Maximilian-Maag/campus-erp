@@ -14,11 +14,15 @@ e-invoicing (XRechnung 3.0) and KLR. Next: Personal, Finanzen and Campus — see
 ## Quick start
 
 ```bash
+make dev-setup     # a fresh checkout → deps, hooks, .env, and the whole stack, login included
 make deps          # Go modules + npm packages
 make build         # backend binaries + the Angular bundle
 make run           # postgres, api, worker, connectors, web on localhost
 make test          # fast suite: Go, Angular, tooling, contract
 ```
+
+`make dev-setup` is the one to run first: it wires what is missing and starts the stack with a
+local Keycloak realm, so the login screen is live (`max.maag` / `kasse`).
 
 Only docker is required; the Go and Node toolchains are optional
 ([`docs/build-and-deploy.md`](docs/build-and-deploy.md)).

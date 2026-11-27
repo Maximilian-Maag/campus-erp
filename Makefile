@@ -117,7 +117,7 @@ define require
 endef
 
 .PHONY: help check-tools \
-        deps go-deps frontend-install build backend-build frontend-build \
+        deps dev-setup go-deps frontend-install build backend-build frontend-build \
         run run-idp stop logs test mutation quality clean \
         backend-vet backend-test backend-mutation \
         frontend-test frontend-e2e-install frontend-e2e frontend-mutation \
@@ -125,7 +125,7 @@ endef
         contracts-check contracts-gen contracts-validate \
         docker-images docker-backend docker-frontend docker-login docker-publish \
         deploy-backend deploy-frontend helm-lint helm-template deploy-k8s k8s-status \
-        db-up db-shell clean-data workon-backend workon-frontend c4-pdf \
+        db-up db-shell shell clean-data workon-backend workon-frontend c4-pdf \
         mutation-targets go-deps-retry gremlins-install stack-smoke
 
 help: ## Show this help
@@ -148,6 +148,9 @@ check-tools: ## Report which optional tools are available
 
 ##@@ start here
 deps: go-deps frontend-install ## Install the dependencies (Go modules, npm packages)
+
+dev-setup: ## Wire a fresh checkout into a running stack (deps, hooks, .env, IdP)
+	@$(ROOT)/tools/dev_setup.sh $(if $(filter 0,$(IDP)),--no-idp,)
 
 build: backend-build frontend-build ## Build the backend binaries and the Angular bundle
 
@@ -189,6 +192,9 @@ run: ## Build the images and start the stack (postgres, api, worker, connectors,
 	@echo "api  http://localhost:8080  (readiness: /readyz)"
 	@if [[ -n "$(IDP)" ]]; then \
 	  echo "idp  $(IDP_ISSUER)  (sign in as max.maag / kasse)"; \
+	else \
+	  echo "auth off  -  the interface opens without a session (the e2e mode);"; \
+	  echo "            'make run-idp' or 'make dev-setup' to reach the login page"; \
 	fi
 
 run-idp: ## Start the stack with a local IdP (Keycloak), so the login page is live
@@ -450,6 +456,9 @@ db-up: ## Start only Postgres (for local backend/integration tests)
 
 db-shell: ## psql into the running Postgres
 	$(COMPOSE) exec postgres psql -U postgres -d $${POSTGRES_DB:-campus_erp}
+
+shell: ## A shell inside the running api container
+	$(COMPOSE) exec api /bin/sh
 
 clean-data: ## Stop the stack and delete the database volume
 	$(COMPOSE) down -v
