@@ -26,6 +26,9 @@ npm-debug.log*
 /c4/export/
 /c4/erm/
 
+# Local environment for `docker compose` and `make`. Ignored: it holds real values.
+/.env
+
 # editor / OS
 .DS_Store
 *.swp

@@ -113,6 +113,30 @@ services:
 
 
   # ── ADR-0007 infrastructure (dev / single-host parity with the chart) ─────────
+  keycloak:
+    # The local identity provider, so the sign-in flow can be tried for real:
+    #   make run-idp
+    # Opt-in (profile `idp`): `make run` leaves the stack unauthenticated, which is what
+    # the end-to-end tests assume (docs/33). The realm is imported from a file every
+    # start, so the users, roles and the PKCE client are declared, not clicked together.
+    profiles: ["idp"]
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      # The issuer the browser sees is the one in the token, so it carries the host port;
+      # the API fetches the keys from inside the network instead (ERP_OIDC_JWKS_URL).
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-9080}
+      KC_HTTP_ENABLED: "true"
+      # A throwaway admin for looking at the realm in the console. Dev only: start-dev
+      # keeps an in-memory database and serves plain HTTP.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./deploy/local/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "${KEYCLOAK_PORT:-9080}:8080"
+    restart: unless-stopped
+
   rustfs:
     # Opt-in: the default artefact store is a directory (docs/26). RustFS is the
     # S3-compatible endpoint for the S3 path:

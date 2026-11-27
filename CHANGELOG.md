@@ -2,6 +2,27 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.169.0] - 2026-11-27
+
+The login screen can be walked for real on the local stack, not only inside a stubbed test.
+
+The interface has had a login since #190, but nothing local offered one: an empty
+`ERP_OIDC_ISSUER` makes `authGuard` inert by design, so `make run` opens straight on the
+cashbook and the screen is only ever seen with the IdP stubbed at the network edge. `make
+run-idp` starts the same stack with a Keycloak realm (`deploy/local/keycloak/realm.json`,
+compose profile `idp`) and configures both halves against it, so the whole PKCE round trip —
+redirect, code, exchange, bearer token, role gate — runs against a real IdP and a real API.
+The realm declares the six `erp-*` roles, gives the demo user all of them, and carries the two
+mappers the API needs: realm roles into the `roles` claim it reads, and a `campus-erp`
+audience so `ERP_OIDC_AUDIENCE` is enforced rather than empty. The issuer is the
+browser-facing address while the API fetches the keys over the compose network, which is why
+the two settings are separate. `make run` is unchanged and stays open, as the end-to-end suite
+assumes (docs/33).
+
+`.env` — which compose reads and which is where real values belong — is git-ignored now;
+`.env.example` gained the sign-in block, so pointing a plain `make run` at an issuer is a copy
+away instead of a guess.
+
 ## [0.168.0] - 2026-11-25
 
 A year's foundation book is carried over once, whatever reference the second attempt names.
