@@ -2,6 +2,23 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.170.0] - 2026-11-27
+
+A fresh checkout becomes a running stack in one command, and the clock is the only thing it
+cannot skip.
+
+Setting this repository up was a sequence of remembered steps — `make deps`, enable the hooks,
+copy `.env.example`, start the stack — and each of them was discovered by hitting the thing that
+failed without it: a commit that skipped the policy check, a frontend target without a browser,
+a stack that opened on the cashbook because nobody had said which issuer to use. `make
+dev-setup` (`tools/dev_setup.sh`) runs the sequence and checks before each step, so the second
+run is a few seconds and changes nothing; it reports what docker, compose and the optional
+toolchains are, installs only what is stale, and finishes by stating the addresses and the
+demo credentials rather than assuming they are known. It brings the stack up with the local IdP
+by design — the login screen is the front door of the product, and a developer should meet it
+on day one; `IDP=0` wires the open stack the end-to-end suite assumes. `make shell` opens a
+shell in the running api container, next to `make db-shell` for psql.
+
 ## [0.169.0] - 2026-11-27
 
 The login screen can be walked for real on the local stack, not only inside a stubbed test.

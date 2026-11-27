@@ -4,6 +4,7 @@ Everything runs through the top-level `Makefile`:
 
 ```bash
 make            # the help, grouped: start here / components / deploy
+make dev-setup  # a fresh checkout → deps, hooks, .env, the stack with the local IdP
 make deps       # Go modules + npm packages
 make build      # backend binaries + the Angular bundle
 make run        # build the images and start the stack
@@ -11,6 +12,13 @@ make stop       # stop it (the database volume is kept)
 make test       # the fast quality suite
 make mutation   # the mutation gates (floor 0.85)
 ```
+
+`make dev-setup` is the first day in one command (`tools/dev_setup.sh`): it checks docker and
+compose, installs what is missing (`make deps`, the Playwright chromium), sets
+`core.hooksPath`, copies `.env.example` to `.env` when there is none, and brings the whole
+stack up **including the local IdP** — so `http://localhost:8081` shows the login screen, not
+an open cashbook. It is idempotent: everything it would do, it checks first. `make dev-setup
+IDP=0` wires the same stack without the IdP, which is the mode the e2e suite assumes.
 
 The Makefile needs only **docker**; the Go toolchain is optional (it falls back to the
 `golang:<go.mod version>-alpine` image with a named module cache), Node/npm is required for the
@@ -24,11 +32,11 @@ needs day to day.
 
 | Group | Targets |
 |---|---|
-| Start here | `deps`, `build`, `run`, `stop`, `logs`, `test`, `mutation`, `quality`, `clean` |
+| Start here | `dev-setup`, `deps`, `build`, `run`, `run-idp`, `stop`, `logs`, `test`, `mutation`, `quality`, `clean` |
 | Components (what the verbs compose; CI runs them directly) | `go-deps`, `backend-build`, `backend-vet`, `backend-test`, `backend-mutation` (`PKG=` for one package), `frontend-install`, `frontend-build`, `frontend-test`, `frontend-e2e-install`, `frontend-e2e`, `frontend-mutation` |
 | Policy, contract, tooling | `policy`, `policy-ci`, `hooks`, `test-tools`, `contracts-check`, `contracts-gen`, `contracts-validate` |
 | Images & deploy | `docker-images`, `docker-backend`, `docker-frontend`, `docker-login`, `docker-publish`, `deploy-backend`, `deploy-frontend`, `helm-lint`, `helm-template`, `deploy-k8s`, `k8s-status` |
-| Database & one half at a time | `db-up`, `db-shell`, `clean-data`, `workon-backend`, `workon-frontend` |
+| Database & one half at a time | `db-up`, `db-shell`, `shell`, `clean-data`, `workon-backend`, `workon-frontend` |
 | Report | `c4-pdf` |
 
 `make test-tools` self-tests the *tooling*: the ER-model generator (`tools/test_erm.py` — one entity
