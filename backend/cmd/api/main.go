@@ -176,7 +176,7 @@ func main() {
 	}
 
 	if cfg.OIDCJWKSURL == "" {
-		log.Printf("auth: DISABLED (set ERP_OIDC_JWKS_URL to require tokens)")
+		log.Printf("auth: DISABLED - /api/* answers without a token; set ERP_OIDC_JWKS_URL to require one (never deploy this way)")
 	} else {
 		log.Printf("auth: OIDC enabled (issuer=%q)", cfg.OIDCIssuer)
 	}

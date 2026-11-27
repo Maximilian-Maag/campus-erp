@@ -282,7 +282,19 @@ Provide the DSN either as an existing secret or inline:
 ```bash
 helm upgrade --install campus-erp deploy/helm/campus-erp \
   --set database.existingSecret=campus-erp-dsn \
+  --set config.oidc.issuer=https://idp.uni.ac.at/realms/campus \
+  --set config.oidc.jwksUrl=https://idp.uni.ac.at/realms/campus/protocol/openid-connect/certs \
   --set ingress.enabled=true
+```
+
+**The chart fails closed.** `config.oidc.issuer` and `config.oidc.jwksUrl` are `required` in
+`templates/api.yaml`, so a `helm install` that forgets them stops with a message that names the
+value — it does not deploy an API that answers `/api/*` to anyone who can reach the Service.
+`make helm-template` renders the chart *and* asserts the refusal, so the guard cannot be
+removed quietly. The one way to get an open API is to ask for it by name:
+
+```bash
+--set config.allowAnonymous=true      # a demo, never a release
 ```
 
 ## Knobs (override on the command line or in `.env`)

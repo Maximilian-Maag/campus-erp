@@ -27,7 +27,9 @@ audit row says which tenant it belongs to. Roles are coarse (`erp-kasse`,
 the IdP.
 
 Config: `ERP_OIDC_ISSUER`, `ERP_OIDC_AUDIENCE`, `ERP_OIDC_JWKS_URL`. With the
-JWKS URL unset the API logs `auth: DISABLED`.
+JWKS URL unset the API logs `auth: DISABLED`: it then answers `/api/*` without a token, which
+is a local-development shape only — the Helm chart refuses to render a release without an
+issuer and a JWKS URL (docs/build-and-deploy.md), and the message says so at startup.
 
 ## 2. Tenancy — database per tenant (`internal/platform/tenant`)
 

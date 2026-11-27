@@ -36,6 +36,14 @@ spec:
             - name: http
               containerPort: 8080
           env:
+            # An API without a signing key answers /api/* to anyone who can reach the
+            # Service, so the chart refuses to render one unless the deployment says so
+            # out loud: `config.allowAnonymous` is the only way, and it is a demo, never a
+            # release (ADR-0003).
+            {{- if not .Values.config.allowAnonymous }}
+            {{- $_ := required "config.oidc.issuer is required: the API verifies every token against it. Set config.oidc.issuer and config.oidc.jwksUrl, or render a demo with config.allowAnonymous=true." .Values.config.oidc.issuer }}
+            {{- $_ := required "config.oidc.jwksUrl is required: without it the API answers /api/* without a token. Set config.oidc.issuer and config.oidc.jwksUrl, or render a demo with config.allowAnonymous=true." .Values.config.oidc.jwksUrl }}
+            {{- end }}
             - name: ERP_ROLE
               value: api
             - name: ERP_HTTP_ADDR

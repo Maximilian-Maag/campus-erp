@@ -23,12 +23,18 @@ config:
   # "{tenant}"). When present the API serves tenants multi-tenant (ADR-0002);
   # absent, it runs single-tenant against DATABASE_URL.
   tenantDsnKey: TENANT_DSN
-  # OIDC (ADR-0003). With jwksUrl set the API requires bearer tokens on /api/*;
-  # empty disables auth (local development only).
+  # OIDC (ADR-0003). The chart refuses to render without an issuer and a jwksUrl: with
+  # jwksUrl set the API requires bearer tokens on /api/* and enforces per-route roles, and
+  # without it the API answers anyone who can reach it. `allowAnonymous` below is the only
+  # way to deploy that, and it is a demo, never a release.
   oidc:
     issuer: ""
     audience: ""
     jwksUrl: ""
+  # Deploy the API with no token check at all. A demo/demo only: `helm install` then
+  # succeeds with an open API, which is what makes it a deliberate act rather than an
+  # oversight — the chart fails closed without it.
+  allowAnonymous: false
 
 # Per-tenant DSN. Either point at an existing Secret (recommended for prod) or let
 # the chart create one from `url` (handy for a first install / demos).

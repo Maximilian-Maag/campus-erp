@@ -2,6 +2,24 @@
 
 All notable changes to this repository. Format: Keep a Changelog.
 
+## [0.172.0] - 2026-11-27
+
+A release cannot be installed without an identity provider any more.
+
+`deploy/helm/campus-erp` shipped `config.oidc.jwksUrl: ""` and no template asked for it, so
+`helm install campus-erp` with the default values deployed an API that answered every `/api/*`
+request without a token — one forgotten value away from a university ERP with no
+authentication, and nothing in the log said so at install time. The chart now fails closed:
+`config.oidc.issuer` and `config.oidc.jwksUrl` are `required` in `templates/api.yaml`, the
+refusal names the value, and `make helm-template` renders the chart and then asserts that it
+*refuses* to render without them, so the guard cannot be deleted quietly. An open API is still
+possible, but only by asking for it by name (`--set config.allowAnonymous=true`), which reads
+like the demo it is.
+
+The local compose stack keeps its unauthenticated mode — it is documented as dev/demo and is
+what `make run` and the Go tests assume — but the API now says what that means at startup:
+`auth: DISABLED - /api/* answers without a token; ... (never deploy this way)`.
+
 ## [0.171.0] - 2026-11-27
 
 Every end-to-end test now signs in, instead of running around the guard.
